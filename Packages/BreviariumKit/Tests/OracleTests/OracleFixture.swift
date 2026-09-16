@@ -7,21 +7,28 @@ import Foundation
 /// constrained by `CLAUDE.md`'s "no third-party dependencies in the app or engine"
 /// rule, and both platforms this project targets locally (Linux CI, Windows 10+) ship a
 /// `tar` capable of `-xzf` at a fixed, well-known path.
-enum OracleFixture {
+///
+/// An `actor`, not an `enum` with `nonisolated(unsafe)` statics: Swift Testing runs
+/// `@Test` functions in parallel by default, and multiple `OracleTests` cases call this
+/// concurrently — an unsynchronised shared dictionary crashed the whole test binary
+/// (SIGSEGV) the first time this ran on CI, a real data race, not a false alarm.
+actor OracleFixture {
+    static let shared = OracleFixture()
+
     static let repoRoot: URL = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent()
 
-    private nonisolated(unsafe) static var mainYearCache: [Int: [String: String]] = [:]
-    private nonisolated(unsafe) static var spotCheckCache: [String: String]?
+    private var mainYearCache: [Int: [String: String]] = [:]
+    private var spotCheckCache: [String: String]?
 
     /// The main sweep's fixture text for one date (priest off, Latin/Bea only — the
     /// only combination that sweep covers), or `nil` if that date isn't in the sweep
     /// range (2025-2040).
-    static func main(year: Int, date: String) throws -> String? {
+    func main(year: Int, date: String) throws -> String? {
         if mainYearCache[year] == nil {
-            mainYearCache[year] = try extractAndRead(
-                archive: repoRoot.appendingPathComponent("data/oracle-fixtures/main/\(year).tar.gz")
+            mainYearCache[year] = try Self.extractAndRead(
+                archive: Self.repoRoot.appendingPathComponent("data/oracle-fixtures/main/\(year).tar.gz")
             )
         }
         return mainYearCache[year]?["\(year)/\(date)_priestN_latin.txt"]
@@ -29,9 +36,9 @@ enum OracleFixture {
 
     /// The spot-check fixture text for one filename (as `scripts/oracle-date-list.pl`
     /// names it, e.g. `"2026-04-05_priestY_latin_easter.txt"`).
-    static func spotCheck(filename: String) throws -> String? {
+    func spotCheck(filename: String) throws -> String? {
         if spotCheckCache == nil {
-            spotCheckCache = try extractAndRead(archive: repoRoot.appendingPathComponent("data/oracle-fixtures/spot-check.tar.gz"))
+            spotCheckCache = try Self.extractAndRead(archive: Self.repoRoot.appendingPathComponent("data/oracle-fixtures/spot-check.tar.gz"))
         }
         return spotCheckCache?["spot-check/\(filename)"]
     }

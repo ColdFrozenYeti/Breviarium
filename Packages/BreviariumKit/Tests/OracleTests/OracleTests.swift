@@ -91,26 +91,26 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 ///   Octave, not just its first — incorrectly keeps that file's proper antiphons
 ///   instead of falling back to the plain weekday's own; Paschaltide replaces every
 ///   psalm antiphon with a plain "Allelúia" that this pass doesn't produce).
-@Test func martyrsFeastMatchesTheRealOracleFor16September2026() throws {
+@Test func martyrsFeastMatchesTheRealOracleFor16September2026() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
 
-    let fixtureText = try #require(try OracleFixture.main(year: 2026, date: "2026-09-16"))
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-09-16"))
     let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .psalmodia, .canticum, .conclusio])
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 
-@Test func plainFeriaMatchesTheRealOracleFor19January2026() throws {
+@Test func plainFeriaMatchesTheRealOracleFor19January2026() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 2, ad: "vesperas", mense: 1)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
 
-    let fixtureText = try #require(try OracleFixture.main(year: 2026, date: "2026-01-19"))
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-01-19"))
     // .psalmodia excluded here: this date's psalms (114/119) are exactly the ones
     // Psalm.swift's own doc comment already flags as a deliberately deferred scope
     // limit -- verses the Bea psalter splits more finely than the plain numbering
@@ -119,14 +119,14 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 
-@Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() throws {
+@Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 1, ad: "vesperas", mense: 4)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
     let hour = try #require(assembler.assembleVespers(day: 5, month: 4, year: 2026, priest: true))
 
-    let fixtureText = try #require(try OracleFixture.spotCheck(filename: "2026-04-05_priestY_latin_easter.txt"))
+    let fixtureText = try #require(try await OracleFixture.shared.spotCheck(filename: "2026-04-05_priestY_latin_easter.txt"))
     let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .conclusio])
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
