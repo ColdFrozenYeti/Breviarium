@@ -286,6 +286,15 @@ No code. Two review documents, read closely from the submodule pin (`web/www/hor
 
 **Both documents are reviewed and approved by you before any engine code is written.**
 
+**M1 drafted (2026-09-16), awaiting your review.** `docs/do-format.md` and
+`docs/rubrics-1960-vespers.md` are written, cited to specific files/line numbers in the
+pinned submodule commit rather than paraphrased from memory. Confirmed `regress/` doesn't
+give M3 a cheaper calendar oracle (§6 of the rubrics doc) — it only lists date ranges
+worth exercising, not a precomputed date→office mapping. Both docs end with an explicit
+"open items" list of what's confirmed by reading the source vs. still a working theory
+(notably: the Pius XII Psalter option's exact mapping, and the RG section numbers DO's
+own comments cite) — flagged rather than presented as more settled than it is. M2 doesn't
+start until you've reviewed both.
 ### M2 — Data pipeline
 
 Build `BreviariumData` per the "Data pipeline" section above: parse, resolve static
