@@ -19,3 +19,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    volumes:
+      # oracle-worker.sh runs the actual per-date sweep inside the container (fast: one
+      # `docker compose exec` for the whole run, not one per date); raw/ is where it
+      # writes the (HTML-stripped, whitespace-collapsed, still-J-not-I) output that
+      # scripts/generate-oracle-fixtures.sh then gzips and moves into
+      # data/oracle-fixtures/ proper.
+      - ./oracle-worker.sh:/usr/local/bin/oracle-worker.sh:ro
+      - ../../data/oracle-fixtures/raw:/oracle-raw
