@@ -1,0 +1,38 @@
+name: Kit CI
+
+# BreviariumKit must build and test on Linux with the open-source Swift toolchain —
+# this is the cheap, fast, primary signal (Linux runner minutes, not macOS's 10x-costlier
+# ones). App builds and UI snapshot tests are a separate workflow (app-ci.yml) scoped to
+# only run when App/ or Packages/ change on a path that actually needs a macOS runner.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Packages/BreviariumKit/**"
+      - "data/oracle-fixtures/**"
+      - ".github/workflows/kit-ci.yml"
+  pull_request:
+    paths:
+      - "Packages/BreviariumKit/**"
+      - "data/oracle-fixtures/**"
+      - ".github/workflows/kit-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.3"
+
+      - name: swift build
+        working-directory: Packages/BreviariumKit
+        run: swift build
+
+      - name: swift test
+        working-directory: Packages/BreviariumKit
+        run: swift test
