@@ -70,6 +70,24 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(result == "Excita, quaesumus, Domine.\nr. Per Dominum nostrum Jesum Christum.\nR. Amen.")
 }
 
+@Test func resolvesAPrayerMacroWithATrailingSentenceFinalPeriod() {
+    // Real-world example: Commune/C3.txt's Oratio ends with the literal line
+    // "$Per Dominum." (sentence-final period), but Prayers.txt's own header is
+    // "[Per Dominum]", no period -- confirmed missing against real bundled data
+    // before this fix.
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Commune/C3.txt", sections: [
+            RawSection(name: "Oratio", condition: "", body: ["Beatorum Martyrum.", "$Per Dominum."])
+        ]),
+        RawOfficeFile(path: SectionResolver.prayersPath, sections: [
+            RawSection(name: "Per Dominum", condition: "", body: ["r. Per Dominum nostrum Jesum Christum."])
+        ]),
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    let result = resolver.resolve(path: "Commune/C3.txt", section: "Oratio")
+    #expect(result == "Beatorum Martyrum.\nr. Per Dominum nostrum Jesum Christum.")
+}
+
 @Test func pickesLastTrueConditionedVariant() {
     // Mirrors setupstring_parse_file's hash-overwrite semantics: later matching
     // headers win over earlier ones, matching DO's own load-time behaviour.

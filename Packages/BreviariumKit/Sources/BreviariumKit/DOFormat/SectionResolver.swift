@@ -33,6 +33,13 @@ public struct SectionResolver {
         resolveSection(path: path, section: section, depth: 0)
     }
 
+    /// Whether `path` defines `section` itself — for callers (`HourAssembler`) that need
+    /// to fall back to a different file (the Commune) when an office doesn't define a
+    /// section at all, distinct from the section existing but resolving empty.
+    public func sectionExists(path: String, section: String) -> Bool {
+        !corpus.rawSections(path: path, name: section).isEmpty
+    }
+
     /// The `[Rank]` field with its title auto-filled from `[Officium]`'s resolved text --
     /// mirrors `SetupString.pl`'s own safeguard substitution (`$sections{'Rank'} =~
     /// s/^.*?;;/$sections{'Officium'};;/;`, applied only `if (exists($sections{'Officium'}))`),
@@ -101,8 +108,7 @@ public struct SectionResolver {
                 }
                 resolvedLines.append(included)
             } else if line.first == "$" {
-                let name = String(line.dropFirst())
-                resolvedLines.append(resolveSection(path: Self.prayersPath, section: name, depth: depth + 1))
+                resolvedLines.append(resolvePrayerMacroLine(String(line.dropFirst()), depth: depth))
             } else if line.first == "&", let macroContext,
                 let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: self)
             {
@@ -113,6 +119,25 @@ public struct SectionResolver {
         }
 
         return resolvedLines.joined(separator: "\n")
+    }
+
+    /// A `$Name` line's captured name can carry a trailing sentence-final period as
+    /// literal text in the source (e.g. `Commune/C3.txt`'s Oratio ends with the line
+    /// `$Per Dominum.`, but `Prayers.txt`'s own header is `[Per Dominum]`, no period,
+    /// and its own resolved text already ends "...R. Amen." with its own period) --
+    /// confirmed by running a real Vespers assembly end to end, not documented in
+    /// do-format.md previously. Falls back to stripping one trailing `.` (without
+    /// re-adding it -- the resolved prayer text already supplies its own closing
+    /// punctuation) only when the full name doesn't resolve, so a real macro name that
+    /// happens to end in `.` is never second-guessed.
+    private func resolvePrayerMacroLine(_ name: String, depth: Int) -> String {
+        if sectionExists(path: Self.prayersPath, section: name) {
+            return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
+        }
+        if name.hasSuffix("."), sectionExists(path: Self.prayersPath, section: String(name.dropLast())) {
+            return resolveSection(path: Self.prayersPath, section: String(name.dropLast()), depth: depth + 1)
+        }
+        return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
     }
 
     private struct Inclusion {

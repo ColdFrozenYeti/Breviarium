@@ -1,3 +1,5 @@
+import Foundation
+
 /// A parsed `[Rank]` field: `Title;;DegreeLabel;;NumericPrecedence;;CommuneReference`
 /// (`do-format.md`). `numericPrecedence` is DO's old (pre-1960) nine-or-so-grade scale,
 /// used for every version's precedence comparisons regardless of which rubrics are being
@@ -22,11 +24,17 @@ public struct OfficeRank: Equatable, Sendable {
     /// `%tempora` hash: there's no real office here.
     public init?(rankFieldValue: String) {
         let parts = rankFieldValue.components(separatedBy: ";;")
-        guard parts.count >= 3, let precedence = Double(parts[2]) else { return nil }
+        // A resolved [Rank] field's numeric part can carry a trailing newline (the real
+        // file's own trailing blank line surviving through ConditionalLineProcessor's
+        // join) -- Double(_:) rejects that outright, so this only ever surfaced once
+        // Occurrence was actually run against real bundled data end to end, not the
+        // synthetic (already-trimmed) fixtures every unit test had used until then.
+        guard parts.count >= 3, let precedence = Double(parts[2].trimmingCharacters(in: .whitespacesAndNewlines))
+        else { return nil }
         title = parts[0]
         degreeLabel = parts[1]
         numericPrecedence = precedence
-        communeReference = parts.count > 3 ? parts[3] : ""
+        communeReference = parts.count > 3 ? parts[3].trimmingCharacters(in: .whitespacesAndNewlines) : ""
     }
 }
 

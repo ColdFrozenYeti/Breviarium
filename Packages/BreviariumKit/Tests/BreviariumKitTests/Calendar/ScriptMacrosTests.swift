@@ -6,7 +6,7 @@ private let vesperaContext = ConditionalContext(
 )
 
 private let prayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.txt", sections: [
-    RawSection(name: "Deus in adjutorium", condition: "", body: [
+    RawSection(name: "Deus in adiutorium", condition: "", body: [
         "V. Deus in adiutorium meum intende.", "R. Domine, ad adiuvandum me festina.",
     ]),
     RawSection(name: "Alleluia", condition: "", body: [

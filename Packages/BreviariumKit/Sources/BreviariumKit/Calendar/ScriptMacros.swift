@@ -65,9 +65,17 @@ public enum ScriptMacros {
 
     /// `horasscripts.pl:30-63`. The ferial/festal/solemn tone selection is entirely a
     /// GABC/chant concern (`$lang !~ /gabc/` is always true for us, so DO's own logic
-    /// always takes that branch too) — always the plain "Deus in adjutorium" text.
+    /// always takes that branch too) — always the plain "Deus in adiutorium" text.
+    ///
+    /// The section name is queried with the I-spelling, not `Prayers.txt`'s own literal
+    /// `[Deus in adjutorium]` header: `LatinOrthography.normalize` runs over the whole
+    /// raw file text before `RawSectionParser` ever splits it into sections, so a
+    /// header naming a real Latin word (not a `@`/`$`/`&` reference identifier, which
+    /// are exempted) is stored J-to-I-normalized like any other prose in the file —
+    /// confirmed missing against the real bundle before this fix (querying the literal
+    /// `j`-spelling silently found nothing).
     private static func deusInAdjutorium(resolver: SectionResolver) -> String {
-        resolver.resolve(path: SectionResolver.prayersPath, section: "Deus in adjutorium")
+        resolver.resolve(path: SectionResolver.prayersPath, section: "Deus in adiutorium")
     }
 
     /// `horasscripts.pl:64-83`. Chooses "Allelúia" vs. the penitential "Laus tibi,

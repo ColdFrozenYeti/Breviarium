@@ -16,6 +16,16 @@ import Testing
     #expect(feria?.numericPrecedence == 1.2)
 }
 
+@Test func parsesRankValuesWithATrailingNewline() {
+    // A resolved [Rank] field's numeric field can carry a trailing newline -- the real
+    // file's own trailing blank line surviving through ConditionalLineProcessor's join
+    // (confirmed against the real DO corpus: Tempora/Pent16-3.txt's own [Rank] body is
+    // [";;Feria;;1", ""], which joins to ";;Feria;;1\n") -- Double(_:) rejects that
+    // outright unless trimmed first.
+    let rank = OfficeRank(rankFieldValue: ";;Feria;;1\n")
+    #expect(rank?.numericPrecedence == 1)
+}
+
 @Test func missingOrMalformedRankReturnsNil() {
     #expect(OfficeRank(rankFieldValue: "") == nil)
     #expect(OfficeRank(rankFieldValue: "just one field") == nil)

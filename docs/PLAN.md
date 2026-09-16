@@ -521,11 +521,43 @@ psalm's own verse-text file -> office/Commune antiphon -> `&Gloria` doxology), n
 single section lookup, while `#Incipit`/`#Conclusio` were already fully solved by the
 macro evaluator above.
 
-**Not yet built:** the `HourAssembler` itself (walking the skeleton, resolving each
-`#Name` section per the table above); the psalm-assembly routine; tracing Capitulum/
-Hymnus/Versus/Canticum/Preces/Oratio as closely as Psalmi and Incipit/Conclusio were
-(see the rubrics doc's new subsection for the exact remaining list); Latin/English
-pairing; and the actual oracle diff (`Tests/OracleTests`).
+**`HourAssembler` is built and produces a real, correct-looking Vespers (2026-09-17.)**
+`Hour`/`Section`/`Unit` (`Hour.swift`) is the formatting-free model `CLAUDE.md` calls
+for; `HourAssembler.swift` walks the resolved skeleton, assembles `#Psalmi` and
+`#Canticum: Magnificat` properly (proper `[Ant Vespera]`/`[Ant Vespera 3]` antiphon +
+psalm number, falling back to the weekday schedule, each psalm's real verse text from
+`Psalterium/Psalmorum/`, `&Gloria` doxology), and resolves `#Oratio`/`#Capitulum Hymnus
+Versus` with a Commune fallback when the office itself doesn't define a section.
+`#Preces Feriales` still isn't resolved (`horasscripts.pl`'s `preces()` gating wasn't
+traced) — see `HourAssembler`'s own doc comment for the full, current scope-limit list.
+
+Verified two ways: 8 synthetic unit tests, and a new permanent integration test
+(`VespersIntegrationTests.swift`) that assembles a real Vespers against the actual
+pinned DO checkout for 16 September 2026 (`CLAUDE.md`'s own worked example) and asserts
+concrete expected content. That integration test is what actually mattered here: it
+surfaced three real bugs no synthetic fixture had reason to expose, since a fixture's
+author naturally writes the query and the corresponding data consistently —
+
+1. `OfficeRank.init?(rankFieldValue:)` rejected a `[Rank]` field's numeric part when it
+   carried a trailing newline (the real file's own trailing blank line surviving
+   `ConditionalLineProcessor`'s join) — `Double(_:)` has no tolerance for that.
+2. `ScriptMacros` queried `Prayers.txt`'s `[Deus in adjutorium]` header by its literal
+   (pre-normalisation) `j`-spelling — but `LatinOrthography.normalize` runs over the
+   *whole* raw file text before `RawSectionParser` ever splits it into sections, so a
+   header naming a real Latin word (unlike a `@`/`$`/`&` reference identifier, which is
+   exempted) is stored J-to-I-normalised like any other prose in the file.
+3. A `$Name.` macro line's sentence-final period (real example: `Commune/C3.txt`'s
+   `[Oratio]` ends with the literal line `$Per Dominum.`) wasn't handled — `Prayers.txt`'s
+   own header is `[Per Dominum]`, no period, so the literal lookup silently found
+   nothing.
+
+None of these were exotic — all three are exactly the kind of thing that only surfaces
+by running the real pipeline end to end, which is the whole reason this integration
+test is being kept permanently rather than treated as a one-off diagnostic.
+
+**Not yet built:** `#Preces Feriales`; Latin/English pairing; and the actual oracle diff
+(`Tests/OracleTests`, which reads `data/oracle-fixtures/` and applies `LatinOrthography`
+at compare time).
 
 ### M5 — User interface
 
