@@ -87,11 +87,30 @@ the Windows SDK component in the section above needed an elevated terminal. Once
 `scripts/generate-oracle-fixtures.*` can run against the pinned DO checkout
 (`data/SOURCE.md`, `scripts/docker/docker-compose.yml`).
 
-## Status as of M0
+## Status
 
-Swift 6.3.3 and VS Build Tools 2022 (with the `VC.Tools.x86.x64` component) were
-installed, but the Windows 11 SDK component was missing and its installation needs the
-elevated step above — this was the one piece of M0 that needed manual action on this
-machine rather than being fully automatable. Once step 2 is done, `swift build`/`swift
-test` should be verified to pass before M1 begins in earnest, since M2 onward depends on
-the Kit actually building.
+**Confirmed working as of 2026-09-16.** `.\scripts\test-kit.ps1` builds and runs the full
+Kit test suite locally (121 tests, matching `kit-ci.yml`'s count exactly). Getting here
+took three separate fixes, kept here in case any recur after a future reinstall:
+
+1. The Windows 11 SDK component (§2 above) — needed an elevated install.
+2. `vcvars64.bat`'s own internals shell out to `vswhere.exe`, but the VS Installer never
+   adds its own folder to the registered PATH — `test-kit.ps1` now adds it itself.
+3. **The actual final blocker: a corrupted/incomplete Swift toolchain install**, not a
+   configuration issue. `swiftc` failed with "unable to load standard library for target
+   'x86_64-unknown-windows-msvc'" even with `vcvars64` correctly loaded (LIB/INCLUDE
+   verified pointing at the right SDK/MSVC paths) — tracked down to the Windows platform
+   SDK under `%LOCALAPPDATA%\Programs\Swift\Platforms\<version>\Windows.platform\...\
+   Windows.sdk\usr\lib\swift\windows\x86_64` having every compiled `.lib` file but **no
+   `.swiftmodule` files at all**, anywhere in the install — meaning `import Swift`
+   (implicit in every Swift file) could never resolve. Fixed by a clean reinstall:
+   `winget uninstall --id Swift.Toolchain`, deleting any leftover
+   `%LOCALAPPDATA%\Programs\Swift` folder, then `winget install --id Swift.Toolchain`
+   fresh.
+
+A separate, unrelated issue hit along the way: having two toolchain versions installed
+side by side (e.g. a leftover 6.3.3 alongside a newer 6.4.0) makes `swift build` refuse
+to run entirely ("platform 'windows' already registered") — `swift build`'s platform
+discovery scans every version folder under `Programs\Swift`, not just whichever is on
+PATH, so the fix is deleting the old version's `Toolchains`/`Runtimes`/`Platforms`
+folders outright, not just reordering PATH.
