@@ -19,6 +19,13 @@ if (-not (Test-Path $destDir)) {
     New-Item -ItemType Directory -Path $destDir -Force | Out-Null
 }
 
+# This gh CLI version has no --clobber/overwrite flag on "run download", and errors if
+# the destination file already exists -- so clear any previous download first.
+$existingIpa = Join-Path $destDir "Breviarium.ipa"
+if (Test-Path $existingIpa) {
+    Remove-Item $existingIpa -Force
+}
+
 Write-Host "Looking up the latest successful build-ipa.yml run..."
 $runId = gh run list --workflow "build-ipa.yml" --status success --limit 1 --json databaseId --jq ".[0].databaseId"
 
@@ -28,7 +35,7 @@ if ([string]::IsNullOrWhiteSpace($runId)) {
 }
 
 Write-Host "Downloading artifact from run $runId into $destDir ..."
-gh run download $runId --name "Breviarium-ipa" --dir $destDir --clobber
+gh run download $runId --name "Breviarium-ipa" --dir $destDir
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "gh run download failed."
