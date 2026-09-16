@@ -462,28 +462,40 @@ reduced fixture scope below. Done only when the diff is empty or every remaining
 difference is written up for you with the Codex Rubricarum 1960 citation and DO's output
 side by side, per `CLAUDE.md`'s rule against silently editing fixtures.
 
-**In progress (2026-09-16).** `Concurrence` is done and verified (113 passing tests
-total): the first-vs-second-Vespers decision `docs/rubrics-1960-vespers.md` §3 documents,
-including two further version-independent exclusions (an explicit `"No prima vespera"`
-`[Rule]` flag, and the Feria/Sabbato/Vigilia/Quatuor title exclusion with its override
-exceptions) found in the same `horascommon.pl` condition during M1.
+**In progress (2026-09-16).** `Concurrence` is done and verified: the first-vs-second-
+Vespers decision `docs/rubrics-1960-vespers.md` §3 documents, including two further
+version-independent exclusions (an explicit `"No prima vespera"` `[Rule]` flag, and the
+Feria/Sabbato/Vigilia/Quatuor title exclusion with its override exceptions) found in the
+same `horascommon.pl` condition during M1.
 
-**Not yet built:** commemorations (the rank-threshold filtering `docs/rubrics-1960-vespers.md`
-§2 already flagged as not restated with full numeric confidence — needs another careful
-read of that part of `horascommon.pl` before porting, not a quick add); the `&` script
-macro evaluator for the handful Vespers actually needs (`Deus_in_adjutorium`, `Alleluia`
-vs. Lenten `Laus tibi`, `Dominus_vobiscum`/priest toggle, `Benedicamus_Domino`, `Gloria`
-with its Triduum/Paschaltide variants); the `Hour`/`Section`/`Unit` assembly model reading
-`Ordinarium/Vespera.txt` end to end; Latin/English pairing; and
-`scripts/generate-oracle-fixtures.*` plus the actual oracle diff run.
+`Commemorations` is also done and verified (121 passing tests total): the four
+commemoration-filtering cases `docs/rubrics-1960-vespers.md` §2 documents from a full
+re-read of `concurrence()`'s closing blocks, filtered to the 1960-only branches. Building
+it surfaced and fixed a real, previously-undocumented-in-code gap: `[Rank]`'s title field
+needs auto-filling from `[Officium]`'s resolved text at load time (`SectionResolver.
+resolveRank`) — without it, every title-based rubric check (`Occurrence`'s RG15
+exception, `Concurrence`'s Feria/Sabbato/Vigilia exclusion) was reading an
+almost-always-empty field against real DO data.
 
-**Blocker to flag now rather than discover later:** the oracle diff this milestone is
-named for needs Docker (to run the pinned DO checkout locally) — not installed in this
-session (checked; `docker` isn't on `PATH`), and a heavier, more consequential install
-than the Swift toolchain/Windows SDK was (needs virtualization features, licence
-acceptance, likely a restart) — not something to install unprompted the way the Swift
-toolchain was. Needs your decision: install it yourself, or say so and this session can
-attempt it via `winget` the same way Swift was installed in M0.
+**Docker blocker resolved (2026-09-16).** You installed WSL2 and Docker Desktop
+yourself (the two genuinely-needs-a-human-at-the-keyboard steps this session flagged and
+documented in `docs/windows-swift-setup.md`). The oracle-fixture sweep now runs:
+`scripts/oracle-date-list.pl` builds the job manifest (main sweep + a spot check weighted
+toward `CLAUDE.md`'s named edge cases), `scripts/docker/oracle-worker.sh` renders each
+one inside the pinned DO container, and `scripts/generate-oracle-fixtures.sh` packs the
+result into `data/oracle-fixtures/`. First full run: 6,228 renders, zero empty/failed
+outputs, ~11.5 MB compressed — see `data/SOURCE.md` for the exact parameter mapping this
+surfaced (including a real DO quirk: requesting `lang2=Latin` doesn't collapse to a
+single column when `lang1=Latin-Bea`, silently rendering the Latin content twice, until
+both are requested as `Latin-Bea` explicitly).
+
+**Not yet built:** the actual oracle *diff* (`Tests/OracleTests`, which reads the
+now-generated fixtures and applies `LatinOrthography`'s J-to-I at compare time, per
+`data/SOURCE.md`); the `&` script macro evaluator for the handful Vespers actually needs
+(`Deus_in_adjutorium`, `Alleluia` vs. Lenten `Laus tibi`, `Dominus_vobiscum`/priest
+toggle, `Benedicamus_Domino`, `Gloria` with its Triduum/Paschaltide variants); the
+`Hour`/`Section`/`Unit` assembly model reading `Ordinarium/Vespera.txt` end to end; and
+Latin/English pairing.
 
 ### M5 — User interface
 
