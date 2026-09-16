@@ -1,0 +1,21 @@
+# Runs Divinum Officium locally, built from the pinned submodule commit recorded in
+# data/SOURCE.md — not the floating `ghcr.io/.../divinum-officium:master` image, so this
+# stays reproducible as the pin moves.
+#
+# Usage (from the repo root):
+#   docker compose -f scripts/docker/docker-compose.yml up --build -d
+#   curl http://localhost:8080/cgi-bin/horas/officium.pl
+#   docker compose -f scripts/docker/docker-compose.yml down
+#
+# Fixture generation (scripts/generate-oracle-fixtures.*) invokes officium.pl directly as
+# a Perl CLI script inside this container (see data/SOURCE.md — DO's own
+# regress/scripts/generate-diff.sh does the same) rather than over HTTP, which is
+# substantially faster for the ~6,000-call oracle sweep.
+
+services:
+  divinum-officium:
+    build:
+      context: ../../data/divinum-officium
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
