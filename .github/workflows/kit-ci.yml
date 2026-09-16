@@ -25,7 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: swift-actions/setup-swift@v2
+      # v2's supported-version list is a hardcoded array baked in at v2.4.0's release
+      # (tops out at 6.2.1), so it doesn't know about 6.3.3. v3 (in beta as of this
+      # writing, but the actively developed line -- v2 is legacy per the action's own
+      # README) resolves versions dynamically via Swiftly instead.
+      - uses: swift-actions/setup-swift@v3
         with:
           swift-version: "6.3.3"
 
