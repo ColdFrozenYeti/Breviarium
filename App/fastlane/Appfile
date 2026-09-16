@@ -1,0 +1,6 @@
+app_identifier("com.epavone.breviarium")
+
+# Team ID and Apple ID aren't hardcoded here — auth is entirely via the App Store
+# Connect API key (see docs/apple-developer-setup.md), which fastlane picks up from the
+# APP_STORE_CONNECT_API_KEY_* environment variables set in each workflow. No Apple ID
+# password or interactive 2FA is ever needed in CI.

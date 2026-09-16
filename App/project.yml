@@ -1,0 +1,74 @@
+name: Breviarium
+
+options:
+  bundleIdPrefix: com.epavone.breviarium
+  deploymentTarget:
+    iOS: "26.5"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1" # iPhone only
+    IPHONEOS_DEPLOYMENT_TARGET: "26.5"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  BreviariumKit:
+    path: ../Packages/BreviariumKit
+
+targets:
+  Breviarium:
+    type: application
+    platform: iOS
+    sources:
+      - path: Breviarium
+    dependencies:
+      - package: BreviariumKit
+        product: BreviariumKit
+    info:
+      path: Breviarium/Info.plist
+      properties:
+        CFBundleDisplayName: Breviarium
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+        # Fully offline app: no network entitlements, no background modes.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium
+        PRODUCT_NAME: Breviarium
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+
+  BreviariumUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: BreviariumUITests
+    dependencies:
+      - target: Breviarium
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Breviarium:
+    build:
+      targets:
+        Breviarium: all
+        BreviariumUITests: [test]
+    test:
+      targets:
+        - BreviariumUITests
+    run:
+      config: Debug
+    archive:
+      config: Release

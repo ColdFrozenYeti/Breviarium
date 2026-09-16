@@ -1,0 +1,74 @@
+name: App CI
+
+# Builds the app and runs the UI test/snapshot lane on a macOS runner. Scoped to only
+# fire when App/ or the Kit package actually changed, since macOS runner minutes cost
+# ~10x Linux minutes on GitHub's included quota (see docs/PLAN.md, Testing strategy).
+# No signing here — this builds for the simulator only. Archiving and TestFlight upload
+# is testflight.yml, which needs the certificates bootstrap-signing.yml sets up first.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "App/**"
+      - "Packages/BreviariumKit/**"
+      - ".github/workflows/app-ci.yml"
+  pull_request:
+    paths:
+      - "App/**"
+      - "Packages/BreviariumKit/**"
+      - ".github/workflows/app-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    env:
+      # Pinned explicitly rather than trusting the runner image's rolling default —
+      # see docs/PLAN.md, Risks ("Xcode/SDK version drift"). Confirmed present on the
+      # macos-26 GA image as of M0; revisit if GitHub deprecates that image.
+      XCODE_VERSION: "26.5"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false # DO submodule isn't needed to build the app itself
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: App
+        run: xcodegen generate
+
+      - name: Build for simulator
+        working-directory: App
+        run: |
+          xcodebuild build \
+            -project Breviarium.xcodeproj \
+            -scheme Breviarium \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=latest"
+
+      - name: Run UI tests
+        working-directory: App
+        run: |
+          xcodebuild test \
+            -project Breviarium.xcodeproj \
+            -scheme Breviarium \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: App/TestResults.xcresult
+          if-no-files-found: ignore
+
+      # M5 adds: extract rendered snapshot PNGs from TestResults.xcresult and upload
+      # them separately (named per screen/config) for visual comparison against
+      # design/reference/.
