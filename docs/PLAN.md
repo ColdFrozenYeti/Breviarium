@@ -399,6 +399,60 @@ rank/season/feast-type by our own rule table; M3 implements whichever it turns o
 with its own unit tests, and the colour becomes part of `LiturgicalDay` so the date picker
 is just reading engine output, not deciding colours itself.
 
+**Largely done (2026-09-16), verified on Kit CI (104 passing tests).** Built directly
+from `Date.pm` and `Main.pm`, both read closely rather than reconstructed from scratch:
+
+- `Computus` — Easter, leap years, day-of-year/day-of-week, first Sunday of Advent, the
+  `get_sday` leap-day trick, an `addDays` helper. Tested against well-known anchor dates
+  (1900/2000/2024/2025/2038) plus structural properties (Easter always a Sunday, always
+  22 Mar–25 Apr) checked across 2000–2100.
+- `TemporalCycle` — `weekName()`, the `getweek()` port giving every date its
+  `"Adv1"`/`"Quad3"`/`"Pasc0"`/`"Pent16"`-style season+week label. Verified against facts
+  cross-checked in M1's own reading of `horascommon.pl` (Ash Wednesday = Quadp3
+  Wednesday, Pentecost's vigil = Pasc6 Saturday), not just re-derived from the same port
+  being tested.
+- `LiturgicalColor`/`LiturgicalColorClassifier` — a genuine find: `Main.pm` already has a
+  `liturgical_color()` function (M1 had flagged this as unconfirmed). Its internal token
+  names are confusingly inverted (`'black'` means white vestments; `'grey'` means real
+  black) — remapped to real colour names here. Every case from DO's own
+  `t/DivinumOfficium/{LiturgicalColor,Main}.t` — 45+ real titles and regex-mechanics
+  probes — ported as Swift tests, DO's own pre-validated oracle for this function rather
+  than an independently reconstructed rule table.
+- `OfficeRank`/`RankDisplayName1960` — parses `[Rank]`; the 8-entry 1960 display-name
+  table from `docs/rubrics-1960-vespers.md` §1.
+- `SanctoralCalendar` — date-keyed lookup over the flattened Kalendaria table.
+- `Occurrence` — the **1960-specific core** of `occurrence()`'s rank-comparison decision
+  (`docs/rubrics-1960-vespers.md` §1): temporal vs. sanctoral, the Sunday-exception branch
+  for I./II. classis feasts of the Lord, the RG 15 Immaculate Conception exception.
+- `LiturgicalDay`/`TitleBlock`/`LiturgicalCalendarEngine` — ties it together: which office
+  wins, its rank/colour/title-block text.
+
+Two real test-authoring bugs (not production bugs) surfaced and got fixed by actually
+running this on Kit CI rather than trusting hand-derived expectations: a calendar-key
+mismatch in one `Occurrence` fixture, and a `[Rank]` field with the title text in the
+wrong slot. A third near-miss was caught and fixed *before* committing: hand-verifying
+16 September 2026's actual temporal path (`"Pent16-3"`) against the real computus, rather
+than trusting a first guess (`"Pent15-3"`, which was wrong).
+
+**Explicitly not yet covered, flagged rather than assumed handled:**
+
+- Permanent/annual temporal transfers (a fixed feast displaced by Holy Week — the
+  Annunciation/St Joseph transfer cases `CLAUDE.md` names), Ember days.
+- Concurrence — which office's Vespers is actually prayed when today's second Vespers
+  meets tomorrow's first (`docs/rubrics-1960-vespers.md` §3). `Occurrence` only decides
+  the *day's* office, not this Vespers-specific question yet.
+- Commemorations — `TitleBlock.commemorationLine` exists but is always `nil`; the
+  commemoration list itself isn't built.
+- Full validation against the DO oracle for 2025–2040 and `CLAUDE.md`'s named edge cases
+  — genuinely can't happen until M4 generates the oracle fixtures (no Docker/DO instance
+  available in this session to generate fresh data against).
+- `monthday()` (`Date.pm`) — a secondary Aug–Dec ferial-numbering scheme used for some
+  proper texts, not the primary day-name/occurrence logic — not ported this pass.
+
+These are the natural shape of M4 (Vespers assembly, which needs concurrence and
+commemorations regardless) and the oracle-generation step already planned there, not
+scope quietly dropped.
+
 ### M4 — Vespers assembly
 
 The full hour as the structured, formatting-free `Hour`/`Section`/`Unit` model, including
