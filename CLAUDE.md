@@ -29,6 +29,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - `BreviariumKit`, the data tool, and all engine tests must build and run with the open-source Swift toolchain (`swift build`, `swift test`) without Xcode.
   - Divinum Officium runs locally in Docker.
   - Milestones M0–M4 must be fully doable locally.
+  - **PowerShell scripts (`.ps1`) must be plain ASCII and parse under Windows PowerShell 5.1**, not just PowerShell 7+. 5.1 reads a script without a BOM using the system codepage, not UTF-8, so a multi-byte character (an em dash, a curly quote, an accented letter) gets mangled into something that breaks tokenization — this has already caused a real "string is missing the terminator" parse failure from a stray em dash. Use `-` instead of `—`/`–`, straight quotes only, and no accented letters, even in comments. Also avoid unescaped apostrophes inside single-quoted strings (`'don''t'` or switch to double quotes) — single quotes have no escape character otherwise. Check with a quick parse: `[System.Management.Automation.Language.Parser]::ParseInput((Get-Content -Raw file.ps1), [ref]$null, [ref]$errors)`.
 - **App builds**
   - App builds run on **GitHub Actions macOS runners**, using the latest Xcode image that supports the iOS 26.5 SDK. Verify this rather than assuming.
   - The workflow builds the app, runs the Kit tests, runs the UI snapshot tests on a simulator, and uploads the rendered PNGs as artifacts.
