@@ -30,6 +30,27 @@ public struct SectionResolver {
         resolveSection(path: path, section: section, depth: 0)
     }
 
+    /// The `[Rank]` field with its title auto-filled from `[Officium]`'s resolved text --
+    /// mirrors `SetupString.pl`'s own safeguard substitution (`$sections{'Rank'} =~
+    /// s/^.*?;;/$sections{'Officium'};;/;`, applied only `if (exists($sections{'Officium'}))`),
+    /// documented but not previously wired up in `do-format.md`'s `[Rank]` field section.
+    /// Without this, `OfficeRank.title` reads whatever the file's own `[Rank]` line
+    /// literally starts with -- empty for nearly every real Tempora/Sancti file, since
+    /// DO leaves that leading field blank on disk specifically so this substitution fills
+    /// it in at load time. Every title-based rubric check (the RG15 Immaculate Conception
+    /// exception, the Feria/Sabbato/Vigilia/octave exclusions in `Concurrence` and
+    /// `Commemorations`) depends on callers using this instead of a raw `resolve(path:
+    /// section: "Rank")`.
+    public func resolveRank(path: String) -> String {
+        let rank = resolve(path: path, section: "Rank")
+        guard !corpus.rawSections(path: path, name: "Officium").isEmpty,
+            let separator = rank.range(of: ";;")
+        else { return rank }
+        var officium = resolve(path: path, section: "Officium")
+        while let last = officium.last, last.isWhitespace { officium.removeLast() }
+        return officium + rank[separator.lowerBound...]
+    }
+
     // MARK: - Section resolution
 
     private func resolveSection(path: String, section: String, depth: Int) -> String {

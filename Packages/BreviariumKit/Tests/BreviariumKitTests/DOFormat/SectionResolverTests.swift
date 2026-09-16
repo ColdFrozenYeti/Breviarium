@@ -15,6 +15,32 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(resolver.resolve(path: "Sancti/01-18r.txt", section: "Oratio") == "Da, quaesumus, omnipotens Deus.")
 }
 
+@Test func resolveRankFillsTitleFromOfficiumWhenOfficiumExists() {
+    // Real DO Tempora/Sancti files leave [Rank]'s leading field empty on disk (do-format.md)
+    // -- SetupString.pl's own safeguard substitution fills it from [Officium] at load time.
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Tempora/Epi1-6.txt", sections: [
+            RawSection(name: "Officium", condition: "", body: ["Feria VI infra Hebdomadam I post Epiphaniam"]),
+            RawSection(name: "Rank", condition: "", body: [";;Feria;;1"]),
+        ])
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    #expect(
+        resolver.resolveRank(path: "Tempora/Epi1-6.txt")
+            == "Feria VI infra Hebdomadam I post Epiphaniam;;Feria;;1"
+    )
+}
+
+@Test func resolveRankLeavesTitleAloneWithoutAnOfficiumSection() {
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Tempora/Epi1-6.txt", sections: [
+            RawSection(name: "Rank", condition: "", body: [";;Feria;;1"])
+        ])
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    #expect(resolver.resolveRank(path: "Tempora/Epi1-6.txt") == ";;Feria;;1")
+}
+
 @Test func resolvesCrossFileInclusion() {
     let corpus = InMemoryOfficeCorpus(files: [
         RawOfficeFile(path: "Sancti/01-18r.txt", sections: [

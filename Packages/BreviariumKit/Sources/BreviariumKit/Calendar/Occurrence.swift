@@ -56,7 +56,7 @@ public struct Occurrence {
         let isSunday = weekday == 0
 
         let temporalPath = Self.temporalPath(day: day, month: month, year: year)
-        guard let temporalRank = OfficeRank(rankFieldValue: resolver.resolve(path: temporalPath, section: "Rank"))
+        guard let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
         else { return nil }
 
         // The first sanctoral candidate with a real [Rank] is the one occurrence()
@@ -68,7 +68,7 @@ public struct Occurrence {
 
         for candidate in calendar.candidates(day: day, month: month, year: year) {
             let path = "Sancti/\(candidate)"
-            guard let rank = OfficeRank(rankFieldValue: resolver.resolve(path: path, section: "Rank")) else { continue }
+            guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { continue }
             sanctoralPath = path
             sanctoralRank = rank
             sanctoralRule = resolver.resolve(path: path, section: "Rule")
