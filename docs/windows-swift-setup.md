@@ -55,6 +55,38 @@ If `link.exe` still can't be found, confirm it exists at (version number will va
 C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\<version>\bin\Hostx64\x64\link.exe
 ```
 
+## Docker (needed for M4's oracle-fixture generation)
+
+Attempted via `winget install --id Docker.DockerDesktop` during M4 — got further than
+expected but hit a hard wall that needs your hands:
+
+1. **WSL2 isn't installed.** `wsl --install` needs to enable Windows optional features
+   (Virtual Machine Platform, Windows Subsystem for Linux), which needs an elevated
+   session and normally a **restart**. Run from an **Administrator** PowerShell:
+   ```
+   wsl --install
+   ```
+   then restart when it asks. (If it asks you to set a WSL username/password on first
+   boot after the restart, any values are fine — Docker Desktop doesn't need you to use
+   that Linux user directly.)
+
+2. **The Docker Desktop installer itself also needs an interactive admin approval** — it
+   pops a UAC prompt ("Docker Desktop Installer.exe wants to make changes to your
+   device") that only completes with a human clicking "Yes" at the machine. Run:
+   ```
+   winget install --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+   ```
+   and click through the UAC prompt when it appears, then follow Docker Desktop's own
+   first-run setup (it'll ask to use the WSL2 backend — say yes) and accept its licence
+   terms (free for personal use, which this is).
+
+Both of these are genuine "must be a human clicking a Windows security prompt" steps —
+not something safe or possible to script around from an unattended session, the same way
+the Windows SDK component in the section above needed an elevated terminal. Once done,
+`docker --version` and `docker run hello-world` should both work, and
+`scripts/generate-oracle-fixtures.*` can run against the pinned DO checkout
+(`data/SOURCE.md`, `scripts/docker/docker-compose.yml`).
+
 ## Status as of M0
 
 Swift 6.3.3 and VS Build Tools 2022 (with the `VC.Tools.x86.x64` component) were
