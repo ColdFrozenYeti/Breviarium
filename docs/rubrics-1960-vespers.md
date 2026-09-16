@@ -77,21 +77,95 @@ M4 if any oracle-diff investigation ever turns on this specific rule.
 When an office doesn't win the day outright but isn't excluded either, it's carried as a
 **commemoration** rather than dropped. The Kalendaria calendar entry for a date can list
 multiple candidate offices separated by `~` (`do-format.md`), collected into
-`@commemoentries`; `occurrence()` and `concurrence()` filter this list down by rank
-thresholds that differ depending on whether the commemoration is being added to *today's*
-Vespers (occurrence-side filtering, `horascommon.pl` around 1373-1394) or to the *first
-Vespers of tomorrow that today's second Vespers concurs with* (concurrence-side
-filtering, around 1341-1365) — these are genuinely different rank thresholds, not the
-same rule applied twice, which is why `CLAUDE.md`'s visual spec explicitly distinguishes
-"every commemoration the 1960 rubrics require" as its own tested concept rather than
-assuming occurrence and concurrence produce the same commemoration list.
+`@commemoentries`; `concurrence()` (`horascommon.pl:842-1472`) filters this list down at
+the very end, in one of two mutually-exclusive blocks depending on which office actually
+wins this evening's Vespers (`$vespera == 3` → today's own office stands; anything else →
+tomorrow's office pre-empts it as first Vespers, per §3). Below is a full re-read of both
+blocks, filtered to the branches `$version =~ /196/` actually takes — the function also
+carries Trident/Divino-Afflatu/1906/1955/Cisterciense/Altovadensis/Barroux branches that
+are dead code for us, since this project only ever renders `"Rubrics 1960 - 1960"`.
 
-I'm not restating every numeric threshold from that block here with full confidence —
-they interact with the occurrence/concurrence rank of the *winning* office in ways I'd
-want to verify against rendered output rather than paraphrase from a single read-through.
-What's solid: the mechanism (two separately-filtered commemoration lists, one per
-direction) and where in the source it lives, both useful for M4 if a commemoration-related
-oracle diff needs investigating.
+### 2a. When today's own second Vespers wins (`horascommon.pl:1336-1365`)
+
+**Commemorating tomorrow's office, added to today's own Vespers** (`@ccommemoentries`,
+`:1341-1365`): the per-candidate rank threshold is computed, but it's moot — the final
+`unless (...)` guard that decides whether a candidate survives is
+`unless ($cr[2] < $ranklimit || $cstr{Rule} =~ /No prima vespera/i || $version =~ /1955|196/)`.
+For any 1960 version string this is unconditionally `true`, so the `push` never runs.
+**In 1960, when today's own second Vespers is said outright (not pre-empted by
+tomorrow), tomorrow's office is never commemorated at that Vespers**, regardless of its
+rank. This is a real, deliberate simplification in the 1960 rubrics (the code cut
+commemorations back sharply from older use), not a gap in DO's implementation — worth
+keeping as a named test case since it's easy to mis-port as "add a threshold" instead of
+"always empty."
+
+**Commemorating today's own runners-up, kept at today's own Vespers**
+(`@commemoentries`, `:1373-1394`, this is the list that actually renders): a candidate
+`commemo` is skipped outright if it's the temporal office and either its rank is Feria
+minor (`$trank[2] < 2 && $trank[2] != 1.15`) or it's a Rogation day / September Ember day
+(`$trank[0] =~ /Rogatio|Quattuor.*Sept/i`) — these have no Vespers at all once superseded.
+Otherwise a candidate survives unless `$cr[2] < $ranklimit` **and** its rank isn't one of
+the "privileged" values `1.15, 2.1, 2.99, 3.9` (which always survive regardless of
+`$ranklimit`), or its `Rule` field says `"No secunda vespera"`. `$ranklimit` itself:
+
+- today's winner is a Sunday, feria, or a day *in octava* → **2**
+- else today's winner is I. classis (`$rank >= 6`) → **4.2**
+- else today's winner is II. classis (`$rank >= 5`) → **2.1**
+- else → **2**
+
+### 2b. When tomorrow's office pre-empts today's (first Vespers, `horascommon.pl:1394-1462`)
+
+Here `$rank`/`$winner` have already been swapped to refer to *tomorrow's* (now winning)
+office, and `$cwrank`/`$cwinner` still describe the office that was cleared to make way
+for it.
+
+**Commemorating the *displaced* office** (`@commemoentries`, `:1401-1424`): a candidate
+is skipped if it's the temporal office at Feria minor / Vigil rank (`$trank[2] != 1.15 &&
+($trank[2] < 2 || ...)`), or, distinctively for 1960, if it's a day *infra octavam* whose
+octave name matches the octave the winning office *itself* belongs to (the day-within-an-
+octave immediately preceding "in Octava X" doesn't get separately commemorated —
+absorbed into the octave day). Otherwise it survives unless `$cr[2] < $ranklimit` (again
+exempting the privileged ranks `1.15, 2.1, 2.99, 3.9`), the `Rule` says `"No secunda
+vespera"`, or its rank text is literally `"De VII di"`/`"Die VII infra"` (the closing day
+of certain octaves, excluded by name). `$ranklimit`, keyed off the *displaced* office's
+own rank/title (`$cwrank`):
+
+- displaced office was I. classis and not itself a Sunday/feria/in-octava → **4.2**
+- displaced office was II. classis, same exclusion → **2.99**
+- else → **2**
+
+**Commemorating the winner's other runners-up** (`@ccommemoentries`, `:1440-1462`): a
+candidate is skipped if it's the temporal office, or a day *infra octavam*, and isn't
+itself a Sunday. Otherwise it survives unless `$cr[2] < $ranklimit`, `Rule` says `"No
+prima vespera"`, or — the two 1960-specific exclusions — the version is 1955/196x *and*
+the candidate isn't itself a Sunday (`$cstr{Rank} !~ /Dominica/i`), or it's a
+feria/vigil/ember day not otherwise excepted (`Feria|Sabbato|Vigilia|Quat[t]*uor Temp`,
+except `in Vigilia Epi|in octava|Dominica`). `$ranklimit`, keyed off the *winning*
+(tomorrow's) office's own title:
+
+- winner is a Sunday/feria/in-octava → **1.1**
+- winner is I. classis → **4.2**
+- winner is II. classis → **2.2**
+- else → **1.1**
+
+### What this means for implementation
+
+Four separately-filtered lists, not one rule applied twice: §2a's pair only matters on
+"second Vespers wins" evenings (and its first list is trivially always empty in 1960 —
+worth asserting directly rather than silently porting a dead threshold); §2b's pair only
+matters on "first Vespers of tomorrow pre-empts" evenings. All four share the same
+"privileged ranks always survive" exemption (`1.15, 2.1, 2.99, 3.9`) and the same general
+shape (skip superseded/minor temporal entries outright, then a rank-vs-`$ranklimit`
+check with a `Rule`-text override), which argues for one shared Swift helper parameterised
+by which of the four `$ranklimit` formulas and skip-conditions applies, rather than four
+independent implementations.
+
+This reading hasn't been checked against rendered DO output yet — recommend building
+`Commemorations.swift` as a close, line-cited port of the four blocks above (matching how
+`Occurrence.swift`/`Concurrence.swift` already cite `horascommon.pl` line numbers in their
+doc comments) and letting the M4 oracle diff be the actual correctness check, per
+`CLAUDE.md`'s rule that a real disagreement gets investigated and cited, never
+fixed by editing the fixture.
 
 ## 3. First vs. second Vespers (concurrence)
 
