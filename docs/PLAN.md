@@ -336,25 +336,52 @@ against `do-format.md`'s concrete examples even though it isn't exercised end-to
 until M4. Report bundle size (compressed and decompressed) and cold-load time on a
 representative device class.
 
-**In progress (2026-09-16).** Done and verified green on Kit CI (25 passing tests,
-including hand-traced real fragments from `Tempora/Adv1-0.txt` checked against both a
-1960 and a Tridentine context before being written as tests): `LatinOrthography` (J→I,
-skipping `@`/`$`/`&` reference lines), `ConditionalContext` (the render-time context
-`vero()` evaluates against), `ConditionalGrammar` (the clause regex and
-`parse_conditional`'s strength/scope logic), `ConditionalEvaluator` (`vero()` itself,
-including a faithful port of a real Perl-grammar quirk: `negation` persists past a later
-`et` once `nisi` has appeared, since Perl only resets it per `aut` branch), and
-`ConditionalLineProcessor` (the `process_conditional_lines` stack machine that actually
-applies backward/forward scope deletion), plus `RawSectionParser` (the section-splitting
-phase, preserving every conditioned variant unevaluated).
+**Done (2026-09-16).** Built and verified green on Kit CI (44 passing tests, including
+hand-traced real fragments from `Tempora/Adv1-0.txt` checked against both a 1960 and a
+Tridentine context before being written as tests, and a real bug Kit CI caught in
+`KalendariaResolver` against the actual `Kalendaria/1960.txt` — a stray comment line that
+happened to contain `=`):
 
-**Not yet started:** the `BreviariumData` CLI itself (walking the pinned DO checkout,
-applying `RawSectionParser`/`LatinOrthography` across the real corpus, flattening the
-Kalendaria chain, emitting the bundle), `@`/`$` full resolution and `&` macro
-identification in the resolution engine, and the bundle-size/cold-load report M2 is
-supposed to end with. First local `swift build`/`swift test` run of any of this is still
-pending too — everything so far has only been verified via Kit CI on Linux, since the
-Windows SDK blocker (`docs/windows-swift-setup.md`) hasn't been resolved yet.
+- `LatinOrthography` (J→I, skipping `@`/`$`/`&` reference lines)
+- `ConditionalContext`/`ConditionalGrammar`/`ConditionalEvaluator` (`vero()` and
+  `parse_conditional`, including a faithful port of a real Perl-grammar quirk: `negation`
+  persists past a later `et` once `nisi` has appeared, since Perl only resets it per `aut`
+  branch)
+- `ConditionalLineProcessor` (the `process_conditional_lines` stack machine)
+- `RawSectionParser` (section-splitting, preserving every conditioned variant unevaluated)
+- `SectionResolver`/`OfficeCorpus`/`LayeredOfficeCorpus` (the render-time entry point:
+  picks the winning header variant, runs the line processor, follows `@` inclusions —
+  including `do_inclusion_substitutions`'s line-range and `s///` selectors — and `$`
+  prayer macros recursively; `&` script macros are deliberately left unresolved, for M4)
+- `OfficeCorpusWalker`/`CalendarChainReader`/`BreviariumDataPipeline` (the actual CLI
+  pipeline: walks `Tempora`/`Sancti`/`Commune`/`Psalterium` for Latin and `Psalterium`
+  for Latin-Bea, flattens the `Kalendaria` chain, emits a `DataBundle`)
+
+**Run for real against the pinned DO checkout** (`kit-ci.yml`, which now checks out the
+submodule and runs `BreviariumData` after the unit tests, uploading the bundle as an
+artifact):
+
+| | |
+|---|---|
+| Latin files | 1,759 |
+| Latin-Bea files | 170 |
+| Calendar entries | 304 |
+| Uncompressed JSON size | 6,026,844 bytes (6.03 MB) |
+| `JSONDecoder` round-trip | 0.094s (CI runner CPU, not an iOS device — a rough proxy, not a real cold-load number) |
+
+No compression was applied — plain JSON, per the "measure first" reasoning already in
+this section. 6 MB uncompressed is comfortably within what "a whole-file decode at
+launch should be fast enough" anticipated; revisit only if a real on-device measurement
+(M5+) says otherwise.
+
+**Explicitly deferred, not silently dropped:** the English corpus (only Latin +
+Latin-Bea were walked this pass) and the language-fallback wiring for it; `&` macro
+*expansion* (the identification/pass-through is done, but computing what `&Gloria` etc.
+actually render as is M4's office-assembly job); a first local `swift build`/`swift test`
+run — the Windows SDK blocker is resolved (confirmed: `C:\Program Files (x86)\Windows
+Kits\10` now exists) and the user has a working local build of their own (real `.exe`
+artifacts on disk), but this session's own tool environment still couldn't reproduce it,
+so every check above ran on Kit CI (Linux) only.
 
 ### M3 — Calendar engine
 
