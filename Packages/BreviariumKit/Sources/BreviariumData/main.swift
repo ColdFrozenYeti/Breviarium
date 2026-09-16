@@ -24,6 +24,11 @@ do {
     let sizeInBytes = data.count
     let sizeInMB = Double(sizeInBytes) / 1_000_000
 
+    let decoder = JSONDecoder()
+    let decodeStart = Date()
+    _ = try decoder.decode(DataBundle.self, from: data)
+    let decodeSeconds = Date().timeIntervalSince(decodeStart)
+
     print("Wrote \(outputPath.path)")
     print("")
     print("Bundle report:")
@@ -31,6 +36,8 @@ do {
     print("  Latin-Bea files:  \(bundle.latinBea.count)")
     print("  Calendar entries: \(bundle.calendar.count)")
     print("  Uncompressed JSON size: \(sizeInBytes) bytes (\(String(format: "%.2f", sizeInMB)) MB)")
+    print("  JSONDecoder round-trip: \(String(format: "%.3f", decodeSeconds))s")
+    print("    (measured on this CI runner's CPU, not an iOS device -- a rough proxy, not a real cold-load number)")
 } catch {
     print("BreviariumData failed: \(error)")
     exit(1)
