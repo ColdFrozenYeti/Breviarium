@@ -166,20 +166,51 @@ Breviarium/
 
 ### `BreviariumData` (build-time CLI, same package)
 
-Parses the pinned Divinum Officium checkout, resolves every **static** conditional
-(rubric-version gates like `(sed rubrica 1960)`, language selection, priest/non-priest
-text variants that don't depend on the day being viewed), follows `@Commune/...`
-cross-references, applies J→I to Latin fields, and emits one bundled data file containing:
+**Amendment — 2026-09-16, after M1's close reading of `SetupString.pl`:** the original
+description below (`BreviariumData` "resolves every static conditional... follows
+`@Commune/...` cross-references") doesn't hold up. DO's own `setupstring()` interleaves
+section-conditional evaluation and `@`-reference resolution in a single pass, evaluated
+against the *complete* current context (rubrics version, but also the specific day,
+season, hora, commune-in-use, etc.) — there's no clean seam where "build-time-only"
+conditionals can be evaluated in isolation, because even a file's basic set of available
+`[Section]`s depends on `vero($condition)` calls that need day-dependent subjects
+(`tempore`, `die`, `feria`, `commune`, `votiva`, `officio`) that literally don't have
+values yet at build time. Trying to do partial resolution at build time and full
+resolution at runtime would mean **two separate ports of the same algorithm**, which is
+both harder to build correctly and a correctness risk in itself (two implementations
+silently drifting apart). Corrected division of labour:
 
-1. The sanctoral calendar table (from `Tabulae/Kalendaria/1960.txt`): date → feast(s) →
-   rank → commune reference. This is genuine *data*.
-2. The de-duplicated text corpus (temporal + sanctoral propers, commune texts, the Bea
-   psalter, fixed ordinary text) in Latin and English, keyed by DO's own section
-   identifiers.
-3. **Day-dependent** conditionals (the ones that can't be resolved once at build time —
-   e.g. anything keyed off moveable-cycle position) are left as structured references in
-   the data for `BreviariumKit`'s rite logic — never resolved as code inside the data
-   tool. This preserves "the app computes the office itself."
+- **`BreviariumData` does not evaluate conditionals or resolve `@`/`$`/`&` at all.** Its
+  job is bundling and the parts that genuinely are static: it walks the pinned DO
+  checkout's Vespers-relevant corpus (`Tempora`, `Sancti`, `Commune`, `Psalterium`,
+  `Latin-Bea/Psalterium`, per `do-format.md`'s psalter-mapping finding), splits each file
+  into its raw `[SectionName] (raw-condition-string)` blocks — the *first* phase of DO's
+  own `setupstring_parse_file`, but stopping short of calling `vero()` on the extracted
+  condition strings, so every conditioned variant of a section is preserved rather than
+  just the one that happened to match some assumed context — applies J→I to Latin text,
+  and flattens the `Kalendaria` version-inheritance chain (`do-format.md`) into a single
+  1960 calendar table. Genuinely context-free data.
+- **`BreviariumKit` ships the full resolution engine** — `vero()`, the
+  `process_conditional_lines()` stack machine, `@` inclusion, `$` prayer-macro expansion,
+  and `&` script-macro identification — operating against the bundled raw sections at
+  *render* time, once a specific day's full context is known. This is one port of DO's
+  algorithm, used everywhere, not two. It's exercised for real starting in M4 (Vespers
+  assembly), but written and unit-tested against `do-format.md`'s concrete examples in M2
+  since it's genuinely part of "the data pipeline" in spirit even if it doesn't run at
+  build time.
+
+Parses the pinned Divinum Officium checkout, applies J→I to Latin fields, flattens the
+Kalendaria inheritance chain, and emits one bundled data file containing:
+
+1. The sanctoral calendar table (from `Tabulae/Kalendaria/1960.txt`, flattened against
+   its `base` chain): date → feast(s) → rank → commune reference. This is genuine *data*.
+2. The raw, section-split (but conditional-unevaluated) text corpus (temporal and
+   sanctoral propers, commune texts, the Bea psalter, fixed ordinary text) in Latin and
+   English, keyed by DO's own section identifiers.
+3. **Every conditional, `@`/`$`/`&` reference, and day-dependent decision** is left in the
+   bundled text verbatim, for `BreviariumKit`'s resolution engine to evaluate at render
+   time — never resolved as code inside the data tool. This preserves "the app computes
+   the office itself" even more literally than originally planned.
 
 **Format:** gzip-compressed JSON as the shipped bundle, decoded once at app launch with
 `JSONDecoder` and cached in memory for the session. JSON is chosen because
@@ -297,10 +328,13 @@ own comments cite) — flagged rather than presented as more settled than it is.
 start until you've reviewed both.
 ### M2 — Data pipeline
 
-Build `BreviariumData` per the "Data pipeline" section above: parse, resolve static
-conditionals, normalise orthography, emit the bundled file. Tests cover every DO syntax
-feature catalogued in `docs/do-format.md`. Report bundle size (compressed and
-decompressed) and cold-load time on a representative device class.
+Build `BreviariumData` per the corrected "Data pipeline" section above: raw section
+splitting (no conditional evaluation), J→I orthography, Kalendaria chain flattening,
+bundle emission. Build `BreviariumKit`'s resolution engine (`vero()`, the conditional
+stack machine, `@`/`$` resolution, `&` macro identification) alongside it, unit-tested
+against `do-format.md`'s concrete examples even though it isn't exercised end-to-end
+until M4. Report bundle size (compressed and decompressed) and cold-load time on a
+representative device class.
 
 ### M3 — Calendar engine
 
