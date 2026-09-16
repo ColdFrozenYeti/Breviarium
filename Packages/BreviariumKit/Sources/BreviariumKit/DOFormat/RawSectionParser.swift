@@ -110,7 +110,7 @@ public enum RawSectionParser {
     }
 
     /// Ports `$sectionregex = qr/^\s*\[([\pL\pN_ #,:-]+)\]/i` (`SetupString.pl:324`).
-    private static let sectionNameRegex: Regex<AnyRegexOutput> = {
+    private nonisolated(unsafe) static let sectionNameRegex: Regex<AnyRegexOutput> = {
         // swiftlint:disable:next force_try
         try! Regex(#"(?i)^\s*\[([\p{L}\p{N}_ #,:-]+)\]"#)
     }()
@@ -137,7 +137,7 @@ public enum RawSectionParser {
 
     /// Ports `$InclusionRegex` (`SetupString.pl:305-312`):
     /// `^\s*\@([^\n:]+)?(?::([^\n:]+?))?[^\S\n\r]*(?::(.*))?$`.
-    private static let inclusionRegex: Regex<AnyRegexOutput> = {
+    private nonisolated(unsafe) static let inclusionRegex: Regex<AnyRegexOutput> = {
         // swiftlint:disable:next force_try
         try! Regex(#"^\s*@([^\n:]+)?(?::([^\n:]+?))?[^\S\n\r]*(?::(.*))?$"#)
     }()

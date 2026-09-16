@@ -12,7 +12,7 @@ public enum ConditionalEvaluator {
     /// predicates (`tonus`/`toni`-related: "in solemnitatibus", "in hieme", "in æstate")
     /// are omitted since this project has no chant support and `ConditionalContext` has
     /// no `tonus`/`toni` subject for them to test against.
-    static let predicates: [String: (String) -> Bool] = [
+    nonisolated(unsafe) static let predicates: [String: (String) -> Bool] = [
         "tridentina": { $0.range(of: "Trident", options: .caseInsensitive) != nil },
         "monastica": { $0.range(of: "Monastic", options: .caseInsensitive) != nil },
         "innovata": { matches($0, "2020 USA|NewCal") },

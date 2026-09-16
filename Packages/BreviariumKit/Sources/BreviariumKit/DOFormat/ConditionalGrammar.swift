@@ -95,7 +95,7 @@ enum ConditionalGrammar {
     /// rather than a literal `*` repetition, which is behaviourally identical for any
     /// real input and avoids inventing whitespace-separated multi-stopword handling DO's
     /// own grammar doesn't actually support.
-    private static let clauseRegex: Regex<AnyRegexOutput> = {
+    private nonisolated(unsafe) static let clauseRegex: Regex<AnyRegexOutput> = {
         let stopwordsAlt = stopwordWeights.keys.joined(separator: "|")
         // Leading "(?i)": SetupString.pl's $conditional_regex itself isn't flagged /i
         // (its /o just means "compile once"), but every real example is lowercase and
