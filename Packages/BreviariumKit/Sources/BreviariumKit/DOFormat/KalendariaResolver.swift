@@ -23,11 +23,24 @@ public enum KalendariaResolver {
         for line in text.split(separator: "\n") {
             guard line.contains("=") else { continue }
             let fields = line.split(separator: "=", maxSplits: 2, omittingEmptySubsequences: false)
-            guard fields.count >= 2 else { continue }
+            guard fields.count >= 2, isDateKey(fields[0]) else { continue }
             entries[String(fields[0])] = String(fields[1])
         }
         return entries
     }
+
+    /// Real Kalendaria files have at least one stray comment line that happens to
+    /// contain `=` (`Kalendaria/1960.txt`: `#identical to 1955=`) and would otherwise
+    /// get misread as a data line. Perl's `split` silently drops trailing empty fields,
+    /// which happens to leave that particular line with only one field and so no `$file`
+    /// value — a harmless accident of Perl's default `split` behaviour, not something
+    /// meaningful to replicate. Requiring the key to actually look like `MM-DD` is a more
+    /// direct fix for the same non-issue.
+    private static func isDateKey(_ field: Substring) -> Bool {
+        (try? dateKeyRegex.wholeMatch(in: field)) != nil
+    }
+
+    private nonisolated(unsafe) static let dateKeyRegex = /\d{2}-\d{2}/
 
     /// Flattens a chain of Kalendaria file texts into one merged table.
     ///
