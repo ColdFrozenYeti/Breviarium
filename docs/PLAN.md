@@ -583,8 +583,6 @@ guessed at further:
    winning office's own `[Name]` section. Separately, a Commune can define numbered
    sub-variants (`[Oratio 3]` alongside plain `[Oratio]`, confirmed real example: two
    martyrs specifically get `[Oratio 3]`) selected by a rule not yet identified.
-   Neither is implemented; `.oratio` is excluded from comparison wherever a date could
-   hit either.
 
 Also fixed while building this: `HourAssembler.unitsFromResolvedText` now produces one
 `.prose` unit per source line (not one joined block) — DO's own rendering puts its `℣.`/
@@ -592,8 +590,67 @@ Also fixed while building this: `HourAssembler.unitsFromResolvedText` now produc
 separating punctuation, so a single joined string was never actually contiguous in the
 fixture, only the per-line pieces are.
 
-**Not yet built:** the three antiphon/collect-selection gaps above; `#Preces Feriales`;
-and Latin/English pairing.
+**Name substitution is now implemented (2026-09-17).** `HourAssembler.substituteName`
+ports `replaceNdot()`'s plain case (no `"Oratio="`/`"Ant="`/`"Invit="` grammatical-case
+tagging — confirmed real, but only ever seen on a `[Name]`'s `"Postcommunio="` tag for a
+Mass proper, never for anything the Office side reads). Confirmed clean against a real
+date the numbered-sub-common gap above doesn't touch: `Sancti/02-05` (S. Agatha) falls
+back to `Commune/C6`'s plain `[Oratio]`, `"...beátæ N. Vírginis..."` → `"...beátæ
+Agathæ Vírginis..."`, matching the real fixture exactly (new test:
+`agathaMatchesTheRealOracleIncludingTheNameSubstitutedCollect`; `.oratio` is in full
+comparison scope there and passes cleanly). The 16 September / 19 January cases still
+exclude `.oratio`, since they specifically hit the still-unresolved numbered-sub-common
+question, not the substitution mechanism itself.
+
+Also corrected while investigating the numbered-sub-common question: `[Ant Vespera 3]`
+was never a real Magnificat-antiphon fallback source to begin with — it's more likely
+tied to `Concurrence`'s "a capitulo" concurrence branch (`docs/rubrics-1960-vespers.md`
+§2b), a different scenario entirely. It happened to never matter in practice because
+`assembleMagnificat` already tries `[Ant 3]` first and that's always resolved the real
+cases so far, but the doc comment no longer claims a confidence in `[Ant Vespera 3]`
+that was never actually earned.
+
+**A second, more general psalmody rule is also confirmed and implemented
+(2026-09-17).** The 16 September fix (fall through to the ferial weekday schedule when
+`[Ant Vespera]` has no `;;number`) turned out to be only half the story — the same
+Agatha fixture that validated name substitution also exposed it: S. Agatha's own psalms
+(via `Commune/C6`) are the classic Sunday set (109-112) with a proper fifth, *not* the
+ferial Thursday psalms, even though `Commune/C6`'s `[Ant Vespera]` is *also*
+unnumbered. The actual signal is the `[Rule]` field's `"Psalm5 Vespera3=NNN"` entry
+(today's own second Vespers) or `"Psalm5 Vespera="` (presumably first Vespers, not
+independently confirmed) — present on both `Sancti/02-05` and `Commune/C6`, absent on
+`Commune/C3` (the genuinely-ferial 16 September case). Confirmed exactly against the
+real fixture: psalms 109, 110, 111, 112, **147** (the `"Vespera3="` value, not the
+`"Vespera="` one, which also exists on the same `[Rule]` but points to a different,
+unused psalm). `assemblePsalmodia`/`festalFifthPsalmNumber` now check this before
+falling through to the ferial schedule; new unit test
+`festalUnnumberedAntiphonsPairWithTheSundayPsalmsAndARuleGivenFifth` locks in the
+synthetic mechanics, and `agathaMatchesTheRealOracleIncludingTheNameSubstitutedCollect`
+confirms it against real data (its only remaining excluded section is `.psalmodia`
+itself, and only because Psalm 111's own verse-splitting hits the already-documented
+Bea/Vulgate half-verse-numbering gap `Psalm.swift` flags — not because the psalm/
+antiphon *selection* is wrong).
+
+**`#Preces Feriales` investigated but not implemented.** `preces()`'s actual condition
+(`horascommon.pl`'s `specials/preces.pl`) is tractable to port for 1960/Vespers — omit
+unless: rank is Feria/Simplex/privileged-Semiduplex only (`$duplex <= 2`), not Sunday,
+not Saturday-at-Vespers, and (Rule says "Preces" or it's Advent/Lent or an Ember day),
+further restricted to Wednesday/Friday/Ember days only under 1960 (`emberday()` itself
+is a clean, already-plannable port: Wed/Fri/Sat, and either week `Adv3`/`Quad1`/`Pasc7`,
+or September with a "Quatuor"-titled office). But the actual preces *text* source is
+confusing enough to warrant stopping rather than guessing: `getpreces()` reads
+`Psalterium/Special/Major Special.txt`'s `[Preces feriales Vespera]` section, whose own
+body is `$Kyrie` / `$Pater noster Et` / `$Preces feriales Vespera` / `$Domine exaudi` —
+the third line names its *own* section, which would be a literal infinite loop under
+`SectionResolver`'s `$Name` resolution (`Prayers.txt`-only lookup) unless DO's real
+`prayer()` reads a different hash than what `getpreces()` itself already returned
+verbatim — not chased down this session. Ask, or trace `specials.pl`'s actual call site
+for `getpreces()`'s return value, before implementing this rather than guess.
+
+**Not yet built:** `#Preces Feriales` (investigated, not implemented — see above); the
+numbered-sub-common selection rule (`[Oratio 3]`/`[Ant 3]`/etc. vs the unsuffixed
+forms); the octave-reuse and Paschaltide antiphon-source gaps above; and Latin/English
+pairing.
 
 ### M5 — User interface
 

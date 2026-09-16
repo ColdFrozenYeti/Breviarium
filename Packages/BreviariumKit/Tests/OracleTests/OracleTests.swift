@@ -119,6 +119,23 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 
+@Test func agathaMatchesTheRealOracleIncludingTheNameSubstitutedCollect() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 5, ad: "vesperas", mense: 2)
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
+    let hour = try #require(assembler.assembleVespers(day: 5, month: 2, year: 2026, priest: false))
+
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-02-05"))
+    // .psalmodia excluded: the antiphon/psalm-number selection itself is confirmed
+    // correct here (109, 110, 111, 112, 147, exactly matching the real fixture) -- the
+    // remaining mismatch is entirely within Psalm 111's own verse text, which hits the
+    // same Bea/Vulgate half-verse-numbering gap "19 January" already excludes for
+    // (Psalm.swift's own doc comment), not a new issue this date introduces.
+    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .canticum, .oratio, .conclusio])
+    #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
+}
+
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()

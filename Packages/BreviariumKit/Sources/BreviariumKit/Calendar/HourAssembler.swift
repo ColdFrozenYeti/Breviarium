@@ -7,20 +7,30 @@ import Foundation
 /// same way DO's own real office files do (a Commune-only feast like `Sancti/01-18r`
 /// defines only `[Officium]`/`[Rank]`/`[Rule]`/`[Oratio]`/its lessons, nothing else).
 ///
-/// **Scope limits, flagged rather than silently assumed solved**
-/// (`docs/rubrics-1960-vespers.md`'s "Content assembly" section has the full reasoning):
+/// **Scope limits, flagged rather than silently assumed solved** (`docs/PLAN.md`'s M4
+/// status has the full discovery-by-discovery reasoning for each):
 /// - `#Preces Feriales` isn't resolved at all yet — `horasscripts.pl`'s `preces()`
-///   gating wasn't traced this session.
+///   gating wasn't traced.
 /// - The Commune fallback (`communeFallbackPath`) is a simplified heuristic (strip a
 ///   `"vide "`/`"ex "` prefix, treat a `"CN[-M]"` token as `Commune/CN[-M]`, anything
-///   containing `"/"` as a direct path) — DO's own commune resolution has more
-///   machinery (numbered sub-commons, per-section overrides) this doesn't reproduce.
-/// - A ferial day with no proper `[Ant Vespera]` gets its psalms from the weekday
-///   schedule but **without antiphons** — the ferial Psalter's own antiphon source
-///   wasn't located this session; documented as a real gap, not silently dropped.
-/// - `[Ant Vespera 3]` (the Magnificat antiphon) can list more than one candidate line
-///   (rank/version-dependent choice, per real Commune files) — only the first is used;
-///   the selection rule among them wasn't traced.
+///   containing `"/"` as a direct path) — confirmed right for a suffixed reference like
+///   `"vide C6-1"` (a genuinely separate file, `Commune/C6-1.txt`), but a Commune can
+///   *also* define numbered section variants within the *same* file (`[Oratio 3]`
+///   alongside plain `[Oratio]`, confirmed real example: `Commune/C3.txt`, where two
+///   specifically-named martyrs get `[Oratio 3]`/`[Ant 3]`/`[Ant Vespera 3]`/`[Versum
+///   3]` instead of the unsuffixed forms) by a selection rule not yet identified — this
+///   always resolves the unsuffixed form.
+/// - Two further antiphon-source rules aren't handled: a later weekday reusing an
+///   octave's shared temporal file (`Tempora/Nat1-0` covers every day of the Octave, not
+///   just its first) incorrectly keeps that file's own proper antiphons instead of
+///   falling back to the plain weekday's; Paschaltide replaces every psalm antiphon with
+///   a plain "Allelúia," which this pass doesn't produce.
+/// - `[Ant Vespera 3]` is *not* the Magnificat antiphon's fallback source (a wrong
+///   assumption corrected after the numbered-sub-common discovery above — it's more
+///   likely the antecapitulum text `Concurrence`'s "a capitulo" branch needs for a
+///   *different* scenario entirely, concurrence, not plain Magnificat antiphon
+///   selection); `assembleMagnificat` still tries it second, behind `[Ant 3]`, purely as
+///   a harmless fallback, not because it's confirmed correct for any real case.
 /// - Commemorations (`Commemorations.swift`) aren't folded into `#Oratio` yet — only
 ///   the winning office's own collect is included.
 public struct HourAssembler {
@@ -71,7 +81,8 @@ public struct HourAssembler {
                 if let collect = resolveWithCommuneFallback(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
                 ) {
-                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(collect)))
+                    let named = substituteName(in: collect, office: winner.winningPath, resolver: resolver)
+                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(named)))
                 }
             case "Conclusio":
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines)))
@@ -168,6 +179,33 @@ public struct HourAssembler {
         return resolver.resolve(path: fallbackPath, section: section)
     }
 
+    /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect with
+    /// the winning office's own saint name — DO's `replaceNdot()` (`specials.pl:778-817`),
+    /// confirmed against the real oracle fixture for 5 February 2026 (`Sancti/02-05`,
+    /// falling back to `Commune/C6`'s `"...beátæ N. Vírginis..."`, real rendered result
+    /// `"...beátæ Agathæ Vírginis..."`). No-ops when `text` has no `"N."` at all (a
+    /// proper collect that already names the saint directly, the common case) or the
+    /// office defines no `[Name]` of its own.
+    ///
+    /// **Not ported:** the `"Oratio="`/`"Ant="`/`"Invit="`-tagged variant selection for
+    /// names needing a different grammatical case depending on where they're
+    /// substituted (real example found: `Sancti/02-05`'s own `[Name]` carries a
+    /// `"Postcommunio=Agatha"` tag alongside the plain `"Agathæ"` — for a Mass proper,
+    /// not our Office concern, but confirms the tagging convention is real and in use).
+    /// Untagged names, the common case confirmed above, are unaffected by this gap.
+    private func substituteName(in text: String, office: String, resolver: SectionResolver) -> String {
+        guard text.contains("N."), resolver.sectionExists(path: office, section: "Name") else { return text }
+        guard let name = resolver.resolve(path: office, section: "Name")
+            .split(separator: "\n", omittingEmptySubsequences: false).first, !name.isEmpty
+        else { return text }
+
+        var result = text
+        if let range = result.range(of: #"N\. .*? N\."#, options: .regularExpression) {
+            result.replaceSubrange(range, with: name)
+        }
+        return result.replacingOccurrences(of: "N.", with: String(name))
+    }
+
     static func communeFallbackPath(_ reference: String) -> String? {
         var ref = reference
         for prefix in ["vide ", "ex "] where ref.hasPrefix(prefix) {
@@ -189,20 +227,45 @@ public struct HourAssembler {
         }
     }
 
-    /// Confirmed against the real oracle fixture for 16 September 2026 (`docs/PLAN.md`'s
-    /// M4 status has the full story): a `[Ant Vespera]` section can carry antiphons with
-    /// **no** `;;psalmNumber` suffix at all (real example: `Commune/C3.txt`, the Common
-    /// of Several Martyrs) — meaning "these replace the antiphons for whichever psalms
-    /// the weekday already assigns," not "these come with their own proper psalms."
-    /// Only a `[Ant Vespera]` whose lines *do* carry `;;number` (real example:
-    /// `Commune/C6.txt`, giving genuinely different psalms) is treated as proper;
-    /// anything else — including a section that exists but parses to zero pairs — falls
-    /// through to the ferial weekday schedule, same as no section at all.
+    /// Confirmed against two real oracle fixtures (`docs/PLAN.md`'s M4 status has the
+    /// full story): a `[Ant Vespera]` section can carry antiphons with **no**
+    /// `;;psalmNumber` suffix at all, and that alone doesn't say whether the psalms are
+    /// ferial or festal — two real communes both do it, for opposite reasons:
+    ///
+    /// - `Commune/C3.txt` (Several Martyrs): no numbers, and no `Psalm5 Vespera(3)=`
+    ///   `[Rule]` entry either — genuinely "ferial," these antiphons replace whichever
+    ///   psalms the weekday already assigns (`Sancti/09-16`, Ss. Cornelii et Cypriani).
+    /// - `Commune/C6.txt` (Virgins) and `Sancti/02-05` (S. Agatha) itself: no numbers,
+    ///   but a `Psalm5 Vespera3=147` `[Rule]` entry — the classic festal convention
+    ///   where Vespers' first four psalms are always the Sunday set (109-112) and only
+    ///   the fifth is proper, given by that `[Rule]` entry. Confirmed exactly against
+    ///   the real fixture for 5 February 2026: psalms 109, 110, 111, 112, **147** (not
+    ///   the plain `Psalm5 Vespera=116` entry the same `[Rule]` also carries — `"…
+    ///   Vespera3="` is what applies when today's own second Vespers wins, matching
+    ///   `Concurrence`'s `isFirstVespersOfTomorrow == false`; the unsuffixed `"…
+    ///   Vespera="` presumably covers first Vespers instead, not independently
+    ///   confirmed).
+    ///
+    /// Only when *neither* signal is present (no numbers and no `Psalm5` rule) does this
+    /// fall through to the ferial weekday schedule, same as no `[Ant Vespera]` at all. A
+    /// `[Ant Vespera]` whose lines *do* carry `;;number` directly (real example:
+    /// `Commune/C6.txt` for higher ranks, presumably — not independently confirmed) is
+    /// still treated as fully proper and skips both of the above.
     private func assemblePsalmodia(office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int) -> Section {
-        let proper = resolveWithCommuneFallback(
-            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera", resolver: resolver
-        )
+        let communeReference = macroContext.winningRank.communeReference
+        let proper = resolveWithCommuneFallback(office: office, communeReference: communeReference, section: "Ant Vespera", resolver: resolver)
         var pairs = proper.map(Self.parseAntiphonPsalmPairs) ?? []
+
+        if pairs.isEmpty, let antiphonText = proper,
+            let fifthPsalm = festalFifthPsalmNumber(
+                office: office, communeReference: communeReference, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
+            )
+        {
+            let antiphons = antiphonText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
+            let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
+            pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+        }
+
         if pairs.isEmpty {
             let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(dayOfWeek) Vespera")
             pairs = Self.parseAntiphonPsalmPairs(weekdayText)
@@ -215,6 +278,27 @@ public struct HourAssembler {
             units.append(.antiphon(pair.antiphon))
         }
         return Section(kind: .psalmodia, units: units)
+    }
+
+    /// The `[Rule]` field's `"Psalm5 Vespera3=NNN"` (today's own second Vespers,
+    /// preferred) or `"Psalm5 Vespera=NNN"` (fallback, presumably first Vespers) entry —
+    /// see `assemblePsalmodia`'s doc comment for the confirmed real example.
+    private func festalFifthPsalmNumber(
+        office: String, communeReference: String, resolver: SectionResolver, isFirstVespers: Bool
+    ) -> String? {
+        guard let ruleText = resolveWithCommuneFallback(
+            office: office, communeReference: communeReference, section: "Rule", resolver: resolver
+        ) else { return nil }
+        let preferredKey = isFirstVespers ? "Psalm5 Vespera=" : "Psalm5 Vespera3="
+        let fallbackKey = isFirstVespers ? "Psalm5 Vespera3=" : "Psalm5 Vespera="
+        return Self.value(forRuleKey: preferredKey, in: ruleText) ?? Self.value(forRuleKey: fallbackKey, in: ruleText)
+    }
+
+    private static func value(forRuleKey key: String, in ruleText: String) -> String? {
+        for line in ruleText.split(separator: "\n") where line.hasPrefix(key) {
+            return String(line.dropFirst(key.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext) -> [Unit] {
