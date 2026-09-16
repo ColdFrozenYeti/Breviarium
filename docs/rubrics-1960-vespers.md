@@ -225,8 +225,9 @@ more cheaply than the full oracle-fixture approach already planned in `docs/PLAN
 
 ## Open items for you
 
-1. The "Pius XII Psalter" option mapping (`do-format.md`) is my working theory, not yet
-   confirmed by running the code — worth flagging before M2 builds against it.
+1. ~~The "Pius XII Psalter" option mapping is my working theory, not yet confirmed...~~
+   **Resolved (2026-09-16):** confirmed via `officium.pl:133-137` — see `do-format.md`'s
+   options table.
 2. The RG (General Rubrics) section numbers cited in §1 are DO's own source comments,
    not independently checked against the 1960 Codex Rubricarum text.
 3. The exact commemoration rank thresholds in §2 are described at the mechanism level,

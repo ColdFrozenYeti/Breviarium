@@ -43,7 +43,7 @@ environment itself.
 |---|---|
 | `version="Rubrics 1960 - 1960"` | Ritus = Romanus, 1960 rubrics (the only rubrics tier this project targets) |
 | Priest cookie/option (`$priest` in `horas.pl`/`horascommon.pl`) | Sacerdos vel diaconus adest |
-| "Pius XII Psalter" | **Not yet directly traced to a specific option variable** — my working theory, not yet confirmed by running the code, is that it selects the `Latin-Bea` text folder (CLAUDE.md already identifies `web/www/horas/Latin-Bea/` as the Pius XII psalter) rather than gating a `(sed rubrica ...)` conditional, since the Bea psalter is a *translation choice* for the Psalterium texts, not a rubrical rule change. **Flagging this explicitly as unconfirmed** — M2 should verify by diffing `Latin/Psalterium/*` against `Latin-Bea/Psalterium/*` for the same version and checking which CGI parameter selects between them, rather than trusting this table.
+| "Pius XII Psalter" | **Confirmed** (`officium.pl:133-137`): the `$psalmvar` toggle swaps whichever of `$lang1`/`$lang2` equals `'Latin'` to `'Latin-Bea'` instead. `Latin-Bea/` contains only a `Psalterium/` subfolder (170 files) — DO's normal dash-fallback in `setupstring()` (`SetupString.pl:594-599`, stripping the part after the last `-`) means `Latin-Bea` transparently falls back to plain `Latin` for anything it doesn't have. Since `CLAUDE.md` fixes the Bea psalter permanently (it's not one of our exposed Settings toggles), `BreviariumData` should always read `Psalterium/` content from `Latin-Bea/` where a file exists there, falling back to `Latin/Psalterium/` otherwise, and read everything else from plain `Latin/`. |
 | Language toggle (`$lang1`/`$lang2`, `-` two-column mode) | English translation on/off |
 
 ## Section-based file format
