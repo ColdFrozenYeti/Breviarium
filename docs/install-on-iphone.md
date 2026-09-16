@@ -71,14 +71,32 @@ Then install **AltServer for Windows** from AltStore's site and run its installe
 
 ## 3. First install of Breviarium
 
+(Corrected from an earlier draft of this doc, which described a right-click/drag
+interaction on the AltServer tray icon that doesn't exist — verified against the
+official FAQ and AltServer's own release notes instead.)
+
 1. On Windows: `gh workflow run build-ipa.yml` (or the Actions tab → Build IPA → Run
    workflow) to produce a fresh `.ipa`, then `.\scripts\get-ipa.ps1` to download it —
    it lands in `%USERPROFILE%\Downloads\BreviariumIPA\Breviarium.ipa` and the script
    prints the exact path.
-2. With the iPhone connected (USB or the same Wi-Fi network, per step 2 above) and
-   AltServer running: right-click the AltServer tray icon → your device → **Install** (or
-   drag the `.ipa` onto the AltServer tray icon) → pick `Breviarium.ipa`.
-3. The app installs and its icon appears on the home screen like any other app.
+2. Get that file onto the iPhone somewhere the Files app can see it. The easiest way,
+   since iCloud for Windows is already installed (step 1): open the iCloud app on
+   Windows, make sure **iCloud Drive** is turned on, then copy `Breviarium.ipa` into
+   the iCloud Drive folder it adds to File Explorer. Give it a minute to sync.
+   (Emailing the file to yourself and opening the attachment on the iPhone works too,
+   if you'd rather not use iCloud Drive.)
+3. On the iPhone, open the **AltStore** app (installed during one-time setup above) →
+   **My Apps** → the **+** button in the top-left → browse to **iCloud Drive** → pick
+   `Breviarium.ipa`. This is the method confirmed to register the app under AltStore's
+   management, so it's included in **Refresh All** later (step 4) — that's the reason
+   to go through AltStore's own file picker rather than AltServer's separate
+   "Sideload .ipa…" tray shortcut (hold **Shift** while clicking the AltServer tray
+   icon, if you ever want it for a one-off install): that shortcut installs the app
+   directly to a connected device without necessarily adding it to AltStore's tracked
+   list, and it wasn't possible to confirm from the official docs whether apps
+   installed that way get picked up by Refresh All too.
+4. AltStore signs and installs it; the icon appears on the home screen like any other
+   app once it's done.
 
 ## 4. The weekly 7-day re-sign routine
 
@@ -126,11 +144,17 @@ one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now r
 
 ## Sources
 
-Researched 2026-09-16, not from memory, since this space moves fast:
+Researched 2026-09-16, not from memory, since this space moves fast. Section 3 was
+re-researched the same day after the first draft's tray-icon instructions turned out to
+be wrong (see the note at the top of that section):
 
 - [Sideloadly](https://sideloadly.io/index.html) and its [FAQ](https://sideloadly.io/faq.html)
 - [AltStore: How to Install (Windows)](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows)
 - [AltServer release notes](https://faq.altstore.io/release-notes/altserver) (confirms
-  current iOS 26.x compatibility)
+  current iOS 26.x compatibility, and the Shift-click "Sideload .ipa…" tray shortcut
+  added in AltServer 1.5)
+- [AltStore/AltServer#989](https://github.com/rileytestut/AltStore/issues/989) — the FAQ
+  itself had this wrong at one point (said "Start", not "Shift"); cross-checked against
+  the release notes above before trusting it
 - [SideStore FAQ](https://docs.sidestore.io/docs/faq)
 - Apple developer forum threads on free-account App ID/app-count limits
