@@ -1,0 +1,202 @@
+import Foundation
+
+/// Resolves a section's full text against a complete `ConditionalContext`: evaluates
+/// `[Name] (condition)` header variants to pick a winner, runs
+/// `ConditionalLineProcessor` on its body, and follows `@` inclusions and `$` prayer
+/// macros recursively. This is the actual render-time entry point the pieces in
+/// `ConditionalEvaluator`/`ConditionalGrammar`/`ConditionalLineProcessor` exist to serve.
+///
+/// `&` script macros (`do-format.md`) are deliberately left untouched in the resolved
+/// text — computing their content is M4's job (`Deus_in_adjutorium`, `Gloria`, the
+/// priest-toggle `Dominus_vobiscum`, etc. all need day/context-specific logic that
+/// belongs in the office-assembly layer, not here).
+public struct SectionResolver {
+    public var corpus: OfficeCorpus
+    public var context: ConditionalContext
+
+    /// Where `$Name` macros resolve from (`do-format.md`).
+    public static let prayersPath = "Psalterium/Common/Prayers.txt"
+
+    /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
+    private static let maxInclusionDepth = 6
+
+    public init(corpus: OfficeCorpus, context: ConditionalContext) {
+        self.corpus = corpus
+        self.context = context
+    }
+
+    /// Resolves one section to its final text.
+    public func resolve(path: String, section: String) -> String {
+        resolveSection(path: path, section: section, depth: 0)
+    }
+
+    // MARK: - Section resolution
+
+    private func resolveSection(path: String, section: String, depth: Int) -> String {
+        guard let winner = winningVariant(path: path, section: section) else {
+            return "\(path):\(section) is missing!"    // Mirrors get_loadtime_inclusion's own message.
+        }
+        let lines = ConditionalLineProcessor.resolve(lines: winner.body, context: context)
+        let text = lines.joined(separator: "\n")
+        return resolveInclusionsAndMacros(in: text, depth: depth)
+    }
+
+    /// Picks the winning `[Name] (condition)` variant: the *last* one (in file order)
+    /// whose condition is empty or holds against `context` — mirroring
+    /// `setupstring_parse_file`'s hash-overwrite semantics (`SetupString.pl:340-348`),
+    /// where each new true-conditioned header replaces the previous entry for that key.
+    private func winningVariant(path: String, section: String) -> RawSection? {
+        var winner: RawSection?
+        for candidate in corpus.rawSections(path: path, name: section) {
+            if candidate.condition.isEmpty || ConditionalEvaluator.evaluate(candidate.condition, context: context) {
+                winner = candidate
+            }
+        }
+        return winner
+    }
+
+    // MARK: - `@` inclusion and `$` prayer macro resolution
+
+    /// Processes a resolved section's text line by line: a line that is itself a `@`
+    /// inclusion directive (already fully qualified by `RawSectionParser`) or a `$Name`
+    /// prayer macro gets replaced by its resolved text; everything else passes through.
+    private func resolveInclusionsAndMacros(in text: String, depth: Int) -> String {
+        guard depth < Self.maxInclusionDepth else {
+            return "Cannot resolve too deeply nested references"
+        }
+
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        var resolvedLines: [String] = []
+        resolvedLines.reserveCapacity(lines.count)
+
+        for line in lines {
+            if line.first == "@", let inclusion = parseInclusion(line) {
+                var included = resolveSection(path: inclusion.path, section: inclusion.section, depth: depth + 1)
+                if let subs = inclusion.substitutions {
+                    included = applySubstitutions(subs, to: included)
+                }
+                resolvedLines.append(included)
+            } else if line.first == "$" {
+                let name = String(line.dropFirst())
+                resolvedLines.append(resolveSection(path: Self.prayersPath, section: name, depth: depth + 1))
+            } else {
+                resolvedLines.append(String(line))
+            }
+        }
+
+        return resolvedLines.joined(separator: "\n")
+    }
+
+    private struct Inclusion {
+        var path: String
+        var section: String
+        var substitutions: String?
+    }
+
+    /// Parses an already-qualified `@File:Section[:Substitutions]` line (see
+    /// `RawSectionParser.qualifySelfReferences`, which guarantees file and section are
+    /// always present by the time a line reaches here).
+    private func parseInclusion(_ line: Substring) -> Inclusion? {
+        guard let match = try? Self.qualifiedInclusionRegex.firstMatch(in: line),
+            let path = match.output[1].substring, let section = match.output[2].substring
+        else { return nil }
+        let subs = match.output[3].substring.map(String.init)
+        return Inclusion(path: String(path), section: String(section), substitutions: subs)
+    }
+
+    private nonisolated(unsafe) static let qualifiedInclusionRegex: Regex<AnyRegexOutput> =
+        // swiftlint:disable:next force_try
+        try! Regex(#"^@([^\n:]+):([^\n:]+)(?::(.*))?$"#)
+
+    // MARK: - Substitutions (`do_inclusion_substitutions`, `SetupString.pl:491-505`)
+
+    /// Applies a chain of `@`-inclusion substitution directives to `text`: either a
+    /// 1-indexed line selector (`3`, `3-5`, or negated `!3-5` to keep everything
+    /// *except* that range) or a `s/pattern/replacement/flags` regex substitution.
+    private func applySubstitutions(_ subs: String, to text: String) -> String {
+        var result = text
+        var cursor = subs.startIndex
+
+        while cursor < subs.endIndex,
+            let match = try? Self.substitutionDirectiveRegex.firstMatch(in: subs[cursor...])
+        {
+            if let regexReplace = match.output[1].substring {
+                result = applyRegexSubstitution(String(regexReplace), replacement: match.output[2].substring.map(String.init) ?? "",
+                    flags: match.output[3].substring.map(String.init) ?? "", to: result)
+            } else if let startText = match.output[5].substring, let start = Int(startText) {
+                let negated = match.output[4].substring == "!"
+                let end = match.output[7].substring.flatMap { Int($0) } ?? start
+                result = applyLineSelection(start: start, end: end, negated: negated, to: result)
+            }
+            cursor = match.range.upperBound
+        }
+        return result
+    }
+
+    private func applyLineSelection(start: Int, end: Int, negated: Bool, to text: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let startIndex = max(0, start - 1)
+        guard startIndex < lines.count else { return text }
+        let length = max(1, end - start + 1)
+        let range = startIndex..<min(lines.count, startIndex + length)
+
+        if negated {
+            lines.removeSubrange(range)
+        } else {
+            lines = Array(lines[range])
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func applyRegexSubstitution(_ pattern: String, replacement: String, flags: String, to text: String) -> String {
+        var options: [String] = []
+        if flags.contains("i") { options.append("i") }
+        if flags.contains("s") { options.append("s") }
+        if flags.contains("m") { options.append("m") }
+        let prefix = options.isEmpty ? "" : "(?\(options.joined())"
+        let fullPattern = prefix.isEmpty ? pattern : "\(prefix))\(pattern)"
+
+        guard let regex = try? Regex(fullPattern) else { return text }
+        let maxReplacements = flags.contains("g") ? Int.max : 1
+
+        // Perl's replacement string supports $1-style backreferences; expand them
+        // ourselves via the match-based closure overload, since Swift's plain-string
+        // replacement overload treats the replacement as a literal.
+        return text.replacing(regex, maxReplacements: maxReplacements) { match in
+            expandBackreferences(replacement, match: match)
+        }
+    }
+
+    private func expandBackreferences(_ replacement: String, match: Regex<AnyRegexOutput>.Match) -> String {
+        var result = ""
+        var chars = Array(replacement)
+        var i = 0
+        while i < chars.count {
+            if chars[i] == "$", i + 1 < chars.count, chars[i + 1].isNumber {
+                var j = i + 1
+                var numberText = ""
+                while j < chars.count, chars[j].isNumber {
+                    numberText.append(chars[j])
+                    j += 1
+                }
+                if let groupIndex = Int(numberText), groupIndex < match.output.count,
+                    let captured = match.output[groupIndex].substring
+                {
+                    result += captured
+                }
+                i = j
+            } else {
+                result.append(chars[i])
+                i += 1
+            }
+        }
+        return result
+    }
+
+    /// Ports the alternation in `do_inclusion_substitutions`'s matching regex
+    /// (`SetupString.pl:494`): either `s/pattern/replacement/flags` (groups 1-3) or a
+    /// line selector `!?N(-M)?` (groups 4-7).
+    private nonisolated(unsafe) static let substitutionDirectiveRegex: Regex<AnyRegexOutput> =
+        // swiftlint:disable:next force_try
+        try! Regex(#"(?:s/([^/]*)/([^/]*)/([gism]*))|(?:(!?)(\d+)(-(\d+))?)"#)
+}
