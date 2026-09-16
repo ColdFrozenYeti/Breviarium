@@ -30,6 +30,16 @@ if (Test-Path $toolchainsDir) {
         $env:Path = (Join-Path $newestToolchain.FullName "usr\bin") + ";" + $env:Path
         $runtimeBin = Join-Path $swiftProgramsDir "Runtimes\$version\usr\bin"
         if (Test-Path $runtimeBin) { $env:Path = "$runtimeBin;" + $env:Path }
+
+        # The toolchain's own usr\lib\swift\windows (where swiftc looks by default, with
+        # no -sdk given) is empty - every actual .swiftmodule lives under the Platforms
+        # SDK instead, which only gets used when SDKROOT points at it. `swift`/`swiftc`
+        # can apparently auto-detect this in an interactive shell, but not reliably in
+        # every process context (seen failing here with "unable to load standard library
+        # for target ..." despite an otherwise-correct vcvars64 environment) - so set it
+        # explicitly rather than trust auto-detection.
+        $sdkRoot = Join-Path $swiftProgramsDir "Platforms\$version\Windows.platform\Developer\SDKs\Windows.sdk"
+        if (Test-Path $sdkRoot) { $env:SDKROOT = $sdkRoot }
     }
 }
 
