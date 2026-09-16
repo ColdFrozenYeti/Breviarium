@@ -555,9 +555,45 @@ None of these were exotic — all three are exactly the kind of thing that only 
 by running the real pipeline end to end, which is the whole reason this integration
 test is being kept permanently rather than treated as a one-off diagnostic.
 
-**Not yet built:** `#Preces Feriales`; Latin/English pairing; and the actual oracle diff
-(`Tests/OracleTests`, which reads `data/oracle-fixtures/` and applies `LatinOrthography`
-at compare time).
+**The oracle diff exists and runs green (2026-09-17).** `Tests/OracleTests` builds the
+real bundle once per run, assembles Vespers for a handful of real dates, and checks
+every `Unit`'s text is actually findable in the matching `data/oracle-fixtures/` entry
+(applying `LatinOrthography` to the fixture at compare time, per `data/SOURCE.md`) —
+a containment check per text piece rather than a byte-exact diff, since matching DO's
+own page chrome (heading text, "Top"/"Next" nav, page numbers) isn't a Kit concern and
+isn't modelled. 4 tests pass, each scoped to the sections confirmed correct for that
+specific date; three real, date-specific antiphon/collect-selection gaps surfaced along
+the way and are excluded from comparison scope (not silently passed) rather than
+guessed at further:
+
+1. **A Commune's `[Ant Vespera]`/`[Ant Vespera 3]` can carry antiphons with no
+   `;;psalmNumber` suffix at all** (real example: `Commune/C3.txt`, the Common of
+   Several Martyrs) — meaning "alternate antiphons for the ferial psalms of the day,"
+   not "these come with their own proper psalms." `assemblePsalmodia`/
+   `assembleMagnificat` now fall through to the weekday schedule (or `[Ant 3]`, for the
+   Magnificat) whenever the numbered form parses to zero pairs, matching this confirmed
+   case — fixed, not just flagged.
+2. **Two further antiphon-source rules remain unhandled**, both confirmed against real
+   fixtures: a later weekday reusing an octave's shared temporal file (`Tempora/Nat1-0`
+   covers every day of the Octave, not just its first) incorrectly keeps that file's own
+   proper antiphons instead of falling back to the plain weekday's; Paschaltide replaces
+   every psalm antiphon with a plain "Allelúia," which this pass doesn't produce.
+3. **`#Oratio`'s collect can need a name substituted into a literal `"N."`/`"N. et N."`
+   placeholder** — DO's `replaceNdot()` (`specials.pl`) pulls the name from the
+   winning office's own `[Name]` section. Separately, a Commune can define numbered
+   sub-variants (`[Oratio 3]` alongside plain `[Oratio]`, confirmed real example: two
+   martyrs specifically get `[Oratio 3]`) selected by a rule not yet identified.
+   Neither is implemented; `.oratio` is excluded from comparison wherever a date could
+   hit either.
+
+Also fixed while building this: `HourAssembler.unitsFromResolvedText` now produces one
+`.prose` unit per source line (not one joined block) — DO's own rendering puts its `℣.`/
+`℟.` glyph directly between a collect's body and its `$Per Dominum` ending with no
+separating punctuation, so a single joined string was never actually contiguous in the
+fixture, only the per-line pieces are.
+
+**Not yet built:** the three antiphon/collect-selection gaps above; `#Preces Feriales`;
+and Latin/English pairing.
 
 ### M5 — User interface
 

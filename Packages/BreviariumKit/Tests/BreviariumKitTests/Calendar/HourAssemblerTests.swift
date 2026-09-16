@@ -48,7 +48,7 @@ private let psalm232 = RawOfficeFile(path: "Psalterium/Psalmorum/Psalm232", sect
 ])
 
 private let weekdaySchedule = RawOfficeFile(path: "Psalterium/Psalmi/Psalmi major", sections: [
-    RawSection(name: "Day1 Vespera", condition: "", body: ["cue;;114"])
+    RawSection(name: "Day1 Vespera", condition: "", body: ["Antiphona feriae * de psalmo.;;114"])
 ])
 
 /// A plain Monday feria (19 Jan 2026, real-date-verified elsewhere in this test suite),
@@ -58,7 +58,10 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     RawSection(name: "Rank", condition: "", body: [";;Feria;;1.0"]),
 ])
 
-@Test func assemblesAFerialVespersWithNoProperAntiphonsFromTheWeekdaySchedule() throws {
+@Test func assemblesAFerialVespersFromTheWeekdaySchedulesOwnAntiphons() throws {
+    // Confirmed against the real oracle fixture for 16 September 2026: the weekday
+    // schedule (Psalterium/Psalmi/Psalmi major.txt) carries real antiphon text
+    // alongside each psalm number, not a bare cue placeholder.
     let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal])
     let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]))
 
@@ -68,11 +71,37 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     #expect(introductio.units.contains(.versicleResponse(versicle: "Deus in adiutorium meum intende.", response: "Domine, ad adiuvandum me festina.")))
 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    #expect(psalmodia.units.first == .antiphon("Antiphona feriae * de psalmo."))
     #expect(psalmodia.units.contains(.verse(reference: "114:1", firstHalf: "Dilexi, quoniam exaudiet Dominus*", secondHalf: "vocem orationis meae.")))
-    #expect(!psalmodia.units.contains { if case .antiphon = $0 { return true } else { return false } })
+    #expect(psalmodia.units.last == .antiphon("Antiphona feriae * de psalmo."))
 
     let conclusio = try #require(hour.sections.first { $0.kind == .conclusio })
     #expect(conclusio.units.contains(.versicleResponse(versicle: "Domine, exaudi orationem meam.", response: "Et clamor meus ad te veniat.")))
+}
+
+@Test func fallsBackToTheWeekdayScheduleWhenAntVesperaHasNoPsalmNumbers() throws {
+    // Confirmed against the real oracle fixture for 16 September 2026: Commune/C3.txt
+    // (Common of Several Martyrs) has its own [Ant Vespera], but with no ";;number" on
+    // any line -- meaning "alternate antiphons for the ferial psalms," not "these come
+    // with their own proper psalms." A section that exists but parses to zero
+    // (antiphon, psalmNumber) pairs must fall through to the weekday schedule exactly
+    // like no section at all, not silently produce empty psalmody.
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;vide C99"]),
+        RawSection(name: "Oratio", condition: "", body: ["Oratio propria."]),
+    ])
+    let commune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Ant Vespera", condition: "", body: ["Antiphona alternativa sine numero psalmi."])
+    ])
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    #expect(psalmodia.units.first == .antiphon("Antiphona feriae * de psalmo."))
+    #expect(psalmodia.units.contains(.verse(reference: "114:1", firstHalf: "Dilexi, quoniam exaudiet Dominus*", secondHalf: "vocem orationis meae.")))
 }
 
 @Test func assemblesPsalmodiaFromAProperAntiphonWhenTheOfficeDefinesOne() throws {

@@ -71,7 +71,7 @@ public struct HourAssembler {
                 if let collect = resolveWithCommuneFallback(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
                 ) {
-                    sections.append(Section(kind: .oratio, units: [.prose(collect)]))
+                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(collect)))
                 }
             case "Conclusio":
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines)))
@@ -139,6 +139,23 @@ public struct HourAssembler {
         return units
     }
 
+    /// Cleans a resolved multi-line prose block (a collect, e.g.) into one `.prose` unit
+    /// per non-blank line, each with its own DO presentational label stripped. The
+    /// `$Per Dominum` ending embeds a decorative lowercase `r.` continuation and a real
+    /// `R.` response as separate lines within the *same* collect — DO's own rendering
+    /// puts its `℟.` glyph directly between the collect's own end and "Amen." with no
+    /// separating punctuation (confirmed against the real oracle fixture for 16
+    /// September 2026), so keeping each source line as its own unit (rather than joining
+    /// them into one string) is what keeps "Amen." independently findable there. Not
+    /// `unitsFromLines`' full treatment (versicle/response pairing, `*`-verse
+    /// splitting) — right for the skeleton, overkill for what's always plain prose here.
+    static func unitsFromResolvedText(_ text: String) -> [Unit] {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { DOMarkers.stripLineLabel(String($0)) }
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .map { .prose($0) }
+    }
+
     // MARK: - Commune fallback
 
     /// A section this office doesn't define at all, falling back to its Commune.
@@ -172,35 +189,32 @@ public struct HourAssembler {
         }
     }
 
+    /// Confirmed against the real oracle fixture for 16 September 2026 (`docs/PLAN.md`'s
+    /// M4 status has the full story): a `[Ant Vespera]` section can carry antiphons with
+    /// **no** `;;psalmNumber` suffix at all (real example: `Commune/C3.txt`, the Common
+    /// of Several Martyrs) — meaning "these replace the antiphons for whichever psalms
+    /// the weekday already assigns," not "these come with their own proper psalms."
+    /// Only a `[Ant Vespera]` whose lines *do* carry `;;number` (real example:
+    /// `Commune/C6.txt`, giving genuinely different psalms) is treated as proper;
+    /// anything else — including a section that exists but parses to zero pairs — falls
+    /// through to the ferial weekday schedule, same as no section at all.
     private func assemblePsalmodia(office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int) -> Section {
         let proper = resolveWithCommuneFallback(
             office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera", resolver: resolver
         )
-        let pairs: [(antiphon: String, psalmNumber: String)]
-        if let proper, !proper.isEmpty {
-            pairs = Self.parseAntiphonPsalmPairs(proper)
-        } else {
-            pairs = weekdayPsalmNumbers(dayOfWeek: dayOfWeek, resolver: resolver).map { (antiphon: "", psalmNumber: $0) }
+        var pairs = proper.map(Self.parseAntiphonPsalmPairs) ?? []
+        if pairs.isEmpty {
+            let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(dayOfWeek) Vespera")
+            pairs = Self.parseAntiphonPsalmPairs(weekdayText)
         }
 
         var units: [Unit] = []
         for pair in pairs {
-            if !pair.antiphon.isEmpty { units.append(.antiphon(pair.antiphon)) }
+            units.append(.antiphon(pair.antiphon))
             units.append(contentsOf: psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext))
-            if !pair.antiphon.isEmpty { units.append(.antiphon(pair.antiphon)) }
+            units.append(.antiphon(pair.antiphon))
         }
         return Section(kind: .psalmodia, units: units)
-    }
-
-    /// The ferial weekday psalm schedule (`Psalterium/Psalmi/Psalmi major.txt`'s
-    /// `[DayN Vespera]`) — the fallback when the office defines no proper `[Ant
-    /// Vespera]` of its own.
-    private func weekdayPsalmNumbers(dayOfWeek: Int, resolver: SectionResolver) -> [String] {
-        let text = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(dayOfWeek) Vespera")
-        return text.split(separator: "\n", omittingEmptySubsequences: false).compactMap { line in
-            let parts = line.components(separatedBy: ";;")
-            return parts.count >= 2 ? parts[1] : nil
-        }
     }
 
     private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext) -> [Unit] {
@@ -222,19 +236,34 @@ public struct HourAssembler {
 
     // MARK: - Canticum: Magnificat
 
+    /// The Magnificat antiphon's actual source, confirmed against the real oracle
+    /// fixture for 16 September 2026: for this rank (Semiduplex), it's `[Ant 3]` (a
+    /// plain, unnumbered antiphon — real example: `Commune/C3.txt`'s own `[Ant 3]`,
+    /// "Gaudent in cælis..."), **not** `[Ant Vespera 3]` (whose candidates all carry a
+    /// `;;psalmNumber`-style tag — real example, the same file's `[Ant Vespera 3]`,
+    /// "Isti sunt Sancti...;;109"), which this code tried first before that fixture
+    /// caught it choosing the wrong one. `[Ant 3]` is tried first here, mirroring
+    /// `assemblePsalmodia`'s confirmed pattern that an unnumbered antiphon is the
+    /// general-purpose one and a numbered one is reserved for specific higher ranks --
+    /// **not independently confirmed for this section** (only that `[Ant 3]` is right
+    /// for *this* rank), so a higher-ranked feast that should actually get one of `[Ant
+    /// Vespera 3]`'s numbered candidates is a known open question, not a closed one.
     private func assembleMagnificat(office: String, resolver: SectionResolver, macroContext: MacroContext) -> Section {
         var units: [Unit] = []
-        if let proper = resolveWithCommuneFallback(
+        let plain = resolveWithCommuneFallback(
+            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant 3", resolver: resolver
+        )
+        let numbered = resolveWithCommuneFallback(
             office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera 3", resolver: resolver
-        ), let firstLine = proper.split(separator: "\n", omittingEmptySubsequences: false).first {
-            let antiphon = String(firstLine).components(separatedBy: ";;").first ?? String(firstLine)
-            if !antiphon.isEmpty {
-                units.append(.antiphon(antiphon))
-                units.append(contentsOf: magnificatVerses(resolver: resolver))
-                units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
-                units.append(.antiphon(antiphon))
-                return Section(kind: .canticum, units: units)
-            }
+        )
+        if let antiphon = (plain ?? numbered)?.split(separator: "\n", omittingEmptySubsequences: false).first
+            .map({ String($0).components(separatedBy: ";;").first ?? String($0) }), !antiphon.isEmpty
+        {
+            units.append(.antiphon(antiphon))
+            units.append(contentsOf: magnificatVerses(resolver: resolver))
+            units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
+            units.append(.antiphon(antiphon))
+            return Section(kind: .canticum, units: units)
         }
         units.append(contentsOf: magnificatVerses(resolver: resolver))
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))

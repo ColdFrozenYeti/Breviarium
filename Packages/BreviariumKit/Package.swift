@@ -39,13 +39,14 @@ let package = Package(
         ),
 
         // Diffs engine output against the committed Divinum Officium oracle fixtures
-        // (data/oracle-fixtures, generated in M4). Fixture loading is added once that
-        // data exists — SPM resources must live inside the target's own directory, so
-        // the loader will read from the repo-relative path via FileManager rather than
-        // as a declared SPM resource.
+        // (data/oracle-fixtures). SPM resources must live inside the target's own
+        // directory, so fixtures are read from the repo-relative path via FileManager
+        // rather than as a declared SPM resource. Depends on BreviariumDataCore to
+        // build the real bundle from the pinned checkout, the same way
+        // VespersIntegrationTests does.
         .testTarget(
             name: "OracleTests",
-            dependencies: ["BreviariumKit"]
+            dependencies: ["BreviariumKit", "BreviariumDataCore"]
         ),
     ]
 )

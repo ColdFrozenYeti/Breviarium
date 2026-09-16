@@ -51,13 +51,10 @@ import Testing
     #expect(canticum.units.contains { if case .verse(let ref, _, _) = $0 { return ref.hasPrefix("1:") } else { return false } })
 
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
-    #expect(oratio.units.count == 1)
-    guard case .prose(let collect)? = oratio.units.first else {
-        Issue.record("Expected the collect to be a single .prose unit")
-        return
-    }
-    #expect(collect.contains("Iesum Christum"))       // The $Per Dominum ending, I-spelled.
-    #expect(!collect.contains("is missing!"))          // No unresolved @/$/& reference leaked through.
+    let collectText = oratio.units.compactMap { if case .prose(let text) = $0 { return text } else { return nil } }
+        .joined(separator: " ")
+    #expect(collectText.contains("Iesum Christum"))    // The $Per Dominum ending, I-spelled.
+    #expect(!collectText.contains("is missing!"))      // No unresolved @/$/& reference leaked through.
 
     let conclusio = try #require(hour.sections.first { $0.kind == .conclusio })
     #expect(
