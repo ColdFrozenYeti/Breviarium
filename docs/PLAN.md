@@ -255,6 +255,15 @@ liturgical code exists.
     `.ipa` → Windows sideloading tool → iPhone, before any liturgical logic depends on the
     pipeline working.
 
+**M0 done (2026-09-16).** Kit CI, App CI, and Build IPA all verified green on GitHub
+Actions; `get-ipa.ps1` fetches a real `.ipa` with the correct `Payload/Breviarium.app`
+structure; sideloaded via AltStore/AltServer onto the actual iPhone, confirmed showing
+"Breviarium" / "Kit data format v1" as built. Two real bugs surfaced and were fixed along
+the way rather than staying theoretical: `setup-swift@v2` didn't know about Swift 6.3.x
+(needed `@v3`), and `install-on-iphone.md`'s first draft described an AltServer tray-icon
+interaction that doesn't exist (corrected to the AltStore-app `My Apps` → `+` → iCloud
+Drive path after hitting that wall for real and re-researching it).
+
 ### M1 — Understand Divinum Officium
 
 No code. Two review documents, read closely from the submodule pin (`web/www/horas/Latin*`,
