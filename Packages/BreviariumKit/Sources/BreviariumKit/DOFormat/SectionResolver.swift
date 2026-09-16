@@ -169,7 +169,7 @@ public struct SectionResolver {
 
     private func expandBackreferences(_ replacement: String, match: Regex<AnyRegexOutput>.Match) -> String {
         var result = ""
-        var chars = Array(replacement)
+        let chars = Array(replacement)
         var i = 0
         while i < chars.count {
             if chars[i] == "$", i + 1 < chars.count, chars[i + 1].isNumber {
