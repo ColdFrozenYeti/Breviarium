@@ -1,8 +1,0 @@
-git_url("https://github.com/ColdFrozenYeti/Breviarium-certificates.git")
-storage_mode("git")
-type("appstore")
-app_identifier(["com.epavone.breviarium"])
-
-# The certificates repo is separate and private (docs/PLAN.md, Decisions §6) — it holds
-# only encrypted certificates and profiles, never app source. Create it once by hand
-# (docs/apple-developer-setup.md) before running the "bootstrap_signing" lane.

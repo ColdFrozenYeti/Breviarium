@@ -20,6 +20,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 
   This is a breviary in a phone.
 - **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on.
+- **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time.
 
 ## Development environment: there is no Mac
 
@@ -34,9 +35,11 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - App builds run on **GitHub Actions macOS runners**, using the latest Xcode image that supports the iOS 26.5 SDK. Verify this rather than assuming.
   - The workflow builds the app, runs the Kit tests, runs the UI snapshot tests on a simulator, and uploads the rendered PNGs as artifacts.
 - **Installing on the iPhone**
-  - Installation goes through **TestFlight** (internal testing) with the user's Apple Developer Program account.
-  - Signing uses an App Store Connect API key stored in GitHub secrets. Certificates and profiles are created and managed from CI; document every one-time manual step the user must do in a browser.
-  - TestFlight builds expire after 90 days, so the workflow must make re-uploading a one-click action.
+  - No Apple Developer Program membership. Installation is by **sideloading with a free Apple ID**, done entirely from Windows — see `docs/install-on-iphone.md` for the tool, one-time setup, and weekly routine.
+  - CI produces an **unsigned** device build (`CODE_SIGNING_ALLOWED=NO`), packaged as a plain `.ipa` (`Payload/Breviarium.app`, zipped), and uploads it as a GitHub Actions workflow artifact — nothing in CI ever signs anything, since CI has no Apple account to sign with. `scripts/get-ipa.ps1` fetches the latest one.
+  - The actual signing happens on Windows, in the sideloading tool, with the free Apple ID. Free-tier signatures **expire after 7 days** and must be re-signed; `docs/install-on-iphone.md` covers that routine, including whether it needs a cable.
+  - The **bundle identifier stays fixed forever** (`com.epavone.breviarium`) so every re-sign reuses the same App ID instead of burning through the free tier's ~10-new-App-IDs-per-week limit.
+  - Design the CI pipeline so that adding TestFlight later, if the Apple Developer Program is ever joined, means adding a signing step on top of the existing unsigned build — not restructuring it.
 - **Visual iteration without a simulator on hand**
   - Snapshot tests render each key screen at fixed sizes in the iOS simulator on CI.
   - Download the artifacts and compare them visually against `design/reference/`. Report differences concretely (element, measured value, expected value), fix them, and repeat.

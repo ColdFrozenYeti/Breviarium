@@ -1,8 +1,8 @@
 import SwiftUI
 import BreviariumKit
 
-/// M0 placeholder: proves the repo -> Kit -> app -> TestFlight pipeline end to end.
-/// Real views (Today/Vespers, TOC, date picker, Settings) land in M5.
+/// M0 placeholder: proves the repo -> Kit -> app -> unsigned .ipa -> sideload pipeline
+/// end to end. Real views (Today/Vespers, TOC, date picker, Settings) land in M5.
 struct ContentView: View {
     var body: some View {
         ZStack {

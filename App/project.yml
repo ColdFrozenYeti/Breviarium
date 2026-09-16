@@ -9,6 +9,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
+    # No Apple Developer Program membership, so no team/signing config here. CI builds
+    # unsigned (build-ipa.yml overrides CODE_SIGNING_ALLOWED=NO on the command line);
+    # actual signing happens on Windows in the sideloading tool with a free Apple ID --
+    # see docs/install-on-iphone.md. These are harmless defaults if this project is ever
+    # opened directly in Xcode on an actual Mac.
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1" # iPhone only
@@ -42,6 +47,10 @@ targets:
           NSAllowsArbitraryLoads: false
     settings:
       base:
+        # Fixed forever (CLAUDE.md, Non-negotiables): every free-Apple-ID re-sign must
+        # reuse this same App ID, both for AltStore/Sideloadly to treat a re-sign as the
+        # same app (preserving local data) and to avoid the free tier's ~10-new-App-IDs-
+        # per-week cap. Do not change this without a very good reason.
         PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium
         PRODUCT_NAME: Breviarium
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

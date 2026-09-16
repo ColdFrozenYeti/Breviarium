@@ -6,15 +6,51 @@ Breviarium is a personal, offline iPhone app that computes and displays the trad
 (1960 rubrics, Pius XII psalter) Divine Office, styled after the Universalis app's night
 mode. The alpha scope is Roman Vespers only. The defining constraint is that development
 happens entirely without a Mac: `BreviariumKit` (the engine) must build and test on this
-Windows machine with the open-source Swift toolchain, while the app itself, its signing,
-and its delivery to the user's iPhone all happen on GitHub Actions macOS runners and
-TestFlight. Every milestone below is sequenced so that the no-Mac pipeline is proven
-first, before any liturgical logic is built on top of it.
+Windows machine with the open-source Swift toolchain, while the app itself is built on
+GitHub Actions macOS runners as an **unsigned** device build and reaches the user's
+iPhone by **sideloading with a free Apple ID, from Windows** — there is no paid Apple
+Developer Program membership and no TestFlight (see the 2026-09-16 amendment below).
+Every milestone below is sequenced so that the no-Mac pipeline is proven first, before
+any liturgical logic is built on top of it.
 
 This plan was produced after reading `CLAUDE.md` in full and inspecting the three images
 actually present in the repository (`Design/Reference/Format.png`,
 `Design/Reference/Calendar.png`, `Design/Reference/Hours Picker.png` — see the note on
 naming below).
+
+### Amendment — 2026-09-16: sideloading instead of TestFlight
+
+The original plan (and M0 as actually built) used a paid Apple Developer Program
+membership: App Store Connect, an API key, `fastlane match` for certificates, and
+TestFlight for delivery. The user has decided against joining the paid program. The app
+now reaches the iPhone by **sideloading with a free Apple ID**, entirely from Windows.
+Concretely, this changes:
+
+- **CI no longer signs anything.** `app-ci.yml`'s simulator build and UI test lane is
+  unchanged. What was `testflight.yml` is now an IPA-build workflow that produces an
+  **unsigned** device build (`CODE_SIGNING_ALLOWED=NO`), packages it as a plain `.ipa`,
+  and uploads it as a GitHub Actions workflow artifact — nothing more. `bootstrap-signing.yml`
+  is removed entirely, along with `App/fastlane/*`, since there are no certificates or
+  provisioning profiles for CI to manage.
+- **Signing happens on Windows**, in a sideloading tool, using the free Apple ID —
+  `docs/install-on-iphone.md` covers which tool, setup, first install, and the mandatory
+  7-day re-sign routine free-tier signatures carry. `docs/apple-developer-setup.md` (the
+  paid-account browser checklist) is removed.
+- **The bundle identifier (`com.epavone.breviarium`) is now a hard constant** — every
+  re-sign must reuse the same App ID, both because that's how re-signing an existing
+  install works at all and because the free tier caps new App ID registration at roughly
+  ten per rolling week.
+- **The app may never need a capability a free Apple ID can't sign** — no iCloud, push,
+  App Groups, widgets/extensions, or associated domains — which was already outside the
+  alpha's scope but is now a hard constraint on all future milestones too, not just a
+  scoping choice. See `CLAUDE.md`'s Non-negotiables.
+- **The pipeline is deliberately structured so that adding TestFlight later** — if the
+  Apple Developer Program is ever joined — **is additive**: a new signing step slotting in
+  where the unsigned build currently gets zipped into an `.ipa`, not a restructuring of
+  `app-ci.yml` or the IPA-build workflow.
+
+Sections below are updated in place to describe the current (sideloading) approach as
+the plan going forward; this amendment records why it changed.
 
 ### Note on the design references
 
@@ -94,13 +130,13 @@ Breviarium/
     BreviariumUITests/             (XCUITest snapshot tests)
   scripts/
     test-kit.sh / test-kit.ps1     (local: swift build && swift test, Linux/Windows)
+    get-ipa.ps1                    (downloads the latest unsigned .ipa artifact via gh CLI)
     docker/                        (docker-compose for DO, pinned to the submodule commit)
     generate-oracle-fixtures.*     (drives the Docker DO instance, writes data/oracle-fixtures)
   .github/workflows/
     kit-ci.yml                     (ubuntu-latest: swift build/test for Kit, Data, Oracle)
     app-ci.yml                     (macos-26: xcodegen generate, build, UI snapshot tests, upload PNG artifacts)
-    testflight.yml                 (macos-26, manual/tag-triggered: archive + fastlane pilot upload)
-    bootstrap-signing.yml           (macos-26, manual, one-time: fastlane match appstore)
+    build-ipa.yml                  (macos-26, manual workflow_dispatch: unsigned device build, packaged as .ipa, uploaded as an artifact)
 ```
 
 ### `BreviariumKit` (pure Swift, Foundation only, Linux+Windows buildable)
@@ -197,23 +233,27 @@ liturgical code exists.
    build, which sidesteps hand-editing a `.pbxproj` blind.
 7. **`app-ci.yml`** (macos-26 runner — confirmed available and current, with Xcode
    26.0.1–26.6 preinstalled, more than covering the iOS 26.5 SDK; see sources below):
-   generate the project, `xcodebuild build` a placeholder app (one screen, black
-   background, "Breviarium" text) for the simulator, then archive for a real device.
-8. **Apple Developer / App Store Connect bootstrap (browser checklist for you).**
-   Documented step by step in `docs/PLAN.md` and repeated as an issue/checklist:
-   enrol in the Apple Developer Program; create the App ID and App Store Connect app
-   record; create an **App Store Connect API key** (download the `.p8` once); store the
-   key, key ID, and issuer ID as GitHub secrets; create a private repo (or private branch)
-   for **fastlane match**'s encrypted certificate storage and its passphrase as a secret.
-9. **`bootstrap-signing.yml`** (manual, one-time): runs `fastlane match appstore` **on the
-   macOS runner itself**, authenticated with the App Store Connect API key (no Apple ID
-   password, no interactive 2FA — confirmed current fastlane guidance, see sources) —
-   this is what makes certificate/profile creation possible without ever touching a Mac.
-10. **`testflight.yml`** (manual/tag-triggered): archive, export, and `fastlane pilot
-    upload` the placeholder app to TestFlight.
-11. **Exit criterion:** the placeholder app is installed on your iPhone via TestFlight,
-    proving repo → Linux Kit CI → macOS app CI → signing → TestFlight, before any
-    liturgical logic depends on the pipeline working.
+   generate the project and `xcodebuild build`/`test` a placeholder app (one screen,
+   black background, "Breviarium" text) on the simulator only — no signing, no device
+   build. The device build lives in `build-ipa.yml` (below), kept separate so ordinary
+   pushes stay on the cheap simulator-only lane.
+8. **`build-ipa.yml`** (macos-26, manual `workflow_dispatch` trigger so a fresh `.ipa` is
+   a click away): generates the Xcode project, builds the placeholder app for a real
+   device with `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` against the
+   `generic/platform=iOS` destination (an unsigned arm64 build needs no signing identity
+   at all), packages the resulting `.app` as a proper `.ipa`
+   (`Payload/Breviarium.app`, zipped), and uploads it as a workflow artifact.
+9. **`scripts/get-ipa.ps1`**: downloads the latest successful `.ipa` artifact from
+   `build-ipa.yml` via the `gh` CLI into a fixed local folder and prints the path — the
+   bridge between "CI made a build" and "sideload it from Windows."
+10. **`docs/install-on-iphone.md`** (browser/desktop checklist for you): which sideloading
+    tool to use on Windows with a free Apple ID (see below), one-time setup, first
+    install, the mandatory 7-day re-sign routine, what expiry looks like, and the free
+    tier's app-count and App-ID-per-week limits.
+11. **Exit criterion:** the placeholder app is installed on your iPhone by sideloading the
+    `build-ipa.yml` artifact, proving repo → Linux Kit CI → macOS app CI → unsigned
+    `.ipa` → Windows sideloading tool → iPhone, before any liturgical logic depends on the
+    pipeline working.
 
 ### M1 — Understand Divinum Officium
 
@@ -281,12 +321,16 @@ class feast, Holy Week day; each with English off (portrait) and English on
 (portrait + landscape); each at default and largest text size; page 1 and one psalmody
 page. Final snapshots shown to you before moving on.
 
-### M6 — TestFlight release
+### M6 — Sideload release
 
-Ship the real alpha via the pipeline proven in M0: archive, sign, `fastlane pilot upload`.
-Short manual verification checklist for you (date line for today, paging, TOC navigation,
-priest toggle, rubrics toggle, English toggle, largest text size, previous/next day,
-jump-to-date). `testflight.yml` stays a one-click re-run for the 90-day expiry.
+Ship the real alpha via the pipeline proven in M0: `build-ipa.yml` produces the unsigned
+`.ipa`, `scripts/get-ipa.ps1` fetches it, the sideloading tool signs and installs it with
+the free Apple ID. Short manual verification checklist for you (date line for today,
+paging, TOC navigation, priest toggle, rubrics toggle, English toggle, largest text size,
+previous/next day, jump-to-date). `build-ipa.yml` stays a one-click re-run whenever a
+fresh build is needed, independent of the 7-day re-sign routine (which is purely a
+Windows-side/on-device action against a `.ipa` you already have — see
+`docs/install-on-iphone.md`).
 
 ---
 
@@ -324,8 +368,7 @@ jump-to-date). `testflight.yml` stays a one-click re-run for the 90-day expiry.
 |---|---|---|---|
 | `kit-ci.yml` | ubuntu-latest (1×) | every push/PR | `swift build/test`, incl. oracle diff — cheap |
 | `app-ci.yml` | macos-26 (10×) | every push/PR touching `App/` or `Packages/` | Xcode build + simulator boot + snapshot tests |
-| `testflight.yml` | macos-26 (10×) | manual / tag | archive + upload |
-| `bootstrap-signing.yml` | macos-26 (10×) | manual, one-time | cert/profile creation |
+| `build-ipa.yml` | macos-26 (10×) | manual (workflow_dispatch) | unsigned device build + zip — no signing/upload step, so it's cheaper than the old TestFlight archive+upload was |
 
 Given macOS runner minutes cost 10× Linux minutes on GitHub's free/included quota, Kit
 tests run **only** on Linux (per `CLAUDE.md`'s own instruction), and `app-ci.yml` is
@@ -348,19 +391,30 @@ scoped with a path filter so pure-Kit changes never trigger a macOS run.
   committed fixtures; if DO's CGI turns out too slow per-call even in parallel, invoking
   its Perl entry points directly in-process (bypassing HTTP) is the fallback, to be
   confirmed during M1.
-- **No-Mac debugging.** No breakpoints, no Instruments, no on-device console beyond what
-  TestFlight/App Store Connect crash diagnostics expose. If a defect can't be diagnosed
-  from CI logs, symbolicated crash reports, and snapshot PNGs alone, the fallback is a
-  short paid rental of a cloud Mac for a focused session — flagged here so it's a known,
-  cheap escape hatch rather than a surprise.
-- **First-run signing bootstrap.** `fastlane match`'s certificate creation is confirmed to
-  work with App Store Connect API-key auth only (no Apple ID password/2FA), which is what
-  makes `bootstrap-signing.yml` possible entirely on a CI runner — but this is worth a
-  dry run early (in M0) rather than discovering an auth gap only at M6.
+- **No-Mac debugging, and now no TestFlight diagnostics either.** No breakpoints, no
+  Instruments, no on-device console — and, since there's no App Store Connect without the
+  paid program, none of the automatic crash-report collection TestFlight builds get
+  either. If a defect can't be diagnosed from CI logs and snapshot PNGs alone, on-device
+  crash logs would need to be pulled manually (Settings → Privacy & Security → Analytics &
+  Improvements → Analytics Data, on the iPhone itself, since there's no Mac to sync them
+  via Xcode's device console) or reproduced by adding more logging and re-sideloading. If
+  that's still not enough, the fallback is a short paid rental of a cloud Mac for a
+  focused session.
+- **Free-tier sideloading limits.** A free Apple ID caps sideloaded apps at 3 concurrent
+  and roughly 10 new App IDs per rolling week (see `docs/install-on-iphone.md`, sourced
+  from the sideloading tools' own docs). The fixed bundle identifier keeps every Breviarium
+  re-sign from consuming a new App ID, so this should never bind in practice — but it's
+  worth remembering if the sideloading tool itself, or any other personal sideloaded app,
+  is also competing for the same weekly quota.
+- **7-day re-sign is a standing chore, not a one-time step.** Unlike TestFlight's 90-day
+  window, a free-tier signature expires in 7 days and there is no server-side push to
+  remind you. `docs/install-on-iphone.md`'s routine (and, if wireless refresh is set up,
+  the sideloading tool's own background refresh) is the mitigation; missing a week just
+  means the app stops opening until it's re-signed — no data loss (see that doc).
 - **Xcode/SDK version drift.** GitHub's `macos-26` image (GA) currently ships Xcode
   26.0.1–26.6 with the iOS 26.5 SDK preinstalled, confirmed current as of this plan — `M0`
-  should pin an explicit Xcode version in `app-ci.yml` rather than trust a rolling
-  default, and revisit if GitHub deprecates the image.
+  should pin an explicit Xcode version in `app-ci.yml`/`build-ipa.yml` rather than trust a
+  rolling default, and revisit if GitHub deprecates the image.
 
 ---
 
@@ -378,20 +432,24 @@ plan above.
    and records the hash in `data/SOURCE.md`.
 4. **Date picker colour dots:** wanted, using the 1960/pre-conciliar liturgical colour
    rules rather than the Novus Ordo scheme in `Calendar.png`. (§ M3)
-5. **Apple Developer Program:** already enrolled, so M0's browser checklist starts from
-   "create the App ID / App Store Connect record," not from enrolment — no turnaround-time
-   gate on M0.
-6. **fastlane match storage:** a separate private repo, per the plan's original
-   recommendation.
+5. ~~**Apple Developer Program:** already enrolled...~~ **Superseded 2026-09-16:** the
+   user has decided against the paid program entirely. Installation is by sideloading
+   with a free Apple ID instead — see the amendment at the top of this document, the
+   updated M0/M6, and `docs/install-on-iphone.md`.
+6. ~~**fastlane match storage:** a separate private repo...~~ **Superseded 2026-09-16:**
+   moot — there's no `fastlane match`, no certificates, and no certificate storage repo
+   in the sideloading approach.
 7. **Oracle fixture scope:** reduced to a full Latin/priest-off sweep over 2025–2040 plus
    a ~100-date spot check across the other three option combinations, rather than the
    full four-way matrix over the whole range. (§ Testing strategy, § M4, § Risks)
 
 ---
 
-Sources consulted for the CI/signing details above:
+Sources consulted for the CI details above:
 - [runner-images/images/macos/macos-26-Readme.md](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md)
 - [macos-26 is now generally available for GitHub-hosted runners](https://github.blog/changelog/2026-02-26-macos-26-is-now-generally-available-for-github-hosted-runners/)
-- [Using App Store Connect API — fastlane docs](https://docs.fastlane.tools/app-store-connect-api/)
-- [match — fastlane docs](https://docs.fastlane.tools/actions/match/)
 - [DivinumOfficium/divinum-officium](https://github.com/DivinumOfficium/divinum-officium)
+
+Sources consulted for the 2026-09-16 sideloading amendment (see `docs/install-on-iphone.md`
+for the full citation list): Sideloadly's own site and FAQ, AltStore/AltServer's FAQ site,
+and SideStore's documentation.

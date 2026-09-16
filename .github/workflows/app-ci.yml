@@ -3,8 +3,8 @@ name: App CI
 # Builds the app and runs the UI test/snapshot lane on a macOS runner. Scoped to only
 # fire when App/ or the Kit package actually changed, since macOS runner minutes cost
 # ~10x Linux minutes on GitHub's included quota (see docs/PLAN.md, Testing strategy).
-# No signing here — this builds for the simulator only. Archiving and TestFlight upload
-# is testflight.yml, which needs the certificates bootstrap-signing.yml sets up first.
+# No signing here — this builds for the simulator only, which needs none. The unsigned
+# device build and .ipa packaging live in build-ipa.yml.
 
 on:
   push:

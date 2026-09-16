@@ -1,0 +1,136 @@
+# Installing Breviarium on your iPhone (free Apple ID, from Windows)
+
+No Apple Developer Program membership, no App Store Connect, no TestFlight. CI produces
+an **unsigned** `.ipa`; a sideloading tool on Windows signs it with your free Apple ID and
+puts it on your iPhone. This is the M0 exit criterion and the routine for every install
+after that.
+
+This was researched fresh rather than from memory (see Sources at the end) since
+sideloading tools change quickly.
+
+## Which tool: AltStore/AltServer, not Sideloadly
+
+Both are free, both currently support iOS 26, and both work from Windows with a free
+Apple ID. The difference that matters most for the weekly re-sign chore is how each one
+does *unattended* re-signing:
+
+- **AltServer's wireless refresh is the mature, clearly documented mechanism.** As long
+  as AltServer and the iCloud-for-Windows app are running on your PC (system tray icon
+  visible; iCloud handles the Bonjour service AltServer advertises over) and your iPhone
+  is on the **same Wi-Fi network**, the AltStore app on your phone can refresh itself over
+  Wi-Fi with no cable. This is a well-established, several-years-old feature with clear
+  official documentation of exactly what's required for it to work.
+- **Sideloadly's equivalent is murkier.** Its FAQ says it supports Wi-Fi installs and
+  mentions an "auto-refresh daemon," but the official documentation doesn't clearly spell
+  out whether unattended refresh actually works without you opening the desktop app and
+  clicking something. Sideloadly's real strength is its UI: drag an `.ipa` in, type your
+  Apple ID, click Start — which is arguably simpler for a one-off install than AltStore's
+  "app store" model built around browsing/adding "sources." But for the recurring
+  every-7-days chore this project actually needs, the clearer mechanism wins.
+
+**Recommendation: AltStore/AltServer.** Both need the same non-Microsoft-Store iTunes +
+iCloud installed on Windows first, so that's not a differentiator.
+
+If, later, keeping a Windows PC on and reachable every week becomes annoying, look at
+**SideStore** — a fork of AltStore that, after a heavier one-time setup (it needs a
+device "pairing file," generated with a separate tool), refreshes apps directly from the
+iPhone with no computer involved at all, even over cellular. Not needed for the alpha;
+noted here so you know the upgrade path exists.
+
+## 1. Install on Windows
+
+From Apple's own site (**not** the Microsoft Store versions — those aren't compatible
+and must be uninstalled first if present):
+
+1. iTunes for Windows
+2. iCloud for Windows
+
+(Apple Mobile Device Support and the USB drivers your PC needs to recognize the iPhone
+come bundled with iTunes — no separate driver download.) AltStore's own install guide
+(linked in Sources) has the current direct download links for both, since Apple moves
+these around.
+
+Then install **AltServer for Windows** from AltStore's site and run its installer.
+
+## 2. One-time setup
+
+1. Plug the iPhone in via USB, unlock it, and tap "Trust This Computer" if prompted.
+2. In iTunes, sign in with your Apple ID and turn on **Wi-Fi sync** for the device — this
+   is what lets AltServer reach it wirelessly later.
+3. Launch AltServer as Administrator (Windows search → AltServer → Run as administrator).
+   It sits in the system tray.
+4. Click the AltServer tray icon → **Install AltStore** → choose your device → enter your
+   Apple ID and password. (This goes to Apple only, to request a signing certificate —
+   not to AltStore's developers.)
+5. On the iPhone: **Settings → General → VPN & Device Management** (older iOS calls this
+   "Profiles & Device Management") → tap your Apple ID under "Developer App" → **Trust**.
+6. **Settings → Privacy & Security → Developer Mode** → turn it on → the phone restarts →
+   confirm **Turn On** in the alert that appears after unlocking. (This menu item stays
+   hidden until you've installed a development-signed app at least once, so it should
+   appear right after step 4.)
+
+## 3. First install of Breviarium
+
+1. On Windows: `gh workflow run build-ipa.yml` (or the Actions tab → Build IPA → Run
+   workflow) to produce a fresh `.ipa`, then `.\scripts\get-ipa.ps1` to download it —
+   it lands in `%USERPROFILE%\Downloads\BreviariumIPA\Breviarium.ipa` and the script
+   prints the exact path.
+2. With the iPhone connected (USB or the same Wi-Fi network, per step 2 above) and
+   AltServer running: right-click the AltServer tray icon → your device → **Install** (or
+   drag the `.ipa` onto the AltServer tray icon) → pick `Breviarium.ipa`.
+3. The app installs and its icon appears on the home screen like any other app.
+
+## 4. The weekly 7-day re-sign routine
+
+A free Apple ID's signature is only valid for **7 days**; after that the app refuses to
+launch until it's re-signed. There's no reminder from Apple or from AltStore — it's on
+you to keep it current.
+
+**Over Wi-Fi, no cable, as long as your PC is on:** open the **AltStore** app on your
+iPhone (on the same Wi-Fi network as your PC, AltServer running) → **My Apps** →
+**Refresh All**. That's it — no new `.ipa` needed unless you actually changed the app.
+This can also happen automatically in the background once a day if AltStore gets a
+chance to run, but treat that as a bonus, not something to rely on; make **Refresh All**
+a weekly habit.
+
+If your PC was off or off-network past the 7-day mark, the app just won't open — plug in,
+get AltServer running and reachable again, refresh, and it comes back (see below on data).
+
+## 5. What expiry looks like, and your data is safe
+
+When the signature lapses, tapping the app icon shows an "Unable to Verify App" /
+"Untrusted App" style alert instead of launching. **Nothing is uninstalled and nothing is
+deleted** — the app bundle and everything it stored locally (settings, any future local
+data) stay exactly where they are on the device. Re-signing (the Refresh All step above,
+or a fresh install of the same `.ipa` through AltStore/AltServer with the same Apple ID
+and the same bundle identifier) makes it launch again with all of that intact. This is
+exactly why `CLAUDE.md` fixes the bundle identifier (`com.epavone.breviarium`) forever —
+changing it would make AltStore treat a "re-sign" as a brand new app instead, losing
+continuity (and burning a new App ID besides).
+
+## 6. Free Apple ID limits, and how this setup avoids them
+
+A personal-team (free) Apple ID is capped at:
+
+- **3 apps signed at once** (AltStore itself counts as one, so effectively 2 more
+  alongside it — plenty for a single personal app).
+- **Roughly 10 new App IDs per rolling 7 days.**
+- Signatures **expire after 7 days** (vs. a year for a paid account).
+- No push notifications, no in-app purchases — both already excluded by `CLAUDE.md`
+  regardless of signing tier.
+
+The App-ID-per-week cap is the one worth actively avoiding, and the fixed bundle
+identifier does that automatically: every re-sign and every rebuilt `.ipa` reuses the
+*same* App ID (`com.epavone.breviarium`), so ordinary weekly use never registers a new
+one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now rules out.
+
+## Sources
+
+Researched 2026-09-16, not from memory, since this space moves fast:
+
+- [Sideloadly](https://sideloadly.io/index.html) and its [FAQ](https://sideloadly.io/faq.html)
+- [AltStore: How to Install (Windows)](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows)
+- [AltServer release notes](https://faq.altstore.io/release-notes/altserver) (confirms
+  current iOS 26.x compatibility)
+- [SideStore FAQ](https://docs.sidestore.io/docs/faq)
+- Apple developer forum threads on free-account App ID/app-count limits

@@ -11,6 +11,11 @@ DerivedData/
 *.xcuserstate
 *.xcuserdatad/
 
+# build-ipa.yml's build output, if ever produced locally
+App/build/
+App/Payload/
+App/*.ipa
+
 # macOS
 .DS_Store
 

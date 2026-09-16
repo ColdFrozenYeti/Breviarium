@@ -1,0 +1,74 @@
+name: Build IPA
+
+# Produces an UNSIGNED device build of the app, packaged as a plain .ipa, and uploads it
+# as a workflow artifact. CI never signs anything here -- there is no Apple Developer
+# Program membership and no App Store Connect account for it to sign with. Signing
+# happens on Windows, in a sideloading tool, using a free Apple ID -- see
+# docs/install-on-iphone.md.
+#
+# Manual only: click "Run workflow" whenever a fresh .ipa is needed, then run
+# scripts/get-ipa.ps1 to fetch it.
+#
+# If a paid Apple Developer Program membership is ever added later, the intended change
+# is additive: a signing step slots in between the build step below and the packaging
+# step, rather than restructuring this workflow.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-26
+    env:
+      # Pinned explicitly, matching app-ci.yml -- see docs/PLAN.md, Risks
+      # ("Xcode/SDK version drift").
+      XCODE_VERSION: "26.5"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: App
+        run: xcodegen generate
+
+      - name: Build unsigned device build
+        working-directory: App
+        run: |
+          xcodebuild build \
+            -project Breviarium.xcodeproj \
+            -scheme Breviarium \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Package as .ipa
+        working-directory: App
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Build/Products/Release-iphoneos/Breviarium.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Expected app bundle not found at $APP_PATH" >&2
+            find build/Build/Products -maxdepth 2 >&2 || true
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload Breviarium.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Breviarium-ipa
+          path: App/Breviarium.ipa
+          if-no-files-found: error
