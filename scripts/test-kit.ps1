@@ -15,9 +15,41 @@ $ErrorActionPreference = "Stop"
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
             [System.Environment]::GetEnvironmentVariable("Path", "User")
 
+$swiftProgramsDir = "$env:LOCALAPPDATA\Programs\Swift"
+$toolchainsDir = Join-Path $swiftProgramsDir "Toolchains"
+if (Test-Path $toolchainsDir) {
+    # If more than one toolchain version is installed side by side, prefer the newest -
+    # an older one can be a broken/incomplete leftover (seen on this machine: the 6.3.3
+    # toolchain crashes with STATUS_DLL_NOT_FOUND, exit code 53, while a newer 6.4.0
+    # install works fine) even though both are still registered on PATH.
+    $newestToolchain = Get-ChildItem $toolchainsDir -Directory |
+        Sort-Object { [version]($_.Name -replace '\+.*$', '') } -Descending |
+        Select-Object -First 1
+    if ($newestToolchain) {
+        $version = $newestToolchain.Name -replace '\+.*$', ''
+        $env:Path = (Join-Path $newestToolchain.FullName "usr\bin") + ";" + $env:Path
+        $runtimeBin = Join-Path $swiftProgramsDir "Runtimes\$version\usr\bin"
+        if (Test-Path $runtimeBin) { $env:Path = "$runtimeBin;" + $env:Path }
+    }
+}
+
 if (-not (Get-Command swift -ErrorAction SilentlyContinue)) {
     Write-Error "swift not found on PATH. Install it with: winget install --id Swift.Toolchain"
     exit 1
+}
+
+& swift --version 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "swift --version failed (exit $LASTEXITCODE) even after preferring the newest installed toolchain. A toolchain install may be broken - see docs/windows-swift-setup.md."
+    exit 1
+}
+
+$vswhereDir = "C:\Program Files (x86)\Microsoft Visual Studio\Installer"
+if ((Test-Path $vswhereDir) -and ($env:Path -notlike "*$vswhereDir*")) {
+    # vcvars64.bat's own internals shell out to vswhere.exe, but the VS Installer never
+    # adds its own folder to the registered machine/user PATH - so without this, vcvars64
+    # fails with "'vswhere.exe' is not recognized" even though Build Tools is installed.
+    $env:Path = "$vswhereDir;$env:Path"
 }
 
 $vcvars = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
