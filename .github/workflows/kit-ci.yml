@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       # v2's supported-version list is a hardcoded array baked in at v2.4.0's release
       # (tops out at 6.2.1), so it doesn't know about 6.3.3. v3 (in beta as of this
@@ -40,3 +42,16 @@ jobs:
       - name: swift test
         working-directory: Packages/BreviariumKit
         run: swift test
+
+      # Runs BreviariumData against the real pinned DO checkout -- the actual M2
+      # deliverable (docs/PLAN.md): a real bundle, with a real size report, not just
+      # unit tests against small fixtures.
+      - name: Run BreviariumData against the pinned DO checkout
+        working-directory: Packages/BreviariumKit
+        run: swift run BreviariumData ../../data/divinum-officium ../../breviarium-data-bundle.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: breviarium-data-bundle
+          path: breviarium-data-bundle.json
+          if-no-files-found: error
