@@ -43,6 +43,10 @@ public struct RawOfficeFile: Codable, Equatable, Sendable {
 /// deferred to render time).
 public enum RawSectionParser {
 
+    /// The synthetic section name a headerless file's entire content is stored under —
+    /// see the note on `Ordinarium/` skeleton files below.
+    public static let wholeFileSectionName = "__skeleton"
+
     /// Splits one file's text into its raw section variants.
     ///
     /// `path` is used to fill in bare `@` self-references (`@:SectionName`,
@@ -50,9 +54,18 @@ public enum RawSectionParser {
     /// context-free normalisation DO's own parser also does at this stage
     /// (`SetupString.pl:353-358`), so every `@` reference in the bundle ends up fully
     /// qualified rather than relying on "current file" context at resolution time.
+    ///
+    /// `Ordinarium/*.txt` skeleton files (e.g. `Vespera.txt`) have **no** `[Header]`
+    /// lines at all — DO's own `getordinarium()` reads them as a flat line list straight
+    /// into `process_conditional_lines`, with `#Name` lines surviving as literal content
+    /// that mark section/page boundaries (`horas.pl:579-601`), not as a parse-time
+    /// header syntax. A file with zero `[Header]`s is stored as one section named
+    /// `wholeFileSectionName` holding every line, instead of being silently discarded as
+    /// pure preamble — `HourAssembler` is what actually interprets the `#Name` markers.
     public static func parse(fileText: String, path: String) -> RawOfficeFile {
         let fileNameWithoutExtension = fileNameStem(path)
         var sections: [RawSection] = []
+        var wholeFileBody: [String] = []
 
         var currentName = "__preamble"
         var currentBody: [String] = []
@@ -77,11 +90,16 @@ public enum RawSectionParser {
                 continue
             }
 
+            wholeFileBody.append(qualifySelfReferences(line, fileName: fileNameWithoutExtension, currentSection: currentName))
             guard !inPreamble else { continue }    // Preamble content isn't a section body we bundle.
 
             currentBody.append(qualifySelfReferences(line, fileName: fileNameWithoutExtension, currentSection: currentName))
         }
         flush()
+
+        if sections.isEmpty {
+            sections.append(RawSection(name: wholeFileSectionName, condition: "", body: wholeFileBody))
+        }
 
         return RawOfficeFile(path: path, sections: sections)
     }

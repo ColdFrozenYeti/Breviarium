@@ -6,13 +6,15 @@ import Foundation
 /// macros recursively. This is the actual render-time entry point the pieces in
 /// `ConditionalEvaluator`/`ConditionalGrammar`/`ConditionalLineProcessor` exist to serve.
 ///
-/// `&` script macros (`do-format.md`) are deliberately left untouched in the resolved
-/// text — computing their content is M4's job (`Deus_in_adjutorium`, `Gloria`, the
-/// priest-toggle `Dominus_vobiscum`, etc. all need day/context-specific logic that
-/// belongs in the office-assembly layer, not here).
+/// `&` script macros (`do-format.md`) resolve too, but only when `macroContext` is
+/// supplied — `ScriptMacros` needs day/context-specific facts (`$rank`, `$priest`,
+/// `$vespera`...) that live in the office-assembly layer, not in `ConditionalContext`
+/// itself, so a resolver used purely for plain section text (no macro context) leaves
+/// `&Name` lines untouched, same as an unresolvable `@`/`$` reference.
 public struct SectionResolver {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
+    public var macroContext: MacroContext?
 
     /// Where `$Name` macros resolve from (`do-format.md`).
     public static let prayersPath = "Psalterium/Common/Prayers.txt"
@@ -20,9 +22,10 @@ public struct SectionResolver {
     /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
     private static let maxInclusionDepth = 6
 
-    public init(corpus: OfficeCorpus, context: ConditionalContext) {
+    public init(corpus: OfficeCorpus, context: ConditionalContext, macroContext: MacroContext? = nil) {
         self.corpus = corpus
         self.context = context
+        self.macroContext = macroContext
     }
 
     /// Resolves one section to its final text.
@@ -100,6 +103,10 @@ public struct SectionResolver {
             } else if line.first == "$" {
                 let name = String(line.dropFirst())
                 resolvedLines.append(resolveSection(path: Self.prayersPath, section: name, depth: depth + 1))
+            } else if line.first == "&", let macroContext,
+                let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: self)
+            {
+                resolvedLines.append(resolved)
             } else {
                 resolvedLines.append(String(line))
             }
