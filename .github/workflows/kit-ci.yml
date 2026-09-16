@@ -23,7 +23,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # v2's supported-version list is a hardcoded array baked in at v2.4.0's release
       # (tops out at 6.2.1), so it doesn't know about 6.3.3. v3 (in beta as of this
