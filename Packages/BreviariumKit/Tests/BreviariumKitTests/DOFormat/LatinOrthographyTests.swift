@@ -8,6 +8,13 @@ import Testing
     #expect(LatinOrthography.normalize("Jerusalem") == "Ierusalem")
 }
 
+@Test func normalizeHandlesCRLFLineEndingsLineByLine() {
+    // A Windows checkout (CRLF) would otherwise collapse into one "line" (Swift's
+    // Character view treats "\r\n" as a single grapheme cluster), silently skipping
+    // per-line normalization entirely. Output is always LF-joined regardless of input.
+    #expect(LatinOrthography.normalize("Jesum\r\nejus") == "Iesum\neius")
+}
+
 @Test func jToI_preservesReferenceDirectiveLines() {
     // &Deus_in_adjutorium is a macro identifier, not prose -- the "j" must survive.
     let text = "&Deus_in_adjutorium"

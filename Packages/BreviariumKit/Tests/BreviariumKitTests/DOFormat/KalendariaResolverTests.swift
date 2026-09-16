@@ -1,6 +1,16 @@
 import Testing
 @testable import BreviariumKit
 
+@Test func parsesEntriesCorrectlyWithCRLFLineEndings() {
+    // A Windows checkout (CRLF) would otherwise collapse into one "line" (Swift's
+    // Character view treats "\r\n" as a single grapheme cluster), silently producing
+    // zero valid entries instead of a parse error.
+    let text = "*January*\r\n01-18=01-18r=S Priscae Virginis=1=\r\n01-25=01-25r=In Conversione S. Pauli Apostoli=4="
+    let entries = KalendariaResolver.parseEntries(text)
+    #expect(entries.count == 2)
+    #expect(entries["01-18"] == "01-18r")
+}
+
 @Test func parsesDataLinesSkippingHeadersAndComments() {
     // Real excerpt from web/www/Tabulae/Kalendaria/1960.txt.
     let text = """

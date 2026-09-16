@@ -489,13 +489,43 @@ surfaced (including a real DO quirk: requesting `lang2=Latin` doesn't collapse t
 single column when `lang1=Latin-Bea`, silently rendering the Latin content twice, until
 both are requested as `Latin-Bea` explicitly).
 
-**Not yet built:** the actual oracle *diff* (`Tests/OracleTests`, which reads the
-now-generated fixtures and applies `LatinOrthography`'s J-to-I at compare time, per
-`data/SOURCE.md`); the `&` script macro evaluator for the handful Vespers actually needs
-(`Deus_in_adjutorium`, `Alleluia` vs. Lenten `Laus tibi`, `Dominus_vobiscum`/priest
-toggle, `Benedicamus_Domino`, `Gloria` with its Triduum/Paschaltide variants); the
-`Hour`/`Section`/`Unit` assembly model reading `Ordinarium/Vespera.txt` end to end; and
-Latin/English pairing.
+**Local Swift build fully working (2026-09-16).** `.\scripts\test-kit.ps1` now builds
+and tests cleanly on Windows, not just CI — see `docs/windows-swift-setup.md`'s Status
+section for the three real fixes it took to get there (an elevated Windows SDK install,
+a missing `vswhere.exe` PATH entry, and — the actual last blocker — `SDKROOT` needing to
+be set explicitly rather than trusted to auto-detect). This closes the local dev loop:
+changes can be verified in seconds without waiting on a CI round-trip.
+
+**The `&` script macro evaluator is done and tested** (`ScriptMacros.swift`): a
+non-GABC port of the five macros Vespers reaches (`Deus_in_adjutorium`, `Alleluia` vs.
+Lenten/Septuagesima `Laus tibi`, `Dominus_vobiscum`'s priest toggle, `Benedicamus_Domino`'s
+Paschal-octave "alleluia, alleluia", `Gloria`'s Triduum silence and Requiem form), wired
+into `SectionResolver` so `&Name` lines resolve like `@`/`$` already did.
+
+Building and testing it locally surfaced **a real cross-platform bug**: Swift's
+`Character` (grapheme cluster) view treats `"\r\n"` as a single `Character`, so every
+`text.split(separator: "\n")` in `RawSectionParser`, `LatinOrthography.normalize`, and
+`KalendariaResolver` silently found zero line boundaries against a Windows (CRLF)
+checkout — collapsing whole files into one "line" and producing garbage or empty
+output. Invisible on Linux CI (LF checkouts), but a real local-Windows-testing hazard;
+fixed at all three sites with a regression test each. Also fixed: `Ordinarium/` sits
+directly under `web/www/horas`, not inside `Latin/` — the data pipeline was walking the
+wrong path for it entirely, silently finding nothing.
+
+Running the resolved `Ordinarium/Vespera.txt` (not hand-traced — actually run, now that
+local build works) against a real 1960 Vespers context confirmed `docs/rubrics-1960-
+vespers.md` §5's proposed section table exactly, and settled where each section's
+content actually comes from — added as a new "Content assembly" subsection there.
+Headline finding: `#Psalmi` needs real assembly (weekday psalm-number schema -> each
+psalm's own verse-text file -> office/Commune antiphon -> `&Gloria` doxology), not a
+single section lookup, while `#Incipit`/`#Conclusio` were already fully solved by the
+macro evaluator above.
+
+**Not yet built:** the `HourAssembler` itself (walking the skeleton, resolving each
+`#Name` section per the table above); the psalm-assembly routine; tracing Capitulum/
+Hymnus/Versus/Canticum/Preces/Oratio as closely as Psalmi and Incipit/Conclusio were
+(see the rubrics doc's new subsection for the exact remaining list); Latin/English
+pairing; and the actual oracle diff (`Tests/OracleTests`).
 
 ### M5 — User interface
 

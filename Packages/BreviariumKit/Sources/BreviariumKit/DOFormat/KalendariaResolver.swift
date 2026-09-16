@@ -20,7 +20,11 @@ public enum KalendariaResolver {
     /// kept here either — see `do-format.md`.
     public static func parseEntries(_ text: String) -> [String: String] {
         var entries: [String: String] = [:]
-        for line in text.split(separator: "\n") {
+        // CRLF-checked-out files (Windows) would otherwise collapse into a single
+        // "line": Swift's Character (grapheme cluster) view treats "\r\n" as one
+        // Character, so `split(separator: "\n")` never finds a boundary inside it —
+        // this only ever surfaces locally on Windows, never on Linux CI.
+        for line in text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n") {
             guard line.contains("=") else { continue }
             let fields = line.split(separator: "=", maxSplits: 2, omittingEmptySubsequences: false)
             guard fields.count >= 2, isDateKey(fields[0]) else { continue }

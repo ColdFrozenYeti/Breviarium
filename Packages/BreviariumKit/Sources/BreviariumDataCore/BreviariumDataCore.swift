@@ -10,12 +10,18 @@ public enum BreviariumDataPipeline {
     /// This project's Roman secular subset of the Latin corpus — excludes the
     /// Monastic/Cistercian/Dominican sibling folders (`*M`/`*Cist`/`*OP`) and non-office
     /// content (`Martyrologium`, `Regula`, `Necrologium`, `Appendix`); see `do-format.md`.
-    /// `Ordinarium` is the hour skeletons (`Vespera.txt` etc.) `HourAssembler` reads.
-    public static let latinTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium", "Ordinarium"]
+    public static let latinTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium"]
 
     /// `Latin-Bea/` contains only a `Psalterium/` overlay (`do-format.md`'s Psalter
     /// option finding).
     public static let latinBeaTopLevelFolders: Set<String> = ["Psalterium"]
+
+    /// `Ordinarium/` (the hour skeletons `HourAssembler` reads, e.g. `Vespera.txt`) sits
+    /// directly under `web/www/horas`, a sibling of `Latin`/`Latin-Bea`/`English` rather
+    /// than living inside one of them — it's language-neutral scaffolding (`#Name`
+    /// section markers, `&`/`$` macro invocations, and a handful of Latin rubric
+    /// phrases), read once and shared regardless of which language corpus is in use.
+    public static let ordinariumTopLevelFolders: Set<String> = ["Ordinarium"]
 
     /// `checkoutRoot` is the DO submodule's root (containing `web/www/horas` and
     /// `web/www/Tabulae`).
@@ -23,10 +29,13 @@ public enum BreviariumDataPipeline {
         let horasRoot = checkoutRoot.appendingPathComponent("web/www/horas")
         let tabulaeRoot = checkoutRoot.appendingPathComponent("web/www/Tabulae")
 
-        let latin = try OfficeCorpusWalker.walk(
+        var latin = try OfficeCorpusWalker.walk(
             languageRoot: horasRoot.appendingPathComponent("Latin"),
             topLevelFolders: latinTopLevelFolders,
             applyLatinOrthography: true
+        )
+        latin += try OfficeCorpusWalker.walk(
+            languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: true
         )
         let latinBea = try OfficeCorpusWalker.walk(
             languageRoot: horasRoot.appendingPathComponent("Latin-Bea"),

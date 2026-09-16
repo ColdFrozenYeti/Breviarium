@@ -1,6 +1,19 @@
 import Testing
 @testable import BreviariumKit
 
+@Test func splitsSectionsCorrectlyWithCRLFLineEndings() {
+    // A Windows checkout (CRLF) would otherwise collapse into one "line": Swift's
+    // Character view treats "\r\n" as a single grapheme cluster, so naive
+    // split(separator: "\n") finds no boundary inside it. Real DO files can have
+    // either line ending depending on checkout settings, so both must parse the same.
+    let text = "[Officium]\r\nCathedræ S. Petri Romæ\r\n\r\n[Rank]\r\n;;Duplex majus;;4;;ex C4"
+    let file = RawSectionParser.parse(fileText: text, path: "Sancti/01-18.txt")
+
+    #expect(file.sections.count == 2)
+    #expect(file.sections[0].body == ["Cathedræ S. Petri Romæ", ""])
+    #expect(file.sections[1].body == [";;Duplex majus;;4;;ex C4"])
+}
+
 @Test func splitsUnconditionedSections() {
     let text = """
         [Officium]

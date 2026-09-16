@@ -78,7 +78,13 @@ public enum RawSectionParser {
 
         var currentCondition = ""
 
-        for rawLine in fileText.split(separator: "\n", omittingEmptySubsequences: false) {
+        // CRLF-checked-out files (Windows) would otherwise collapse into a single
+        // "line": Swift's Character (grapheme cluster) view treats "\r\n" as one
+        // Character, so `split(separator: "\n")` never finds a boundary inside it —
+        // this only ever surfaces locally on Windows, never on Linux CI.
+        let normalizedFileText = fileText.replacingOccurrences(of: "\r\n", with: "\n")
+
+        for rawLine in normalizedFileText.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = String(rawLine)
 
             if line.first == "[", let header = matchSectionHeader(line) {

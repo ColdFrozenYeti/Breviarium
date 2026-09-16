@@ -288,6 +288,63 @@ PSALMODIA, which — being five psalms — may need to span multiple pages itsel
 on rendered length at a given text size; that's better decided empirically in M5 once
 real rendered text exists, not guessed here.
 
+### Content assembly: where each section's actual text comes from
+
+Confirmed by running our own `RawSectionParser`/`ConditionalLineProcessor` against the
+real `Ordinarium/Vespera.txt` under a 1960 Vespers context (not hand-traced from the
+Perl — that file has no `[Header]`s at all, so `getordinarium()` reads it as one flat
+conditional-line list, `horas.pl:579-601`; `RawSectionParser` now stores a headerless
+file as one synthetic section instead of discarding it as preamble). The resolved
+output confirms §5's table exactly — `#Suffragium` and both silent Pater/Ave blocks
+really do disappear under 1960 — and settles what's actually *in* each `#Name` group:
+
+- **`#Incipit`/`#Conclusio` carry their own literal content** — `&Deus_in_adjutorium`,
+  `&Alleluia`, `&Dominus_vobiscum`, `&Benedicamus_Domino`, `$Fidelium animae` — already
+  fully resolvable via `SectionResolver` + `ScriptMacros` (done, §2 above's sibling
+  work). Nothing further needed for these two sections.
+- **`#Psalmi`, `#Capitulum Hymnus Versus`, `#Canticum: Magnificat`, `#Preces Feriales`,
+  `#Oratio` are *empty* in the skeleton.** Each `#Name` is the section name to resolve
+  from the *winning office* itself — the same `[Name]` lookup `SectionResolver` already
+  does for anything else, e.g. `resolver.resolve(path: winningPath, section: "Oratio")`
+  — falling back to the office's Commune reference (`OfficeRank.communeReference`) via
+  `@` inclusion where the office file doesn't define a section itself (confirmed: a
+  Commune-only feast like `Sancti/01-18r.txt` has only `[Officium]`/`[Rank]`/`[Rule]`/
+  `[Oratio]`/`[Lectio93]` — no antiphon/hymn/capitulum sections of its own at all).
+- **`#Psalmi` needs real assembly, not a single lookup** — confirmed by reading
+  `Psalterium/Psalmi/Psalmi major.txt`: Vespers' five psalms are assigned by weekday
+  (`[Day1 Vespera]` .. `[Day6 Vespera]`, `[Day0 Vespera]` for Sunday — `"cue text;;psalm
+  number"` per line, five lines), each psalm's actual verse text lives in its own
+  `Psalterium/Psalmorum/Psalm<N>.txt` (also headerless — flat `N:verse
+  text` lines, with `‡` marking a mid-verse flex point and `*` the usual half-verse
+  pause, and occasional parenthetical alternate verse numbers like `(4a)` for
+  verse-division differences the visual spec already asks the psalmody renderer to
+  merge — `CLAUDE.md`'s "merging half-verses where the Bea and Vulgate divisions
+  differ"), and the antiphons come from the winning office (or its Commune fallback),
+  one before all five psalms and repeated after, with `&Gloria` closing each psalm.
+  This is genuinely a small assembly routine, not a lookup — not yet built.
+- **`#Capitulum Hymnus Versus`, `#Canticum: Magnificat`, `#Preces Feriales`, `#Oratio`
+  haven't been traced this closely yet.** One relevant piece already surfaced while
+  building `Concurrence` (`horascommon.pl` around the "a capitulo" branch,
+  `docs/PLAN.md`'s M4 status): the Magnificat antiphon has its own fallback chain —
+  proper `[Ant Vespera 3]`, else proper `[Ant Vespera]`, else Commune `[Ant Vespera 3]`,
+  else Commune `[Ant Vespera]` — worth confirming holds generally, not assuming from
+  one branch's read.
+
+### What's left to build the actual `Hour`/`Section`/`Unit` model
+
+1. An `HourAssembler` that walks the resolved skeleton lines, groups them at each
+   `#Name` boundary into `Section`s, and for each either uses the skeleton's own
+   literal (already-macro-resolved) content or resolves `[Name]` from the winning
+   office/Commune.
+2. The psalm-assembly routine above (weekday schema -> per-psalm verse text -> antiphon
+   -> doxology), including the Bea-vs-Vulgate half-verse merge `CLAUDE.md` specifies.
+3. Tracing Capitulum/Hymnus/Versus/Canticum/Preces/Oratio the same close way §"Content
+   assembly" above traced `#Psalmi` and `#Incipit`/`#Conclusio`, rather than assuming
+   they're all simple lookups.
+4. `Tests/OracleTests` itself, diffing the assembled `Hour`'s rendered text against
+   `data/oracle-fixtures/` (applying `LatinOrthography`'s J-to-I at compare time — see
+   `data/SOURCE.md`).
+
 ## 6. Does `regress/` give M3 a cheaper calendar oracle?
 
 Checked during M1 per the open question in `docs/PLAN.md`: **no.** `regress/tests/*.testspec`

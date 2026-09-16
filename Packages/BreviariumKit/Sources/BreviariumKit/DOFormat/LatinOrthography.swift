@@ -23,7 +23,11 @@ public enum LatinOrthography {
     /// Applies J -> I normalisation to a multi-line block of Latin text, line by line,
     /// preserving reference/macro directive lines untouched (see `normalizeLine`).
     public static func normalize(_ text: String) -> String {
-        text
+        // CRLF-checked-out files (Windows) would otherwise collapse into a single
+        // "line": Swift's Character (grapheme cluster) view treats "\r\n" as one
+        // Character, so `split(separator: "\n")` never finds a boundary inside it —
+        // this only ever surfaces locally on Windows, never on Linux CI.
+        text.replacingOccurrences(of: "\r\n", with: "\n")
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map { normalizeLine(String($0)) }
             .joined(separator: "\n")
