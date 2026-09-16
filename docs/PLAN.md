@@ -336,6 +336,26 @@ against `do-format.md`'s concrete examples even though it isn't exercised end-to
 until M4. Report bundle size (compressed and decompressed) and cold-load time on a
 representative device class.
 
+**In progress (2026-09-16).** Done and verified green on Kit CI (25 passing tests,
+including hand-traced real fragments from `Tempora/Adv1-0.txt` checked against both a
+1960 and a Tridentine context before being written as tests): `LatinOrthography` (J→I,
+skipping `@`/`$`/`&` reference lines), `ConditionalContext` (the render-time context
+`vero()` evaluates against), `ConditionalGrammar` (the clause regex and
+`parse_conditional`'s strength/scope logic), `ConditionalEvaluator` (`vero()` itself,
+including a faithful port of a real Perl-grammar quirk: `negation` persists past a later
+`et` once `nisi` has appeared, since Perl only resets it per `aut` branch), and
+`ConditionalLineProcessor` (the `process_conditional_lines` stack machine that actually
+applies backward/forward scope deletion), plus `RawSectionParser` (the section-splitting
+phase, preserving every conditioned variant unevaluated).
+
+**Not yet started:** the `BreviariumData` CLI itself (walking the pinned DO checkout,
+applying `RawSectionParser`/`LatinOrthography` across the real corpus, flattening the
+Kalendaria chain, emitting the bundle), `@`/`$` full resolution and `&` macro
+identification in the resolution engine, and the bundle-size/cold-load report M2 is
+supposed to end with. First local `swift build`/`swift test` run of any of this is still
+pending too — everything so far has only been verified via Kit CI on Linux, since the
+Windows SDK blocker (`docs/windows-swift-setup.md`) hasn't been resolved yet.
+
 ### M3 — Calendar engine
 
 Computus, temporal cycle, sanctoral lookup, precedence, rank, and title-block generation
