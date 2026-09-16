@@ -462,6 +462,29 @@ reduced fixture scope below. Done only when the diff is empty or every remaining
 difference is written up for you with the Codex Rubricarum 1960 citation and DO's output
 side by side, per `CLAUDE.md`'s rule against silently editing fixtures.
 
+**In progress (2026-09-16).** `Concurrence` is done and verified (113 passing tests
+total): the first-vs-second-Vespers decision `docs/rubrics-1960-vespers.md` §3 documents,
+including two further version-independent exclusions (an explicit `"No prima vespera"`
+`[Rule]` flag, and the Feria/Sabbato/Vigilia/Quatuor title exclusion with its override
+exceptions) found in the same `horascommon.pl` condition during M1.
+
+**Not yet built:** commemorations (the rank-threshold filtering `docs/rubrics-1960-vespers.md`
+§2 already flagged as not restated with full numeric confidence — needs another careful
+read of that part of `horascommon.pl` before porting, not a quick add); the `&` script
+macro evaluator for the handful Vespers actually needs (`Deus_in_adjutorium`, `Alleluia`
+vs. Lenten `Laus tibi`, `Dominus_vobiscum`/priest toggle, `Benedicamus_Domino`, `Gloria`
+with its Triduum/Paschaltide variants); the `Hour`/`Section`/`Unit` assembly model reading
+`Ordinarium/Vespera.txt` end to end; Latin/English pairing; and
+`scripts/generate-oracle-fixtures.*` plus the actual oracle diff run.
+
+**Blocker to flag now rather than discover later:** the oracle diff this milestone is
+named for needs Docker (to run the pinned DO checkout locally) — not installed in this
+session (checked; `docker` isn't on `PATH`), and a heavier, more consequential install
+than the Swift toolchain/Windows SDK was (needs virtualization features, licence
+acceptance, likely a restart) — not something to install unprompted the way the Swift
+toolchain was. Needs your decision: install it yourself, or say so and this session can
+attempt it via `winget` the same way Swift was installed in M0.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
