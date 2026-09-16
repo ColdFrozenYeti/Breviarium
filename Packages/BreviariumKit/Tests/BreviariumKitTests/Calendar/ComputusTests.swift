@@ -72,6 +72,19 @@ import Testing
     }
 }
 
+@Test func sanctoralKeyLeapDayTrick() {
+    // Ordinary dates: plain "MM-DD".
+    #expect(Computus.sanctoralKey(day: 18, month: 1, year: 2025) == "01-18")
+    // 2024 is a leap year: 24 Feb is renumbered internally as the 29th, and every day
+    // from 25 Feb onward is deferred by one within February.
+    #expect(Computus.sanctoralKey(day: 24, month: 2, year: 2024) == "02-29")
+    #expect(Computus.sanctoralKey(day: 25, month: 2, year: 2024) == "02-24")
+    #expect(Computus.sanctoralKey(day: 29, month: 2, year: 2024) == "02-28")
+    // 2025 isn't a leap year: no adjustment.
+    #expect(Computus.sanctoralKey(day: 24, month: 2, year: 2025) == "02-24")
+    #expect(Computus.sanctoralKey(day: 25, month: 2, year: 2025) == "02-25")
+}
+
 @Test func addDaysHandlesYearBoundaries() {
     #expect(Computus.addDays(1, day: 31, month: 12, year: 2025) == (1, 1, 2026))
     #expect(Computus.addDays(-1, day: 1, month: 1, year: 2026) == (31, 12, 2025))

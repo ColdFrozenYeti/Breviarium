@@ -1,3 +1,5 @@
+import Foundation
+
 /// Date arithmetic ported from Divinum Officium's `Date.pm`: Easter (the "computus"),
 /// leap years, day-of-week, and day-of-year conversions. Everything else in `Calendar/`
 /// (temporal cycle naming, sanctoral lookup, precedence) is built on these.
@@ -73,6 +75,24 @@ public enum Computus {
     /// Not present in `Date.pm` under this name, but built from the same
     /// day-of-year/day-of-week primitives as `prevnext()` (`Date.pm:229-238`) rather
     /// than introducing a separate date-arithmetic path via `Foundation.Calendar`.
+    /// The `"MM-DD"` key used to look up a date in the sanctoral calendar
+    /// (`Kalendaria`/`Sancti`). Ports `get_sday()` (`Date.pm:193-208`): the leap day is
+    /// always kept on 24 February and numbered internally as the 29th, so offices
+    /// ordinarily on 24 Feb shift to 25 Feb, 25 Feb's to 26 Feb, and so on through the
+    /// end of the month — the traditional Roman calendar's *bissextile* reckoning,
+    /// rather than treating 29 Feb as an inserted extra day.
+    public static func sanctoralKey(day: Int, month: Int, year: Int) -> String {
+        var adjustedDay = day
+        if isLeapYear(year) && month == 2 {
+            if day == 24 {
+                adjustedDay = 29
+            } else if day > 24 {
+                adjustedDay -= 1
+            }
+        }
+        return String(format: "%02d-%02d", month, adjustedDay)
+    }
+
     public static func addDays(_ days: Int, day: Int, month: Int, year: Int) -> (day: Int, month: Int, year: Int) {
         guard days != 0 else { return (day, month, year) }
 
