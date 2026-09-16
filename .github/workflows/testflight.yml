@@ -1,0 +1,45 @@
+name: TestFlight release
+
+# Archives, signs, and uploads a build to TestFlight. Manual (one-click, for the 90-day
+# expiry re-upload per docs/PLAN.md) or on a version tag push.
+#
+# Requires bootstrap-signing.yml to have run at least once, and the App Store Connect
+# API key secrets (same as bootstrap-signing.yml) to be present.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_26.5.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: App
+        run: xcodegen generate
+
+      - name: Bundle install fastlane
+        working-directory: App
+        run: bundle install
+
+      - name: Archive and upload to TestFlight
+        working-directory: App
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane upload_testflight

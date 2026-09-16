@@ -1,0 +1,39 @@
+name: Bootstrap signing
+
+# One-time (or occasional, e.g. certificate renewal) setup: creates/refreshes the App
+# Store distribution certificate and provisioning profile via fastlane match, storing
+# them encrypted in the separate certificates repo (App/fastlane/Matchfile).
+#
+# Runs entirely on the macOS runner, authenticated with the App Store Connect API key —
+# no Apple ID password, no interactive 2FA, no local Mac. This is what makes signing
+# possible in the no-Mac workflow described in docs/PLAN.md.
+#
+# Prerequisites (docs/apple-developer-setup.md): the App Store Connect API key secrets
+# below, MATCH_GIT_BASIC_AUTHORIZATION (a PAT with access to the certificates repo), and
+# MATCH_PASSWORD (the passphrase match encrypts the certificates repo with).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap-signing:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_26.5.app
+
+      - name: Bundle install fastlane
+        working-directory: App
+        run: bundle install
+
+      - name: Bootstrap signing via match
+        working-directory: App
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane bootstrap_signing
