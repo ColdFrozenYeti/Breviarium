@@ -731,9 +731,50 @@ Sundays gets replaced even when that commune *does* supply generic antiphons (so
 `pairs` wouldn't be empty and this pass's check wouldn't fire); no real fixture for
 that exact case has been checked yet.
 
-**Not yet built:** the numbered-sub-common selection rule (`[Oratio 3]`/`[Ant 3]`/etc.
-vs the unsuffixed forms); the Paschaltide Sunday/C10 nuance above; the
-displaced-office-as-commemoration-candidate nuance above; and Latin/English pairing.
+**The numbered-sub-common selection rule is now resolved (2026-09-17) — including a
+regression caught and fixed before it shipped.** `[Oratio 3]`/`[Ant 3]`/`[Ant Vespera
+3]`/`[Versum 3]` alongside the unsuffixed forms (real example: `Commune/C3.txt`) turned
+out to be `orationes.pl`/`psalmi.pl`'s own first/second-Vespers index (`$vespera == 1`
+or `3`), not a count of named saints — both `[Oratio]` and `[Oratio 3]` there carry the
+same "N. et N." for two martyrs. The file layout confirms this structurally too:
+`[Ant Vespera]`/`[Oratio]` sit at the top of `Commune/C1.txt`/`C3.txt` (said the evening
+*before*), while the `3`-suffixed forms sit at the very end, after None — the office's
+own chronological position for its second Vespers, the common "today's own Vespers"
+case (`!macroContext.isFirstVespers`).
+
+A first implementation applied this index uniformly — `Oratio $ind`/`Ant $ind`/`Ant
+Vespera $ind`, each falling back to the Commune when the office itself lacked the
+section — and broke the very fixture it was meant to fix: Ss. Cornelii et Cypriani (16
+September 2026, `Sancti/09-16`, rank `"vide C3"`) got `Commune/C3.txt`'s own `[Ant
+Vespera 3]` ("Isti sunt Sancti...", psalms 109-112+115) instead of its real Vespers
+psalmody, which the fixture shows is plain ferial ("Beáti omnes * qui timent
+Dóminum", psalm 127 — the ordinary Wednesday antiphon, untouched by `Commune/C3` at
+all). Tracing `psalmi.pl:446-461` explained why: `exists($w{'Ant Vespera 3'})` checks
+only the *office's own* hash, never the Commune directly; the one call that *does*
+reach the Commune, `getproprium('Ant Vespera 3', ...)`, is gated to `$communetype =~
+/ex/` — and this office's reference is `"vide"`, not `"ex"`. `orationes.pl`'s Oratio
+fallback has no such gate (`if (!$w) { ...; $w = $c{"Oratio $i"}; }`, unconditional),
+which is exactly why the *same* office's real collect genuinely *is* `Commune/C3.txt`'s
+own `[Oratio 3]` (confirmed against the same fixture, name-substituted to "...Cornélii
+et Cypriáni solémnia cólimus..."), and why `assembleMagnificat`'s `[Ant $ind]` lookup
+(also confirmed real on the same office: "Gaudent in cælis...") follows the
+unconditional rule too — Oratio and Magnificat-antiphon Commune fallback are
+unconditional; **psalm**-antiphon Commune fallback for the `3`-index is gated to `"ex"`
+references only. `assemblePsalmodia` now enforces that gate (`communeReferenceIsEx`,
+checked before letting the second-Vespers `3`-index reach the Commune at all); the
+`"vide"` case is confirmed against the real fixture above, the `"ex"` case is traced
+from source but not yet independently confirmed against a real `"ex CN"` fixture.
+Four new synthetic tests lock in all four combinations (Oratio: office-neither →
+Commune's indexed wins over its plain one; psalm antiphon: `"vide"` never reaches the
+Commune's indexed form, falls through to ferial; `"ex"` does reach it). Also corrected:
+the earlier "antecapitulum"/concurrence guess for what `[Ant Vespera 3]` might be for
+was itself never confirmed and is superseded by this — `HourAssembler`'s own top-level
+doc comment and `assemblePsalmodia`'s have the full citations.
+
+**Not yet built:** the Paschaltide Sunday/C10 nuance above; the
+displaced-office-as-commemoration-candidate nuance above; the `"ex"`-gated psalm-
+antiphon Commune fallback's own independent real-fixture confirmation; and Latin/
+English pairing.
 
 ### M5 — User interface
 

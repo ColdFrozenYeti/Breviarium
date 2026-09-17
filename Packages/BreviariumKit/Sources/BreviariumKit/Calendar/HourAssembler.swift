@@ -9,28 +9,26 @@ import Foundation
 ///
 /// **Scope limits, flagged rather than silently assumed solved** (`docs/PLAN.md`'s M4
 /// status has the full discovery-by-discovery reasoning for each):
-/// - `#Preces Feriales` isn't resolved at all yet — `horasscripts.pl`'s `preces()`
-///   gating wasn't traced.
 /// - The Commune fallback (`communeFallbackPath`) is a simplified heuristic (strip a
 ///   `"vide "`/`"ex "` prefix, treat a `"CN[-M]"` token as `Commune/CN[-M]`, anything
 ///   containing `"/"` as a direct path) — confirmed right for a suffixed reference like
-///   `"vide C6-1"` (a genuinely separate file, `Commune/C6-1.txt`), but a Commune can
-///   *also* define numbered section variants within the *same* file (`[Oratio 3]`
-///   alongside plain `[Oratio]`, confirmed real example: `Commune/C3.txt`, where two
-///   specifically-named martyrs get `[Oratio 3]`/`[Ant 3]`/`[Ant Vespera 3]`/`[Versum
-///   3]` instead of the unsuffixed forms) by a selection rule not yet identified — this
-///   always resolves the unsuffixed form.
-/// - Two further antiphon-source rules aren't handled: a later weekday reusing an
-///   octave's shared temporal file (`Tempora/Nat1-0` covers every day of the Octave, not
-///   just its first) incorrectly keeps that file's own proper antiphons instead of
-///   falling back to the plain weekday's; Paschaltide replaces every psalm antiphon with
-///   a plain "Allelúia," which this pass doesn't produce.
-/// - `[Ant Vespera 3]` is *not* the Magnificat antiphon's fallback source (a wrong
-///   assumption corrected after the numbered-sub-common discovery above — it's more
-///   likely the antecapitulum text `Concurrence`'s "a capitulo" branch needs for a
-///   *different* scenario entirely, concurrence, not plain Magnificat antiphon
-///   selection); `assembleMagnificat` still tries it second, behind `[Ant 3]`, purely as
-///   a harmless fallback, not because it's confirmed correct for any real case.
+///   `"vide C6-1"` (a genuinely separate file, `Commune/C6-1.txt`).
+///   **A Commune's own numbered section variants** (`[Oratio 3]`/`[Ant 3]`/`[Ant
+///   Vespera 3]`/`[Versum 3]` alongside the unsuffixed forms, real example:
+///   `Commune/C3.txt`) are now resolved as `orationes.pl`/`psalmi.pl`'s own
+///   first/second-Vespers index, not a count of named saints (both `[Oratio]` and
+///   `[Oratio 3]` there carry the same "N. et N."). But the two aren't quite the same
+///   rule: `[Oratio $ind]` falls back to the Commune unconditionally (confirmed real,
+///   Ss. Cornelii et Cypriani's collect genuinely is `Commune/C3.txt`'s own `[Oratio
+///   3]`), while `[Ant Vespera $ind]`'s Commune fallback is gated to `"ex"`-type
+///   commune references only — the *same* office's real psalm antiphons are plain
+///   ferial (`"vide C3"`, so the `3`-index never reaches the Commune at all), a
+///   distinction only found after a first attempt applied the Oratio rule to
+///   antiphons too and broke that fixture. `assembleMagnificat`'s `[Ant $ind]` lookup
+///   turned out to follow the *unconditional* (Oratio-like) rule — also confirmed
+///   real on the same office/fixture — superseding the earlier, never-confirmed
+///   "antecapitulum"/concurrence guess for what `[Ant Vespera 3]` might be for.
+///   See `assemblePsalmodia`'s own doc comment for the full citations.
 /// - Commemorations (`Commemorations.swift`) aren't folded into `#Oratio` yet — only
 ///   the winning office's own collect is included.
 public struct HourAssembler {
@@ -78,9 +76,18 @@ public struct HourAssembler {
             case "Canticum: Magnificat":
                 sections.append(assembleMagnificat(office: winner.winningPath, resolver: resolver, macroContext: macroContext))
             case "Oratio":
-                if let collect = resolveWithCommuneFallback(
+                // Ports orationes.pl:34,63-74's `$ind = $hora eq 'Vespera' ? $vespera : 2`
+                // priority: an `[Oratio 1]` (first Vespers) or `[Oratio 3]` (second
+                // Vespers, our common case) wins over the plain `[Oratio]` whenever it
+                // exists -- same discovery and real example (Commune/C3.txt, Ss.
+                // Cornelii et Cypriani) as assemblePsalmodia's Ant Vespera 3 handling.
+                let indexedOratio = "Oratio \(macroContext.isFirstVespers ? 1 : 3)"
+                let collect = resolveWithCommuneFallback(
+                    office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: indexedOratio, resolver: resolver
+                ) ?? resolveWithCommuneFallback(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
-                ) {
+                )
+                if let collect {
                     let named = substituteName(in: collect, office: winner.winningPath, resolver: resolver)
                     sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(named)))
                 }
@@ -253,21 +260,62 @@ public struct HourAssembler {
     /// Only when *neither* signal is present (no numbers and no `Psalm5` rule) does this
     /// fall through to the ferial weekday schedule, same as no `[Ant Vespera]` at all. A
     /// `[Ant Vespera]` whose lines *do* carry `;;number` directly (real example:
-    /// `Commune/C6.txt` for higher ranks, presumably — not independently confirmed) is
-    /// still treated as fully proper and skips both of the above.
+    /// `Sancti/02-05` itself, S. Agatha's own office file — **not** a Commune fallback
+    /// as an earlier pass believed; her `[Ant Vespera]` and `"Psalm5 Vespera3=147"` are
+    /// both defined directly on `Sancti/02-05.txt`, never touching `Commune/C6` at
+    /// all) is still treated as fully proper and skips both of the above.
+    ///
+    /// Ports `psalmi.pl:446-461`'s `Ant Vespera 3`/`Ant Vespera` priority for the
+    /// **office's own file only**: for second Vespers (`$vespera == 3`, our
+    /// `!macroContext.isFirstVespers` — the common, "today's own Vespers" case) DO
+    /// tries the office's own numbered `[Ant Vespera 3]` first, falling back to its
+    /// plain `[Ant Vespera]` (with the usual Commune fallback) if the office itself has
+    /// no `3`-suffixed section; first Vespers never looks at the `3` form at all.
+    ///
+    /// **The `3`-indexed lookup does *not* extend to the Commune unless the rank's own
+    /// commune reference says `"ex"`, not `"vide"`** (`psalmi.pl`'s `exists($w{'Ant
+    /// Vespera 3'})` checks only the office's own hash; `getproprium('Ant Vespera 3',
+    /// ...)` — the one call that *does* reach the Commune — is gated by `$communetype
+    /// =~ /ex/`). This was found the hard way: a first attempt let the `3`-index reach
+    /// `Commune/C3.txt`'s own `[Ant Vespera 3]` unconditionally, which broke Ss.
+    /// Cornelii et Cypriani (16 September 2026, `"vide C3"`) — the real fixture's
+    /// Vespers antiphon is "Beáti omnes * qui timent Dóminum" (psalm 127, the plain
+    /// Wednesday ferial antiphon), not anything from `Commune/C3` at all, numbered or
+    /// not. `[Oratio 3]` genuinely *is* Commune/C3's own text for this same office
+    /// (confirmed against the same fixture, and unconditional per `orationes.pl`'s own
+    /// commune fallback — no `ex`/`vide` gating there) — Oratio and psalm-antiphon
+    /// Commune fallback are genuinely different rules in DO, not the same one applied
+    /// twice. The `ex`-gated Commune extension here is traced from source but not yet
+    /// independently confirmed against a real `"ex CN"` fixture.
     private func assemblePsalmodia(office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int) -> Section {
         let communeReference = macroContext.winningRank.communeReference
-        let proper = resolveWithCommuneFallback(office: office, communeReference: communeReference, section: "Ant Vespera", resolver: resolver)
-        var pairs = proper.map(Self.parseAntiphonPsalmPairs) ?? []
+        let communeReferenceIsEx = communeReference.range(of: "^ex\\s", options: [.regularExpression, .caseInsensitive]) != nil
 
-        if pairs.isEmpty, let antiphonText = proper,
-            let fifthPsalm = festalFifthPsalmNumber(
+        func candidatePairs(section: String, allowCommune: Bool) -> [(antiphon: String, psalmNumber: String)] {
+            let text: String?
+            if allowCommune {
+                text = resolveWithCommuneFallback(office: office, communeReference: communeReference, section: section, resolver: resolver)
+            } else {
+                text = resolver.sectionExists(path: office, section: section) ? resolver.resolve(path: office, section: section) : nil
+            }
+            guard let text else { return [] }
+            var pairs = Self.parseAntiphonPsalmPairs(text)
+            if pairs.isEmpty, let fifthPsalm = festalFifthPsalmNumber(
                 office: office, communeReference: communeReference, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
-            )
-        {
-            let antiphons = antiphonText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
-            let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
-            pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+            ) {
+                let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
+                let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
+                pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+            }
+            return pairs
+        }
+
+        var pairs: [(antiphon: String, psalmNumber: String)] = []
+        if !macroContext.isFirstVespers {
+            pairs = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx)
+        }
+        if pairs.isEmpty {
+            pairs = candidatePairs(section: "Ant Vespera", allowCommune: true)
         }
 
         var usedWeekdaySchedule = false
@@ -365,24 +413,32 @@ public struct HourAssembler {
     // MARK: - Canticum: Magnificat
 
     /// The Magnificat antiphon's actual source, confirmed against the real oracle
-    /// fixture for 16 September 2026: for this rank (Semiduplex), it's `[Ant 3]` (a
-    /// plain, unnumbered antiphon — real example: `Commune/C3.txt`'s own `[Ant 3]`,
-    /// "Gaudent in cælis..."), **not** `[Ant Vespera 3]` (whose candidates all carry a
-    /// `;;psalmNumber`-style tag — real example, the same file's `[Ant Vespera 3]`,
-    /// "Isti sunt Sancti...;;109"), which this code tried first before that fixture
-    /// caught it choosing the wrong one. `[Ant 3]` is tried first here, mirroring
-    /// `assemblePsalmodia`'s confirmed pattern that an unnumbered antiphon is the
-    /// general-purpose one and a numbered one is reserved for specific higher ranks --
-    /// **not independently confirmed for this section** (only that `[Ant 3]` is right
-    /// for *this* rank), so a higher-ranked feast that should actually get one of `[Ant
-    /// Vespera 3]`'s numbered candidates is a known open question, not a closed one.
+    /// fixture for 16 September 2026: for this office (via `Commune/C3.txt`, second
+    /// Vespers), it's `[Ant 3]` (a plain, unnumbered antiphon — "Gaudent in cælis..."),
+    /// **not** `[Ant Vespera 3]` (whose candidates all carry a `;;psalmNumber`-style
+    /// tag — the same file's `[Ant Vespera 3]`, "Isti sunt Sancti...;;109"), which this
+    /// code tried first before that fixture caught it choosing the wrong one. `[Ant
+    /// $ind]` is tried first here (`$ind` = 1 for first Vespers, 3 for second — see
+    /// this function's own doc comment), mirroring `assemblePsalmodia`'s confirmed
+    /// pattern that an unnumbered antiphon is the general-purpose one and a numbered
+    /// one is reserved for specific higher ranks -- **not independently confirmed for
+    /// this section** (only that `[Ant 3]` is right for *this* rank on second Vespers),
+    /// so a higher-ranked feast that should actually get one of `[Ant Vespera $ind]`'s
+    /// numbered candidates is a known open question, not a closed one.
     private func assembleMagnificat(office: String, resolver: SectionResolver, macroContext: MacroContext) -> Section {
+        // `"Ant 3"` is keyed by the same first/second-Vespers index as `assemblePsalmodia`'s
+        // `Ant Vespera 3` and the Oratio case's `Oratio 3` (`orationes.pl:34`'s `$ind` --
+        // 1 for first Vespers, 3 for second): `[Ant 1]`/`[Ant 3]` sit right after
+        // `[Versum 1]`/`[Versum 3]` in a Commune file's own chronological layout (real
+        // example: `Commune/C1.txt`/`C3.txt`), each hour's own Magnificat-slot antiphon,
+        // not a fixed "3" regardless of which Vespers is being sung.
+        let ind = macroContext.isFirstVespers ? 1 : 3
         var units: [Unit] = []
         let plain = resolveWithCommuneFallback(
-            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant 3", resolver: resolver
+            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant \(ind)", resolver: resolver
         )
         let numbered = resolveWithCommuneFallback(
-            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera 3", resolver: resolver
+            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera \(ind)", resolver: resolver
         )
         if let antiphon = (plain ?? numbered)?.split(separator: "\n", omittingEmptySubsequences: false).first
             .map({ String($0).components(separatedBy: ";;").first ?? String($0) }), !antiphon.isEmpty

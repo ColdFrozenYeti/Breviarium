@@ -78,19 +78,11 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 /// the full story from each one's discovery) — excluded from comparison scope per test
 /// below rather than silently passing on content we already know can be wrong:
 ///
-/// - `.oratio`: DO's `replaceNdot()` substitutes a `[Name]`-sourced saint's name into a
-///   Commune collect's literal `"N."`/`"N. et N."` placeholders, and separately, a
-///   Commune can define numbered sub-variants (`[Oratio 3]`, alongside plain
-///   `[Oratio]`) selected by a rule not yet identified (confirmed real example: two
-///   martyrs specifically get `[Oratio 3]`, not the base `[Oratio]`). Neither is
-///   implemented.
 /// - `.psalmodia`/`.canticum` on dates outside the one below they're confirmed against:
 ///   antiphon-source selection has more rank/season-dependent rules than
-///   `assemblePsalmodia`'s current one (confirmed gaps: a later weekday reusing an
-///   octave's own multi-day temporal file — e.g. Tempora/Nat1-0 covers every day of the
-///   Octave, not just its first — incorrectly keeps that file's proper antiphons
-///   instead of falling back to the plain weekday's own; Paschaltide replaces every
-///   psalm antiphon with a plain "Allelúia" that this pass doesn't produce).
+///   `assemblePsalmodia`'s current one covers (see its own doc comment for what's
+///   confirmed and what's traced-but-unconfirmed, e.g. the `"ex"`-gated Commune
+///   extension for a second-Vespers `[Ant Vespera 3]`).
 @Test func martyrsFeastMatchesTheRealOracleFor16September2026() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
@@ -99,7 +91,10 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-09-16"))
-    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .psalmodia, .canticum, .conclusio])
+    // .oratio now in scope: confirmed real that Ss. Cornelii et Cypriani's collect is
+    // Commune/C3.txt's own [Oratio 3] (second Vespers), name-substituted -- see
+    // assemblePsalmodia's doc comment for the full discovery writeup.
+    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .psalmodia, .canticum, .oratio, .conclusio])
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 

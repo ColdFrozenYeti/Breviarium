@@ -152,6 +152,79 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     #expect(psalmodia.units.last == .antiphon("Antiphona propria"))
 }
 
+@Test func aCommunesOwnIndexedOratioWinsOverItsPlainOneWhenTheOfficeDefinesNeither() throws {
+    // Confirmed against the real oracle fixture for 16 September 2026 (Ss. Cornelii et
+    // Cypriani, "vide C3"): the collect actually said is Commune/C3.txt's own
+    // [Oratio 3] (today's own/second Vespers), not its plain [Oratio] -- and this
+    // Commune fallback for Oratio is unconditional (orationes.pl has no ex/vide
+    // gating for it, unlike the psalm-antiphon case below).
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;vide C99"]),
+    ])
+    let commune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Oratio", condition: "", body: ["Oratio communis generica."]),
+        RawSection(name: "Oratio 3", condition: "", body: ["Oratio communis indexata."]),
+    ])
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let oratio = try #require(hour.sections.first { $0.kind == .oratio })
+
+    #expect(oratio.units == [.prose("Oratio communis indexata.")])
+}
+
+@Test func aVideCommunesIndexedAntVesperaIsNeverUsedForPsalmodyFallingThroughToTheWeekdaySchedule() throws {
+    // The critical regression case: a first attempt let the second-Vespers "3" index
+    // reach a "vide"-type Commune's own [Ant Vespera 3] unconditionally (mirroring the
+    // Oratio rule), which broke the real 16 September 2026 fixture -- Ss. Cornelii et
+    // Cypriani's actual psalm antiphons are the plain ferial ones ("Beáti omnes... ",
+    // psalm 127), not Commune/C3's numbered [Ant Vespera 3] at all, because the rank
+    // says "vide C3" not "ex C3" (psalmi.pl's `exists($w{'Ant Vespera 3'})` only
+    // checks the office's own hash; the one call that reaches the Commune,
+    // `getproprium`, is itself gated to `$communetype =~ /ex/`).
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;vide C99"]),
+    ])
+    let commune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Ant Vespera", condition: "", body: ["Antiphona communis sine numero."]),
+        RawSection(name: "Ant Vespera 3", condition: "", body: ["Antiphona indexata;;200"]),
+    ])
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    #expect(psalmodia.units.first == .antiphon("Antiphona feriae * de psalmo."))
+    #expect(!psalmodia.units.contains(.antiphon("Antiphona indexata")))
+}
+
+@Test func anExCommunesIndexedAntVesperaIsUsedForPsalmody() throws {
+    // The counterpart to the test above: an "ex"-type commune reference DOES let the
+    // second-Vespers "3" index reach the Commune's own [Ant Vespera 3] -- traced from
+    // `psalmi.pl`'s `getproprium('Ant Vespera 3', ...)` fallback (gated to
+    // `$communetype =~ /ex/`), though not independently confirmed against a real
+    // "ex CN" fixture the way the "vide" case above is.
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;ex C99"]),
+    ])
+    let commune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Ant Vespera", condition: "", body: ["Antiphona communis sine numero."]),
+        RawSection(name: "Ant Vespera 3", condition: "", body: ["Antiphona indexata;;114"]),
+    ])
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    #expect(psalmodia.units.first == .antiphon("Antiphona indexata"))
+}
+
 @Test func fallsBackToTheCommuneWhenTheOfficeItselfHasNoAntVespera() throws {
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
