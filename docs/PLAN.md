@@ -836,9 +836,44 @@ verse-for-verse needs a real per-psalm boundary mapping, not a formula — this 
 `Psalm.swift`'s own already-flagged deferred scope limit, now with English content
 available to actually solve it against, not yet attempted.
 
-Capitulum/Hymnus/Versus and the Psalmodia/Magnificat antiphons (not their verses) are
-mechanically similar to the Oratio case above and are the natural next slice once
-picked back up, likely before tackling the harder verse-alignment problem.
+**Capitulum/Hymnus/Versus and the Psalmodia/Magnificat antiphons are now wired too
+(2026-09-17), each confirmed against the real bilingual fixture for 16 September
+2026** — and this pass caught two more real, previously-uncaught bugs along the way,
+neither about English specifically:
+
+1. **`[Versum $ind]` was never indexed at all** — `assembleCapitulumHymnusVersus`
+   hardcoded `"Versum 1"` unconditionally. Confirmed real: the actual versicle for 16
+   September ("Exsultábunt Sancti in glória...") is `Commune/C3.txt`'s `[Versum 2]`,
+   reached via `[Versum 3]`'s own `@:Versum 2` cross-reference for second Vespers —
+   `[Versum 1]`'s "Lætámini in Dómino..." (what the code always returned) was simply
+   wrong for every second-Vespers date, undetected because no oracle test had `.versus`
+   in scope until this pass added it. **Not simplified to always querying `"Versum
+   2"` directly**, even though that's what several Communes' own `[Versum 3]` aliases
+   to (`C1.txt`/`C1p.txt`/`C2.txt`/`C4.txt`/`C5.txt` all do) — real office files don't
+   follow that pattern universally (some alias `[Versum 3]` to `[Versum 1]` instead,
+   some give it a genuinely distinct versicle), so `"Versum $ind"` by name, following
+   whatever the winning file's own cross-reference says, is what's actually correct.
+2. **`[Hymnus Vespera]`'s raw text carries two conventions cited nowhere in DO's own
+   Perl** (an exhaustive search of `horas.pl`/`specials/hymni.pl` found neither) but
+   confirmed absent from the real rendered fixture: a leading `{:H-Name:}` GABC
+   chant-tune identifier (stripped outright — `CLAUDE.md`'s "no chant" scope covers
+   this squarely) and stanza-break `_`-only lines (replaced with a blank line, not left
+   as a literal underscore). `cleanHymnText` fixes both; this was a **Latin-only**
+   rendering bug this whole session simply hadn't exercised until `.hymnus` finally
+   entered an oracle test's scope.
+
+**Also confirmed a genuine, narrow DO English-tree gap, left as `nil` rather than
+guessed at**: `Commune/C3.txt`'s English side has no `[Versum 3]` header at all — only
+`[Versum 1]`/`[Versum 2]` directly — even though the real bilingual fixture's page
+*does* show a translated versicle there. `resolvedLocation`'s "same exact section, or
+nil" rule (already established for Oratio) correctly declines to guess a substitute
+here; the fixture's actual language-fallback mechanism for a missing cross-referenced
+section wasn't found in Perl either, and chasing it further was judged not worth
+blocking this slice — flagged, not silently assumed solved.
+
+**Not yet started**: psalm and canticle **verse**-level English remains the one
+substantial piece left — see the Bea/Vulgate boundary-mapping problem above, still
+unattempted. Once that's solved, M4's Latin/English pairing is complete.
 
 ### M5 — User interface
 

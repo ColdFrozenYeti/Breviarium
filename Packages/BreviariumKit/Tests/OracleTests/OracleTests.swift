@@ -94,7 +94,12 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // .oratio now in scope: confirmed real that Ss. Cornelii et Cypriani's collect is
     // Commune/C3.txt's own [Oratio 3] (second Vespers), name-substituted -- see
     // assemblePsalmodia's doc comment for the full discovery writeup.
-    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .psalmodia, .canticum, .oratio, .conclusio])
+    // .versus now in scope too: [Versum 3] (-> Commune/C3's own [Versum 2] via its own
+    // cross-reference), not the [Versum 1] this code used to return unconditionally --
+    // see assembleCapitulumHymnusVersus's doc comment.
+    let diff = mismatches(
+        hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .psalmodia, .canticum, .oratio, .capitulum, .hymnus, .versus, .conclusio]
+    )
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 
@@ -194,7 +199,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(alleluiaCount == 10, "expected all 5 psalms bracketed by the Allelúia antiphon (open+close each), found \(alleluiaCount)")
 }
 
-@Test func englishIntroductioOratioAndConclusioMatchTheRealBilingualFixtureFor16September2026() async throws {
+@Test func englishSectionsMatchTheRealBilingualFixtureFor16September2026() async throws {
     // CLAUDE.md's own visual-spec worked example, checked here against the bilingual
     // spot-check fixture (Latin and English are two separate blocks per section in
     // DO's own rendering, not interleaved verse-by-verse -- confirmed by inspecting the
@@ -226,7 +231,8 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     }
 
     var missing: [String] = []
-    for section in hour.sections where [.introductio, .oratio, .conclusio].contains(section.kind) {
+    for section in hour.sections
+    where [.introductio, .psalmodia, .canticum, .oratio, .capitulum, .hymnus, .versus, .conclusio].contains(section.kind) {
         for unit in section.units {
             for piece in englishTexts(unit) {
                 let text = collapsedWhitespace(piece)
@@ -237,13 +243,30 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     }
     #expect(missing.isEmpty, "\(missing.count) English unit(s) not found in the bilingual fixture:\n\(missing.joined(separator: "\n"))")
 
-    // At least one real English unit was actually produced and checked, not just an
-    // empty (vacuously passing) diff.
+    // At least one real English unit was actually produced and checked per wired
+    // section, not just an empty (vacuously passing) diff.
     let introductio = try #require(hour.sections.first { $0.kind == .introductio })
     #expect(introductio.units.contains(.versicleResponse(
         versicle: "Deus + in adiutórium meum inténde.", response: "Dómine, ad adiuvándum me festína.",
         versicleEnglish: "O God, + come to my assistance;", responseEnglish: "O Lord, make haste to help me."
     )))
+
+    let canticum = try #require(hour.sections.first { $0.kind == .canticum })
+    #expect(canticum.units.contains(.antiphon(
+        "Gaudent in cælis * ánimæ Sanctórum, qui Christi vestígia sunt secúti: et quia pro eius amóre sánguinem suum fudérunt, ídeo cum Christo exsúltant sine fine.",
+        english: "In heaven do rejoice the souls of the Saints * who have followed the steps of Christ; and because they shed their blood for the love of Christ, therefore shall they be made glad for ever with Christ."
+    )))
+
+    // The versicle itself is a real, confirmed DO English-tree gap, not our bug:
+    // Commune/C3.txt's English side has no [Versum 3] at all (only [Versum 1]/[Versum
+    // 2] directly) even though its Latin side does (as `@:Versum 2`, confirmed a
+    // universal alias pattern across Commune/C1.txt/C1p.txt/C2.txt/C4.txt/C5.txt, but
+    // *not* universal on real office files -- several alias to Versum 1 instead, and
+    // some carry a genuinely distinct versicle -- so this can't be simplified to always
+    // querying "Versum 2" directly). Correctly resolving `resolvedLocation`'s "same
+    // exact section" rule here means English stays nil rather than guessing.
+    let versus = try #require(hour.sections.first { $0.kind == .versus })
+    #expect(versus.units.contains(.versicleResponse(versicle: "Exsultábunt Sancti in glória.", response: "Lætabúntur in cubílibus suis.")))
 }
 
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {

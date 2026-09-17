@@ -88,9 +88,12 @@ public struct HourAssembler {
             case "Incipit":
                 sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Psalmi":
-                sections.append(assemblePsalmodia(office: winner.winningPath, resolver: resolver, macroContext: macroContext, dayOfWeek: macroContext.dayOfWeek))
+                sections.append(assemblePsalmodia(
+                    office: winner.winningPath, resolver: resolver, macroContext: macroContext, dayOfWeek: macroContext.dayOfWeek,
+                    englishResolver: englishResolver
+                ))
             case "Canticum: Magnificat":
-                sections.append(assembleMagnificat(office: winner.winningPath, resolver: resolver, macroContext: macroContext))
+                sections.append(assembleMagnificat(office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
             case "Oratio":
                 // Ports orationes.pl:34,63-74's `$ind = $hora eq 'Vespera' ? $vespera : 2`
                 // priority: an `[Oratio 1]` (first Vespers) or `[Oratio 3]` (second
@@ -119,11 +122,13 @@ public struct HourAssembler {
             case "Conclusio":
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":
-                sections.append(
-                    contentsOf: assembleCapitulumHymnusVersus(office: winner.winningPath, resolver: resolver, macroContext: macroContext)
-                )
+                sections.append(contentsOf: assembleCapitulumHymnusVersus(
+                    office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ))
             case "Preces Feriales":
-                if let section = assemblePrecesFeriales(winner: winner, month: month, resolver: resolver, macroContext: macroContext) {
+                if let section = assemblePrecesFeriales(
+                    winner: winner, month: month, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ) {
                     sections.append(section)
                 }
             default:
@@ -355,18 +360,24 @@ public struct HourAssembler {
     /// Commune fallback are genuinely different rules in DO, not the same one applied
     /// twice. The `ex`-gated Commune extension here is traced from source but not yet
     /// independently confirmed against a real `"ex CN"` fixture.
-    private func assemblePsalmodia(office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int) -> Section {
+    private func assemblePsalmodia(
+        office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int, englishResolver: SectionResolver?
+    ) -> Section {
         let communeReference = macroContext.winningRank.communeReference
         let communeReferenceIsEx = communeReference.range(of: "^ex\\s", options: [.regularExpression, .caseInsensitive]) != nil
 
-        func candidatePairs(section: String, allowCommune: Bool) -> [(antiphon: String, psalmNumber: String)] {
-            let text: String?
-            if allowCommune {
-                text = resolveWithCommuneFallback(office: office, communeReference: communeReference, section: section, resolver: resolver)
-            } else {
-                text = resolver.sectionExists(path: office, section: section) ? resolver.resolve(path: office, section: section) : nil
-            }
-            guard let text else { return [] }
+        func location(section: String, allowCommune: Bool) -> (path: String, section: String)? {
+            if resolver.sectionExists(path: office, section: section) { return (office, section) }
+            guard allowCommune, let fallbackPath = Self.communeFallbackPath(communeReference), resolver.sectionExists(path: fallbackPath, section: section)
+            else { return nil }
+            return (fallbackPath, section)
+        }
+
+        func candidatePairs(
+            section: String, allowCommune: Bool
+        ) -> (pairs: [(antiphon: String, psalmNumber: String)], location: (path: String, section: String)?) {
+            guard let loc = location(section: section, allowCommune: allowCommune) else { return ([], nil) }
+            let text = resolver.resolve(path: loc.path, section: loc.section)
             var pairs = Self.parseAntiphonPsalmPairs(text)
             if pairs.isEmpty, let fifthPsalm = festalFifthPsalmNumber(
                 office: office, communeReference: communeReference, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
@@ -375,22 +386,53 @@ public struct HourAssembler {
                 let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
                 pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
             }
-            return pairs
+            return (pairs, pairs.isEmpty ? nil : loc)
         }
 
         var pairs: [(antiphon: String, psalmNumber: String)] = []
+        var winningLocation: (path: String, section: String)?
         if !macroContext.isFirstVespers {
-            pairs = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx)
+            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx)
         }
         if pairs.isEmpty {
-            pairs = candidatePairs(section: "Ant Vespera", allowCommune: true)
+            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera", allowCommune: true)
         }
 
         var usedWeekdaySchedule = false
+        let weekdaySection = "Day\(dayOfWeek) Vespera"
         if pairs.isEmpty {
             usedWeekdaySchedule = true
-            let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(dayOfWeek) Vespera")
+            let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: weekdaySection)
             pairs = Self.parseAntiphonPsalmPairs(weekdayText)
+        }
+
+        // English antiphon *text* only (never the psalm numbers, which are Latin's own
+        // parsed values regardless of language) -- queried at the exact same location
+        // Latin resolved to, per `resolvedLocation`'s own reasoning: never substitute a
+        // different, mismatched section just because it happens to exist in English.
+        var englishAntiphons: [String?] = Array(repeating: nil, count: pairs.count)
+        if let englishResolver {
+            let englishRawText: String?
+            if usedWeekdaySchedule {
+                englishRawText = englishResolver.sectionExists(path: "Psalterium/Psalmi/Psalmi major", section: weekdaySection)
+                    ? englishResolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: weekdaySection) : nil
+            } else if let winningLocation {
+                englishRawText = englishResolver.sectionExists(path: winningLocation.path, section: winningLocation.section)
+                    ? englishResolver.resolve(path: winningLocation.path, section: winningLocation.section) : nil
+            } else {
+                englishRawText = nil
+            }
+            if let englishRawText {
+                let englishPairs = Self.parseAntiphonPsalmPairs(englishRawText)
+                if !englishPairs.isEmpty, englishPairs.count == pairs.count {
+                    englishAntiphons = englishPairs.map { $0.antiphon }
+                } else if englishPairs.isEmpty {
+                    // Unnumbered antiphons (the festal-fifth-psalm case): zip raw lines
+                    // positionally, same as the Latin side does.
+                    let englishLines = englishRawText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
+                    if englishLines.count == pairs.count { englishAntiphons = englishLines }
+                }
+            }
         }
 
         // Ports `psalmi.pl:627-644`'s Paschaltide-Alleluia replacement for the case
@@ -415,13 +457,18 @@ public struct HourAssembler {
         if usedWeekdaySchedule, macroContext.weekName.range(of: "Pasc", options: .caseInsensitive) != nil {
             let alleluia = alleluiaAntiphon(resolver: resolver)
             pairs = pairs.map { (antiphon: alleluia, psalmNumber: $0.psalmNumber) }
+            if let englishResolver {
+                let englishAlleluia = alleluiaAntiphon(resolver: englishResolver)
+                englishAntiphons = Array(repeating: englishAlleluia, count: pairs.count)
+            }
         }
 
         var units: [Unit] = []
-        for pair in pairs {
-            units.append(.antiphon(pair.antiphon))
+        for (index, pair) in pairs.enumerated() {
+            let english = index < englishAntiphons.count ? englishAntiphons[index] : nil
+            units.append(.antiphon(pair.antiphon, english: english))
             units.append(contentsOf: psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext))
-            units.append(.antiphon(pair.antiphon))
+            units.append(.antiphon(pair.antiphon, english: english))
         }
         return Section(kind: .psalmodia, units: units)
     }
@@ -493,7 +540,7 @@ public struct HourAssembler {
     /// this section** (only that `[Ant 3]` is right for *this* rank on second Vespers),
     /// so a higher-ranked feast that should actually get one of `[Ant Vespera $ind]`'s
     /// numbered candidates is a known open question, not a closed one.
-    private func assembleMagnificat(office: String, resolver: SectionResolver, macroContext: MacroContext) -> Section {
+    private func assembleMagnificat(office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> Section {
         // `"Ant 3"` is keyed by the same first/second-Vespers index as `assemblePsalmodia`'s
         // `Ant Vespera 3` and the Oratio case's `Oratio 3` (`orationes.pl:34`'s `$ind` --
         // 1 for first Vespers, 3 for second): `[Ant 1]`/`[Ant 3]` sit right after
@@ -501,21 +548,27 @@ public struct HourAssembler {
         // example: `Commune/C1.txt`/`C3.txt`), each hour's own Magnificat-slot antiphon,
         // not a fixed "3" regardless of which Vespers is being sung.
         let ind = macroContext.isFirstVespers ? 1 : 3
+        let communeReference = macroContext.winningRank.communeReference
         var units: [Unit] = []
-        let plain = resolveWithCommuneFallback(
-            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant \(ind)", resolver: resolver
-        )
-        let numbered = resolveWithCommuneFallback(
-            office: office, communeReference: macroContext.winningRank.communeReference, section: "Ant Vespera \(ind)", resolver: resolver
-        )
-        if let antiphon = (plain ?? numbered)?.split(separator: "\n", omittingEmptySubsequences: false).first
-            .map({ String($0).components(separatedBy: ";;").first ?? String($0) }), !antiphon.isEmpty
-        {
-            units.append(.antiphon(antiphon))
-            units.append(contentsOf: magnificatVerses(resolver: resolver))
-            units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
-            units.append(.antiphon(antiphon))
-            return Section(kind: .canticum, units: units)
+        let plainLocation = resolvedLocation(office: office, communeReference: communeReference, section: "Ant \(ind)", resolver: resolver)
+        let numberedLocation = resolvedLocation(office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver)
+        if let location = plainLocation ?? numberedLocation {
+            let text = resolver.resolve(path: location.path, section: location.section)
+            let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
+                .map { String($0).components(separatedBy: ";;").first ?? String($0) }
+            if let antiphon, !antiphon.isEmpty {
+                let english: String? = englishResolver.flatMap { eng in
+                    guard eng.sectionExists(path: location.path, section: location.section) else { return nil }
+                    let englishText = eng.resolve(path: location.path, section: location.section)
+                    return englishText.split(separator: "\n", omittingEmptySubsequences: false).first
+                        .map { String($0).components(separatedBy: ";;").first ?? String($0) }
+                }
+                units.append(.antiphon(antiphon, english: english))
+                units.append(contentsOf: magnificatVerses(resolver: resolver))
+                units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
+                units.append(.antiphon(antiphon, english: english))
+                return Section(kind: .canticum, units: units)
+            }
         }
         units.append(contentsOf: magnificatVerses(resolver: resolver))
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
@@ -532,29 +585,78 @@ public struct HourAssembler {
 
     // MARK: - Capitulum / Hymnus / Versus
 
-    /// Best-effort direct lookups (`[Capitulum Vespera]`, `[Hymnus Vespera]`, `[Versum
-    /// 1]`, each independently, with the same Commune fallback as everything else) —
-    /// unlike Psalmi/Magnificat, this wasn't traced closely enough to be confident the
-    /// exact section names are right in every case (see the type doc's scope limits).
-    /// A section that resolves nowhere (office or Commune) is simply omitted rather
-    /// than emitted empty.
-    private func assembleCapitulumHymnusVersus(office: String, resolver: SectionResolver, macroContext: MacroContext) -> [Section] {
+    /// Best-effort direct lookups (`[Capitulum Vespera]`, `[Hymnus Vespera]`, each
+    /// independently, with the same Commune fallback as everything else) — unlike
+    /// Psalmi/Magnificat, this wasn't traced closely enough to be confident the exact
+    /// section names are right in every case (see the type doc's scope limits). A
+    /// section that resolves nowhere (office or Commune) is simply omitted rather than
+    /// emitted empty.
+    ///
+    /// `[Versum $ind]` **is** keyed by the same first/second-Vespers index as
+    /// `Oratio`/`Ant Vespera`/`Ant $ind` (not a fixed "1" — an earlier pass here hadn't
+    /// caught this one yet). Confirmed real for 16 September 2026: the actual versicle
+    /// is "Exsultábunt Sancti in glória. / Lætabúntur in cubílibus suis.", which is
+    /// `Commune/C3.txt`'s `[Versum 2]` (reached via `[Versum 3]`'s own `@:Versum 2`
+    /// cross-reference for second Vespers) — not `[Versum 1]`'s "Lætámini in Dómino...",
+    /// which this code used to return unconditionally.
+    ///
+    /// Hymn stanzas are paired as one whole English block, not stanza-by-stanza
+    /// (`CLAUDE.md`'s finer "hymns by stanza" alignment isn't attempted here yet).
+    private func assembleCapitulumHymnusVersus(
+        office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+    ) -> [Section] {
         let communeReference = macroContext.winningRank.communeReference
-        func lookup(_ section: String) -> String? {
-            resolveWithCommuneFallback(office: office, communeReference: communeReference, section: section, resolver: resolver)
+        func lookup(_ section: String) -> (latin: String, english: String?)? {
+            guard let location = resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
+            else { return nil }
+            let latin = resolver.resolve(path: location.path, section: location.section)
+            let english = englishResolver.flatMap { eng in
+                eng.sectionExists(path: location.path, section: location.section) ? eng.resolve(path: location.path, section: location.section) : nil
+            }
+            return (latin, english)
         }
 
         var sections: [Section] = []
         if let capitulum = lookup("Capitulum Vespera") {
-            sections.append(Section(kind: .capitulum, units: [.prose(capitulum)]))
+            sections.append(Section(kind: .capitulum, units: [.prose(capitulum.latin, english: capitulum.english)]))
         }
         if let hymnus = lookup("Hymnus Vespera") {
-            sections.append(Section(kind: .hymnus, units: [.prose(hymnus)]))
+            sections.append(Section(
+                kind: .hymnus, units: [.prose(Self.cleanHymnText(hymnus.latin), english: hymnus.english.map(Self.cleanHymnText))]
+            ))
         }
-        if let versus = lookup("Versum 1") {
-            sections.append(Section(kind: .versus, units: Self.unitsFromLines(versus.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))))
+        if let versus = lookup("Versum \(macroContext.isFirstVespers ? 1 : 3)") {
+            let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            let englishLines = versus.english?.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            sections.append(Section(kind: .versus, units: Self.unitsFromLines(latinLines, english: englishLines)))
         }
         return sections
+    }
+
+    /// Cleans a raw resolved `[Hymnus Vespera]` body of two conventions confirmed real
+    /// (16 September 2026's own hymn, `Commune/C3.txt`) but not referenced anywhere in
+    /// DO's own Perl (an exhaustive search of `horas.pl`/`specials/hymni.pl` turned up
+    /// nothing — this project's own best-evidence read of what the real rendered
+    /// fixture shows, not a cited mechanism):
+    ///
+    /// - A leading `{:H-Name:}` tune-identifier prefix (GABC chant-tune metadata,
+    ///   confirmed absent from the real fixture's rendered text entirely) — stripped
+    ///   outright, consistent with `CLAUDE.md`'s "no chant" scope.
+    /// - The leading `v. ` drop-cap marker (`do-format.md`'s already-documented
+    ///   "decorative styling for the first letter, not a liturgical marker" — the same
+    ///   treatment `DOMarkers.stripLineLabel` already gives it elsewhere, just not yet
+    ///   applied to a whole-hymn `.prose` blob) and each stanza-break `_`-only line
+    ///   (replaced with a blank line, not left as a literal underscore).
+    private static func cleanHymnText(_ text: String) -> String {
+        var result = text
+        if let range = result.range(of: #"^\{:.*?:\}"#, options: .regularExpression) {
+            result.removeSubrange(range)
+        }
+        result = DOMarkers.stripLineLabel(result)
+        return result
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) == "_" ? "" : String($0) }
+            .joined(separator: "\n")
     }
 
     // MARK: - Preces Feriales
@@ -614,14 +716,45 @@ public struct HourAssembler {
     /// the `$Preces ` sigil dispatch (`SectionResolver.sigilPaths`) is what makes the
     /// wrapper's middle line resolve to `Preces.txt`'s real verse text instead of
     /// recursing on its own section name.
-    private func assemblePrecesFeriales(winner: OccurrenceResult, month: Int, resolver: SectionResolver, macroContext: MacroContext) -> Section? {
+    private func assemblePrecesFeriales(
+        winner: OccurrenceResult, month: Int, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+    ) -> Section? {
         guard shouldShowPrecesFeriales(
             winner: winner, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, month: month, rule: macroContext.winningRule
         ) else { return nil }
 
         let text = resolver.resolve(path: "Psalterium/Special/Major Special", section: "Preces feriales Vespera")
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        return Section(kind: .precesFeriales, units: Self.unitsFromPrecesLines(lines))
+        let latinUnits = Self.unitsFromPrecesLines(lines)
+
+        let englishUnits: [Unit]? = englishResolver.map { eng in
+            let englishText = eng.resolve(path: "Psalterium/Special/Major Special", section: "Preces feriales Vespera")
+            return Self.unitsFromPrecesLines(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        }
+        return Section(kind: .precesFeriales, units: Self.mergeEnglish(latinUnits, englishUnits))
+    }
+
+    /// Pairs two independently-classified `Unit` arrays for the same content (Latin and
+    /// English resolved and split the same way) by position, attaching English's text
+    /// to Latin's unit — used where re-deriving a location-tracked lookup per piece
+    /// would be overkill (fixed, single-source content like the Preces). Falls back to
+    /// Latin-only if the counts don't match or a pair's shapes diverge (e.g. one side
+    /// classified a line as `.rubric` and the other as `.prose`) — never guesses at a
+    /// pairing it isn't sure of.
+    private static func mergeEnglish(_ latinUnits: [Unit], _ englishUnits: [Unit]?) -> [Unit] {
+        guard let englishUnits, englishUnits.count == latinUnits.count else { return latinUnits }
+        return zip(latinUnits, englishUnits).map { latin, english in
+            switch (latin, english) {
+            case (.rubric(let l, _), .rubric(let e, _)): return .rubric(l, english: e)
+            case (.versicleResponse(let lv, let lr, _, _), .versicleResponse(let ev, let er, _, _)):
+                return .versicleResponse(versicle: lv, response: lr, versicleEnglish: ev, responseEnglish: er)
+            case (.verse(let ref, let lf, let ls, _, _), .verse(_, let ef, let es, _, _)):
+                return .verse(reference: ref, firstHalf: lf, secondHalf: ls, firstHalfEnglish: ef, secondHalfEnglish: es)
+            case (.antiphon(let l, _), .antiphon(let e, _)): return .antiphon(l, english: e)
+            case (.prose(let l, _), .prose(let e, _)): return .prose(l, english: e)
+            default: return latin
+            }
+        }
     }
 
     /// Like `unitsFromLines`, plus two conventions confirmed real against the
