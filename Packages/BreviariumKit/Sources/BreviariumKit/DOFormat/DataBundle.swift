@@ -21,6 +21,15 @@ public struct DataBundle: Codable, Sendable {
     /// layers this on top so a Bea file shadows its plain-Latin counterpart, falling
     /// back to `latin` for anything the Bea overlay doesn't have.
     public var latinBea: [RawOfficeFile]
+    /// DO's own English text (`web/www/horas/English`) — Douay-Rheims wording for
+    /// Scripture (psalms, canticles, capitula) and DO's own English translation for
+    /// everything else, confirmed by direct comparison against DRB wording (e.g. Ps.
+    /// 109 "The Lord said to my Lord: Sit thou at my right hand..." matches verbatim) —
+    /// `CLAUDE.md`'s "Douay-Rheims (as on DRBO) for Scripture and Divinum Officium's
+    /// English for everything else" is already what this single tree contains, not two
+    /// separate sources to reconcile. No orthography normalisation runs on it
+    /// (`CLAUDE.md`: "Never touch English").
+    public var english: [RawOfficeFile]
     /// The flattened 1960 sanctoral calendar: `"MM-DD" -> fileref` (`KalendariaResolver`).
     public var calendar: [String: String]
 
@@ -28,11 +37,13 @@ public struct DataBundle: Codable, Sendable {
         formatVersion: Int = breviariumKitDataFormatVersion,
         latin: [RawOfficeFile],
         latinBea: [RawOfficeFile],
+        english: [RawOfficeFile],
         calendar: [String: String]
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
         self.latinBea = latinBea
+        self.english = english
         self.calendar = calendar
     }
 
@@ -41,6 +52,12 @@ public struct DataBundle: Codable, Sendable {
     /// (`do-format.md`).
     public func makeLatinCorpus() -> OfficeCorpus {
         LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
+    }
+
+    /// The English corpus — no Bea-equivalent overlay exists for English (confirmed: no
+    /// `English-Bea` sibling directory in the checkout), so this is just the one tree.
+    public func makeEnglishCorpus() -> OfficeCorpus {
+        InMemoryOfficeCorpus(files: english)
     }
 }
 

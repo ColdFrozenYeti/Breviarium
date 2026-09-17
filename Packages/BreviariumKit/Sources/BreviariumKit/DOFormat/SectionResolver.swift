@@ -15,6 +15,13 @@ public struct SectionResolver {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
     public var macroContext: MacroContext?
+    /// True when `corpus` is DO's English tree, never orthography-normalised — a small
+    /// number of `ScriptMacros` lookups (`&Deus_in_adjutorium`) need this because the
+    /// section name they query differs: `Prayers.txt`'s Latin header is stored
+    /// J-to-I-normalised (`"Deus in adiutorium"`), but the English header keeps its own
+    /// literal spelling (`"Deus in adjutorium"`, with a `j` — English text is never
+    /// touched by that normalisation pass).
+    public var isEnglish: Bool
 
     /// Where `$Name` macros resolve from (`do-format.md`).
     public static let prayersPath = "Psalterium/Common/Prayers.txt"
@@ -35,10 +42,11 @@ public struct SectionResolver {
     /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
     private static let maxInclusionDepth = 6
 
-    public init(corpus: OfficeCorpus, context: ConditionalContext, macroContext: MacroContext? = nil) {
+    public init(corpus: OfficeCorpus, context: ConditionalContext, macroContext: MacroContext? = nil, isEnglish: Bool = false) {
         self.corpus = corpus
         self.context = context
         self.macroContext = macroContext
+        self.isEnglish = isEnglish
     }
 
     /// Resolves one section to its final text.
@@ -123,7 +131,7 @@ public struct SectionResolver {
             } else if line.first == "$" {
                 resolvedLines.append(resolvePrayerMacroLine(String(line.dropFirst()), depth: depth))
             } else if line.first == "&", let macroContext,
-                let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: self)
+                let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: self, isEnglish: isEnglish)
             {
                 resolvedLines.append(resolved)
             } else {

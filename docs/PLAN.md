@@ -772,9 +772,73 @@ was itself never confirmed and is superseded by this — `HourAssembler`'s own t
 doc comment and `assemblePsalmodia`'s have the full citations.
 
 **Not yet built:** the Paschaltide Sunday/C10 nuance above; the
-displaced-office-as-commemoration-candidate nuance above; the `"ex"`-gated psalm-
-antiphon Commune fallback's own independent real-fixture confirmation; and Latin/
-English pairing.
+displaced-office-as-commemoration-candidate nuance above; and the `"ex"`-gated psalm-
+antiphon Commune fallback's own independent real-fixture confirmation.
+
+**Latin/English pairing has started (2026-09-17) — the data source question resolved
+itself, and the "whole unit" content (Introductio, Conclusio, Oratio) is wired and
+confirmed real; psalm/canticle verses are a separate, harder problem not yet started.**
+
+*Data source*: `CLAUDE.md` calls for Douay-Rheims for Scripture and DO's own English
+for everything else — turns out DO's own bundled `web/www/horas/English/` tree already
+*is* Douay-Rheims wording throughout (confirmed by direct comparison: Ps. 109 "The
+Lord said to my Lord: Sit thou at my right hand..." and the Magnificat "My soul doth
+magnify the Lord..." both match DRB verbatim). One source, not two to reconcile — see
+`DataBundle.english`'s doc comment. `BreviariumDataPipeline` now walks `English/` the
+same way as `Latin/` (no J-to-I normalisation — `CLAUDE.md`: "Never touch English"),
+merging in the shared `Ordinarium/` skeleton same as Latin does; `DataBundle.
+makeEnglishCorpus()` has no Bea-equivalent overlay (confirmed: no `English-Bea`
+directory exists). Bundle size with English included: 11.81 MB uncompressed JSON
+(1313 English files vs. 1765 Latin) — still well within a mobile budget, no
+compression need indicated yet.
+
+*Model*: `Unit`'s cases each gained an optional English counterpart (`english:
+String? = nil` etc.) rather than a parallel structure, so every existing construction
+site kept compiling unchanged; only the handful of `switch`/`if case` pattern matches
+needed updating for the new arity. `nil` means no English available for that unit yet.
+
+*Wired*: `HourAssembler` takes an optional `englishCorpus:` and, when supplied, builds
+a second `SectionResolver` against it with the same `macroContext`. Since `Ordinarium/
+Vespera` is language-neutral shared scaffolding, resolving it again through the
+English resolver walks the identical `#Name`-grouped structure with English text
+wherever a `&`/`$` macro bottoms out — so Introductio/Conclusio pair positionally,
+line-for-line, confirmed correct against the real bilingual fixture for 16 September
+2026 (`data/oracle-fixtures/raw/spot-check/`, which exists in `_bilingual_` variants
+for many named dates — no Docker/live DO needed to verify this). The Oratio case
+required a second real-data-driven fix: an office/Commune's *exact* winning `(path,
+section)` for Latin — e.g. `Commune/C3.txt`'s `[Oratio 3]` — is now tracked
+(`resolvedLocation`) and English is queried at that *same* location, returning `nil`
+rather than substituting a different, wrong section when English lacks that exact one.
+This was caught for a concrete reason, not by inspection: `Commune/C3.txt`'s English
+tree has no `[Oratio 3]` at all (only the plain `[Oratio]`), and a first attempt at an
+independent English fallback chain rendered that mismatched plain collect's English
+translation next to Latin's real `[Oratio 3]` text — DO's own real behaviour when a
+language lacks a specific section is to leave that piece in Latin entirely, confirmed
+by the same bilingual fixture (the English "column" for that date's collect is
+untranslated Latin text, with only the name and the `$Per Dominum` ending — which
+*does* exist in English's `Prayers.txt` — appearing in English).
+
+**Known simplification, not a bug**: that same fixture shows DO mixing languages
+*within* one collect at line granularity (Latin body, English ending) — this pass
+gates a whole collect's English on one exact-location match, so a case like this one
+gets Latin-only for the *entire* collect (including the otherwise-translatable ending)
+rather than DO's finer per-line mix. Flagged rather than chased further this pass.
+
+**Not yet started**: psalm and canticle **verse**-level English (the antiphons
+themselves align "by whole unit" and could be wired the same way as Oratio once
+picked up again — the open problem is specifically the verses). DO's Pius XII (Bea)
+Latin psalter divides some psalms differently from the plain Vulgate/Douay-Rheims
+numbering English uses — confirmed real and bigger than a mere half-verse offset:
+Bea's own `Latin-Bea/Psalterium/Psalmorum/Psalm114.txt` is headed "pars prima" and
+covers only 9 verses, corresponding to what the Vulgate/Douay-Rheims numbering splits
+into two separate psalms, 114 and 115. Aligning Bea-Latin against Douay-Rheims-English
+verse-for-verse needs a real per-psalm boundary mapping, not a formula — this is
+`Psalm.swift`'s own already-flagged deferred scope limit, now with English content
+available to actually solve it against, not yet attempted.
+
+Capitulum/Hymnus/Versus and the Psalmodia/Magnificat antiphons (not their verses) are
+mechanically similar to the Oratio case above and are the natural next slice once
+picked back up, likely before tackling the harder verse-alignment problem.
 
 ### M5 — User interface
 

@@ -31,14 +31,14 @@ private enum RealCorpus {
 /// raw spacing.
 private func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     switch unit {
-    case .rubric(let text): return [text]
-    case .versicleResponse(let versicle, let response): return [versicle, response]
-    case .verse(_, let first, let second):
+    case .rubric(let text, _): return [text]
+    case .versicleResponse(let versicle, let response, _, _): return [versicle, response]
+    case .verse(_, let first, let second, _, _):
         guard !second.isEmpty else { return [first] }
         let withoutAsterisk = first.hasSuffix("*") ? String(first.dropLast()) : first
         return ["\(withoutAsterisk) * \(second)"]
-    case .antiphon(let text): return [text]
-    case .prose(let text): return [text]
+    case .antiphon(let text, _): return [text]
+    case .prose(let text, _): return [text]
     }
 }
 
@@ -145,7 +145,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 
     // The Pope/Bishop name placeholder is confirmed left literal by DO's own real
     // output (no dynamic "reigning Pope" data source exists even there) -- not a gap.
-    #expect(precesFeriales.units.contains { if case .versicleResponse(let v, _) = $0 { return v.contains("Papa nostro N.") } else { return false } })
+    #expect(precesFeriales.units.contains { if case .versicleResponse(let v, _, _, _) = $0 { return v.contains("Papa nostro N.") } else { return false } })
 }
 
 @Test func sundayWithinTheChristmasOctaveUsesNat1_0sOwnAntiphonsFor28December2025() async throws {
@@ -192,6 +192,58 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     let alleluiaCount = psalmodia.units.filter { $0 == .antiphon("Allelúia, * allelúia, allelúia.") }.count
     #expect(alleluiaCount == 10, "expected all 5 psalms bracketed by the Allelúia antiphon (open+close each), found \(alleluiaCount)")
+}
+
+@Test func englishIntroductioOratioAndConclusioMatchTheRealBilingualFixtureFor16September2026() async throws {
+    // CLAUDE.md's own visual-spec worked example, checked here against the bilingual
+    // spot-check fixture (Latin and English are two separate blocks per section in
+    // DO's own rendering, not interleaved verse-by-verse -- confirmed by inspecting the
+    // raw fixture directly). English is compared against the *unnormalised* fixture
+    // text: LatinOrthography.normalize (J-to-I) must never touch English (CLAUDE.md:
+    // "Never touch English"), so running it over this bilingual fixture as a whole
+    // would risk corrupting real English words containing "j" (e.g. "rejoice").
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar), englishCorpus: bundle.makeEnglishCorpus())
+    let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
+
+    let fixtureText = try #require(try await OracleFixture.shared.spotCheck(filename: "2026-09-16_priestN_bilingual_visual-spec-example.txt"))
+    let normalizedFixture = collapsedWhitespace(fixtureText.replacingOccurrences(of: "✠", with: "+"))
+
+    func englishTexts(_ unit: BreviariumKit.Unit) -> [String] {
+        switch unit {
+        case .rubric(_, let english): return [english].compactMap { $0 }
+        case .versicleResponse(_, _, let v, let r): return [v, r].compactMap { $0 }
+        case .verse(_, _, _, let first, let second):
+            guard let first, let second else { return [] }
+            guard !second.isEmpty else { return [first] }
+            let withoutAsterisk = first.hasSuffix("*") ? String(first.dropLast()) : first
+            return ["\(withoutAsterisk) * \(second)"]
+        case .antiphon(_, let english): return [english].compactMap { $0 }
+        case .prose(_, let english): return [english].compactMap { $0 }
+        }
+    }
+
+    var missing: [String] = []
+    for section in hour.sections where [.introductio, .oratio, .conclusio].contains(section.kind) {
+        for unit in section.units {
+            for piece in englishTexts(unit) {
+                let text = collapsedWhitespace(piece)
+                guard !text.isEmpty else { continue }
+                if !normalizedFixture.contains(text) { missing.append("[\(section.kind)] \(text)") }
+            }
+        }
+    }
+    #expect(missing.isEmpty, "\(missing.count) English unit(s) not found in the bilingual fixture:\n\(missing.joined(separator: "\n"))")
+
+    // At least one real English unit was actually produced and checked, not just an
+    // empty (vacuously passing) diff.
+    let introductio = try #require(hour.sections.first { $0.kind == .introductio })
+    #expect(introductio.units.contains(.versicleResponse(
+        versicle: "Deus + in adiutórium meum inténde.", response: "Dómine, ad adiuvándum me festína.",
+        versicleEnglish: "O God, + come to my assistance;", responseEnglish: "O Lord, make haste to help me."
+    )))
 }
 
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {

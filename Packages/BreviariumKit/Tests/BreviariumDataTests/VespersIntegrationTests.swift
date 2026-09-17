@@ -44,14 +44,14 @@ import Testing
         )
     )
     // J-to-I orthography must have already run (this is real, unmodified corpus text).
-    #expect(!introductio.units.contains { if case .prose(let text) = $0 { return text.contains("Jesu") } else { return false } })
+    #expect(!introductio.units.contains { if case .prose(let text, _) = $0 { return text.contains("Jesu") } else { return false } })
 
     let canticum = try #require(hour.sections.first { $0.kind == .canticum })
     #expect(canticum.units.contains { if case .antiphon = $0 { return true } else { return false } })
-    #expect(canticum.units.contains { if case .verse(let ref, _, _) = $0 { return ref.hasPrefix("1:") } else { return false } })
+    #expect(canticum.units.contains { if case .verse(let ref, _, _, _, _) = $0 { return ref.hasPrefix("1:") } else { return false } })
 
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
-    let collectText = oratio.units.compactMap { if case .prose(let text) = $0 { return text } else { return nil } }
+    let collectText = oratio.units.compactMap { if case .prose(let text, _) = $0 { return text } else { return nil } }
         .joined(separator: " ")
     #expect(collectText.contains("Iesum Christum"))    // The $Per Dominum ending, I-spelled.
     #expect(!collectText.contains("is missing!"))      // No unresolved @/$/& reference leaked through.
@@ -62,4 +62,10 @@ import Testing
             .versicleResponse(versicle: "Dómine, exáudi oratiónem meam.", response: "Et clamor meus ad te véniat.")
         )
     )
+
+    // English corpus wiring: real DO English text, no orthography normalisation run on
+    // it ("Deus in adjutorium" keeps its "j" -- English is never J-to-I transformed).
+    let englishResolver = SectionResolver(corpus: bundle.makeEnglishCorpus(), context: context)
+    let englishDeusInAdiutorium = englishResolver.resolve(path: SectionResolver.prayersPath, section: "Deus in adjutorium")
+    #expect(englishDeusInAdiutorium.contains("O God, + come to my assistance"))
 }

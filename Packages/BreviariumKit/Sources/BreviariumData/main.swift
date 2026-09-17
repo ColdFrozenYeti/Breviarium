@@ -35,6 +35,7 @@ do {
     print("Bundle report:")
     print("  Latin files:      \(bundle.latin.count)")
     print("  Latin-Bea files:  \(bundle.latinBea.count)")
+    print("  English files:    \(bundle.english.count)")
     print("  Calendar entries: \(bundle.calendar.count)")
     print("  Uncompressed JSON size: \(sizeInBytes) bytes (\(String(format: "%.2f", sizeInMB)) MB)")
     print("  JSONDecoder round-trip: \(String(format: "%.3f", decodeSeconds))s")

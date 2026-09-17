@@ -1,25 +1,39 @@
 import Foundation
 
 /// One leaf of assembled Vespers content — formatting-free (`CLAUDE.md`: "No colours,
-/// fonts, or spacing live in this model"). Latin-only for now; `CLAUDE.md`'s parallel
-/// Latin/English layout is a separate, not-yet-built pass this shape is designed not to
-/// need re-architecting for (each case's associated text is a natural place to add an
-/// optional English counterpart alongside).
+/// fonts, or spacing live in this model"). Each case carries an optional English
+/// counterpart alongside its Latin text, matching this project's finding that DO's own
+/// bundled `English/` tree already *is* Douay-Rheims wording for Scripture and DO's own
+/// translation for everything else (`CLAUDE.md`'s "Douay-Rheims... for Scripture and
+/// Divinum Officium's English for everything else" turned out to be one source, not two
+/// to reconcile — see `DataBundle.english`'s doc comment). `nil` means no English is
+/// available for this unit yet (English toggled off, or a not-yet-wired section) — the
+/// app falls back to Latin-only width in that case, per `CLAUDE.md`'s visual spec.
+///
+/// English is wired per-case at the "whole unit" granularity `CLAUDE.md`'s alignment
+/// rules call for on non-verse content (a rubric, a versicle/response pair, an
+/// antiphon, a line of running prose). Psalm/canticle **verses** are a separate,
+/// harder alignment problem — DO's Pius XII (Bea) Latin psalter divides some psalms
+/// differently from the plain Vulgate/Douay-Rheims numbering English uses (confirmed
+/// real: Bea's own `Psalm114.txt` is headed "pars prima," covering only what
+/// Vulgate/Douay numbers as its *separate* Psalms 114 and 115) — the per-verse
+/// `english` fields on `.verse` exist for when that's solved, not populated yet.
 public enum Unit: Equatable, Sendable {
     /// A red italic rubric (do-format.md's `!text` marker, already stripped of the `!`).
-    case rubric(String)
+    case rubric(String, english: String? = nil)
     /// do-format.md: DO's own `V.`/`R.` line-prefix labels are dropped entirely here
     /// (not carried as text) — indentation and italics alone convey versicle vs.
     /// response, a presentation decision `CLAUDE.md`'s visual spec already settles.
-    case versicleResponse(versicle: String, response: String)
+    case versicleResponse(versicle: String, response: String, versicleEnglish: String? = nil, responseEnglish: String? = nil)
     /// A psalm or canticle verse, or a `&Gloria` doxology line — same typographic
-    /// treatment (`Psalm.swift`).
-    case verse(reference: String, firstHalf: String, secondHalf: String)
-    case antiphon(String)
+    /// treatment (`Psalm.swift`). See this type's own doc comment for why the English
+    /// fields aren't populated yet even when the surrounding hour has English wired.
+    case verse(reference: String, firstHalf: String, secondHalf: String, firstHalfEnglish: String? = nil, secondHalfEnglish: String? = nil)
+    case antiphon(String, english: String? = nil)
     /// A hymn stanza, capitulum, collect, or other running prose the visual spec treats
     /// uniformly (§ "Antiphons, hymn stanzas, chapter, and collect follow the same
     /// typographic system").
-    case prose(String)
+    case prose(String, english: String? = nil)
 }
 
 /// One named group of `Unit`s — `docs/rubrics-1960-vespers.md` §5's proposed heading

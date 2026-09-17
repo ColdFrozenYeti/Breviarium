@@ -152,6 +152,97 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     #expect(psalmodia.units.last == .antiphon("Antiphona propria"))
 }
 
+// MARK: - English pairing
+
+private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.txt", sections: [
+    RawSection(name: "Deus in adjutorium", condition: "", body: [
+        "V. O God, come to my assistance.", "R. O Lord, make haste to help me.",
+        "v. Glory be to the Father, and to the Son, * and to the Holy Ghost.",
+        "As it was in the beginning, is now, * and ever shall be. Amen.",
+    ]),
+    RawSection(name: "Dominus", condition: "", body: [
+        "V. The Lord be with you.", "R. And with thy spirit.",
+        "V. O Lord, hear my prayer.", "R. And let my cry come unto thee.",
+    ]),
+    RawSection(name: "Benedicamus Domino", condition: "", body: ["V. Let us bless the Lord.", "R. Thanks be to God."]),
+    RawSection(name: "Fidelium animae", condition: "", body: ["V. May the souls of the faithful departed rest in peace.", "R. Amen."]),
+])
+
+@Test func pairsIntroductioAndConclusioWithTheirEnglishCounterpartsWhenAnEnglishCorpusIsSupplied() throws {
+    let latinCorpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal])
+    let englishCorpus = InMemoryOfficeCorpus(files: [skeleton, englishPrayersFile])
+    let assembler = HourAssembler(corpus: latinCorpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]), englishCorpus: englishCorpus)
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+
+    let introductio = try #require(hour.sections.first { $0.kind == .introductio })
+    #expect(introductio.units.contains(.versicleResponse(
+        versicle: "Deus in adiutorium meum intende.", response: "Domine, ad adiuvandum me festina.",
+        versicleEnglish: "O God, come to my assistance.", responseEnglish: "O Lord, make haste to help me."
+    )))
+
+    let conclusio = try #require(hour.sections.first { $0.kind == .conclusio })
+    #expect(conclusio.units.contains(.versicleResponse(
+        versicle: "Domine, exaudi orationem meam.", response: "Et clamor meus ad te veniat.",
+        versicleEnglish: "O Lord, hear my prayer.", responseEnglish: "And let my cry come unto thee."
+    )))
+}
+
+@Test func leavesEnglishNilWhenTheWinningLatinSectionHasNoExactEnglishCounterpart() throws {
+    // Confirmed against the real bilingual fixture for 16 September 2026: Commune/
+    // C3.txt's English tree has no [Oratio 3] at all, only the plain [Oratio] -- and
+    // DO's own real behaviour is to leave that piece in Latin, not substitute the
+    // (different, wrong) plain English collect. A synthetic case of the same shape:
+    // Latin's Commune has an indexed [Oratio 3] (which wins), but English's Commune
+    // only has the plain, unrelated [Oratio].
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;vide C99"]),
+    ])
+    let latinCommune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Oratio", condition: "", body: ["Oratio communis generica."]),
+        RawSection(name: "Oratio 3", condition: "", body: ["Oratio communis indexata."]),
+    ])
+    let englishCommune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Oratio", condition: "", body: ["A different, unrelated English collect."]),
+    ])
+    let latinCorpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, latinCommune])
+    let englishCorpus = InMemoryOfficeCorpus(files: [skeleton, englishPrayersFile, englishCommune])
+    let assembler = HourAssembler(
+        corpus: latinCorpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]), englishCorpus: englishCorpus
+    )
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let oratio = try #require(hour.sections.first { $0.kind == .oratio })
+
+    #expect(oratio.units == [.prose("Oratio communis indexata.", english: nil)])
+}
+
+@Test func usesTheCommunesEnglishIndexedOratioWhenItGenuinelyExists() throws {
+    let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;vide C99"]),
+    ])
+    let latinCommune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Oratio", condition: "", body: ["Oratio communis generica."]),
+        RawSection(name: "Oratio 3", condition: "", body: ["Oratio communis indexata."]),
+    ])
+    let englishCommune = RawOfficeFile(path: "Commune/C99", sections: [
+        RawSection(name: "Oratio", condition: "", body: ["A generic English collect."]),
+        RawSection(name: "Oratio 3", condition: "", body: ["The genuinely matching English collect."]),
+    ])
+    let latinCorpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, latinCommune])
+    let englishCorpus = InMemoryOfficeCorpus(files: [skeleton, englishPrayersFile, englishCommune])
+    let assembler = HourAssembler(
+        corpus: latinCorpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["01-19": "01-19"]), englishCorpus: englishCorpus
+    )
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
+    let oratio = try #require(hour.sections.first { $0.kind == .oratio })
+
+    #expect(oratio.units == [.prose("Oratio communis indexata.", english: "The genuinely matching English collect.")])
+}
+
 @Test func aCommunesOwnIndexedOratioWinsOverItsPlainOneWhenTheOfficeDefinesNeither() throws {
     // Confirmed against the real oracle fixture for 16 September 2026 (Ss. Cornelii et
     // Cypriani, "vide C3"): the collect actually said is Commune/C3.txt's own

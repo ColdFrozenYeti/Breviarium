@@ -35,11 +35,16 @@ public struct HourAssembler {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
     public var calendar: SanctoralCalendar
+    /// DO's own English tree (`DataBundle.english`/`makeEnglishCorpus()`) — `nil` means
+    /// English wasn't supplied (e.g. the toggle is off, or a caller that only cares
+    /// about Latin), in which case every `Unit`'s English field stays `nil` throughout.
+    public var englishCorpus: OfficeCorpus?
 
-    public init(corpus: OfficeCorpus, context: ConditionalContext, calendar: SanctoralCalendar) {
+    public init(corpus: OfficeCorpus, context: ConditionalContext, calendar: SanctoralCalendar, englishCorpus: OfficeCorpus? = nil) {
         self.corpus = corpus
         self.context = context
         self.calendar = calendar
+        self.englishCorpus = englishCorpus
     }
 
     public func assembleVespers(day: Int, month: Int, year: Int, priest: Bool) -> Hour? {
@@ -66,11 +71,22 @@ public struct HourAssembler {
         let skeletonLines = skeletonText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let groups = Self.groupSkeletonLines(skeletonLines)
 
+        // `Ordinarium/Vespera` is language-neutral scaffolding (shared, not duplicated
+        // per language — see `BreviariumDataPipeline`'s own doc comment), so resolving
+        // it again against an English-backed resolver walks the *same* `#Name`-grouped
+        // structure, just with `&`/`$` macros bottoming out in English text instead.
+        let englishResolver = englishCorpus.map { SectionResolver(corpus: $0, context: context, macroContext: macroContext, isEnglish: true) }
+        let englishGroups: [String: SkeletonGroup] = englishResolver.map { resolver in
+            let text = resolver.resolve(path: "Ordinarium/Vespera", section: RawSectionParser.wholeFileSectionName)
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            return Dictionary(Self.groupSkeletonLines(lines).map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+        } ?? [:]
+
         var sections: [Section] = []
         for group in groups {
             switch group.name {
             case "Incipit":
-                sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines)))
+                sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Psalmi":
                 sections.append(assemblePsalmodia(office: winner.winningPath, resolver: resolver, macroContext: macroContext, dayOfWeek: macroContext.dayOfWeek))
             case "Canticum: Magnificat":
@@ -82,17 +98,26 @@ public struct HourAssembler {
                 // exists -- same discovery and real example (Commune/C3.txt, Ss.
                 // Cornelii et Cypriani) as assemblePsalmodia's Ant Vespera 3 handling.
                 let indexedOratio = "Oratio \(macroContext.isFirstVespers ? 1 : 3)"
-                let collect = resolveWithCommuneFallback(
+                let oratioLocation = resolvedLocation(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: indexedOratio, resolver: resolver
-                ) ?? resolveWithCommuneFallback(
+                ) ?? resolvedLocation(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
                 )
-                if let collect {
+                if let oratioLocation {
+                    let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
                     let named = substituteName(in: collect, office: winner.winningPath, resolver: resolver)
-                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(named)))
+                    // English only if it has this *exact* section too -- never a
+                    // different (mismatched) one, per this case's own doc comment on
+                    // `resolvedLocation`.
+                    let englishCollect: String? = englishResolver.flatMap { eng in
+                        guard eng.sectionExists(path: oratioLocation.path, section: oratioLocation.section) else { return nil }
+                        let text = eng.resolve(path: oratioLocation.path, section: oratioLocation.section)
+                        return substituteName(in: text, office: winner.winningPath, resolver: eng)
+                    }
+                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(named, english: englishCollect)))
                 }
             case "Conclusio":
-                sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines)))
+                sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":
                 sections.append(
                     contentsOf: assembleCapitulumHymnusVersus(office: winner.winningPath, resolver: resolver, macroContext: macroContext)
@@ -135,26 +160,45 @@ public struct HourAssembler {
     /// line into `.verse` halves (covers the `&Gloria`/`&Deus_in_adjutorium` doxology,
     /// which uses the identical convention), and treats everything else as `.prose`
     /// after stripping DO's own presentational line labels.
-    static func unitsFromLines(_ lines: [String]) -> [Unit] {
+    ///
+    /// `englishLines` is the *same skeleton*, resolved against an English-backed
+    /// `SectionResolver` instead — the Introductio/Conclusio prayers are fixed text
+    /// (`Deus in adiutorium`, `Dominus vobiscum`, etc.), so the skeleton structure
+    /// (line count, blank-line positions, which lines are `V.`/`R.` pairs) is identical
+    /// regardless of language, and each non-blank Latin line pairs positionally with
+    /// the English line at the same index. If the non-blank counts don't match (a
+    /// signal something about that assumption broke for this particular date), English
+    /// is dropped entirely for this call rather than risk pairing the wrong lines.
+    static func unitsFromLines(_ lines: [String], english englishLines: [String]? = nil) -> [Unit] {
         let nonBlank = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let englishNonBlank = englishLines?.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let english = (englishNonBlank?.count == nonBlank.count) ? englishNonBlank : nil
+
         var units: [Unit] = []
         var i = 0
         while i < nonBlank.count {
             let line = nonBlank[i]
+            let englishLine = english?[i]
             if DOMarkers.isRubricLine(line) {
-                units.append(.rubric(DOMarkers.stripRubricMarkers(line)))
+                units.append(.rubric(DOMarkers.stripRubricMarkers(line), english: englishLine.map(DOMarkers.stripRubricMarkers)))
                 i += 1
             } else if line.hasPrefix("V.") && i + 1 < nonBlank.count && nonBlank[i + 1].hasPrefix("R.") {
-                units.append(
-                    .versicleResponse(versicle: DOMarkers.stripLineLabel(line), response: DOMarkers.stripLineLabel(nonBlank[i + 1]))
-                )
+                units.append(.versicleResponse(
+                    versicle: DOMarkers.stripLineLabel(line), response: DOMarkers.stripLineLabel(nonBlank[i + 1]),
+                    versicleEnglish: englishLine.map(DOMarkers.stripLineLabel),
+                    responseEnglish: english.map { DOMarkers.stripLineLabel($0[i + 1]) }
+                ))
                 i += 2
             } else if line.contains(" * ") {
                 let (first, second) = Psalm.splitHalves(DOMarkers.stripLineLabel(line))
-                units.append(.verse(reference: "", firstHalf: first, secondHalf: second))
+                let englishSplit = englishLine.map { Psalm.splitHalves(DOMarkers.stripLineLabel($0)) }
+                units.append(.verse(
+                    reference: "", firstHalf: first, secondHalf: second,
+                    firstHalfEnglish: englishSplit?.first, secondHalfEnglish: englishSplit?.second
+                ))
                 i += 1
             } else {
-                units.append(.prose(DOMarkers.stripLineLabel(line)))
+                units.append(.prose(DOMarkers.stripLineLabel(line), english: englishLine.map(DOMarkers.stripLineLabel)))
                 i += 1
             }
         }
@@ -171,23 +215,47 @@ public struct HourAssembler {
     /// them into one string) is what keeps "Amen." independently findable there. Not
     /// `unitsFromLines`' full treatment (versicle/response pairing, `*`-verse
     /// splitting) — right for the skeleton, overkill for what's always plain prose here.
-    static func unitsFromResolvedText(_ text: String) -> [Unit] {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
+    /// `english`: the same collect resolved against an English-backed resolver — paired
+    /// line-for-line with the Latin lines when the (post-filtering) line counts match,
+    /// matching `CLAUDE.md`'s "everything else by whole unit" alignment rule for prose
+    /// (a collect's `$Per Dominum` ending is its own separate line/unit on both sides,
+    /// per `HourAssembler`'s own doc comment on why this doesn't join into one string).
+    static func unitsFromResolvedText(_ text: String, english: String? = nil) -> [Unit] {
+        let latinLines = text.split(separator: "\n", omittingEmptySubsequences: false)
             .map { DOMarkers.stripLineLabel(String($0)) }
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            .map { .prose($0) }
+        let englishLines = english?.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { DOMarkers.stripLineLabel(String($0)) }
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let paired = (englishLines?.count == latinLines.count) ? englishLines : nil
+
+        return latinLines.enumerated().map { index, line in .prose(line, english: paired?[index]) }
     }
 
     // MARK: - Commune fallback
 
-    /// A section this office doesn't define at all, falling back to its Commune.
-    private func resolveWithCommuneFallback(office: String, communeReference: String, section: String, resolver: SectionResolver) -> String? {
-        if resolver.sectionExists(path: office, section: section) {
-            return resolver.resolve(path: office, section: section)
-        }
+    /// The `(path, section)` that actually satisfies a Commune-fallback lookup for
+    /// Latin — office first, then Commune — so a caller needing the *same* content in
+    /// another language can query that exact location instead of re-running its own
+    /// fallback chain. Confirmed necessary against the real bilingual fixture for 16
+    /// September 2026: `Commune/C3.txt`'s English tree has no `[Oratio 3]` at all (only
+    /// the plain `[Oratio]`), and DO's own real behaviour when a language lacks a
+    /// specific section entirely is to leave that piece in Latin — not substitute a
+    /// *different*, wrong section (the plain English `[Oratio]`, an unrelated collect)
+    /// in the requested language. Re-deriving English's own independent fallback chain
+    /// (indexed, then plain) did exactly that; querying English at Latin's own winning
+    /// `(path, section)` and returning `nil` when it's absent there instead matches DO.
+    private func resolvedLocation(office: String, communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
+        if resolver.sectionExists(path: office, section: section) { return (office, section) }
         guard let fallbackPath = Self.communeFallbackPath(communeReference), resolver.sectionExists(path: fallbackPath, section: section)
         else { return nil }
-        return resolver.resolve(path: fallbackPath, section: section)
+        return (fallbackPath, section)
+    }
+
+    /// A section this office doesn't define at all, falling back to its Commune.
+    private func resolveWithCommuneFallback(office: String, communeReference: String, section: String, resolver: SectionResolver) -> String? {
+        resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
+            .map { resolver.resolve(path: $0.path, section: $0.section) }
     }
 
     /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect with

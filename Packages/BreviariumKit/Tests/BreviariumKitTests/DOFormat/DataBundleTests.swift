@@ -28,6 +28,7 @@ import Testing
         latinBea: [RawOfficeFile(path: "Psalterium/Dom1/Matutinum.txt", sections: [
             RawSection(name: "Ps 1", condition: "", body: ["Bea text."])
         ])],
+        english: [],
         calendar: [:]
     )
     let resolver = SectionResolver(
@@ -35,4 +36,21 @@ import Testing
         context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 1, ad: "vesperas", mense: 9)
     )
     #expect(resolver.resolve(path: "Psalterium/Dom1/Matutinum", section: "Ps 1") == "Bea text.")
+}
+
+@Test func dataBundleMakeEnglishCorpusHasNoBeaLayer() {
+    // Confirmed against the real checkout: no `English-Bea` sibling directory exists,
+    // so (unlike makeLatinCorpus) this is just the one plain tree.
+    let bundle = DataBundle(
+        latin: [], latinBea: [],
+        english: [RawOfficeFile(path: "Psalterium/Dom1/Matutinum.txt", sections: [
+            RawSection(name: "Ps 1", condition: "", body: ["Blessed is the man."])
+        ])],
+        calendar: [:]
+    )
+    let resolver = SectionResolver(
+        corpus: bundle.makeEnglishCorpus(),
+        context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 1, ad: "vesperas", mense: 9)
+    )
+    #expect(resolver.resolve(path: "Psalterium/Dom1/Matutinum", section: "Ps 1") == "Blessed is the man.")
 }

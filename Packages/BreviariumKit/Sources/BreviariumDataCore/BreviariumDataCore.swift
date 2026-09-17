@@ -16,6 +16,11 @@ public enum BreviariumDataPipeline {
     /// option finding).
     public static let latinBeaTopLevelFolders: Set<String> = ["Psalterium"]
 
+    /// `English/` mirrors `Latin/`'s own top-level layout exactly (confirmed: `Tempora`,
+    /// `Sancti`, `Commune`, `Psalterium` all present, plus the same excluded
+    /// Monastic/Cistercian/Dominican siblings and non-office folders) — same subset.
+    public static let englishTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium"]
+
     /// `Ordinarium/` (the hour skeletons `HourAssembler` reads, e.g. `Vespera.txt`) sits
     /// directly under `web/www/horas`, a sibling of `Latin`/`Latin-Bea`/`English` rather
     /// than living inside one of them — it's language-neutral scaffolding (`#Name`
@@ -42,8 +47,16 @@ public enum BreviariumDataPipeline {
             topLevelFolders: latinBeaTopLevelFolders,
             applyLatinOrthography: true
         )
+        var english = try OfficeCorpusWalker.walk(
+            languageRoot: horasRoot.appendingPathComponent("English"),
+            topLevelFolders: englishTopLevelFolders,
+            applyLatinOrthography: false
+        )
+        english += try OfficeCorpusWalker.walk(
+            languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
+        )
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
 
-        return DataBundle(latin: latin, latinBea: latinBea, calendar: calendar)
+        return DataBundle(latin: latin, latinBea: latinBea, english: english, calendar: calendar)
     }
 }

@@ -52,9 +52,9 @@ public enum ScriptMacros {
     /// Resolves one `&Name` macro to its final text, or `nil` if `name` isn't one this
     /// port implements (callers should leave the line untouched in that case, the same
     /// way `SectionResolver` already treats unresolvable references).
-    public static func resolve(_ name: String, context: MacroContext, resolver: SectionResolver) -> String? {
+    public static func resolve(_ name: String, context: MacroContext, resolver: SectionResolver, isEnglish: Bool = false) -> String? {
         switch name {
-        case "Deus_in_adjutorium": return deusInAdjutorium(resolver: resolver)
+        case "Deus_in_adjutorium": return deusInAdjutorium(resolver: resolver, isEnglish: isEnglish)
         case "Alleluia": return alleluia(context: context, resolver: resolver)
         case "Gloria": return gloria(context: context, resolver: resolver)
         case "Dominus_vobiscum": return dominusVobiscum(context: context, resolver: resolver)
@@ -74,8 +74,8 @@ public enum ScriptMacros {
     /// are exempted) is stored J-to-I-normalized like any other prose in the file —
     /// confirmed missing against the real bundle before this fix (querying the literal
     /// `j`-spelling silently found nothing).
-    private static func deusInAdjutorium(resolver: SectionResolver) -> String {
-        resolver.resolve(path: SectionResolver.prayersPath, section: "Deus in adiutorium")
+    private static func deusInAdjutorium(resolver: SectionResolver, isEnglish: Bool) -> String {
+        resolver.resolve(path: SectionResolver.prayersPath, section: isEnglish ? "Deus in adjutorium" : "Deus in adiutorium")
     }
 
     /// `horasscripts.pl:64-83`. Chooses "Allelúia" vs. the penitential "Laus tibi,
