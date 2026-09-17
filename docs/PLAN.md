@@ -528,8 +528,8 @@ for; `HourAssembler.swift` walks the resolved skeleton, assembles `#Psalmi` and
 psalm number, falling back to the weekday schedule, each psalm's real verse text from
 `Psalterium/Psalmorum/`, `&Gloria` doxology), and resolves `#Oratio`/`#Capitulum Hymnus
 Versus` with a Commune fallback when the office itself doesn't define a section.
-`#Preces Feriales` still isn't resolved (`horasscripts.pl`'s `preces()` gating wasn't
-traced) — see `HourAssembler`'s own doc comment for the full, current scope-limit list.
+`#Preces Feriales` is now resolved too (`preces()`'s gating, see below) — see
+`HourAssembler`'s own doc comment for the full, current scope-limit list.
 
 Verified two ways: 8 synthetic unit tests, and a new permanent integration test
 (`VespersIntegrationTests.swift`) that assembles a real Vespers against the actual
@@ -631,26 +631,70 @@ itself, and only because Psalm 111's own verse-splitting hits the already-docume
 Bea/Vulgate half-verse-numbering gap `Psalm.swift` flags — not because the psalm/
 antiphon *selection* is wrong).
 
-**`#Preces Feriales` investigated but not implemented.** `preces()`'s actual condition
-(`horascommon.pl`'s `specials/preces.pl`) is tractable to port for 1960/Vespers — omit
-unless: rank is Feria/Simplex/privileged-Semiduplex only (`$duplex <= 2`), not Sunday,
-not Saturday-at-Vespers, and (Rule says "Preces" or it's Advent/Lent or an Ember day),
-further restricted to Wednesday/Friday/Ember days only under 1960 (`emberday()` itself
-is a clean, already-plannable port: Wed/Fri/Sat, and either week `Adv3`/`Quad1`/`Pasc7`,
-or September with a "Quatuor"-titled office). But the actual preces *text* source is
-confusing enough to warrant stopping rather than guessing: `getpreces()` reads
-`Psalterium/Special/Major Special.txt`'s `[Preces feriales Vespera]` section, whose own
-body is `$Kyrie` / `$Pater noster Et` / `$Preces feriales Vespera` / `$Domine exaudi` —
-the third line names its *own* section, which would be a literal infinite loop under
-`SectionResolver`'s `$Name` resolution (`Prayers.txt`-only lookup) unless DO's real
-`prayer()` reads a different hash than what `getpreces()` itself already returned
-verbatim — not chased down this session. Ask, or trace `specials.pl`'s actual call site
-for `getpreces()`'s return value, before implementing this rather than guess.
+**`#Preces Feriales` is now implemented (2026-09-17).** The apparent self-reference
+that stalled the previous session — `getpreces()` reading `Psalterium/Special/Major
+Special.txt`'s `[Preces feriales Vespera]`, whose own body includes the line `$Preces
+feriales Vespera` — turned out not to be recursion at all. `webdia.pl`'s `expand()`
+strips a **sigil**, not just a name, off every macro line: plain `$Name` dispatches to
+`prayer()` (`Psalterium/Common/Prayers.txt`), but `$rubrica Name` dispatches to
+`rubric()` (`Psalterium/Common/Rubricae.txt`, looked up by the bare name) and `$Preces
+Name` dispatches to `prex()` (`Psalterium/Special/Preces.txt`, looked up **with** the
+"Preces " prefix retained). The wrapper's middle line is a `$Preces `-sigil reference
+into a completely different file/hash than the wrapper section itself lives in — no
+loop. Ported as `SectionResolver.sigilPaths`, a small table the resolver checks before
+falling back to plain `$Name`/`Prayers.txt` handling; two new `SectionResolverTests`
+cases lock in each sigil's dispatch and prefix-retention behaviour directly.
 
-**Not yet built:** `#Preces Feriales` (investigated, not implemented — see above); the
-numbered-sub-common selection rule (`[Oratio 3]`/`[Ant 3]`/etc. vs the unsuffixed
-forms); the octave-reuse and Paschaltide antiphon-source gaps above; and Latin/English
-pairing.
+`shouldShowPrecesFeriales`/`isEmberDay` port `preces()`'s 1960/Vespers-reachable
+condition (`specials/preces.pl:7-71`): omit if a *Sancti* office wins, the winning
+office's own `[Rule]` says "Omit ... Preces", or it's `Pasc6`/`Pasc7`; otherwise show
+only when the winning rank's title doesn't genuinely say "duplex" (see below), it isn't
+Sunday or Saturday, and the day qualifies seasonally (`[Rule]` says "Preces", or the
+week is Advent/Lent, or it's an Ember day) — further restricted under 1960 to
+Wednesdays, Fridays, and Ember days specifically even within a qualifying season.
+`assemblePrecesFeriales` then resolves the wrapper section through the same
+`SectionResolver` every other section uses and splits it into `Unit`s, treating the
+`/:...:/ ` marker on the Pope/Bishop versicle as a `.rubric` — this time confirmed
+against `horas.pl:190` itself (`$line =~ s{/:(.*?):/}{setfont($smallfont, $1)}eg`,
+DO's own small-font footnote rendering), correcting an earlier session's claim that no
+Perl code handled it (that pass hadn't actually searched `horas.pl`). Confirmed real
+Pope/Bishop `"N."` is left literal even in DO's own actual output, so there's no
+dynamic "reigning Pope" data source to worry about.
+
+The first real-fixture pass against 18 February 2026 (Ash Wednesday) caught a genuine
+bug before it shipped: the rank guard was first written as a `numericPrecedence`
+cutoff (`$duplex <= 2` naively read as "low-numbered ranks only"), but `preces()`'s own
+`$duplex` is actually derived from the rank **title text**
+(`horascommon.pl:1818`: `$vrank[1] !~ /duplex/i ? 1 : $vrank[1] =~ /semiduplex/i ? 2 :
+3`), not from `numericPrecedence` at all. Ash Wednesday's real `[Rank]`
+(`Tempora/Quadp3-3.txt`) is `;;Feria privilegiata;;7` — a *privileged* feria
+deliberately given a high numeric precedence so it resists being superseded in
+`Occurrence`, which the numeric-cutoff version wrongly read as "too festal, omit."
+Switched to checking whether the title contains "duplex" and not "semiduplex" (Feria
+and Feria privilegiata never do, so both pass); the real oracle test
+(`ashWednesdayShowsTheRealPrecesFerialesText`) failed against the bug and passes
+against the fix. New synthetic tests in `HourAssemblerTests.swift` cover the
+Sancti-wins exclusion, the day-of-week restriction (Thursday in Lent, seasonally
+qualified but not Wed/Fri/Ember), and the season gate itself (an ordinary Wednesday
+after Epiphany, correctly day-of-week-eligible but not seasonally qualified).
+
+A second real-data pass caught two more content bugs in the same section, both on the
+Pope/Bishop versicles specifically. First, `Preces.txt`'s own source splits each
+versicle across two physical lines with a trailing `~` (`"Orémus pro beatíssimo Papa
+nostro~"` / `"r. N."`) — DO's own line-continuation convention (`horas.pl:117`,
+`$merge_with_next = ($line =~ s/~$//)`, confirmed by `horas.pl:195-200`'s merge-and-
+finalise logic), where the lowercase `r.` marks a drop-cap-style first letter for the
+merged fragment, not a real response. Left unhandled, this produced a dangling `~` and
+a stray unmerged `"N."` fragment instead of one clean versicle. Second, the footnote
+line's own trailing space (`"...præteritur.:/ "`, confirmed in the real file) meant
+`hasSuffix(":/")` never matched, so the marker was never stripped. Both fixed in
+`unitsFromPrecesLines` (merge-then-trim before the marker checks, not after); the real
+oracle test's exact-text assertions now pass, and a new synthetic case in
+`HourAssemblerTests.swift` locks in the merge behaviour directly.
+
+**Not yet built:** the numbered-sub-common selection rule (`[Oratio 3]`/`[Ant 3]`/etc.
+vs the unsuffixed forms); the octave-reuse and Paschaltide antiphon-source gaps above;
+and Latin/English pairing.
 
 ### M5 — User interface
 

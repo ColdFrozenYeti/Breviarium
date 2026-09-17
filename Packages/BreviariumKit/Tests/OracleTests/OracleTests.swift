@@ -136,6 +136,23 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
 
+@Test func ashWednesdayShowsTheRealPrecesFerialesText() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Quadragesima", feria: 4, ad: "vesperas", mense: 2)
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
+    let hour = try #require(assembler.assembleVespers(day: 18, month: 2, year: 2026, priest: false))
+
+    let precesFeriales = try #require(hour.sections.first { $0.kind == .precesFeriales })
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-02-18"))
+    let diff = mismatches(hour: Hour(sections: [precesFeriales]), fixtureText: fixtureText, sectionKinds: [.precesFeriales])
+    #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
+
+    // The Pope/Bishop name placeholder is confirmed left literal by DO's own real
+    // output (no dynamic "reigning Pope" data source exists even there) -- not a gap.
+    #expect(precesFeriales.units.contains { if case .versicleResponse(let v, _) = $0 { return v.contains("Papa nostro N.") } else { return false } })
+}
+
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()

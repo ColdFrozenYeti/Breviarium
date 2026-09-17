@@ -19,6 +19,19 @@ public struct SectionResolver {
     /// Where `$Name` macros resolve from (`do-format.md`).
     public static let prayersPath = "Psalterium/Common/Prayers.txt"
 
+    /// A `$`-line can carry one of two special sigil prefixes instead of naming a
+    /// `Prayers.txt` entry directly, each dispatching to its own separate file
+    /// (`webdia.pl`'s `expand()`: `$rubrica ` -> `rubric()` -> `Rubricae.txt`, `$Preces `
+    /// -> `prex()` -> `Preces.txt` — distinct hashes from `prayer()`'s `Prayers.txt`,
+    /// confirmed while tracing why `Preces.txt`'s own `[Preces feriales Vespera]`
+    /// section body literally names itself (`$Preces feriales Vespera`) without
+    /// recursing: it isn't a `$Name` self-reference at all, it's this sigil resolving
+    /// to a completely different file).
+    private static let sigilPaths: [(prefix: String, path: String)] = [
+        ("rubrica ", "Psalterium/Common/Rubricae.txt"),
+        ("Preces ", "Psalterium/Special/Preces.txt"),
+    ]
+
     /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
     private static let maxInclusionDepth = 6
 
@@ -130,7 +143,21 @@ public struct SectionResolver {
     /// re-adding it -- the resolved prayer text already supplies its own closing
     /// punctuation) only when the full name doesn't resolve, so a real macro name that
     /// happens to end in `.` is never second-guessed.
-    private func resolvePrayerMacroLine(_ name: String, depth: Int) -> String {
+    ///
+    /// Checks the `rubrica `/`Preces ` sigil prefixes first (`sigilPaths`) — `$rubrica
+    /// X` looks up the bare name `X` in `Rubricae.txt` (`rubric($name)`'s own lookup
+    /// has no prefix), while `$Preces X` looks up `"Preces X"`, prefix retained, in
+    /// `Preces.txt` (`prex("Preces $line", ...)`'s own reconstruction) — confirmed
+    /// against each file's real header naming (`Rubricae.txt`: `[Pater secreto]`, bare;
+    /// `Preces.txt`: `[Preces feriales Vespera]`, prefixed).
+    private func resolvePrayerMacroLine(_ line: String, depth: Int) -> String {
+        for (prefix, path) in Self.sigilPaths where line.hasPrefix(prefix) {
+            let rest = String(line.dropFirst(prefix.count))
+            let section = prefix == "Preces " ? "Preces \(rest)" : rest
+            return resolveSection(path: path, section: section, depth: depth + 1)
+        }
+
+        let name = line
         if sectionExists(path: Self.prayersPath, section: name) {
             return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
         }

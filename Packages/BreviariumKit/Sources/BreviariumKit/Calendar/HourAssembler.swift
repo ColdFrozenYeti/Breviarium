@@ -90,8 +90,12 @@ public struct HourAssembler {
                 sections.append(
                     contentsOf: assembleCapitulumHymnusVersus(office: winner.winningPath, resolver: resolver, macroContext: macroContext)
                 )
+            case "Preces Feriales":
+                if let section = assemblePrecesFeriales(winner: winner, month: month, resolver: resolver, macroContext: macroContext) {
+                    sections.append(section)
+                }
             default:
-                continue    // "#Preces Feriales" -- not yet resolved; see the type doc's scope limits.
+                continue
             }
         }
         return Hour(sections: sections)
@@ -387,5 +391,126 @@ public struct HourAssembler {
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(versus.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))))
         }
         return sections
+    }
+
+    // MARK: - Preces Feriales
+
+    /// Ports `preces()`'s condition (`specials/preces.pl:7-71`) for the branches 1960
+    /// Vespers actually reaches — dropping the Cistercian/monastic (`C12`) and
+    /// pre-1955-vigil branches, and the separate "Dominicales" case (`preces()`'s second
+    /// half), which is a Completorium concern, not Vespers.
+    ///
+    /// Confirmed against two real oracle fixtures: 16 September 2026 (a Wednesday, but
+    /// a *Sancti* office wins — `"Preces Feriales{omittitur}"` in the real output,
+    /// matching the `!winner.winningPath.hasPrefix("Sancti/")` guard below) and 18
+    /// February 2026 (Ash Wednesday, temporal Feria wins — real preces text present,
+    /// including the literal, un-filled `"Papa nostro N."` DO itself never resolves,
+    /// confirming there's no dynamic "who is the reigning Pope" data source to miss).
+    ///
+    /// The rank guard ports `$duplex` itself (`horascommon.pl:1818`: `$vrank[1] !~
+    /// /duplex/i ? 1 : $vrank[1] =~ /semiduplex/i ? 2 : 3`), which classifies by the
+    /// **title text**, not `numericPrecedence` — Ash Wednesday's own `[Rank]` is
+    /// `;;Feria privilegiata;;7` (a privileged feria deliberately given a *high* numeric
+    /// precedence so it resists being superseded in occurrence, confirmed against the
+    /// real `Tempora/Quadp3-3.txt`), so a precedence-based tier cutoff wrongly excluded
+    /// it. Only a title genuinely containing "duplex" (and not "semiduplex") is excluded.
+    private func shouldShowPrecesFeriales(winner: OccurrenceResult, weekName: String, dayOfWeek: Int, month: Int, rule: String) -> Bool {
+        guard !winner.winningPath.hasPrefix("Sancti/") else { return false }
+        guard rule.range(of: "Omit.*? Preces", options: [.regularExpression, .caseInsensitive]) == nil else { return false }
+        guard weekName.range(of: "Pasc[67]", options: [.regularExpression, .caseInsensitive]) == nil else { return false }
+
+        let title = winner.winningRank.title
+        let isDuplexOrHigher = title.range(of: "duplex", options: .caseInsensitive) != nil
+            && title.range(of: "semiduplex", options: .caseInsensitive) == nil
+        guard !isDuplexOrHigher else { return false }
+        guard dayOfWeek != 0, dayOfWeek != 6 else { return false }    // Not Sunday, not Saturday (first Vespers of Sunday).
+
+        let ember = isEmberDay(weekName: weekName, dayOfWeek: dayOfWeek, month: month, winningRankTitle: winner.winningRank.title)
+        let seasonal = rule.range(of: "Preces", options: .caseInsensitive) != nil
+            || weekName.range(of: "Adv|Quad(?!p)", options: .regularExpression) != nil
+            || ember
+        guard seasonal else { return false }
+
+        // 1960: restricted to Wednesdays, Fridays, and Ember days even within a
+        // qualifying season.
+        return dayOfWeek == 3 || dayOfWeek == 5 || ember
+    }
+
+    /// Ports `emberday()` (`horascommon.pl:1527-1542`).
+    private func isEmberDay(weekName: String, dayOfWeek: Int, month: Int, winningRankTitle: String) -> Bool {
+        guard dayOfWeek == 3 || dayOfWeek == 5 || dayOfWeek == 6 else { return false }
+        if weekName.range(of: "Adv3|Quad1|Pasc7", options: [.regularExpression, .caseInsensitive]) != nil { return true }
+        guard month == 9 else { return false }
+        return winningRankTitle.range(of: "Quat[t]*uor", options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// Resolves `Psalterium/Special/Major Special.txt`'s own `[Preces feriales
+    /// Vespera]` wrapper (`$Kyrie` / `$Pater noster Et` / `$Preces feriales Vespera` /
+    /// `$Domine exaudi`) through the same `SectionResolver` every other section uses —
+    /// the `$Preces ` sigil dispatch (`SectionResolver.sigilPaths`) is what makes the
+    /// wrapper's middle line resolve to `Preces.txt`'s real verse text instead of
+    /// recursing on its own section name.
+    private func assemblePrecesFeriales(winner: OccurrenceResult, month: Int, resolver: SectionResolver, macroContext: MacroContext) -> Section? {
+        guard shouldShowPrecesFeriales(
+            winner: winner, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, month: month, rule: macroContext.winningRule
+        ) else { return nil }
+
+        let text = resolver.resolve(path: "Psalterium/Special/Major Special", section: "Preces feriales Vespera")
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        return Section(kind: .precesFeriales, units: Self.unitsFromPrecesLines(lines))
+    }
+
+    /// Like `unitsFromLines`, plus two conventions confirmed real against the
+    /// Pope/Bishop versicles (`Psalterium/Special/Preces.txt`):
+    ///
+    /// - `/:...:/ ` wraps DO's own small-font footnote text (`horas.pl:190`:
+    ///   `$line =~ s{/:(.*?):/}{setfont($smallfont, $1)}eg` — found this time by
+    ///   actually searching `horas.pl` itself, not just `specials.pl`/
+    ///   `SetupString.pl` as an earlier pass claimed). Rendered here as `.rubric`,
+    ///   matching DO's own "smaller, set apart" treatment, not an arbitrary choice.
+    /// - A line ending in `~` is merged into the *next* line with a single space
+    ///   (`horas.pl:117`, `$merge_with_next = ($line =~ s/~$//)`, confirmed by
+    ///   `horas.pl:195-200`'s own merge-and-finalise logic) — real example: "Orémus pro
+    ///   beatíssimo Papa nostro~" + "r. N." is one versicle, "Orémus pro beatíssimo
+    ///   Papa nostro N.", not two separate lines. The lowercase `r.` here is DO's
+    ///   drop-cap-style marker for the merged fragment's first letter
+    ///   (`horas.pl:178`), not a real response — `DOMarkers.stripLineLabel` already
+    ///   strips it like any other label.
+    private static func unitsFromPrecesLines(_ lines: [String]) -> [Unit] {
+        let nonBlank = lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+        var merged: [String] = []
+        var pending: String?
+        for line in nonBlank {
+            if line.hasSuffix("~") {
+                let base = String(line.dropLast()).trimmingCharacters(in: .whitespaces)
+                pending = pending.map { "\($0) \(base)" } ?? base
+            } else if let accumulated = pending {
+                merged.append("\(accumulated) \(DOMarkers.stripLineLabel(line))")
+                pending = nil
+            } else {
+                merged.append(line)
+            }
+        }
+        if let leftover = pending { merged.append(leftover) }
+
+        var units: [Unit] = []
+        var i = 0
+        while i < merged.count {
+            let line = merged[i]
+            if line.hasPrefix("/:"), line.hasSuffix(":/") {
+                units.append(.rubric(String(line.dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespaces)))
+                i += 1
+            } else if line.hasPrefix("V.") && i + 1 < merged.count && merged[i + 1].hasPrefix("R.") {
+                units.append(
+                    .versicleResponse(versicle: DOMarkers.stripLineLabel(line), response: DOMarkers.stripLineLabel(merged[i + 1]))
+                )
+                i += 2
+            } else {
+                units.append(.prose(DOMarkers.stripLineLabel(line)))
+                i += 1
+            }
+        }
+        return units
     }
 }

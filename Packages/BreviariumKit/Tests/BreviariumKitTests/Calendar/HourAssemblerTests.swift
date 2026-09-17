@@ -11,8 +11,26 @@ private let skeleton = RawOfficeFile(path: "Ordinarium/Vespera", sections: [
         "#Incipit", "&Deus_in_adjutorium", "&Alleluia", "",
         "#Psalmi", "",
         "#Canticum: Magnificat", "",
+        "#Preces Feriales", "",
         "#Oratio", "",
         "#Conclusio", "&Dominus_vobiscum", "&Benedicamus_Domino", "$Fidelium animae",
+    ])
+])
+
+private let majorSpecialFile = RawOfficeFile(path: "Psalterium/Special/Major Special.txt", sections: [
+    RawSection(name: "Preces feriales Vespera", condition: "", body: [
+        "$Kyrie", "$Pater noster Et", "$Preces feriales Vespera", "$Domine exaudi",
+    ])
+])
+
+private let precesTextFile = RawOfficeFile(path: "Psalterium/Special/Preces.txt", sections: [
+    RawSection(name: "Preces feriales Vespera", condition: "", body: [
+        "V. Ego dixi: Domine, miserere mei.", "R. Sana animam meam quia peccavi tibi.",
+        "/:Nota bene: haec est adnotatio.:/ ",
+        // Confirmed real (Preces.txt:198-200): a line ending "~" merges into the next
+        // with a single space, and the lowercase "r." line it merges with is DO's own
+        // drop-cap marker for the fragment's first letter, not a real response.
+        "V. Oremus pro beatissimo Papa nostro~", "r. N.", "R. Dominus conservet eum.",
     ])
 ])
 
@@ -237,4 +255,100 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     // "Vespera" (999, which would point nowhere here) -- confirmed real precedence.
     #expect(psalmodia.units.contains(.verse(reference: "200:1", firstHalf: "Psalmus quintus*", secondHalf: "proprius.")))
     #expect(psalmodia.units.last == .antiphon("Ant quinque * quinti."))
+}
+
+// MARK: - Preces Feriales
+
+/// 18 February 2026 -- Ash Wednesday, real-date-verified elsewhere (`OracleTests`):
+/// a Wednesday, with `weekName` "Quadp3" (Quinquagesima week -- Ash Wednesday's own
+/// week doesn't get its own "Quad" name, confirmed against `getweek()`,
+/// `Date.pm:22-78`) and temporal Feria (not Sancti) winning outright. The real
+/// `Tempora/Quadp3-3.txt` gives `;;Feria privilegiata;;7` (a *privileged* feria,
+/// deliberately high-numbered so it resists being superseded in occurrence -- not a
+/// signal this is festal) and `[Rule]` "Preces Feriales" (the season gate here comes
+/// from the Rule flag, not from `weekName`, since "Quadp3" doesn't match `Adv|Quad(?!p)`).
+private let ashWednesdayFeria = RawOfficeFile(path: "Tempora/Quadp3-3", sections: [
+    RawSection(name: "Officium", condition: "", body: ["Feria IV Cinerum"]),
+    RawSection(name: "Rank", condition: "", body: [";;Feria privilegiata;;7"]),
+    RawSection(name: "Rule", condition: "", body: ["Preces Feriales"]),
+])
+
+@Test func showsPrecesFerialesOnALentenWednesdayWhenTemporalFeriaWins() throws {
+    let corpus = InMemoryOfficeCorpus(
+        files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, ashWednesdayFeria, majorSpecialFile, precesTextFile]
+    )
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]))
+
+    let hour = try #require(assembler.assembleVespers(day: 18, month: 2, year: 2026, priest: false))
+    let precesFeriales = try #require(hour.sections.first { $0.kind == .precesFeriales })
+
+    #expect(precesFeriales.units.contains(
+        .versicleResponse(versicle: "Ego dixi: Domine, miserere mei.", response: "Sana animam meam quia peccavi tibi.")
+    ))
+    #expect(precesFeriales.units.contains(.rubric("Nota bene: haec est adnotatio.")))
+    // The "~"-suffixed line merges with the following "r. N." line into one versicle
+    // (confirmed real: Preces.txt's own Pope/Bishop versicles) instead of leaving a
+    // stray, unmerged "N." fragment or a dangling trailing tilde.
+    #expect(precesFeriales.units.contains(
+        .versicleResponse(versicle: "Oremus pro beatissimo Papa nostro N.", response: "Dominus conservet eum.")
+    ))
+}
+
+@Test func omitsPrecesFerialesWhenASanctiOfficeWinsEvenOnALentenWednesday() throws {
+    // Confirmed against the real oracle fixture for 16 September 2026: a Wednesday, but
+    // a Sancti office (the martyrs' feast) wins occurrence, and Preces Feriales is
+    // omitted outright regardless of season or day-of-week.
+    // Given an artificially high rank so it genuinely outranks Ash Wednesday's own
+    // privileged-feria precedence (7) in `Occurrence.resolve` -- an ordinary Duplex
+    // feast would *not* actually win here (Ash Wednesday's whole point is resisting
+    // supersession), so this isolates the Preces guard from occurrence correctness.
+    let feast = RawOfficeFile(path: "Sancti/02-18", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Duplex I. classis;;8.0"]),
+        RawSection(name: "Oratio", condition: "", body: ["Oratio propria."]),
+    ])
+    let corpus = InMemoryOfficeCorpus(
+        files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, ashWednesdayFeria, majorSpecialFile, precesTextFile, feast]
+    )
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["02-18": "02-18"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 18, month: 2, year: 2026, priest: false))
+    #expect(hour.sections.first { $0.kind == .precesFeriales } == nil)
+}
+
+@Test func omitsPrecesFerialesOnALentenThursdayOutsideTheWednesdayFridayEmberRestriction() throws {
+    // 1960's own narrowing of the general "Rule has Preces, or Advent/Lent, or an Ember
+    // day" condition down to Wednesdays, Fridays, and Ember days only (`preces()`,
+    // `specials/preces.pl`) -- a Thursday in Lent doesn't qualify even though the season
+    // does.
+    let lentenThursday = RawOfficeFile(path: "Tempora/Quadp3-4", sections: [
+        RawSection(name: "Officium", condition: "", body: ["Feria V post Cineres"]),
+        RawSection(name: "Rank", condition: "", body: [";;Feria;;1.0"]),
+        RawSection(name: "Rule", condition: "", body: ["Preces Feriales"]),
+    ])
+    let corpus = InMemoryOfficeCorpus(
+        files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, lentenThursday, majorSpecialFile, precesTextFile]
+    )
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]))
+
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 2, year: 2026, priest: false))
+    #expect(hour.sections.first { $0.kind == .precesFeriales } == nil)
+}
+
+@Test func omitsPrecesFerialesOnAFerialWednesdayOutsideAnyQualifyingSeason() throws {
+    // 21 January 2026 is a Wednesday (weekName "Epi2", dayOfWeek 3), but plain
+    // time-after-Epiphany with no "Preces" Rule flag and no Ember day -- the season
+    // gate must exclude it even though the day-of-week restriction alone would allow it.
+    let epiphanyWednesday = RawOfficeFile(path: "Tempora/Epi2-3", sections: [
+        RawSection(name: "Officium", condition: "", body: ["Feria IV infra Hebdomadam II post Epiphaniam"]),
+        RawSection(name: "Rank", condition: "", body: [";;Feria;;1.0"]),
+        RawSection(name: "Rule", condition: "", body: ["Oratio Dominica"]),
+    ])
+    let corpus = InMemoryOfficeCorpus(
+        files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, epiphanyWednesday, majorSpecialFile, precesTextFile]
+    )
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]))
+
+    let hour = try #require(assembler.assembleVespers(day: 21, month: 1, year: 2026, priest: false))
+    #expect(hour.sections.first { $0.kind == .precesFeriales } == nil)
 }

@@ -28,7 +28,7 @@ public enum Unit: Equatable, Sendable {
 /// display casing or wording.
 public struct Section: Equatable, Sendable {
     public enum Kind: String, Equatable, Sendable, CaseIterable {
-        case introductio, psalmodia, capitulum, hymnus, versus, canticum, oratio, conclusio
+        case introductio, psalmodia, capitulum, hymnus, versus, canticum, precesFeriales, oratio, conclusio
     }
 
     public var kind: Kind

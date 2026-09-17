@@ -15,6 +15,39 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(resolver.resolve(path: "Sancti/01-18r.txt", section: "Oratio") == "Da, quaesumus, omnipotens Deus.")
 }
 
+@Test func resolvesTheRubricaSigilFromRubricaeTxtWithNoPrefixInTheLookupKey() {
+    // $rubrica Secreto looks up the bare name "Secreto" in Rubricae.txt -- confirmed
+    // against the real file's own header naming ("[Pater secreto]", no "rubrica " prefix).
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Ordinarium/Vespera.txt", sections: [
+            RawSection(name: "Incipit", condition: "", body: ["$rubrica Secreto"])
+        ]),
+        RawOfficeFile(path: "Psalterium/Common/Rubricae.txt", sections: [
+            RawSection(name: "Secreto", condition: "", body: ["Deinde dicuntur secreto."])
+        ]),
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    #expect(resolver.resolve(path: "Ordinarium/Vespera.txt", section: "Incipit") == "Deinde dicuntur secreto.")
+}
+
+@Test func resolvesThePrecesSigilFromPrecesTxtWithThePrefixRetainedInTheLookupKey() {
+    // $Preces feriales Vespera looks up "Preces feriales Vespera" (prefix retained) in
+    // Preces.txt -- confirmed against the real file's own header naming ("[Preces
+    // feriales Vespera]"), and against tracing why that section's own body can safely
+    // name itself ($Preces feriales Vespera would recurse if this dispatched back to
+    // the same $Name/Prayers.txt path instead of this separate one).
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Ordinarium/Vespera.txt", sections: [
+            RawSection(name: "Preces Feriales", condition: "", body: ["$Preces feriales Vespera"])
+        ]),
+        RawOfficeFile(path: "Psalterium/Special/Preces.txt", sections: [
+            RawSection(name: "Preces feriales Vespera", condition: "", body: ["V. Ego dixi.", "R. Sana animam meam."])
+        ]),
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    #expect(resolver.resolve(path: "Ordinarium/Vespera.txt", section: "Preces Feriales") == "V. Ego dixi.\nR. Sana animam meam.")
+}
+
 @Test func resolveRankFillsTitleFromOfficiumWhenOfficiumExists() {
     // Real DO Tempora/Sancti files leave [Rank]'s leading field empty on disk (do-format.md)
     // -- SetupString.pl's own safeguard substitution fills it from [Officium] at load time.
