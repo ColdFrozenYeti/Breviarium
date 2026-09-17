@@ -257,6 +257,51 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     #expect(psalmodia.units.last == .antiphon("Ant quinque * quinti."))
 }
 
+// MARK: - Paschaltide Alleluia antiphon
+
+/// 20 April 2026 -- a plain Paschaltide Monday (week "Pasc2", real-date-verified in
+/// `OracleTests`), low-ranked enough that no Sancti candidate ever competes.
+private let paschaltideFeria = RawOfficeFile(path: "Tempora/Pasc2-1", sections: [
+    RawSection(name: "Officium", condition: "", body: ["Feria II infra Hebdomadam II post Octavam Paschae"]),
+    RawSection(name: "Rank", condition: "", body: [";;Feria;;1.0"]),
+])
+
+@Test func replacesTheFallbackAntiphonWithAllelúiaOnAPlainPaschaltideWeekday() throws {
+    // Confirmed against the real oracle fixture for 20 April 2026: with no office or
+    // Commune [Ant Vespera] at all (the weekday-schedule fallback), every psalm's
+    // antiphon becomes alleluia_ant()'s "Allelúia, * allelúia, allelúia." rather than
+    // the plain ferial schedule's own text.
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, paschaltideFeria])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: [:]))
+
+    let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    #expect(psalmodia.units.first == .antiphon("Alleluia, * alleluia, alleluia."))
+    #expect(psalmodia.units.last == .antiphon("Alleluia, * alleluia, alleluia."))
+    #expect(!psalmodia.units.contains(.antiphon("Antiphona feriae * de psalmo.")))
+}
+
+@Test func leavesAGenuinelyProperAntiphonAloneEvenDuringPaschaltide() throws {
+    // The replacement only applies to the "nothing defined at all" fallback case --
+    // an office (or its Commune) that genuinely defines its own [Ant Vespera] keeps
+    // that antiphon even in Paschaltide (`psalmi.pl`'s own `$communetype !~ /ex/i`
+    // gate is vacuously satisfied only when nothing was found; this is the case where
+    // something *was* found).
+    let feast = RawOfficeFile(path: "Sancti/04-20", sections: [
+        RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
+        RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0"]),
+        RawSection(name: "Ant Vespera", condition: "", body: ["Antiphona propria;;114"]),
+    ])
+    let corpus = InMemoryOfficeCorpus(files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, paschaltideFeria, feast])
+    let assembler = HourAssembler(corpus: corpus, context: vesperaContext, calendar: SanctoralCalendar(entries: ["04-20": "04-20"]))
+
+    let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    #expect(psalmodia.units.first == .antiphon("Antiphona propria"))
+}
+
 // MARK: - Preces Feriales
 
 /// 18 February 2026 -- Ash Wednesday, real-date-verified elsewhere (`OracleTests`):

@@ -47,6 +47,61 @@ private func makeFixture(
     #expect(Occurrence.temporalPath(day: 18, month: 1, year: 2026) == "Tempora/Epi2-0")
 }
 
+@Test func decemberTwentySixToThirtyFirstRedirectsToNat1_0OnWhicheverDayIsSunday() {
+    // DO reaches this via seven dominical-letter transfer tables (Tabulae/Transfer/
+    // {a..g}.txt), each redirecting exactly one of 26-31 December to "Tempora/Nat1-0"
+    // for 1960 rubrics -- computing the weekday directly gets the same result.
+    // Confirmed against the real oracle fixture for 2025-12-28 (Sunday that year):
+    // the rendered Vespers antiphon is Sancti/12-25's own [Ant Vespera 3], reached
+    // only through Nat1-0's own [Ant Vespera] cross-reference.
+    #expect(Occurrence.temporalPath(day: 28, month: 12, year: 2025) == "Tempora/Nat1-0")    // 28th is Sunday.
+    #expect(Occurrence.temporalPath(day: 27, month: 12, year: 2026) == "Tempora/Nat1-0")    // 27th is Sunday.
+    #expect(Occurrence.temporalPath(day: 26, month: 12, year: 2027) == "Tempora/Nat1-0")    // 26th is Sunday.
+    #expect(Occurrence.temporalPath(day: 31, month: 12, year: 2028) == "Tempora/Nat1-0")    // 31st is Sunday.
+    #expect(Occurrence.temporalPath(day: 30, month: 12, year: 2029) == "Tempora/Nat1-0")    // 30th is Sunday.
+    #expect(Occurrence.temporalPath(day: 29, month: 12, year: 2030) == "Tempora/Nat1-0")    // 29th is Sunday.
+}
+
+@Test func decemberTwentySixToThirtyFirstOnANonSundayIsUnaffected() {
+    // 2025-12-28 is the Sunday that year (previous test) -- the days around it keep
+    // their own plain day-numbered files.
+    #expect(Occurrence.temporalPath(day: 26, month: 12, year: 2025) == "Tempora/Nat26")
+    #expect(Occurrence.temporalPath(day: 27, month: 12, year: 2025) == "Tempora/Nat27")
+    #expect(Occurrence.temporalPath(day: 29, month: 12, year: 2025) == "Tempora/Nat29")
+}
+
+@Test func christmasDayItselfIsNeverRedirectedEvenOnASunday() {
+    // 25 December is outside the 26-31 redirect range regardless of its own weekday --
+    // Christmas Day always uses its own full sanctoral office, per the existing
+    // Occurrence rank comparison, not this temporal-path special case.
+    #expect(Occurrence.temporalPath(day: 25, month: 12, year: 2033) == "Tempora/Nat25")
+}
+
+@Test func aTiedRankSanctoralCandidateLosesToTheSundayViaNat1_0sOwnRank() {
+    // Before this fix, a Sunday within the Octave would have used the day-numbered
+    // file's own (typically low, ferial) rank instead of Nat1-0's real "Semiduplex;;
+    // 5.4" -- which would make almost any commemorated saint that day (all of Ss.
+    // Stephen/John/the Innocents are also 5.4 under 1960 rubrics, confirmed real)
+    // incorrectly win outright, contradicting the real fixture (Dominica wins on
+    // 2025-12-28 against Holy Innocents, both 5.4). This test locks in that the
+    // *rank comparison* genuinely depends on the Nat1-0 redirect happening first.
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Tempora/Nat1-0", sections: [
+            RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;5.4;;ex Sancti/12-25"])
+        ]),
+        RawOfficeFile(path: "Sancti/12-28", sections: [
+            RawSection(name: "Rank", condition: "", body: [";;Duplex II class;;5.4;;ex C3"]),
+            RawSection(name: "Rule", condition: "", body: [""]),
+        ]),
+    ])
+    let occurrence = Occurrence(
+        corpus: corpus, context: context1960, calendar: SanctoralCalendar(entries: ["12-28": "12-28"])
+    )
+    let result = occurrence.resolve(day: 28, month: 12, year: 2025)
+    #expect(result?.sanctoralWins == false)
+    #expect(result?.winningPath == "Tempora/Nat1-0")
+}
+
 @Test func noSanctoralOfficeMeansTemporalWins() {
     let (occurrence, d, m, y) = makeFixture(temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;4.2")
     let result = occurrence.resolve(day: d, month: m, year: y)

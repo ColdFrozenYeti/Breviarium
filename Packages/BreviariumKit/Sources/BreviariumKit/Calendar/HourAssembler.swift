@@ -270,9 +270,35 @@ public struct HourAssembler {
             pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
         }
 
+        var usedWeekdaySchedule = false
         if pairs.isEmpty {
+            usedWeekdaySchedule = true
             let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(dayOfWeek) Vespera")
             pairs = Self.parseAntiphonPsalmPairs(weekdayText)
+        }
+
+        // Ports `psalmi.pl:627-644`'s Paschaltide-Alleluia replacement for the case
+        // it's confirmed correct for: no office/Commune `[Ant Vespera]` exists at all
+        // (`usedWeekdaySchedule`, our equivalent of `!exists($winner{"Ant $hora"})`'s
+        // primary clause -- with nothing found, `$communetype !~ /ex/i` is vacuously
+        // true too, so this case needs no further gating). Confirmed against the real
+        // oracle fixture for 20 April 2026 (a plain Paschaltide ferial Monday, IV.
+        // classis, no Sancti office): the rendered antiphon before *and* after all
+        // five psalms is exactly `alleluia_ant()`'s "Allelúia, * allelúia, allelúia."
+        // (open) / "Allelúia, allelúia, allelúia." (close, no asterisk) -- this project
+        // already stores one antiphon string for both ends (confirmed harmless by the
+        // Agatha oracle test's own five *distinct* antiphons, each of which also drops
+        // the asterisk on DO's real closing repeat), so the asterisk form is kept for
+        // both here rather than modelling DO's open/close distinction separately.
+        //
+        // **Not covered**: `psalmi.pl`'s other OR-branch, `$commune =~ /C10/` -- a
+        // Sunday within Paschaltide using the Common-of-Sundays still gets replaced
+        // even when that commune *does* supply generic antiphons (so `pairs` wouldn't
+        // be empty and this check wouldn't fire). No real fixture for that exact case
+        // has been checked yet; flagged rather than guessed at.
+        if usedWeekdaySchedule, macroContext.weekName.range(of: "Pasc", options: .caseInsensitive) != nil {
+            let alleluia = alleluiaAntiphon(resolver: resolver)
+            pairs = pairs.map { (antiphon: alleluia, psalmNumber: $0.psalmNumber) }
         }
 
         var units: [Unit] = []
@@ -282,6 +308,20 @@ public struct HourAssembler {
             units.append(.antiphon(pair.antiphon))
         }
         return Section(kind: .psalmodia, units: units)
+    }
+
+    /// Ports `alleluia_ant()`'s plain (non-GABC) form (`"$u, * $l, $l."`,
+    /// `LanguageTextTools.pm:120-129`), reusing `alleluia()`'s own bare-word extraction
+    /// (`"v. Allelúia."` → `"Allelúia"`, stripping the `v.` label and trailing period)
+    /// rather than `ScriptMacros`'s `&Alleluia` macro, which returns the Incipit's full
+    /// versicle/response pair (or the Lenten `"Laus tibi"` swap), not the bare word.
+    private func alleluiaAntiphon(resolver: SectionResolver) -> String {
+        let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia")
+        let firstLine = text.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""
+        var word = DOMarkers.stripLineLabel(firstLine)
+        if word.hasSuffix(".") { word.removeLast() }
+        let lower = word.lowercased()
+        return "\(word), * \(lower), \(lower)."
     }
 
     /// The `[Rule]` field's `"Psalm5 Vespera3=NNN"` (today's own second Vespers,

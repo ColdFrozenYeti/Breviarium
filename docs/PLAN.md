@@ -692,9 +692,48 @@ line's own trailing space (`"...præteritur.:/ "`, confirmed in the real file) m
 oracle test's exact-text assertions now pass, and a new synthetic case in
 `HourAssemblerTests.swift` locks in the merge behaviour directly.
 
+**The octave-reuse antiphon bug is now fixed (2026-09-17) — and turned out to be an
+occurrence bug, not just an antiphon one.** The earlier framing ("`Tempora/Nat1-0`
+covers every day of the Octave, not just its first") was itself wrong: `Nat1-0.txt`
+("Dominica Infra Octavam Nativitatis") is correctly scoped to just the one Sunday that
+falls within 26-31 December — the real gap was that `Occurrence.temporalPath` never
+produced that path at all, always falling through to the plain day-numbered file
+(`Nat26`...`Nat31`) regardless of weekday. DO reaches `Nat1-0` through a "dominical
+letter" indirection — seven `Tabulae/Transfer/{a..g}.txt` tables, one per possible
+Sunday-year, each redirecting exactly one of those six December dates to `Nat1-0` for
+1960 rubrics. Computing the weekday directly gets the same result without porting the
+letter machinery: `temporalPath` now special-cases 26-31 December, redirecting
+whichever day is actually a Sunday that year. Confirmed against the real oracle
+fixture for 2025-12-28 (that year's Sunday): the rendered antiphon is exactly
+`Sancti/12-25`'s own `[Ant Vespera 3]`, reached only through `Nat1-0`'s cross-reference
+— and this is a genuine *occurrence* fix, not just antiphon selection: Holy Innocents
+(`Sancti/12-28`) and the Sunday are exactly tied at rank 5.4 under 1960 rubrics, so
+before this fix, the wrong (day-numbered, low ferial-rank) file would have made Holy
+Innocents win outright instead of a real tie resolved in the Sunday's favour. Six
+synthetic tests cover every redirected date plus the non-Sunday/25 December
+non-redirect cases; **not covered**: `horascommon.pl:457`'s further rule that the
+*displaced* day-numbered office still competes as a commemoration candidate — out of
+scope for the same reason Commemorations generally are (not yet folded into
+`HourAssembler`).
+
+**The Paschaltide Allelúia antiphon rule is now fixed too (2026-09-17), scoped to the
+case it's confirmed correct for.** `psalmi.pl:627-644` replaces every psalm antiphon
+with `alleluia_ant()`'s "Allelúia, * allelúia, allelúia." during Paschaltide, gated by
+several conditions; the one ported is `!exists($winner{"Ant $hora"})`'s primary
+clause — no office or Commune `[Ant Vespera]` exists at all, i.e. exactly
+`assemblePsalmodia`'s own "fell through to the weekday schedule" branch, which also
+makes the further `$communetype !~ /ex/i` gate vacuously true (nothing was found to be
+"ex" or "vide" about). Confirmed against the real oracle fixture for 20 April 2026 (a
+plain ferial Monday within Paschaltide, IV. classis, no Sancti office): every one of
+the five psalms is bracketed by the Allelúia antiphon. **Not covered**: the other
+OR-branch, `$commune =~ /C10/` — a Sunday within Paschaltide using the Common-of-
+Sundays gets replaced even when that commune *does* supply generic antiphons (so
+`pairs` wouldn't be empty and this pass's check wouldn't fire); no real fixture for
+that exact case has been checked yet.
+
 **Not yet built:** the numbered-sub-common selection rule (`[Oratio 3]`/`[Ant 3]`/etc.
-vs the unsuffixed forms); the octave-reuse and Paschaltide antiphon-source gaps above;
-and Latin/English pairing.
+vs the unsuffixed forms); the Paschaltide Sunday/C10 nuance above; the
+displaced-office-as-commemoration-candidate nuance above; and Latin/English pairing.
 
 ### M5 — User interface
 

@@ -43,10 +43,36 @@ public struct Occurrence {
     /// The temporal file path for a date — `weekName` plus `"-<day-of-week>"`, except
     /// `Nat` weeks, which are numbered by day-of-month and never take that suffix
     /// (`horascommon.pl`: `"$weekname" . (($weekname !~ /Nat/i) ? "-$dayofweek" : "")`).
+    ///
+    /// **26-31 December is a further exception**: whichever of those six days is a
+    /// Sunday that year (there is always exactly one) uses `Tempora/Nat1-0`
+    /// ("Dominica Infra Octavam Nativitatis") instead of its own day-numbered file.
+    /// DO reaches this through a "dominical letter" indirection — seven
+    /// `Tabulae/Transfer/{a..g}.txt` tables, one per possible Sunday-year, each
+    /// redirecting exactly one December date to `Nat1-0` for 1960 rubrics (26th under
+    /// letter c, 27th under d, 28th under e, 29th under f *as `Nat1-0a`, which only
+    /// adds a Tridentine-non-Altovadensis commemoration this project doesn't
+    /// implement, so it's identical to `Nat1-0` here*, 30th under b/g, 31st under a).
+    /// Computing the day-of-week directly gets the same result without porting the
+    /// letter machinery — confirmed against the real oracle fixture for 2025-12-28
+    /// (a Sunday under this rule): the rendered Vespers antiphon "Tecum princípium..."
+    /// is exactly `Sancti/12-25`'s own `[Ant Vespera 3]`, reached via `Nat1-0`'s own
+    /// `[Ant Vespera]` cross-reference, not any day-numbered file's own content.
+    ///
+    /// **Not covered by this fix**: `horascommon.pl:457`'s further 1960-specific rule
+    /// that, once the Sunday claims `Nat1-0`, the *displaced* day-numbered office
+    /// (e.g. `Nat29` for 29 December, including that day's own named saint where one
+    /// exists) still competes as a commemoration candidate. Commemoration assembly
+    /// isn't folded into `HourAssembler` yet at all (its own doc comment already flags
+    /// this), so this is an extension of that existing, deliberate scope limit, not a
+    /// new gap this fix introduces.
     public static func temporalPath(day: Int, month: Int, year: Int) -> String {
+        let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
+        if month == 12, (26...31).contains(day), weekday == 0 {
+            return "Tempora/Nat1-0"
+        }
         let week = TemporalCycle.weekName(day: day, month: month, year: year)
         if week.hasPrefix("Nat") { return "Tempora/\(week)" }
-        let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
         return "Tempora/\(week)-\(weekday)"
     }
 

@@ -153,6 +153,52 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(precesFeriales.units.contains { if case .versicleResponse(let v, _) = $0 { return v.contains("Papa nostro N.") } else { return false } })
 }
 
+@Test func sundayWithinTheChristmasOctaveUsesNat1_0sOwnAntiphonsFor28December2025() async throws {
+    // 2025-12-28 is the one day that year the Sunday within the Christmas Octave
+    // falls on (Occurrence.temporalPath's own "26-31 December" redirect, added
+    // 2026-09-17 after finding real DO output never reaches the plain day-numbered
+    // "Nat28" file here at all). Holy Innocents (Sancti/12-28, rank 5.4) and the
+    // Sunday (via Nat1-0, also 5.4) are exactly tied under 1960 rubrics, so this also
+    // exercises that the Sunday's *real* rank -- not some other file's -- is what the
+    // occurrence comparison actually sees.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Nativitas", feria: 1, ad: "vesperas", mense: 12)
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
+    let hour = try #require(assembler.assembleVespers(day: 28, month: 12, year: 2025, priest: false))
+
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-12-28"))
+    // .psalmodia excluded from the full diff: Psalm 111 (one of this day's five) hits
+    // the same already-documented Bea/Vulgate half-verse-numbering gap the 19
+    // January/Agatha tests already exclude it for -- not a new issue this date
+    // introduces. The antiphon-selection assertion below is independent of that gap.
+    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .conclusio])
+    #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
+
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    #expect(psalmodia.units.contains(.antiphon("Tecum princípium * in die virtútis tuæ, in splendóribus sanctórum, ex útero ante lucíferum génui te.")))
+}
+
+@Test func plainPaschaltideWeekdayReplacesPsalmAntiphonsWithAllelúia() async throws {
+    // 20 April 2026: a plain ferial Monday within Paschaltide (week "Pasc2", IV.
+    // classis, no Sancti office) -- confirmed real fixture shows every psalm antiphon
+    // as alleluia_ant()'s "Allelúia, * allelúia, allelúia." rather than the plain
+    // ferial schedule's own text.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 2, ad: "vesperas", mense: 4)
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
+    let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
+
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-04-20"))
+    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .conclusio])
+    #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
+
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    let alleluiaCount = psalmodia.units.filter { $0 == .antiphon("Allelúia, * allelúia, allelúia.") }.count
+    #expect(alleluiaCount == 10, "expected all 5 psalms bracketed by the Allelúia antiphon (open+close each), found \(alleluiaCount)")
+}
+
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
