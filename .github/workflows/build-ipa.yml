@@ -34,9 +34,11 @@ jobs:
 
       - name: Generate the bundled data file
         working-directory: Packages/BreviariumKit
-        run: |
-          mkdir -p ../../data/generated
-          swift run BreviariumData ../../data/divinum-officium ../../data/generated/breviarium-data.json
+        # Written directly into App/Breviarium/ (an XcodeGen `sources` folder) so Xcode's
+        # normal resource scan picks it up -- a `resources:` entry pointing outside the
+        # source tree silently failed to land in Bundle.main (confirmed by a failing
+        # snapshot test). See App/project.yml's own comment.
+        run: swift run BreviariumData ../../data/divinum-officium ../../App/Breviarium/breviarium-data.json
 
       - name: Install XcodeGen
         run: brew install xcodegen

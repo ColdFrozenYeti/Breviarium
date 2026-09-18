@@ -21,6 +21,7 @@ App/*.ipa
 
 # Generated data bundle (produced by BreviariumData; not hand-edited)
 data/generated/
+App/Breviarium/breviarium-data.json
 
 # Local secrets/config that should never be committed
 *.p8
