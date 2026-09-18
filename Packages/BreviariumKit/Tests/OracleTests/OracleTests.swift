@@ -519,6 +519,72 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(!firstPsalmVerseText.contains { $0.contains("Laudo te, quod tam mirífice") })
 }
 
+@Test func lentenFeriaGetsARealCommemorationAppendedAfterTheMainOratio() async throws {
+    // 24 February 2026, a Tuesday within the first week of Lent -- found while
+    // verifying a direct question about whether commemorations occur at Vespers at all
+    // (they do, contrary to an initial recollection this session corrected against the
+    // real fixture rather than trusting memory). Right after the winning office's own
+    // "...Amen.", the real page reads "Commemoratio Feria Tertia infra Hebdomadam I in
+    // Quadragesima / Ant. Scriptum est enim... / ℣. Ángelis suis Deus mandávit de te. /
+    // ℟. Ut custódiant te in ómnibus viis tuis. / Orémus. Ascéndant ad te, Dómine,
+    // preces nostræ...".
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 24, month: 2, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 24, month: 2, year: 2026, priest: false))
+    let oratio = try #require(hour.sections.first { $0.kind == .oratio })
+
+    let rubrics = oratio.units.compactMap { unit -> String? in
+        if case .rubric(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(rubrics.contains { $0.contains("Commemoratio") && $0.contains("Feria Tertia infra Hebdomadam I in Quadragesima") })
+
+    let antiphons = oratio.units.compactMap { unit -> String? in
+        if case .antiphon(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(antiphons.contains { $0.contains("Scriptum est enim") })
+
+    let versicleResponses = oratio.units.compactMap { unit -> (String, String)? in
+        if case .versicleResponse(let versicle, let response, _, _) = unit { return (versicle, response) } else { return nil }
+    }
+    #expect(versicleResponses.contains { $0.0.contains("Ángelis suis Deus mandávit de te") && $0.1.contains("Ut custódiant te in ómnibus viis tuis") })
+
+    let prose = oratio.units.compactMap { unit -> String? in
+        if case .prose(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(prose.contains { $0.contains("Ascéndant ad te, Dómine, preces nostræ") })
+
+    let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-02-24"))
+    let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.oratio])
+    #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
+}
+
+@Test func martyrsFeastHasNoCommemorationAtVespersEvenThoughOneExistsAtLauds() throws {
+    // 16 September 2026: CLAUDE.md's own visual-spec example gives this date's
+    // commemoration as "Commemoratio ad Laudes tantum" (Lauds only) -- confirming
+    // Vespers itself shows none, i.e. assembleCommemorations must not spuriously add
+    // one here despite Commemorations.resolve almost certainly returning a non-empty
+    // candidate list for this date (Ss. Euphemiae et al.).
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
+    let oratio = try #require(hour.sections.first { $0.kind == .oratio })
+
+    let rubrics = oratio.units.compactMap { unit -> String? in
+        if case .rubric(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(!rubrics.contains { $0.contains("Commemoratio") })
+}
+
 /// Every text piece `unit` carries, Latin and English alike -- used only by the sweep
 /// below to scan for a leaked `SectionResolver` placeholder; unlike
 /// `oracleComparisonTexts`, this doesn't reconstruct DO's own formatting, since nothing

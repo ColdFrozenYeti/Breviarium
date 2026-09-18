@@ -29,8 +29,19 @@ import Foundation
 ///   real on the same office/fixture — superseding the earlier, never-confirmed
 ///   "antecapitulum"/concurrence guess for what `[Ant Vespera 3]` might be for.
 ///   See `assemblePsalmodia`'s own doc comment for the full citations.
-/// - Commemorations (`Commemorations.swift`) aren't folded into `#Oratio` yet — only
-///   the winning office's own collect is included.
+/// - Commemorations (`Commemorations.swift` decides *which* offices; `assembleCommemorations`
+///   below renders them) are folded into `#Oratio` for the single-commemoration case
+///   confirmed against a real fixture (24 February 2026: a Lenten feria commemorated at
+///   Vespers, `Ant.`/versicle-response/`Oratio` all appended after the winning office's
+///   own collect). **Not ported**: `orationes.pl:662-669`'s second-class-or-higher,
+///   second-Vespers-specific exclusion (a candidate whose own title doesn't name a major
+///   season is dropped when the winner is high-ranked and this is second Vespers) —
+///   no real fixture has been checked that would exercise it, so it's left unimplemented
+///   and flagged here rather than guessed at; and the real priority-key sort
+///   `orationes.pl:591-594`'s "1960: at most one commemoration on a high-ranked day" rule
+///   uses to pick *which* survivor — `assembleCommemorations` keeps simply the first
+///   candidate `Commemorations.resolve` returns, an approximation only confirmed
+///   correct for the single-candidate case.
 public struct HourAssembler {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
@@ -117,7 +128,11 @@ public struct HourAssembler {
                         let text = eng.resolve(path: oratioLocation.path, section: oratioLocation.section)
                         return substituteName(in: text, office: winner.winningPath, resolver: eng)
                     }
-                    sections.append(Section(kind: .oratio, units: Self.unitsFromResolvedText(named, english: englishCollect)))
+                    var oratioUnits = Self.unitsFromResolvedText(named, english: englishCollect)
+                    oratioUnits.append(contentsOf: assembleCommemorations(
+                        day: day, month: month, year: year, winningRank: winner.winningRank, resolver: resolver, macroContext: macroContext
+                    ))
+                    sections.append(Section(kind: .oratio, units: oratioUnits))
                 }
             case "Conclusio":
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
@@ -261,6 +276,75 @@ public struct HourAssembler {
     private func resolveWithCommuneFallback(office: String, communeReference: String, section: String, resolver: SectionResolver) -> String? {
         resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
             .map { resolver.resolve(path: $0.path, section: $0.section) }
+    }
+
+    // MARK: - Commemorations
+
+    /// The `Ant.`/versicle-response/`Oratio` block(s) appended after the winning
+    /// office's own collect for whichever office(s) `Commemorations.resolve` says are
+    /// commemorated tonight — `orationes.pl`'s own `getcommemoratio()` (specials/
+    /// orationes.pl:645-822), confirmed against the real fixture for 24 February 2026
+    /// (a Lenten feria commemorated at the Vespers of whatever won that day): right
+    /// after the main Oratio's own "...Amen.", the real page reads "Commemoratio Feria
+    /// Tertia infra Hebdomadam I in Quadragesima / Ant. Scriptum est enim... / ℣.
+    /// Ángelis suis Deus mandávit de te. / ℟. Ut custódiant te in ómnibus viis tuis. /
+    /// Orémus. Ascéndant ad te, Dómine, preces nostræ...".
+    ///
+    /// English is deliberately not threaded through here (`SettingsView`'s own "Coming
+    /// in beta" note) -- every `Unit` this emits carries `english: nil`.
+    private func assembleCommemorations(
+        day: Int, month: Int, year: Int, winningRank: OfficeRank, resolver: SectionResolver, macroContext: MacroContext
+    ) -> [Unit] {
+        let commemorations = Commemorations(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
+        guard !commemorations.isEmpty else { return [] }
+
+        // orationes.pl:585-594: "Under the 1960 rubrics, on II. cl and higher days,
+        // allow at most one commemoration." Real DO picks the survivor via a numeric
+        // priority key (Sunday/octave/etc.) this doesn't reconstruct -- keeping the
+        // first candidate is an approximation, confirmed only for the single-candidate
+        // case (24 February 2026 above never exercises this reduction at all, since it
+        // has just one commemoration to begin with).
+        let winnerIsFeriaLike = winningRank.title.range(of: "Feria|Sabbato|Vigilia", options: [.regularExpression, .caseInsensitive]) != nil
+        let mustReduceToOne = winningRank.numericPrecedence >= 5 || (winnerIsFeriaLike && winningRank.numericPrecedence >= 4)
+        let toRender = mustReduceToOne ? Array(commemorations.prefix(1)) : commemorations
+
+        let ind = macroContext.isFirstVespers ? 1 : 3
+        return toRender.flatMap { commemorationUnits(for: $0, ind: ind, resolver: resolver) ?? [] }
+    }
+
+    /// One commemorated office's own `Ant $ind`/`Versum $ind`/`Oratio $ind` (each
+    /// falling back to its own `4 - ind` form, then its Commune, exactly like the
+    /// winning office's own `Oratio` and `assembleMagnificat`'s `Ant $ind` already do --
+    /// `orationes.pl:756-769` for the antiphon, `:791-803` for the versicle, `:719-732`
+    /// for the collect). `nil` when any of the three can't be resolved at all, rather
+    /// than rendering a partial block.
+    private func commemorationUnits(for commemoration: Commemoration, ind: Int, resolver: SectionResolver) -> [Unit]? {
+        let communeReference = commemoration.rank.communeReference
+
+        func location(_ section: String) -> (path: String, section: String)? {
+            resolvedLocation(office: commemoration.path, communeReference: communeReference, section: section, resolver: resolver)
+        }
+
+        guard let antiphonLocation = location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
+        let antiphonText = resolver.resolve(path: antiphonLocation.path, section: antiphonLocation.section)
+            .split(separator: "\n", omittingEmptySubsequences: false).first
+            .map { String($0).components(separatedBy: ";;").first ?? String($0) }
+        guard let antiphonText, !antiphonText.isEmpty else { return nil }
+
+        guard let versumLocation = location("Versum \(ind)") ?? location("Versum \(4 - ind)") else { return nil }
+        let versumLines = resolver.resolve(path: versumLocation.path, section: versumLocation.section)
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let versicleResponseUnits = Self.unitsFromLines(versumLines)
+        guard case .versicleResponse = versicleResponseUnits.first else { return nil }
+
+        guard let oratioLocation = location("Oratio \(ind)") ?? location("Oratio") else { return nil }
+        let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
+        let named = substituteName(in: collect, office: commemoration.path, resolver: resolver)
+
+        var units: [Unit] = [.rubric("Commemoratio \(commemoration.rank.title)"), .antiphon(antiphonText)]
+        units.append(contentsOf: versicleResponseUnits)
+        units.append(contentsOf: Self.unitsFromResolvedText(named))
+        return units
     }
 
     /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect with
