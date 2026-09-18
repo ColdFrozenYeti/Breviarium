@@ -51,9 +51,14 @@ final class BreviariumUITests: XCTestCase {
             // so screenshotting immediately after swipeLeft() can catch the previous
             // page mid-transition or not yet transitioned at all (confirmed real: an
             // earlier export had two consecutive identical "Page 1 of 7" screenshots).
+            // 15s, not 5s: a heavier office (more blocks to lay out per page, e.g. the
+            // Vigil of the Assumption's longer Psalmodia) can make a single TabView page
+            // transition take longer than 5s to settle under CI's simulator load --
+            // confirmed real from a run where every page after the first showed up
+            // exactly one swipe late, each individual wait having timed out by seconds.
             let expectedLabel = "Page \(page) of \(totalPages)"
             XCTAssertTrue(
-                app.staticTexts[expectedLabel].waitForExistence(timeout: 5),
+                app.staticTexts[expectedLabel].waitForExistence(timeout: 15),
                 "Footer never showed \"\(expectedLabel)\""
             )
             let attachment = XCTAttachment(screenshot: app.screenshot())
