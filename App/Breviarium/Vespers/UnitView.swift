@@ -10,11 +10,12 @@ import SwiftUI
 /// "Deus + in adiutórium", the Magnificat's own "Magníficat * + ánima mea Dóminum" --
 /// confirmed present in the real Bea psalter file), is substituted with the real ✠
 /// glyph here rather than in BreviariumKit's own (deliberately raw) text data, since
-/// which glyph to draw is a presentation choice, not liturgical content. A leading or
-/// trailing "‡" (the antiphon/psalm-verse dagger rule -- see
-/// `HourAssembler.assemblePsalmodia`'s own doc comment) renders in the rubric colour
-/// while the rest of the line stays normal, via `Text` concatenation rather than a
-/// separate view, so it stays inline with the surrounding text. Parallel English
+/// which glyph to draw is a presentation choice, not liturgical content. The ✠ itself
+/// renders in the rubric colour (it's a rubric gesture, not liturgical text), and so does
+/// a leading or trailing "‡" (the antiphon/psalm-verse dagger rule -- see
+/// `HourAssembler.assemblePsalmodia`'s own doc comment), while the rest of the line stays
+/// normal -- both via `Text` concatenation rather than a separate view, so they stay
+/// inline with the surrounding text (see `styledText`/`crossColoredText`). Parallel English
 /// (side-by-side verse, stacked prose) isn't wired up yet -- `unit`'s own `english`
 /// fields are simply not read here; every unit renders Latin-only for now.
 struct UnitView: View {
@@ -66,19 +67,51 @@ struct UnitView: View {
     }
 
     /// Splits off a leading or trailing "‡ "/" ‡" into its own red-coloured `Text`
-    /// segment, concatenated with the rest of the line so it stays inline (`Text + Text`
-    /// preserves each segment's own styling) -- the rest of the modifiers (line spacing,
-    /// frame) apply to the combined result afterward in `latinText`.
+    /// segment, then hands the remainder to `crossColoredText` for the sign-of-the-cross
+    /// glyph -- `Text + Text` preserves each segment's own styling, so both markers stay
+    /// inline with the surrounding text. The rest of the modifiers (line spacing, frame)
+    /// apply to the combined result afterward in `latinText`.
     private func styledText(_ text: String, font: Font, color: Color) -> Text {
-        if text.hasPrefix("‡ ") {
-            let rest = String(text.dropFirst(2))
-            return Text("‡ ").font(font).foregroundStyle(Theme.rubric) + Text(rest).font(font).foregroundStyle(color)
+        var rest = text
+        var leadingDagger = false
+        var trailingDagger = false
+        if rest.hasPrefix("‡ ") {
+            leadingDagger = true
+            rest = String(rest.dropFirst(2))
         }
-        if text.hasSuffix(" ‡") {
-            let rest = String(text.dropLast(2))
-            return Text(rest).font(font).foregroundStyle(color) + Text(" ‡").font(font).foregroundStyle(Theme.rubric)
+        if rest.hasSuffix(" ‡") {
+            trailingDagger = true
+            rest = String(rest.dropLast(2))
         }
-        return Text(text).font(font).foregroundStyle(color)
+
+        var result = Text("")
+        if leadingDagger {
+            result = result + Text("‡ ").font(font).foregroundStyle(Theme.rubric)
+        }
+        result = result + crossColoredText(rest, font: font, color: color)
+        if trailingDagger {
+            result = result + Text(" ‡").font(font).foregroundStyle(Theme.rubric)
+        }
+        return result
+    }
+
+    /// Colours every "✠" (the sign-of-the-cross gesture marker) in the rubric colour
+    /// while the rest of the text keeps its normal colour -- it's technically a rubric,
+    /// per direct feedback, even though it sits inline within otherwise-normal text
+    /// (e.g. "Deus ✠ in adiutórium meum inténde.") rather than only leading or trailing a
+    /// whole line the way the dagger does, so this splits on every occurrence rather than
+    /// just checking the ends.
+    private func crossColoredText(_ text: String, font: Font, color: Color) -> Text {
+        let parts = text.components(separatedBy: "✠")
+        guard parts.count > 1 else {
+            return Text(text).font(font).foregroundStyle(color)
+        }
+        var result = Text(parts[0]).font(font).foregroundStyle(color)
+        for part in parts.dropFirst() {
+            result = result + Text("✠").font(font).foregroundStyle(Theme.rubric)
+            result = result + Text(part).font(font).foregroundStyle(color)
+        }
+        return result
     }
 
     private static func substitutingCrossGlyph(_ text: String) -> String {

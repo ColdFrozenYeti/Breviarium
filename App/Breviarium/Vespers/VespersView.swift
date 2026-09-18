@@ -1,33 +1,26 @@
 import BreviariumKit
 import SwiftUI
 
-/// The Vespers screen, per `CLAUDE.md`'s visual spec (§ "Page structure") -- swipeable
-/// pages, with the date line/day title/TOC button/hour title (items 2-6) on page 1 only,
-/// and a persistent chrome header (item 1) and footer (item 10) on every page.
+/// The Vespers screen, per `CLAUDE.md`'s visual spec (§ "Page structure") -- the date
+/// line/day title/TOC button/hour title (items 2-6) at the top, then a persistent chrome
+/// header (item 1) and footer (item 10).
 ///
-/// Pagination is content-driven, not "one page per Section": per direct feedback, text
-/// should flow continuously the way a real paginated document does -- a section that
-/// doesn't fully fit in the space left on a page just continues its own units onto the
-/// next page, with no heading/separator repeated (`ContentBlock.sectionStart` is its own
-/// block, emitted exactly once per section, wherever it lands). Plain SwiftUI, no
-/// UIKit: every block is measured once (an invisible render pass, `HeightPreferenceKey`)
-/// at the real content width, then greedily packed into pages against the real
-/// available height -- `CLAUDE.md` asks to flag a UIKit reach before taking it, and a
-/// height-measurement pass turned out to cover this without needing one.
-///
-/// Not yet built: the Settings-driven rubrics/English toggles (both hardcoded here --
-/// `showRubrics: true`, English off). A single block taller than one page (the whole
-/// Hymnus is currently one `.prose` block, not split by stanza) still gets a page to
-/// itself with an internal `ScrollView` as a safety net, rather than being split --
-/// splitting it would need `HourAssembler` to emit one unit per stanza, not attempted
-/// here.
+/// Rendered as one continuously scrolling document rather than the spec's swipeable
+/// pages, for now: direct feedback, after a real rendering showed a long hymn stanza cut
+/// off mid-line at a page boundary (the previous height-measurement-based pagination
+/// estimated its height slightly wrong, and unlike ordinary overflow the *first* block on
+/// a page has nowhere earlier to spill onto). Continuous scroll sidesteps needing that
+/// measurement pass at all -- text simply flows, the way a real paginated document's
+/// *content* does, without yet committing to where the page breaks fall. Swipeable
+/// paging is deferred to the beta milestones (alongside the other hours, the aesthetic
+/// pass, and the Ambrosian rite): once the content itself is right, slicing it into pages
+/// is a separate, smaller problem. The footer keeps the spec's "Page N of M" shape at a
+/// trivial "Page 1 of 1" in the meantime, rather than dropping it, since the layout slot
+/// itself isn't going away.
 struct VespersView: View {
     let content: VespersContent
     var showRubrics: Bool = true
 
-    @State private var heights: [String: CGFloat] = [:]
-    @State private var pages: [[ContentBlock]] = []
-    @State private var pageIndex = 0
     @State private var showingToc = false
 
     private var metrics: Metrics { Metrics() }
@@ -39,105 +32,22 @@ struct VespersView: View {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationHeader
-                GeometryReader { geometry in
-                    if pages.isEmpty {
-                        measuringPass(width: geometry.size.width, height: geometry.size.height)
-                    } else {
-                        TabView(selection: $pageIndex) {
-                            ForEach(Array(pages.enumerated()), id: \.offset) { index, pageBlocks in
-                                pageView(pageBlocks)
-                                    .tag(index)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(blocks) { block in
+                                blockView(block)
+                                    .id(block.id)
                             }
                         }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .padding(.horizontal, metrics.margin)
+                    }
+                    .sheet(isPresented: $showingToc) {
+                        tocSheet(proxy: proxy)
                     }
                 }
                 footer
             }
-        }
-        .sheet(isPresented: $showingToc) {
-            tocSheet
-        }
-    }
-
-    // MARK: Measuring pass
-
-    /// Renders every block once, off-screen, purely to read back its real height at the
-    /// real content width -- then computes the page breaks and switches to the real
-    /// paginated view. The user never sees this pass (opacity 0).
-    private func measuringPass(width: CGFloat, height: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(blocks) { block in
-                blockView(block)
-                    .background(
-                        GeometryReader { blockGeometry in
-                            Color.clear.preference(key: HeightPreferenceKey.self, value: [block.id: blockGeometry.size.height])
-                        }
-                    )
-            }
-        }
-        .padding(.horizontal, metrics.margin)
-        .frame(width: width, alignment: .topLeading)
-        .opacity(0)
-        .onPreferenceChange(HeightPreferenceKey.self) { newHeights in
-            heights.merge(newHeights) { _, new in new }
-        }
-        .task(id: heights.count) {
-            guard heights.count == blocks.count else { return }
-            // GeometryReader-based text measurement doesn't necessarily converge the
-            // moment every block has *some* recorded height -- a one-shot fixed delay
-            // here previously turned "the Oratio collect vanishes entirely" into "only
-            // its first line renders, the rest silently lost to page overflow", i.e.
-            // real progress but still wrong: 150ms wasn't always enough. Poll instead of
-            // guessing a duration: keep re-checking until two consecutive reads, 100ms
-            // apart, report the exact same heights for every block (or give up and use
-            // whatever's latest after ~1s, rather than never rendering at all).
-            var lastSnapshot = heights
-            for _ in 0..<10 {
-                try? await Task.sleep(for: .milliseconds(100))
-                guard heights.count == blocks.count else { continue }
-                if heights == lastSnapshot { break }
-                lastSnapshot = heights
-            }
-            guard pages.isEmpty else { return }
-            // `height` is already the space left over between the navigation header and
-            // the footer (this GeometryReader's own VStack siblings) -- the margin here
-            // is a safety buffer against small per-block rounding differences between
-            // the measuring pass and the real page render compounding, across dozens of
-            // blocks, into a real overflow, not their heights again.
-            pages = Self.paginate(blocks: blocks, heights: heights, availableHeight: max(height - 16, 1))
-        }
-    }
-
-    private static func paginate(blocks: [ContentBlock], heights: [String: CGFloat], availableHeight: CGFloat) -> [[ContentBlock]] {
-        var pages: [[ContentBlock]] = []
-        var current: [ContentBlock] = []
-        var currentHeight: CGFloat = 0
-        for block in blocks {
-            let blockHeight = heights[block.id] ?? 0
-            if !current.isEmpty, currentHeight + blockHeight > availableHeight {
-                pages.append(current)
-                current = []
-                currentHeight = 0
-            }
-            current.append(block)
-            currentHeight += blockHeight
-        }
-        if !current.isEmpty { pages.append(current) }
-        return pages.isEmpty ? [[]] : pages
-    }
-
-    // MARK: One page
-
-    private func pageView(_ pageBlocks: [ContentBlock]) -> some View {
-        // The ScrollView is a safety net (a single block taller than one page, or a
-        // slightly-off height estimate), not the primary interaction -- normally a
-        // page's own content already fits exactly, since that's what pagination solved.
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(pageBlocks) { block in blockView(block) }
-            }
-            .padding(.horizontal, metrics.margin)
         }
     }
 
@@ -152,6 +62,12 @@ struct VespersView: View {
                 sectionHeading(kind)
             }
             .padding(.bottom, metrics.bodySize * 0.6)
+        case .psalmSeparator:
+            Rectangle()
+                .fill(Theme.liturgicalText.opacity(0.4))
+                .frame(width: metrics.separatorWidth * 0.4, height: 1)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, metrics.bodySize * 0.4)
         case .unit(_, let unit, let alternateVerse):
             UnitView(unit: unit, metrics: metrics, showRubrics: showRubrics, italicizeWholeVerse: alternateVerse)
                 .padding(.bottom, metrics.extraLineSpacing)
@@ -265,9 +181,11 @@ struct VespersView: View {
     private var footer: some View {
         // Three independent slots (nothing on the left, per CLAUDE.md) rather than an
         // HStack of Spacers -- with a fixed-width trailing date, two Spacers around a
-        // centre Text wouldn't actually land that text on the true midpoint.
+        // centre Text wouldn't actually land that text on the true midpoint. "Page 1 of
+        // 1" until swipeable paging comes back (see this file's own doc comment) -- the
+        // slot stays, the count is just trivially true for now.
         ZStack {
-            Text("Page \(pageIndex + 1) of \(max(pages.count, 1))")
+            Text("Page 1 of 1")
                 .font(.system(size: metrics.footerSize))
                 .foregroundStyle(Theme.chrome)
             HStack {
@@ -283,13 +201,15 @@ struct VespersView: View {
 
     // MARK: Table of contents
 
-    private var tocSheet: some View {
+    private func tocSheet(proxy: ScrollViewProxy) -> some View {
         NavigationStack {
             List {
                 ForEach(Array(sectionKindsInOrder.enumerated()), id: \.offset) { _, kind in
                     Button {
-                        if let target = firstPageIndex(containing: kind) { pageIndex = target }
                         showingToc = false
+                        withAnimation {
+                            proxy.scrollTo(ContentBlock.sectionStart(kind).id, anchor: .top)
+                        }
                     } label: {
                         Text(Self.headingText(for: kind))
                     }
@@ -302,24 +222,5 @@ struct VespersView: View {
 
     private var sectionKindsInOrder: [BreviariumKit.Section.Kind] {
         content.hour.sections.filter { !$0.units.isEmpty }.map(\.kind)
-    }
-
-    private func firstPageIndex(containing kind: BreviariumKit.Section.Kind) -> Int? {
-        pages.firstIndex { page in
-            page.contains { block in
-                if case .sectionStart(let blockKind) = block { return blockKind == kind }
-                return false
-            }
-        }
-    }
-}
-
-private struct HeightPreferenceKey: PreferenceKey {
-    // A computed property, not a stored `static var =`, so there's no mutable global
-    // state for Swift 6's strict concurrency checking to flag -- each access just
-    // returns a fresh empty dictionary literal.
-    static var defaultValue: [String: CGFloat] { [:] }
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue()) { _, new in new }
     }
 }
