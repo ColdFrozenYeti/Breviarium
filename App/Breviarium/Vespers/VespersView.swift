@@ -146,8 +146,8 @@ struct VespersView: View {
                 sectionHeading(kind)
             }
             .padding(.bottom, metrics.bodySize * 0.6)
-        case .unit(_, let unit):
-            UnitView(unit: unit, metrics: metrics, showRubrics: showRubrics)
+        case .unit(_, let unit, let alternateVerse):
+            UnitView(unit: unit, metrics: metrics, showRubrics: showRubrics, italicizeWholeVerse: alternateVerse)
                 .padding(.bottom, metrics.extraLineSpacing)
         }
     }
