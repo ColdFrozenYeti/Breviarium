@@ -309,7 +309,7 @@ public struct HourAssembler {
         let toRender = mustReduceToOne ? Array(commemorations.prefix(1)) : commemorations
 
         let ind = macroContext.isFirstVespers ? 1 : 3
-        return toRender.flatMap { commemorationUnits(for: $0, ind: ind, resolver: resolver) ?? [] }
+        return toRender.flatMap { commemorationUnits(for: $0, ind: ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
     }
 
     /// One commemorated office's own `Ant $ind`/`Versum $ind`/`Oratio $ind` (each
@@ -318,7 +318,7 @@ public struct HourAssembler {
     /// `orationes.pl:756-769` for the antiphon, `:791-803` for the versicle, `:719-732`
     /// for the collect). `nil` when any of the three can't be resolved at all, rather
     /// than rendering a partial block.
-    private func commemorationUnits(for commemoration: Commemoration, ind: Int, resolver: SectionResolver) -> [Unit]? {
+    private func commemorationUnits(for commemoration: Commemoration, ind: Int, weekName: String, resolver: SectionResolver) -> [Unit]? {
         let communeReference = commemoration.rank.communeReference
 
         func location(_ section: String) -> (path: String, section: String)? {
@@ -331,7 +331,17 @@ public struct HourAssembler {
             .map { String($0).components(separatedBy: ";;").first ?? String($0) }
         guard let antiphonText, !antiphonText.isEmpty else { return nil }
 
-        guard let versumLocation = location("Versum \(ind)") ?? location("Versum \(4 - ind)") else { return nil }
+        // A plain ferial temporal office often has no `[Versum N]` of its own at all,
+        // and no Commune to fall back to either -- `orationes.pl:798-803`'s own final
+        // fallback, `getfrompsalterium('Versum', $ind, ...)`, reaches a season-wide
+        // generic versicle instead. Confirmed real: 24 February 2026's commemorated
+        // Lenten feria (`Tempora/Quad1-2.txt`) defines no `[Versum N]`, and the real
+        // fixture's versicle ("Ángelis suis Deus mandávit de te.") is exactly
+        // `Major Special.txt`'s own `[Quad Versum 3]` -- `Quad1` being this week's own
+        // `TemporalCycle.weekName`, with the trailing week number stripped.
+        guard let versumLocation = location("Versum \(ind)") ?? location("Versum \(4 - ind)")
+            ?? Self.seasonalVersumLocation(weekName: weekName, ind: ind, resolver: resolver)
+        else { return nil }
         let versumLines = resolver.resolve(path: versumLocation.path, section: versumLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let versicleResponseUnits = Self.unitsFromLines(versumLines)
@@ -345,6 +355,20 @@ public struct HourAssembler {
         units.append(contentsOf: versicleResponseUnits)
         units.append(contentsOf: Self.unitsFromResolvedText(named))
         return units
+    }
+
+    /// `Major Special.txt`'s own season-prefixed generic versicle (`[Quad Versum 3]`,
+    /// `[Adv Versum 2]`, etc.) -- `weekName` minus its trailing week number gives the
+    /// prefix (`"Quad1"` -> `"Quad"`), matching `TemporalCycle.weekName`'s own naming.
+    private static func seasonalVersumLocation(weekName: String, ind: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+        let prefix = String(weekName.reversed().drop(while: \.isNumber).reversed())
+        guard !prefix.isEmpty else { return nil }
+        let path = "Psalterium/Special/Major Special"
+        for candidateInd in [ind, 4 - ind] {
+            let section = "\(prefix) Versum \(candidateInd)"
+            if resolver.sectionExists(path: path, section: section) { return (path, section) }
+        }
+        return nil
     }
 
     /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect with
