@@ -395,6 +395,13 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     }
     #expect(antiphonTexts.contains { $0.contains("Dum esset Rex") })
     #expect(!antiphonTexts.contains { $0.contains("Ecce quam bonum") })
+    // Vespers has 5 psalms, each bracketed by its own antiphon (open + close) --
+    // 10 antiphon units total. Checking the real count directly, since a UI-level
+    // screenshot walkthrough can't distinguish "only 1 psalm assembled" from "5
+    // psalms assembled but only 1 fit in the captured viewport".
+    #expect(antiphonTexts.count == 10, "\(antiphonTexts.count) antiphon units: \(antiphonTexts)")
+    let verseCount = psalmodia.units.filter { if case .verse = $0 { return true } else { return false } }.count
+    #expect(verseCount > 4, "only \(verseCount) verse units across all 5 psalms + doxologies")
 
     let hymnus = try #require(hour.sections.first { $0.kind == .hymnus })
     #expect(!hymnus.units.isEmpty)
