@@ -32,10 +32,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: false # DO submodule isn't needed to build the app itself
+          submodules: true # M5: the app now bundles real data generated from the pinned checkout
 
       - name: Select Xcode ${{ env.XCODE_VERSION }}
         run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Generate the bundled data file
+        working-directory: Packages/BreviariumKit
+        run: |
+          mkdir -p ../../data/generated
+          swift run BreviariumData ../../data/divinum-officium ../../data/generated/breviarium-data.json
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -69,6 +75,23 @@ jobs:
           path: App/TestResults.xcresult
           if-no-files-found: ignore
 
-      # M5 adds: extract rendered snapshot PNGs from TestResults.xcresult and upload
-      # them separately (named per screen/config) for visual comparison against
-      # design/reference/.
+      # Snapshot tests attach a named PNG (XCTAttachment, .lifetime = .keepAlways) per
+      # screen/config -- extracted here so they can be downloaded and compared against
+      # design/reference/ without opening the (Mac-only) .xcresult bundle itself.
+      - name: Extract snapshot PNGs
+        if: always()
+        working-directory: App
+        run: |
+          mkdir -p Snapshots
+          xcrun xcresulttool export attachments \
+            --path TestResults.xcresult \
+            --output-path Snapshots \
+            --legacy || echo "No attachments found (tests may have failed before capturing any)."
+
+      - name: Upload snapshot PNGs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshots
+          path: App/Snapshots
+          if-no-files-found: ignore

@@ -27,10 +27,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: false
+          submodules: true # The app bundles real data generated from the pinned checkout
 
       - name: Select Xcode ${{ env.XCODE_VERSION }}
         run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Generate the bundled data file
+        working-directory: Packages/BreviariumKit
+        run: |
+          mkdir -p ../../data/generated
+          swift run BreviariumData ../../data/divinum-officium ../../data/generated/breviarium-data.json
 
       - name: Install XcodeGen
         run: brew install xcodegen
