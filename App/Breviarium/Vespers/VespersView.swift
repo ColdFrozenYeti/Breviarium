@@ -84,22 +84,28 @@ struct VespersView: View {
         }
         .task(id: heights.count) {
             guard heights.count == blocks.count else { return }
-            // Working hypothesis, not yet independently confirmed: GeometryReader-based
-            // measurement can report a transient, not-yet-settled height on an early
-            // layout pass before reporting the real one moments later, without
-            // necessarily changing the *count* of blocks measured. This is the
-            // best-fit explanation for a real observed failure -- committing to `pages`
-            // the instant the count completed once made the Oratio collect's text
-            // vanish entirely (present in the assembled Hour, confirmed by a passing
-            // oracle test, but absent from every rendered page). Waiting a beat and
-            // re-reading `heights` picks up any late-arriving corrections before pages
-            // are computed from it; if the symptom recurs, this guess needs revisiting.
-            try? await Task.sleep(for: .milliseconds(150))
-            guard heights.count == blocks.count, pages.isEmpty else { return }
+            // GeometryReader-based text measurement doesn't necessarily converge the
+            // moment every block has *some* recorded height -- a one-shot fixed delay
+            // here previously turned "the Oratio collect vanishes entirely" into "only
+            // its first line renders, the rest silently lost to page overflow", i.e.
+            // real progress but still wrong: 150ms wasn't always enough. Poll instead of
+            // guessing a duration: keep re-checking until two consecutive reads, 100ms
+            // apart, report the exact same heights for every block (or give up and use
+            // whatever's latest after ~1s, rather than never rendering at all).
+            var lastSnapshot = heights
+            for _ in 0..<10 {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard heights.count == blocks.count else { continue }
+                if heights == lastSnapshot { break }
+                lastSnapshot = heights
+            }
+            guard pages.isEmpty else { return }
             // `height` is already the space left over between the navigation header and
-            // the footer (this GeometryReader's own VStack siblings) -- a small safety
-            // margin, not their heights again, avoids an off-by-a-hair overflow.
-            pages = Self.paginate(blocks: blocks, heights: heights, availableHeight: max(height - 4, 1))
+            // the footer (this GeometryReader's own VStack siblings) -- the margin here
+            // is a safety buffer against small per-block rounding differences between
+            // the measuring pass and the real page render compounding, across dozens of
+            // blocks, into a real overflow, not their heights again.
+            pages = Self.paginate(blocks: blocks, heights: heights, availableHeight: max(height - 16, 1))
         }
     }
 
