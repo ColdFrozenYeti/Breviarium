@@ -74,6 +74,14 @@ final class BreviariumUITests: XCTestCase {
         captureWholeScroll(dateString: "2028-08-14", namePrefix: "vespers-2028-08-14")
     }
 
+    /// 24 February 2026 -- S. Matthiae Apostoli commemorating the Lenten feria at
+    /// Vespers. A full walkthrough to see `assembleCommemorations`'s own rendered
+    /// output directly in the real app UI, not just via the oracle-fixture unit test
+    /// it was built and verified against.
+    func testVespersAllPages24February2026() {
+        captureWholeScroll(dateString: "2026-02-24", namePrefix: "vespers-2026-02-24")
+    }
+
     // A handful of otherwise-unremarkable, arbitrarily-chosen dates (not edge cases --
     // those already have their own named tests and fixtures) spread across different
     // years and seasons, for a final visual spot-check of ordinary-looking days
