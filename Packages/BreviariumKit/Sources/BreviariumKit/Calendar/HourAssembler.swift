@@ -345,21 +345,25 @@ public struct HourAssembler {
     /// plain `[Ant Vespera]` (with the usual Commune fallback) if the office itself has
     /// no `3`-suffixed section; first Vespers never looks at the `3` form at all.
     ///
-    /// **The `3`-indexed lookup does *not* extend to the Commune unless the rank's own
-    /// commune reference says `"ex"`, not `"vide"`** (`psalmi.pl`'s `exists($w{'Ant
-    /// Vespera 3'})` checks only the office's own hash; `getproprium('Ant Vespera 3',
-    /// ...)` — the one call that *does* reach the Commune — is gated by `$communetype
-    /// =~ /ex/`). This was found the hard way: a first attempt let the `3`-index reach
-    /// `Commune/C3.txt`'s own `[Ant Vespera 3]` unconditionally, which broke Ss.
-    /// Cornelii et Cypriani (16 September 2026, `"vide C3"`) — the real fixture's
-    /// Vespers antiphon is "Beáti omnes * qui timent Dóminum" (psalm 127, the plain
-    /// Wednesday ferial antiphon), not anything from `Commune/C3` at all, numbered or
-    /// not. `[Oratio 3]` genuinely *is* Commune/C3's own text for this same office
-    /// (confirmed against the same fixture, and unconditional per `orationes.pl`'s own
-    /// commune fallback — no `ex`/`vide` gating there) — Oratio and psalm-antiphon
-    /// Commune fallback are genuinely different rules in DO, not the same one applied
-    /// twice. The `ex`-gated Commune extension here is traced from source but not yet
-    /// independently confirmed against a real `"ex CN"` fixture.
+    /// **Neither the plain nor the `3`-indexed lookup extends to the Commune unless the
+    /// rank's own commune reference says `"ex"`, not `"vide"`** (`psalmi.pl`'s
+    /// `exists($w{'Ant Vespera 3'})`/`exists($w{'Ant Vespera'})` check only the office's
+    /// own hash; every `getproprium('Ant Vespera...', ...)` call that *does* reach the
+    /// Commune is gated by `$communetype =~ /ex/`). This was found the hard way twice:
+    /// a first attempt let the `3`-index reach `Commune/C3.txt`'s own `[Ant Vespera 3]`
+    /// unconditionally, which broke Ss. Cornelii et Cypriani (16 September 2026, `"vide
+    /// C3"`) — the real fixture's Vespers antiphon is "Beáti omnes * qui timent Dóminum"
+    /// (psalm 127, the plain Wednesday ferial antiphon), not anything from `Commune/C3`
+    /// at all, numbered or not. A second attempt gated only the `3`-index and left the
+    /// plain `Ant Vespera` lookup unconditional, which broke S. Elisabeth Viduæ
+    /// (19 November 2026, `"vide C7a"`) the same way — real DO shows "Psalmi et
+    /// antiphonæ ex Psalterio secundum diem" (the plain ferial schedule, Psalm 132
+    /// "Ecce quam bonum" first), not `Commune/C7`'s own `[Ant Vespera]` — confirmed by
+    /// checking the real site directly. `[Oratio 3]` genuinely *is* Commune/C3's own
+    /// text for the 16 September office (confirmed against the same fixture, and
+    /// unconditional per `orationes.pl`'s own commune fallback — no `ex`/`vide` gating
+    /// there) — Oratio and psalm-antiphon Commune fallback are genuinely different rules
+    /// in DO, not the same one applied twice.
     private func assemblePsalmodia(
         office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int, englishResolver: SectionResolver?
     ) -> Section {
@@ -395,7 +399,7 @@ public struct HourAssembler {
             (pairs, winningLocation) = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx)
         }
         if pairs.isEmpty {
-            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera", allowCommune: true)
+            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera", allowCommune: communeReferenceIsEx)
         }
 
         var usedWeekdaySchedule = false

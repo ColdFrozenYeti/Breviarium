@@ -363,14 +363,23 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(die(4, 11, 2026) == "Caroli")
 }
 
-@Test func stElisabethsVespersUsesTheRealCommuneC7PsalmsAndHasACapitulumHymnusVersus() throws {
-    // Real bug, found via a full visual walkthrough of 19 November 2026 (S. Elisabeth
-    // Viduæ, "vide C7a"): Commune/C7a.txt defines only its own Mass-proper overrides,
-    // leaning on its own preamble's "@Commune/C7" whole-file inclusion for
-    // [Ant Vespera]/[Hymnus Vespera]/etc. -- a do-format.md-documented mechanism that
-    // was never actually implemented, so the engine silently fell through to the plain
-    // ferial psalm schedule (wrong psalms, no verses for the second one at all) and
-    // dropped Hymnus/Versus entirely. Fixed in SectionResolver via RawOfficeFile.baseFile.
+@Test func stElisabethsVespersUsesTheFerialPsalmsButTheCommuneHymnusAndVersus() throws {
+    // S. Elisabeth Viduæ, 19 November 2026, "vide C7a" -- two real bugs found via a full
+    // visual walkthrough, checked against real DO output directly:
+    //
+    // 1. Commune/C7a.txt defines only its own Mass-proper overrides, leaning on its own
+    //    preamble's "@Commune/C7" whole-file inclusion for [Hymnus Vespera]/etc. -- a
+    //    do-format.md-documented mechanism that was never actually implemented, so the
+    //    engine silently dropped Hymnus/Versus entirely. Fixed in SectionResolver via
+    //    RawOfficeFile.baseFile.
+    // 2. Fixing (1) then let assemblePsalmodia's plain "Ant Vespera" lookup reach
+    //    Commune/C7's own [Ant Vespera] unconditionally -- but per psalmi.pl, that
+    //    lookup (like the already-gated "Ant Vespera 3") only ever reaches the Commune
+    //    for an "ex"-type reference, never "vide". Real DO for this date and rank
+    //    (Duplex, "vide C7a") shows "Psalmi et antiphonæ ex Psalterio secundum diem" --
+    //    the plain ferial schedule, Psalm 132 "Ecce quam bonum" first -- confirmed by
+    //    checking the real site directly, not Commune/C7's own antiphons at all. Fixed
+    //    by gating the plain lookup the same way the numbered one already was.
     //
     // Capitulum is deliberately NOT asserted here: it turns out `[Capitulum Vespera]`
     // genuinely doesn't exist anywhere in the C1-C11 commune family on disk (confirmed:
@@ -378,8 +387,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // Ss. Cornelii et Cypriani's own Commune/C3 from the 16 September fixture, only ever
     // carry Capitulum Laudes/Sexta/Nona). What DO's real Vespers actually falls back to
     // in that case is a separate, deeper question `assembleCapitulumHymnusVersus`'s own
-    // doc comment already flags as untraced -- not something this whole-file-inclusion
-    // fix addresses, and not guessed at here.
+    // doc comment already flags as untraced -- not guessed at here.
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let calendar = SanctoralCalendar(entries: bundle.calendar)
@@ -393,8 +401,8 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let antiphonTexts = psalmodia.units.compactMap { unit -> String? in
         if case .antiphon(let text, _) = unit { return text } else { return nil }
     }
-    #expect(antiphonTexts.contains { $0.contains("Dum esset Rex") })
-    #expect(!antiphonTexts.contains { $0.contains("Ecce quam bonum") })
+    #expect(antiphonTexts.contains { $0.contains("Ecce quam bonum") })
+    #expect(!antiphonTexts.contains { $0.contains("Dum esset Rex") })
     // Vespers has 5 psalms, each bracketed by its own antiphon (open + close) --
     // 10 antiphon units total. Checking the real count directly, since a UI-level
     // screenshot walkthrough can't distinguish "only 1 psalm assembled" from "5
@@ -403,6 +411,10 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let verseCount = psalmodia.units.filter { if case .verse = $0 { return true } else { return false } }.count
     #expect(verseCount > 4, "only \(verseCount) verse units across all 5 psalms + doxologies")
 
+    // Hymnus/Versus are NOT gated the same way as psalm antiphons -- Commune fallback
+    // for these is unconditional in DO regardless of "ex"/"vide" (see this function's
+    // own doc comment for the Oratio/Ant-Vespera contrast), so they still correctly
+    // come from Commune/C7 even though the psalms above correctly don't.
     let hymnus = try #require(hour.sections.first { $0.kind == .hymnus })
     #expect(!hymnus.units.isEmpty)
     let hymnusText = hymnus.units.compactMap { unit -> String? in
