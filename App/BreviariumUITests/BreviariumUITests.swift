@@ -69,4 +69,9 @@ final class BreviariumUITests: XCTestCase {
     func testVespersAllPages19November2026() {
         captureAllPages(dateString: "2026-11-19", namePrefix: "vespers-2026-11-19")
     }
+
+    /// Requested test date: 14 August 2028 -- the Vigil of the Assumption.
+    func testVespersAllPages14August2028() {
+        captureAllPages(dateString: "2028-08-14", namePrefix: "vespers-2028-08-14")
+    }
 }
