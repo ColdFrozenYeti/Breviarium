@@ -30,4 +30,33 @@ final class BreviariumUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    /// Captures every page of Vespers for a given date by reading "Page 1 of M" off the
+    /// footer, then swiping through -- a full walkthrough rather than just page 1, for
+    /// visual review.
+    private func captureAllPages(dateString: String, namePrefix: String) {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = dateString
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+
+        let footerPredicate = NSPredicate(format: "label BEGINSWITH 'Page 1 of '")
+        let footerText = app.staticTexts.element(matching: footerPredicate).firstMatch
+        XCTAssertTrue(footerText.waitForExistence(timeout: 5))
+        let totalPages = Int(footerText.label.replacingOccurrences(of: "Page 1 of ", with: "")) ?? 1
+
+        for page in 1...totalPages {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "\(namePrefix)-page-\(page)-of-\(totalPages)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            if page < totalPages {
+                app.swipeLeft()
+            }
+        }
+    }
+
+    func testVespersAllPages19November2026() {
+        captureAllPages(dateString: "2026-11-19", namePrefix: "vespers-2026-11-19")
+    }
 }
