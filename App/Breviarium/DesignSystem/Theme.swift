@@ -67,7 +67,11 @@ struct Metrics {
 /// spec names it as the liturgical serif, to be confirmed by rendering next to the
 /// reference screenshot.
 enum LiturgicalFont {
-    static func regular(_ size: CGFloat) -> Font { .custom("HoeflerText-Regular", size: size) }
-    static func italic(_ size: CGFloat) -> Font { .custom("HoeflerText-Italic", size: size) }
-    static func black(_ size: CGFloat) -> Font { .custom("HoeflerText-Black", size: size) }
+    static let regularName = "HoeflerText-Regular"
+    static let italicName = "HoeflerText-Italic"
+    static let blackName = "HoeflerText-Black"
+
+    static func regular(_ size: CGFloat) -> Font { .custom(regularName, size: size) }
+    static func italic(_ size: CGFloat) -> Font { .custom(italicName, size: size) }
+    static func black(_ size: CGFloat) -> Font { .custom(blackName, size: size) }
 }

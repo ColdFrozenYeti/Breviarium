@@ -110,23 +110,25 @@ struct VespersView: View {
     }
 
     private var dayTitleBlock: some View {
-        // CLAUDE.md's "Day title block" wants continuation lines of a wrapped name
-        // hanging-indented ~38pt. Plain SwiftUI `Text` has no per-line-position control
-        // (no first-line-vs-continuation distinction) to express that; achieving it
-        // properly needs either `NSParagraphStyle.firstLineHeadIndent`/`headIndent` via
-        // an `AttributedString` (untested whether SwiftUI's `Text` honours those on
-        // this OS version) or a `UIViewRepresentable` text view, which `CLAUDE.md` asks
-        // to flag before reaching for. Flagged here rather than guessed: the name line
-        // below wraps flush-left with no hanging indent for now.
+        // The name line uses HangingIndentText (a small UIViewRepresentable) rather than
+        // plain SwiftUI Text: confirmed against a real rendering that a wrapped name
+        // (e.g. "Ss. Cornelii Papæ et Cypriani Episcopi, Martyrum") wraps flush-left with
+        // no hanging indent otherwise -- CLAUDE.md's ~38pt hanging indent needs
+        // NSParagraphStyle.headIndent, which plain Text has no way to express.
         VStack(alignment: .leading, spacing: metrics.bodySize * 0.2) {
             if let classisLine = content.day.titleBlock.classisLine {
                 Text(classisLine)
                     .font(LiturgicalFont.regular(metrics.bodySize))
                     .foregroundStyle(Theme.liturgicalText)
             }
-            Text(content.day.titleBlock.nameLine)
-                .font(LiturgicalFont.black(metrics.dayTitleNameSize))
-                .foregroundStyle(Theme.liturgicalText)
+            HangingIndentText(
+                text: content.day.titleBlock.nameLine,
+                fontName: LiturgicalFont.blackName,
+                fontSize: metrics.dayTitleNameSize,
+                color: Theme.liturgicalText,
+                indent: metrics.hangingIndent
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let commemorationLine = content.day.titleBlock.commemorationLine {
                 Text(commemorationLine)
                     .font(LiturgicalFont.regular(metrics.bodySize))
