@@ -199,6 +199,16 @@ final class BreviariumUITests: XCTestCase {
         for (sizeLabel, sizeName) in [("M", "default"), ("XXL", "largest")] {
             setTextSize(sizeLabel, in: app)
 
+            // Tapping the status bar is the standard, reliable way to snap any
+            // UIScrollView-backed view back to its origin -- a fixed handful of
+            // swipeDown() gestures isn't always enough once the larger text size makes
+            // the content noticeably taller, confirmed real: a first attempt without
+            // this left "Dies 9 aprilis 2027" half-clipped under the nav header in the
+            // "largest" capture, the previous size's own scroll position having only
+            // been partly undone.
+            app.statusBars.firstMatch.tap()
+            Thread.sleep(forTimeInterval: 0.3)
+
             let page1 = XCTAttachment(screenshot: app.screenshot())
             page1.name = "\(namePrefix)-\(sizeName)-page1"
             page1.lifetime = .keepAlways
@@ -212,11 +222,6 @@ final class BreviariumUITests: XCTestCase {
             psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
             psalmodyPage.lifetime = .keepAlways
             add(psalmodyPage)
-
-            // Back to the top before the next size's own "page 1" capture.
-            for _ in 0..<3 {
-                app.swipeDown()
-            }
         }
     }
 
