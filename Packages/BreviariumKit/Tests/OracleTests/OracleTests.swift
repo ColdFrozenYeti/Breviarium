@@ -476,6 +476,49 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(verses[1].0.hasPrefix("‡ Sicut óleum"))
 }
 
+@Test func fridayFerialVespersSplitsPsalm138AcrossItsFirstTwoSlots() throws {
+    // 9 April 2027, a plain ferial Friday with no Sancti office -- found via a random-
+    // sample visual walkthrough to render its first psalm with a title ("Psalmus 138
+    // [1]") but *zero* verses. Root cause: `Psalterium/Psalmi/Psalmi major.txt`'s own
+    // "Day5 Vespera" schedule splits the long Psalm 138 across two of the hour's five
+    // slots ("138(1-13)"/"138(14-24)"), and `HourAssembler.psalmUnits` used that string
+    // unstripped as a file path (`Psalm138(1-13)`, which doesn't exist) -- confirmed via
+    // `PsalmVerseRangeTests`'s own unit tests for the parsing/boundary logic in
+    // isolation; this test is the end-to-end confirmation against the real checkout.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 9, month: 4, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 9, month: 4, year: 2027, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    let titles = psalmodia.units.compactMap { unit -> String? in
+        if case .psalmTitle(let text) = unit { return text } else { return nil }
+    }
+    #expect(titles.first == "Psalmus 138 [1]")
+
+    let allVerseText = psalmodia.units.compactMap { unit -> String? in
+        if case .verse(_, let first, let second, _, _) = unit { return "\(first) \(second)" } else { return nil }
+    }
+    #expect(!allVerseText.isEmpty, "the first psalm rendered zero verses -- the exact regression this test guards")
+    #expect(allVerseText.contains { $0.contains("Tu enim formásti renes meos") })    // 138:13, the range's own last verse.
+
+    // 138:14 ("Laudo te...") starts the *second* slot's own range (14-24) -- it must
+    // not leak into the first psalm's verses.
+    let firstPsalmSection = try #require(
+        psalmodia.units.firstIndex { if case .antiphon = $0 { return true } else { return false } }
+    )
+    let secondAntiphonIndex = psalmodia.units[(firstPsalmSection + 1)...].firstIndex { if case .antiphon = $0 { return true } else { return false } }
+    let firstPsalmUnits = secondAntiphonIndex.map { Array(psalmodia.units[..<$0]) } ?? psalmodia.units
+    let firstPsalmVerseText = firstPsalmUnits.compactMap { unit -> String? in
+        if case .verse(_, let first, let second, _, _) = unit { return "\(first) \(second)" } else { return nil }
+    }
+    #expect(!firstPsalmVerseText.contains { $0.contains("Laudo te, quod tam mirífice") })
+}
+
 /// Every text piece `unit` carries, Latin and English alike -- used only by the sweep
 /// below to scan for a leaked `SectionResolver` placeholder; unlike
 /// `oracleComparisonTexts`, this doesn't reconstruct DO's own formatting, since nothing

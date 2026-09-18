@@ -606,18 +606,41 @@ public struct HourAssembler {
         return nil
     }
 
+    /// `number` can carry a Bea verse-range suffix (`Psalmi major.txt`'s own notation for
+    /// a long psalm split across two of the hour's five Vespers slots, e.g. Friday's own
+    /// `"138(1-13)"` / `"138(14-24)"`) -- `PsalmVerseRange.parse` splits that into the
+    /// real file's bare number and the range to keep. Real, previously-undiscovered bug,
+    /// found via a random-sample visual walkthrough: using `number` unstripped built a
+    /// path like `Psalterium/Psalmorum/Psalm138(1-13)`, which doesn't exist --
+    /// `resolvePsalmText` returned its usual `"...is missing!"` placeholder, but since
+    /// that placeholder text doesn't start with a digit, `Psalm.parseVerses` silently
+    /// filtered the whole line out as if it were a leading title comment, leaving the
+    /// psalm with *zero* verses and no trace of the placeholder anywhere -- exactly the
+    /// scenario this project's own full-range placeholder sweep can't catch, since it
+    /// only scans text that actually ends up in a `Unit`.
     private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
-        let path = "Psalterium/Psalmorum/Psalm\(number)"
+        let parsed = PsalmVerseRange.parse(number)
+        let baseNumber = parsed?.base ?? number
+        let range = parsed?.range
+        let path = "Psalterium/Psalmorum/Psalm\(baseNumber)"
         let text = resolver.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
-        let latinVerses = Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        let latinVerses = Self.applying(range, to: Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)))
         let englishVerses: [PsalmVerse]? = englishResolver.flatMap { eng in
             guard eng.sectionExists(path: path, section: RawSectionParser.wholeFileSectionName) else { return nil }
             let englishText = eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
-            return Psalm.parseVerses(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+            return Self.applying(range, to: Psalm.parseVerses(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)))
         }
         var units = Self.pairedVerses(latin: latinVerses, english: englishVerses)
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
         return units
+    }
+
+    private static func applying(_ range: PsalmVerseRange?, to verses: [PsalmVerse]) -> [PsalmVerse] {
+        guard let range else { return verses }
+        return verses.filter { verse in
+            guard let (number, letter) = PsalmVerseRange.verseNumberAndLetter(fromReference: verse.reference) else { return true }
+            return range.contains(verse: number, letter: letter)
+        }
     }
 
     /// Pairs Latin and English verses for the same psalm/canticle, but only when their
@@ -984,5 +1007,67 @@ public struct HourAssembler {
             }
         }
         return units
+    }
+}
+
+/// `Psalmi major.txt`'s own verse-range notation for a psalm split across two of the
+/// hour's five Vespers slots -- e.g. Friday's `"138(1-13)"` / `"138(14-24)"`, or
+/// Saturday's `"144(8-'13a')"` / `"144('13b'-21)"`, whose quoted-letter boundary lands
+/// mid-verse (confirmed real: `Psalm144.txt`'s own verse 13 is itself split into
+/// `"144:13a"`/`"144:13b"` lines). Ported from `psalmi.pl`'s `psalm` `ScriptFunc`
+/// (`horasscripts.pl:437-617`): `$v1`/`$c1` and `$v2`/`$c2` are the start/end verse
+/// number and optional sub-verse letter, and the boundary rule at `horasscripts.pl:
+/// 608-617` is what `contains(verse:letter:)` ports.
+struct PsalmVerseRange: Equatable {
+    var startVerse: Int
+    var startLetter: Character?
+    var endVerse: Int
+    var endLetter: Character?
+
+    /// Splits `"138(1-13)"` into its bare psalm number and the range to keep, or `nil`
+    /// for an unsplit number like `"138"` (no parentheses at all).
+    static func parse(_ token: String) -> (base: String, range: PsalmVerseRange)? {
+        guard let openParen = token.firstIndex(of: "("), token.hasSuffix(")") else { return nil }
+        let base = String(token[token.startIndex..<openParen])
+        let inner = token[token.index(after: openParen)..<token.index(before: token.endIndex)]
+        guard let dashIndex = inner.firstIndex(of: "-"),
+            let start = parseBoundary(String(inner[inner.startIndex..<dashIndex])),
+            let end = parseBoundary(String(inner[inner.index(after: dashIndex)...]))
+        else { return nil }
+        return (base, PsalmVerseRange(startVerse: start.verse, startLetter: start.letter, endVerse: end.verse, endLetter: end.letter))
+    }
+
+    /// Parses one boundary token -- `"1"`, `"13"`, or the quoted lettered form `"'13a'"`
+    /// (the source data only ever quotes the lettered form, never a bare number).
+    private static func parseBoundary(_ token: String) -> (verse: Int, letter: Character?)? {
+        verseNumberAndLetter(fromVerseString: token.trimmingCharacters(in: CharacterSet(charactersIn: "'")))
+    }
+
+    /// Extracts a verse's number and optional sub-verse letter from its own full
+    /// reference (e.g. `"144:13a"` -> psalm 144's own verse 13, letter `'a'`) --
+    /// references use `psalm:verse` for psalms and `chapter:verse` for canticles, so
+    /// only the part after the last `:` is the boundary-comparable "verse" `psalmi.pl`'s
+    /// own `$v`/`$c` mean.
+    static func verseNumberAndLetter(fromReference reference: String) -> (verse: Int, letter: Character?)? {
+        guard let colonIndex = reference.lastIndex(of: ":") else { return nil }
+        return verseNumberAndLetter(fromVerseString: String(reference[reference.index(after: colonIndex)...]))
+    }
+
+    private static func verseNumberAndLetter(fromVerseString verseString: String) -> (verse: Int, letter: Character?)? {
+        let letter = verseString.last.flatMap { $0.isLetter ? $0 : nil }
+        let digits = letter != nil ? String(verseString.dropLast()) : verseString
+        guard let verse = Int(digits) else { return nil }
+        return (verse, letter)
+    }
+
+    /// `psalmi.pl`'s own boundary rule (`horasscripts.pl:608-617`): a verse whose number
+    /// equals the start keeps only sub-verses at or after the start's own letter (the
+    /// whole verse, if the start itself has no letter); a verse equal to the end keeps
+    /// only sub-verses at or before the end's own letter; anything strictly between the
+    /// two numbers is kept whole.
+    func contains(verse: Int, letter: Character?) -> Bool {
+        if verse == startVerse { return startLetter == nil || (letter ?? "a") >= startLetter! }
+        if verse == endVerse { return endLetter == nil || (letter ?? "z") <= endLetter! }
+        return verse > startVerse && verse < endVerse
     }
 }
