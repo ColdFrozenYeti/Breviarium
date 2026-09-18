@@ -105,10 +105,61 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Ambrosianus"].exists)
         XCTAssertTrue(app.switches["Sacerdos vel diaconus adest"].exists)
         XCTAssertTrue(app.switches["Rubricæ"].exists)
-        XCTAssertTrue(app.switches["English translation"].exists)
+        XCTAssertTrue(app.staticTexts["English translation"].exists)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "settings-screen"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// M6's own manual checklist names "previous/next day" as something to verify --
+    /// confirms the nav header's chevrons actually move the displayed date, checking the
+    /// date line's own exact text rather than just "something changed".
+    func testPreviousAndNextDayNavigationChangeTheDateLine() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Dies 16 septembris 2026"].waitForExistence(timeout: 5))
+
+        app.buttons["nextDayButton"].tap()
+        XCTAssertTrue(app.staticTexts["Dies 17 septembris 2026"].waitForExistence(timeout: 5))
+
+        app.buttons["previousDayButton"].tap()
+        app.buttons["previousDayButton"].tap()
+        XCTAssertTrue(app.staticTexts["Dies 15 septembris 2026"].waitForExistence(timeout: 5))
+    }
+
+    /// M6's own manual checklist also names "jump-to-date" -- confirms tapping the date
+    /// line (the chosen entry point, rather than a separate calendar icon) opens it.
+    func testDateLineOpensJumpToDateSheet() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+
+        app.staticTexts["dateLine"].tap()
+        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+    }
+
+    /// Confirms the About screen (CLAUDE.md: "Include the MIT notice on the About
+    /// screen") is reachable from Settings and actually shows the licence text.
+    func testAboutScreenShowsTheDivinumOfficiumLicense() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.staticTexts["About"].tap()
+        XCTAssertTrue(app.navigationBars["About"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Breviarium"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MIT License'")).firstMatch.exists)
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "about-screen"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

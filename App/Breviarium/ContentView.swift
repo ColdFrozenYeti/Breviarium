@@ -16,14 +16,27 @@ struct ContentView: View {
 
     private let dataStore = OfficeDataStore()
     @StateObject private var settings = SettingsStore()
+    /// The date actually being shown -- starts at `dateSource`'s own date, then moves
+    /// independently via the previous/next-day and jump-to-date controls (`VespersView`'s
+    /// own doc comment covers why `SimpleDate`, not `Date`, is what those pass back).
+    @State private var displayedDate: SimpleDate
 
     init(dateSource: DateSource = .now) {
         self.dateSource = dateSource
+        switch dateSource {
+        case .now: _displayedDate = State(initialValue: .today())
+        case .fixed(let day, let month, let year): _displayedDate = State(initialValue: SimpleDate(day: day, month: month, year: year))
+        }
     }
 
     var body: some View {
         if let content = vespersContent {
-            VespersView(content: content, settings: settings)
+            VespersView(
+                content: content, settings: settings,
+                onPreviousDay: { displayedDate = SimpleDate(Computus.addDays(-1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
+                onNextDay: { displayedDate = SimpleDate(Computus.addDays(1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
+                onJump: { newDate in displayedDate = newDate }
+            )
         } else {
             ZStack {
                 Theme.background.ignoresSafeArea()
@@ -37,12 +50,7 @@ struct ContentView: View {
     }
 
     private var vespersContent: VespersContent? {
-        switch dateSource {
-        case .now:
-            return dataStore.vespersContent(on: Date(), priest: settings.priestPresent)
-        case .fixed(let day, let month, let year):
-            return dataStore.vespersContent(day: day, month: month, year: year, priest: settings.priestPresent)
-        }
+        dataStore.vespersContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent)
     }
 }
 

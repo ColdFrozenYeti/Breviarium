@@ -20,9 +20,18 @@ import SwiftUI
 struct VespersView: View {
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
+    /// Date navigation (M6's own manual checklist: "previous/next day, jump-to-date")
+    /// lives one level up in `ContentView`, which owns the displayed date -- this view
+    /// only ever asks for a move, never computes one itself, matching "no liturgical
+    /// logic in the app target" (a date shift is arithmetic, not a rubric, but the
+    /// principle of keeping this view a pure function of its input still applies).
+    let onPreviousDay: () -> Void
+    let onNextDay: () -> Void
+    let onJump: (SimpleDate) -> Void
 
     @State private var showingToc = false
     @State private var showingSettings = false
+    @State private var showingDatePicker = false
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
@@ -92,11 +101,12 @@ struct VespersView: View {
 
     // MARK: Item 1 -- navigation title
 
-    /// A leading gear icon isn't itself part of `CLAUDE.md`'s visual spec (which only
-    /// describes the centred title here), but Settings needs *some* entry point and the
-    /// spec doesn't say where -- a small, chrome-coloured icon in the otherwise-empty
-    /// corner of this row was the chosen option among a few discussed, since it keeps
-    /// every other element of the reference screenshot untouched.
+    /// A leading gear icon and trailing day-navigation chevrons aren't themselves part of
+    /// `CLAUDE.md`'s visual spec (which only describes the centred title here), but
+    /// Settings and date navigation both need *some* entry point and the spec doesn't say
+    /// where -- small, chrome-coloured icons in this row's otherwise-empty corners were
+    /// the chosen option among a few discussed, since they keep every other element of
+    /// the reference screenshot untouched.
     private var navigationHeader: some View {
         ZStack {
             Text(content.hourTitle)
@@ -112,6 +122,16 @@ struct VespersView: View {
                 }
                 .accessibilityIdentifier("settingsButton")
                 Spacer()
+                Button(action: onPreviousDay) {
+                    Image(systemName: "chevron.left")
+                        .foregroundStyle(Theme.chrome)
+                }
+                .accessibilityIdentifier("previousDayButton")
+                Button(action: onNextDay) {
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Theme.chrome)
+                }
+                .accessibilityIdentifier("nextDayButton")
             }
             .padding(.horizontal, metrics.margin)
         }
@@ -126,11 +146,17 @@ struct VespersView: View {
 
     private var pageOneHeader: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Tappable rather than adding a separate calendar icon -- the date line is
+            // already the one element on this page that IS the current date, so making
+            // it the jump-to-date affordance needs no new visible chrome at all.
             Text(content.dateLine)
                 .font(.system(size: metrics.dateLineSize).italic())
                 .foregroundStyle(Theme.rubric)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.bottom, metrics.bodySize * 0.8)
+                .onTapGesture { showingDatePicker = true }
+                .accessibilityIdentifier("dateLine")
+                .sheet(isPresented: $showingDatePicker) { datePickerSheet }
 
             dayTitleBlock
                 .padding(.bottom, metrics.bodySize * 0.6)
@@ -259,5 +285,32 @@ struct VespersView: View {
 
     private var sectionKindsInOrder: [BreviariumKit.Section.Kind] {
         content.hour.sections.filter { !$0.units.isEmpty }.map(\.kind)
+    }
+
+    // MARK: Jump to date
+
+    private var datePickerSheet: some View {
+        NavigationStack {
+            DatePicker(
+                "Date",
+                selection: Binding(
+                    get: { SimpleDate(day: content.day.day, month: content.day.month, year: content.day.year).asDate },
+                    set: { newDate in
+                        showingDatePicker = false
+                        onJump(SimpleDate(newDate))
+                    }
+                ),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .padding()
+            .navigationTitle("Jump to date")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showingDatePicker = false }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }

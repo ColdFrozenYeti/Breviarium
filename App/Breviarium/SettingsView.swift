@@ -29,7 +29,23 @@ struct SettingsView: View {
                 Section {
                     Toggle("Sacerdos vel diaconus adest", isOn: $settings.priestPresent)
                     Toggle("Rubricæ", isOn: $settings.showRubrics)
-                    Toggle("English translation", isOn: $settings.showEnglish)
+                }
+
+                // Disabled rather than removed: the underlying data is already there
+                // (OfficeDataStore loads the English corpus unconditionally), but
+                // VespersView doesn't render the parallel Latin/English layout
+                // CLAUDE.md's spec calls for yet -- deferred to the beta milestones, per
+                // direct feedback, rather than half-built now. A live toggle that
+                // visibly changed nothing would be more confusing than an honest "not
+                // yet" label.
+                Section {
+                    HStack {
+                        Text("English translation")
+                        Spacer()
+                        Text("Coming in beta")
+                            .font(.footnote)
+                    }
+                    .foregroundStyle(Theme.chrome)
                 }
 
                 Section("Text size") {
@@ -39,6 +55,12 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section {
+                    NavigationLink("About") {
+                        AboutView()
+                    }
                 }
             }
             .navigationTitle("Settings")
