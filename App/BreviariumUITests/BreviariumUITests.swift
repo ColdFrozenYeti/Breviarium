@@ -73,4 +73,21 @@ final class BreviariumUITests: XCTestCase {
     func testVespersAllPages14August2028() {
         captureWholeScroll(dateString: "2028-08-14", namePrefix: "vespers-2028-08-14")
     }
+
+    // A handful of otherwise-unremarkable, arbitrarily-chosen dates (not edge cases --
+    // those already have their own named tests and fixtures) spread across different
+    // years and seasons, for a final visual spot-check of ordinary-looking days
+    // alongside `OracleTests`' own full-range structural sweep, before moving past this
+    // milestone's aesthetic pass.
+    func testVespersAllPagesRandomSample1() {
+        captureWholeScroll(dateString: "2027-04-09", namePrefix: "vespers-2027-04-09")
+    }
+
+    func testVespersAllPagesRandomSample2() {
+        captureWholeScroll(dateString: "2032-10-22", namePrefix: "vespers-2032-10-22")
+    }
+
+    func testVespersAllPagesRandomSample3() {
+        captureWholeScroll(dateString: "2038-07-05", namePrefix: "vespers-2038-07-05")
+    }
 }

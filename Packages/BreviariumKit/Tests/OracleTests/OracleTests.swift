@@ -475,3 +475,82 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // The second verse overall is Psalm 132's own verse 132:2.
     #expect(verses[1].0.hasPrefix("‡ Sicut óleum"))
 }
+
+/// Every text piece `unit` carries, Latin and English alike -- used only by the sweep
+/// below to scan for a leaked `SectionResolver` placeholder; unlike
+/// `oracleComparisonTexts`, this doesn't reconstruct DO's own formatting, since nothing
+/// here gets compared against a fixture.
+private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
+    switch unit {
+    case .rubric(let text, let english): [text, english].compactMap { $0 }
+    case .versicleResponse(let versicle, let response, let versicleEnglish, let responseEnglish):
+        [versicle, response, versicleEnglish, responseEnglish].compactMap { $0 }
+    case .verse(_, let first, let second, let firstEnglish, let secondEnglish):
+        [first, second, firstEnglish, secondEnglish].compactMap { $0 }
+    case .antiphon(let text, let english): [text, english].compactMap { $0 }
+    case .prose(let text, let english): [text, english].compactMap { $0 }
+    case .psalmTitle(let text): [text]
+    }
+}
+
+/// A broad, non-fixture-diffed sanity sweep across CLAUDE.md's full oracle range
+/// (2025-01-01 to 2040-12-31, ~5,844 days) -- not a substitute for the fixture-based
+/// tests above (which check exact wording against real DO output for specific dates),
+/// but a check that no date anywhere in range hits the exact bug class found via the
+/// 14 August 2028 walkthrough: a `SectionResolver` lookup failing silently and leaking
+/// its "<path>:<section> is missing!" placeholder (`SectionResolver.swift`) into
+/// rendered content -- the title block, or any unit's own Latin or English text, for
+/// any date. Priest off and Latin-only (English corpus not supplied), matching this
+/// file's other tests' convention -- the fixture-based tests above already spot-check
+/// the priest toggle and English wiring; this sweep's own job is breadth across dates,
+/// not those separate axes.
+@Test func vespersAssemblesWithoutPlaceholderTextAcrossTheFullOracleRange() {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+
+    var failures: [String] = []
+    var (day, month, year) = (1, 1, 2025)
+    var daysChecked = 0
+    while true {
+        let dateLabel = "\(year)-\(String(format: "%02d", month))-\(String(format: "%02d", day))"
+        let context = ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        )
+
+        let engine = LiturgicalCalendarEngine(corpus: corpus, context: context, sanctoralCalendar: calendar)
+        if let liturgicalDay = engine.day(day: day, month: month, year: year) {
+            let titleTexts = [
+                liturgicalDay.titleBlock.classisLine, liturgicalDay.titleBlock.nameLine, liturgicalDay.titleBlock.commemorationLine,
+            ].compactMap { $0 }
+            for text in titleTexts where text.contains("is missing!") {
+                failures.append("\(dateLabel) title: \(text)")
+            }
+        } else {
+            failures.append("\(dateLabel): LiturgicalCalendarEngine.day returned nil")
+        }
+
+        let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+        if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false) {
+            for section in hour.sections {
+                for unit in section.units {
+                    for text in allTexts(in: unit) where text.contains("is missing!") {
+                        failures.append("\(dateLabel) [\(section.kind)]: \(text)")
+                    }
+                }
+            }
+        } else {
+            failures.append("\(dateLabel): assembleVespers returned nil")
+        }
+
+        daysChecked += 1
+        if (day, month, year) == (31, 12, 2040) { break }
+        (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
+    }
+
+    #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
+    #expect(
+        failures.isEmpty,
+        "\(failures.count) placeholder/nil problem(s) across \(daysChecked) days -- first 50:\n\(failures.prefix(50).joined(separator: "\n"))"
+    )
+}
