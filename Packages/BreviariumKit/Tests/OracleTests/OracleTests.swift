@@ -35,10 +35,22 @@ private func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .versicleResponse(let versicle, let response, _, _): return [versicle, response]
     case .verse(_, let first, let second, _, _):
         guard !second.isEmpty else { return [first] }
-        let withoutAsterisk = first.hasSuffix("*") ? String(first.dropLast()) : first
+        // A leading "‡ " (the antiphon/first-verse dagger rule) is this project's own
+        // inserted marker, not part of DO's own verse text at this exact position in
+        // the fixture (DO's own rendering separates the glyph from the word with a
+        // styling boundary, not necessarily the same plain-text spacing) -- stripped
+        // here so the comparison checks the verse's own words, not the marker.
+        let firstWithoutDagger = first.hasPrefix("‡ ") ? String(first.dropFirst(2)) : first
+        let withoutAsterisk = firstWithoutDagger.hasSuffix("*") ? String(firstWithoutDagger.dropLast()) : firstWithoutDagger
         return ["\(withoutAsterisk) * \(second)"]
-    case .antiphon(let text, _): return [text]
+    case .antiphon(let text, _):
+        // Same for a trailing " ‡".
+        return [text.hasSuffix(" ‡") ? String(text.dropLast(2)) : text]
     case .prose(let text, _): return [text]
+    case .psalmTitle:
+        // Not yet independently confirmed against a real fixture's own exact HTML
+        // structure for this line -- checked instead via a dedicated, targeted test.
+        return []
     }
 }
 
@@ -227,6 +239,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
             return ["\(withoutAsterisk) * \(second)"]
         case .antiphon(_, let english): return [english].compactMap { $0 }
         case .prose(_, let english): return [english].compactMap { $0 }
+        case .psalmTitle: return []
         }
     }
 
@@ -424,4 +437,41 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 
     let versus = try #require(hour.sections.first { $0.kind == .versus })
     #expect(!versus.units.isEmpty)
+}
+
+@Test func stElisabethsFirstPsalmHasATitleAndTheAntiphonEqualsFirstVerseDagger() throws {
+    // Direct feedback comparing a real rendering against real DO output for
+    // 19 November 2026: each psalm should be titled ("Psalmus 132 [1]" -- the number
+    // and its 1-based position among the hour's five psalms), and since this psalm's
+    // own antiphon "Ecce quam bonum..." is verbatim its own first verse, DO marks that
+    // with a "‡" at the end of the antiphon and another at the start of the second
+    // verse (getantcross(), horas.pl:238-278) -- confirmed against the real site's own
+    // rendered text, quoted directly: "Ant. Ecce quam bonum * et quam iucúndum
+    // habitáre fratres in unum. ‡" / "132:2 ‡ Sicut óleum óptimum in cápite...".
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 11, year: 2026, priest: false))
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+
+    let titles = psalmodia.units.compactMap { unit -> String? in
+        if case .psalmTitle(let text) = unit { return text } else { return nil }
+    }
+    #expect(titles.first == "Psalmus 132 [1]")
+    #expect(titles.count == 5, "expected one title per psalm, got \(titles)")
+
+    let antiphonTexts = psalmodia.units.compactMap { unit -> String? in
+        if case .antiphon(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(antiphonTexts.first == "Ecce quam bonum * et quam iucúndum habitáre fratres in unum. ‡")
+
+    let verses = psalmodia.units.compactMap { unit -> (String, String)? in
+        if case .verse(_, let first, let second, _, _) = unit { return (first, second) } else { return nil }
+    }
+    // The second verse overall is Psalm 132's own verse 132:2.
+    #expect(verses[1].0.hasPrefix("‡ Sicut óleum"))
 }

@@ -470,11 +470,105 @@ public struct HourAssembler {
         var units: [Unit] = []
         for (index, pair) in pairs.enumerated() {
             let english = index < englishAntiphons.count ? englishAntiphons[index] : nil
-            units.append(.antiphon(pair.antiphon, english: english))
-            units.append(contentsOf: psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
-            units.append(.antiphon(pair.antiphon, english: english))
+            var psalmContent = psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
+
+            // Direct feedback, comparing a real rendering against real DO output: when
+            // the antiphon's own words exactly equal the psalm's first verse (a real,
+            // common case -- e.g. Psalm 132's antiphon "Ecce quam bonum..." verbatim
+            // repeats 132:1), DO marks this with a "‡" at the end of the antiphon and
+            // another at the start of the second verse (getantcross(), horas.pl:238-278).
+            // Ported for exactly this whole-first-verse case, not DO's fully general
+            // "dagger anywhere N words into the psalm" algorithm, which treats the whole
+            // psalm as one continuous word stream rather than per-verse and would need a
+            // bigger restructuring than this warrants.
+            var antiphonText = pair.antiphon
+            if let firstVerseText = Self.firstVerseText(in: psalmContent),
+                Self.antiphonMatchesWholeVerse(antiphon: pair.antiphon, verseText: firstVerseText)
+            {
+                antiphonText = "\(pair.antiphon) ‡"
+                psalmContent = Self.addingLeadingDagger(toSecondVerseOf: psalmContent)
+            }
+
+            units.append(.antiphon(antiphonText, english: english))
+            units.append(.psalmTitle("Psalmus \(Self.psalmTitleNumber(from: pair.psalmNumber)) [\(index + 1)]"))
+            units.append(contentsOf: psalmContent)
+            units.append(.antiphon(antiphonText, english: english))
         }
         return Section(kind: .psalmodia, units: units)
+    }
+
+    /// Strips a Bea half-verse-split annotation like `"135(1-9)"` down to the bare
+    /// psalm number for display -- the range is an internal file-organisation detail
+    /// (`Psalmi major.txt` splits a long psalm across two of the hour's five slots),
+    /// not something recited or printed as part of the title.
+    private static func psalmTitleNumber(from psalmNumber: String) -> String {
+        guard let parenIndex = psalmNumber.firstIndex(of: "(") else { return psalmNumber }
+        return String(psalmNumber[..<parenIndex])
+    }
+
+    /// The first `.verse` unit's full text (both halves rejoined) -- used only to check
+    /// against the antiphon for the dagger rule above.
+    private static func firstVerseText(in units: [Unit]) -> String? {
+        for unit in units {
+            if case .verse(_, let firstHalf, let secondHalf, _, _) = unit {
+                return "\(firstHalf) \(secondHalf)".trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
+    }
+
+    /// Prepends "‡ " to the second `.verse` unit's `firstHalf` (Gloria's own two lines
+    /// count as `.verse` too, but the dagger rule only ever concerns a psalm's own
+    /// verse 2, which always comes first).
+    private static func addingLeadingDagger(toSecondVerseOf units: [Unit]) -> [Unit] {
+        var verseCount = 0
+        return units.map { unit in
+            guard case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = unit else { return unit }
+            verseCount += 1
+            guard verseCount == 2 else { return unit }
+            return .verse(
+                reference: reference, firstHalf: "‡ \(firstHalf)", secondHalf: secondHalf,
+                firstHalfEnglish: firstEnglish, secondHalfEnglish: secondEnglish
+            )
+        }
+    }
+
+    /// Ports `depunct()` (`horas.pl:280-292`) for word comparison: strips the same
+    /// punctuation, folds the same accented vowels, and normalises J/j to I/i (source
+    /// text can carry either spelling before this project's own "I not J" orthography
+    /// pass runs elsewhere).
+    private static func depunctuatedWord(_ word: Substring) -> String? {
+        var result = ""
+        for scalar in word.unicodeScalars {
+            switch scalar {
+            case ".", ",", ":", "?", "!", "\"", "'", "*", "(", ")": continue
+            case "á", "Á": result.append("a")
+            case "é", "É": result.append("e")
+            case "í", "Í": result.append("i")
+            case "j": result.append("i")
+            case "J": result.append("I")
+            case "ó", "ö", "õ", "Ó", "Ö", "Ô": result.append("o")
+            case "ú", "ü", "û", "Ú", "Ü", "Û": result.append("u")
+            case "æ": result.append("ae")
+            case "œ": result.append("oe")
+            default: result.unicodeScalars.append(scalar)
+            }
+        }
+        let lowered = result.lowercased()
+        return lowered.isEmpty ? nil : lowered
+    }
+
+    private static func depunctuatedWords(_ text: String) -> [String] {
+        text.split(separator: " ").compactMap { depunctuatedWord($0) }
+    }
+
+    /// Ports `getantcross()`'s word-by-word matching (`horas.pl:238-278`), scoped to an
+    /// exact whole-verse match (see the dagger rule's own doc comment in
+    /// `assemblePsalmodia` for what's not attempted).
+    private static func antiphonMatchesWholeVerse(antiphon: String, verseText: String) -> Bool {
+        let antiphonWords = depunctuatedWords(antiphon)
+        guard !antiphonWords.isEmpty else { return false }
+        return antiphonWords == depunctuatedWords(verseText)
     }
 
     /// Ports `alleluia_ant()`'s plain (non-GABC) form (`"$u, * $l, $l."`,
@@ -684,9 +778,13 @@ public struct HourAssembler {
             sections.append(Section(kind: .capitulum, units: [.prose(capitulum.latin, english: capitulum.english)]))
         }
         if let hymnus = lookup("Hymnus Vespera") {
-            sections.append(Section(
-                kind: .hymnus, units: [.prose(Self.cleanHymnText(hymnus.latin), english: hymnus.english.map(Self.cleanHymnText))]
-            ))
+            let latinStanzas = Self.hymnStanzas(hymnus.latin)
+            let englishStanzas = hymnus.english.map(Self.hymnStanzas)
+            let pairEnglish = englishStanzas?.count == latinStanzas.count
+            let units = latinStanzas.enumerated().map { index, stanza in
+                Unit.prose(stanza, english: pairEnglish ? englishStanzas?[index] : nil)
+            }
+            sections.append(Section(kind: .hymnus, units: units))
         }
         if let versus = lookup("Versum \(macroContext.isFirstVespers ? 1 : 3)") {
             let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -696,30 +794,44 @@ public struct HourAssembler {
         return sections
     }
 
-    /// Cleans a raw resolved `[Hymnus Vespera]` body of two conventions confirmed real
-    /// (16 September 2026's own hymn, `Commune/C3.txt`) but not referenced anywhere in
-    /// DO's own Perl (an exhaustive search of `horas.pl`/`specials/hymni.pl` turned up
-    /// nothing — this project's own best-evidence read of what the real rendered
-    /// fixture shows, not a cited mechanism):
+    /// Splits a raw resolved `[Hymnus Vespera]` body into its own stanzas, cleaning two
+    /// conventions confirmed real (16 September 2026's own hymn, `Commune/C3.txt`) but
+    /// not referenced anywhere in DO's own Perl (an exhaustive search of
+    /// `horas.pl`/`specials/hymni.pl` turned up nothing — this project's own
+    /// best-evidence read of what the real rendered fixture shows, not a cited
+    /// mechanism):
     ///
     /// - A leading `{:H-Name:}` tune-identifier prefix (GABC chant-tune metadata,
     ///   confirmed absent from the real fixture's rendered text entirely) — stripped
     ///   outright, consistent with `CLAUDE.md`'s "no chant" scope.
     /// - The leading `v. ` drop-cap marker (`do-format.md`'s already-documented
     ///   "decorative styling for the first letter, not a liturgical marker" — the same
-    ///   treatment `DOMarkers.stripLineLabel` already gives it elsewhere, just not yet
-    ///   applied to a whole-hymn `.prose` blob) and each stanza-break `_`-only line
-    ///   (replaced with a blank line, not left as a literal underscore).
-    private static func cleanHymnText(_ text: String) -> String {
-        var result = text
-        if let range = result.range(of: #"^\{:.*?:\}"#, options: .regularExpression) {
-            result.removeSubrange(range)
+    ///   treatment `DOMarkers.stripLineLabel` already gives it elsewhere) on the first
+    ///   stanza only, since it only ever appears at the very start of the whole hymn.
+    ///
+    /// Each stanza-break `_`-only line marks a genuine stanza boundary, so this returns
+    /// one `.prose`-ready string per stanza rather than one long blob joined by blank
+    /// lines — direct feedback: a real long hymn rendered as a single unit was cut off,
+    /// since a single oversized block can't be split across pages like everything else.
+    private static func hymnStanzas(_ text: String) -> [String] {
+        var cleaned = text
+        if let range = cleaned.range(of: #"^\{:.*?:\}"#, options: .regularExpression) {
+            cleaned.removeSubrange(range)
         }
-        result = DOMarkers.stripLineLabel(result)
-        return result
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespaces) == "_" ? "" : String($0) }
-            .joined(separator: "\n")
+        cleaned = DOMarkers.stripLineLabel(cleaned)
+
+        var stanzas: [String] = []
+        var current: [String] = []
+        for line in cleaned.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.trimmingCharacters(in: .whitespaces) == "_" {
+                if !current.isEmpty { stanzas.append(current.joined(separator: "\n")) }
+                current = []
+            } else {
+                current.append(String(line))
+            }
+        }
+        if !current.isEmpty { stanzas.append(current.joined(separator: "\n")) }
+        return stanzas
     }
 
     // MARK: - Preces Feriales

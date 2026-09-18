@@ -34,6 +34,10 @@ public enum Unit: Equatable, Sendable {
     /// uniformly (§ "Antiphons, hymn stanzas, chapter, and collect follow the same
     /// typographic system").
     case prose(String, english: String? = nil)
+    /// A psalm/canticle's own title within Psalmodia, e.g. `"Psalmus 132 [1]"` -- the
+    /// psalm number and its 1-based position among the hour's five psalms. Direct
+    /// feedback, comparing a real rendering against real DO output.
+    case psalmTitle(String)
 }
 
 /// One named group of `Unit`s — `docs/rubrics-1960-vespers.md` §5's proposed heading
