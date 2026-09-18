@@ -27,14 +27,34 @@ enum ContentBlock: Identifiable {
     /// with no notion of its neighbours) by counting `.verse` units since the last
     /// `.antiphon`, since an antiphon marks the start of a new psalm/canticle and the
     /// alternation restarts there.
-    case unit(index: Int, unit: BreviariumKit.Unit, alternateVerse: Bool)
+    case unit(index: Int, unit: BreviariumKit.Unit, alternateVerse: Bool, trailingSpace: TrailingSpace)
+
+    /// How much room to leave below a `.unit` block -- also computed here rather than in
+    /// `UnitView`, for the same "needs to see neighbours" reason as `alternateVerse`.
+    enum TrailingSpace {
+        case standard
+        /// No extra gap after this block -- used for a psalm's closing antiphon
+        /// immediately before a `.psalmSeparator`. Without this, the antiphon's own
+        /// "separate it from the psalm below" bottom padding stacked with the
+        /// separator's own padding, leaving the line sitting closer to the antiphon
+        /// *below* it than the one above -- direct feedback that the line "ought to be
+        /// more centred". Suppressing it here makes the separator's own vertical padding
+        /// the sole, symmetric source of spacing on both sides of itself.
+        case suppressed
+        /// A visible paragraph gap -- used between one hymn stanza and the next
+        /// (`HourAssembler.hymnStanzas` emits one `.prose` unit per stanza with nothing
+        /// else between them), since the standard inter-line spacing read as one
+        /// continuous, unbroken paragraph rather than as separate stanzas -- direct
+        /// feedback comparing a real rendering.
+        case stanzaBreak
+    }
 
     var id: String {
         switch self {
         case .pageHeader: "header"
         case .sectionStart(let kind): "start-\(kind.rawValue)"
         case .psalmSeparator(let afterIndex): "psalm-separator-\(afterIndex)"
-        case .unit(let index, _, _): "unit-\(index)"
+        case .unit(let index, _, _, _): "unit-\(index)"
         }
     }
 
@@ -45,9 +65,17 @@ enum ContentBlock: Identifiable {
             blocks.append(.sectionStart(section.kind))
             var verseCount = 0
             var previousWasAntiphon = false
-            for unit in section.units {
+            let units = section.units
+            for (localIndex, unit) in units.enumerated() {
                 if case .antiphon = unit {
                     if previousWasAntiphon {
+                        // Guaranteed by construction: `previousWasAntiphon` is only ever
+                        // set right after appending exactly this shape of block.
+                        if case .unit(let previousIndex, let previousUnit, let previousAlternate, _) = blocks[blocks.count - 1] {
+                            blocks[blocks.count - 1] = .unit(
+                                index: previousIndex, unit: previousUnit, alternateVerse: previousAlternate, trailingSpace: .suppressed
+                            )
+                        }
                         blocks.append(.psalmSeparator(afterIndex: unitIndex))
                     }
                     verseCount = 0
@@ -57,7 +85,11 @@ enum ContentBlock: Identifiable {
                     alternateVerse = verseCount.isMultiple(of: 2)
                     verseCount += 1
                 }
-                blocks.append(.unit(index: unitIndex, unit: unit, alternateVerse: alternateVerse))
+                var trailingSpace: TrailingSpace = .standard
+                if case .prose = unit, localIndex + 1 < units.count, case .prose = units[localIndex + 1] {
+                    trailingSpace = .stanzaBreak
+                }
+                blocks.append(.unit(index: unitIndex, unit: unit, alternateVerse: alternateVerse, trailingSpace: trailingSpace))
                 unitIndex += 1
                 if case .antiphon = unit { previousWasAntiphon = true } else { previousWasAntiphon = false }
             }

@@ -23,6 +23,10 @@ struct UnitView: View {
     let metrics: Metrics
     var showRubrics: Bool = true
     var italicizeWholeVerse: Bool = false
+    /// True for a psalm's closing antiphon immediately before a `.psalmSeparator` --
+    /// see `ContentBlock.TrailingSpace.suppressed`'s own doc comment for why its usual
+    /// bottom padding needs to be skipped in that one case.
+    var suppressTrailingSpace: Bool = false
 
     var body: some View {
         switch unit {
@@ -50,8 +54,9 @@ struct UnitView: View {
         case .antiphon(let text, _):
             latinText(text, font: LiturgicalFont.blackItalic(metrics.bodySize), color: Theme.liturgicalText)
                 // Extra separation so the antiphon doesn't read as part of the psalm
-                // that follows -- direct feedback comparing a real rendering.
-                .padding(.bottom, metrics.bodySize * 0.5)
+                // that follows -- direct feedback comparing a real rendering. Skipped
+                // when a `.psalmSeparator` follows instead (see `suppressTrailingSpace`).
+                .padding(.bottom, suppressTrailingSpace ? 0 : metrics.bodySize * 0.5)
         case .prose(let text, _):
             latinText(text, font: LiturgicalFont.regular(metrics.bodySize), color: Theme.liturgicalText)
         case .psalmTitle(let text):

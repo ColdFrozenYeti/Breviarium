@@ -63,14 +63,29 @@ struct VespersView: View {
             }
             .padding(.bottom, metrics.bodySize * 0.6)
         case .psalmSeparator:
+            // The sole source of spacing above and below itself -- the antiphon just
+            // before it has its own trailing space suppressed (`ContentBlock.blocks`),
+            // so this padding alone decides how centred the line looks between the two
+            // antiphons it separates.
             Rectangle()
                 .fill(Theme.liturgicalText.opacity(0.4))
                 .frame(width: metrics.separatorWidth * 0.4, height: 1)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, metrics.bodySize * 0.4)
-        case .unit(_, let unit, let alternateVerse):
-            UnitView(unit: unit, metrics: metrics, showRubrics: showRubrics, italicizeWholeVerse: alternateVerse)
-                .padding(.bottom, metrics.extraLineSpacing)
+                .padding(.vertical, metrics.bodySize * 0.5)
+        case .unit(_, let unit, let alternateVerse, let trailingSpace):
+            UnitView(
+                unit: unit, metrics: metrics, showRubrics: showRubrics,
+                italicizeWholeVerse: alternateVerse, suppressTrailingSpace: trailingSpace == .suppressed
+            )
+            .padding(.bottom, Self.trailingSpacePadding(trailingSpace, metrics: metrics))
+        }
+    }
+
+    private static func trailingSpacePadding(_ trailingSpace: ContentBlock.TrailingSpace, metrics: Metrics) -> CGFloat {
+        switch trailingSpace {
+        case .standard: metrics.extraLineSpacing
+        case .suppressed: 0
+        case .stanzaBreak: metrics.bodySize * 0.6
         }
     }
 
