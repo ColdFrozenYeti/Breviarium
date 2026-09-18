@@ -317,9 +317,14 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
 }
 
 @Test func fallsBackToTheCommuneWhenTheOfficeItselfHasNoAntVespera() throws {
+    // "ex C99", not "vide C99": psalm-antiphon Commune fallback is gated to "ex"-type
+    // references only (see assemblePsalmodia's own doc comment) -- a "vide" reference
+    // whose office has no Ant Vespera of its own falls through to the ferial weekday
+    // schedule instead, confirmed against two real dates (16 September and
+    // 19 November 2026, both "vide").
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
-        RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;vide C99"]),
+        RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;ex C99"]),
         RawSection(name: "Oratio", condition: "", body: ["Oratio propria."]),
     ])
     let commune = RawOfficeFile(path: "Commune/C99", sections: [
@@ -389,13 +394,19 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
 }
 
 @Test func festalUnnumberedAntiphonsPairWithTheSundayPsalmsAndARuleGivenFifth() throws {
-    // Confirmed against the real oracle fixture for 5 February 2026 (S. Agatha, falling
-    // back to Commune/C6): no ";;number" on the antiphons, but a "Psalm5 Vespera3=NNN"
-    // Rule entry -- Vespers' first four psalms are always the Sunday set (109-112), only
-    // the fifth is proper.
+    // The mechanism this exercises (no ";;number" on the antiphons, but a "Psalm5
+    // Vespera3=NNN" Rule entry -- Vespers' first four psalms are always the Sunday set
+    // 109-112, only the fifth is proper) is confirmed real for S. Agatha (5 February
+    // 2026): psalms 109, 110, 111, 112, 147 exactly match the real oracle fixture. But
+    // her own antiphons and Rule entry live directly on Sancti/02-05.txt itself, not on
+    // Commune/C6 -- an earlier version of this test/comment believed otherwise. This
+    // fixture still puts them on a Commune (reached via "ex", not "vide" -- psalm-
+    // antiphon Commune fallback is gated to "ex" only) purely to additionally exercise
+    // that the mechanism also works when reached through a Commune fallback, which
+    // isn't independently confirmed against a real "ex"-type fixture.
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis Virgo"]),
-        RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;vide C99"]),
+        RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;ex C99"]),
         RawSection(name: "Oratio", condition: "", body: ["Oratio propria."]),
     ])
     let commune = RawOfficeFile(path: "Commune/C99", sections: [
