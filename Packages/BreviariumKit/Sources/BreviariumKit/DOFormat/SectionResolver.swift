@@ -82,6 +82,32 @@ public struct SectionResolver {
         return officium + rank[separator.lowerBound...]
     }
 
+    /// Resolves psalm/canticle verse text specifically — reads the winning `[Name]
+    /// (condition)` variant's raw body **without** running it through
+    /// `ConditionalLineProcessor` first. Confirmed necessary against real data: DO
+    /// itself never applies `process_conditional_lines` to psalm/canticle files at all
+    /// (`horasscripts.pl:552`: `do_read(checkfile(...))`, a plain raw read that bypasses
+    /// `setupstring_parse_file`/`process_conditional_lines` entirely), because verse
+    /// text is static and unconditional. Running it through inline-conditional
+    /// resolution anyway is actively harmful: a psalm/canticle file's own leading
+    /// `"(Title * Source)"` comment line (real example: `Psalm232.txt`'s `"(Canticum B.
+    /// Mariæ Virginis * Luc. 1:46-55)"`) gets misparsed by `ConditionalLineProcessor` as
+    /// a `(condition)` clause — its garbage "condition" text evaluates false, and the
+    /// grammar's default forward scope for an unrecognised clause (`.line`) silently
+    /// swallows the very next line, which is the psalm's own first verse. Confirmed
+    /// against the real fixture for 16 September 2026: the Magnificat's own `"1:46"`
+    /// was missing entirely — a *missing* unit, which no earlier oracle test could have
+    /// caught (only a *wrong* one fails the existing `.contains()`-based comparison).
+    /// `Psalm.parseVerses`'s own existing "skip a leading `(...)` title line" logic
+    /// (checking each line's reference starts with a digit) is already exactly what's
+    /// needed once the input is the plain raw body — no further change needed there.
+    public func resolvePsalmText(path: String, section: String) -> String {
+        guard let winner = winningVariant(path: path, section: section) else {
+            return "\(path):\(section) is missing!"
+        }
+        return resolveInclusionsAndMacros(in: winner.body.joined(separator: "\n"), depth: 0)
+    }
+
     // MARK: - Section resolution
 
     private func resolveSection(path: String, section: String, depth: Int) -> String {

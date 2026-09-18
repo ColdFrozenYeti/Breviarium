@@ -15,6 +15,34 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(resolver.resolve(path: "Sancti/01-18r.txt", section: "Oratio") == "Da, quaesumus, omnipotens Deus.")
 }
 
+@Test func resolvePsalmTextDoesNotLoseTheFirstVerseAfterALeadingTitleComment() {
+    // Real bug, found via the bilingual oracle fixture for 16 September 2026:
+    // Psalm232.txt's own leading "(Canticum B. Mariæ Virginis * Luc. 1:46-55)"
+    // title-comment line -- passed through the *general* `resolve()` (which runs
+    // ConditionalLineProcessor) -- gets misparsed as a `(condition)` clause with a
+    // false, unrecognised "condition" and a default forward scope of one line,
+    // silently swallowing the psalm's own first verse. `resolvePsalmText` (which
+    // psalm/canticle lookups must use instead) reads the raw body directly, matching
+    // DO's own real behaviour of never running psalm/canticle files through
+    // conditional-line processing at all (`horasscripts.pl:552`'s plain `do_read`).
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Psalterium/Psalmorum/Psalm232.txt", sections: [
+            RawSection(name: RawSectionParser.wholeFileSectionName, condition: "", body: [
+                "(Canticum B. Mariæ Virginis * Luc. 1:46-55)",
+                "1:46 Magnificat * anima mea Dominum.",
+                "1:47 Et exsultavit spiritus meus * in Deo salvatore meo.",
+            ])
+        ])
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+    let resolvedGenerically = resolver.resolve(path: "Psalterium/Psalmorum/Psalm232", section: RawSectionParser.wholeFileSectionName)
+    #expect(!resolvedGenerically.contains("1:46"), "documents the bug: the general resolver path does lose \"1:46\"")
+
+    let resolvedAsPsalmText = resolver.resolvePsalmText(path: "Psalterium/Psalmorum/Psalm232", section: RawSectionParser.wholeFileSectionName)
+    #expect(resolvedAsPsalmText.contains("1:46 Magnificat * anima mea Dominum."))
+    #expect(resolvedAsPsalmText.contains("1:47 Et exsultavit spiritus meus * in Deo salvatore meo."))
+}
+
 @Test func resolvesTheRubricaSigilFromRubricaeTxtWithNoPrefixInTheLookupKey() {
     // $rubrica Secreto looks up the bare name "Secreto" in Rubricae.txt -- confirmed
     // against the real file's own header naming ("[Pater secreto]", no "rubrica " prefix).

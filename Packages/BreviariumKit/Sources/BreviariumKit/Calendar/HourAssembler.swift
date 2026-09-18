@@ -467,7 +467,7 @@ public struct HourAssembler {
         for (index, pair) in pairs.enumerated() {
             let english = index < englishAntiphons.count ? englishAntiphons[index] : nil
             units.append(.antiphon(pair.antiphon, english: english))
-            units.append(contentsOf: psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext))
+            units.append(contentsOf: psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
             units.append(.antiphon(pair.antiphon, english: english))
         }
         return Section(kind: .psalmodia, units: units)
@@ -508,20 +508,73 @@ public struct HourAssembler {
         return nil
     }
 
-    private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext) -> [Unit] {
-        let text = resolver.resolve(path: "Psalterium/Psalmorum/Psalm\(number)", section: RawSectionParser.wholeFileSectionName)
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var units: [Unit] = Psalm.parseVerses(lines).map { .verse(reference: $0.reference, firstHalf: $0.firstHalf, secondHalf: $0.secondHalf) }
-        units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
+    private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
+        let path = "Psalterium/Psalmorum/Psalm\(number)"
+        let text = resolver.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
+        let latinVerses = Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        let englishVerses: [PsalmVerse]? = englishResolver.flatMap { eng in
+            guard eng.sectionExists(path: path, section: RawSectionParser.wholeFileSectionName) else { return nil }
+            let englishText = eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
+            return Psalm.parseVerses(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        }
+        var units = Self.pairedVerses(latin: latinVerses, english: englishVerses)
+        units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
         return units
     }
 
-    /// `&Gloria`'s two lines, each itself `*`-split like a psalm verse.
-    private func gloriaUnits(resolver: SectionResolver, macroContext: MacroContext) -> [Unit] {
+    /// Pairs Latin and English verses for the same psalm/canticle, but only when their
+    /// reference sequences match **exactly** (same count, same reference string at
+    /// each position) — confirmed necessary, not just cautious: DO's Pius XII (Bea)
+    /// Latin psalter and the plain Vulgate/Douay-Rheims numbering English uses
+    /// genuinely divide some psalms differently. Real example: Bea's own
+    /// `Latin-Bea/Psalterium/Psalmorum/Psalm114.txt`/`Psalm115.txt` split the
+    /// underlying material at a different point than English's own same-named files —
+    /// English embeds an inline `"(4a) ..."`-style annotation marking a sub-clause of
+    /// one line as truly belonging to a *different* verse, and elsewhere splits mid-line
+    /// at DO's own flex-mark convention (`†`/`‡`) rather than at `"*"`. DO's own real
+    /// rendering strips these annotations and the `a`/`b` letter suffix for display
+    /// (confirmed against the real fixture for 19 January 2026 — no `"(15)"` survives,
+    /// and a `"115:16a"`/`"115:16b"` pair both render as plain `"115:16"`) but doesn't
+    /// attempt to *realign* the two languages' verse divisions at all; reconstructing a
+    /// true per-half-verse alignment across that divergence would need to parse those
+    /// inline annotations and `†`/`‡` as structural split points too, which
+    /// `Psalm.swift`'s own doc comment already deliberately scopes `†`/`‡` out of for
+    /// the Latin-only case — a real, not-yet-attempted follow-up, not this pass's job.
+    /// Falling back to Latin-only when the sequences don't match exactly is
+    /// deliberately conservative: no English for a handful of psalms beats a
+    /// confidently-wrong pairing.
+    private static func pairedVerses(latin: [PsalmVerse], english: [PsalmVerse]?) -> [Unit] {
+        guard let english, english.count == latin.count, zip(latin, english).allSatisfy({ $0.reference == $1.reference })
+        else {
+            return latin.map { .verse(reference: $0.reference, firstHalf: $0.firstHalf, secondHalf: $0.secondHalf) }
+        }
+        return zip(latin, english).map {
+            .verse(
+                reference: $0.reference, firstHalf: $0.firstHalf, secondHalf: $0.secondHalf,
+                firstHalfEnglish: $1.firstHalf, secondHalfEnglish: $1.secondHalf
+            )
+        }
+    }
+
+    /// `&Gloria`'s two lines, each itself `*`-split like a psalm verse. Always paired
+    /// positionally (no verse-reference divergence risk: the doxology is fixed, 2
+    /// lines, identical structure regardless of language).
+    private func gloriaUnits(resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
         let text = ScriptMacros.resolve("Gloria", context: macroContext, resolver: resolver) ?? ""
-        return text.split(separator: "\n", omittingEmptySubsequences: false).map { line in
-            let (first, second) = Psalm.splitHalves(DOMarkers.stripLineLabel(String(line)))
-            return .verse(reference: "", firstHalf: first, secondHalf: second)
+        let latinHalves = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { Psalm.splitHalves(DOMarkers.stripLineLabel(String($0))) }
+        let englishHalves: [(first: String, second: String)]? = englishResolver.flatMap { eng -> [(first: String, second: String)]? in
+            guard let englishText = ScriptMacros.resolve("Gloria", context: macroContext, resolver: eng) else { return nil }
+            let lines = englishText.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { Psalm.splitHalves(DOMarkers.stripLineLabel(String($0))) }
+            return lines.count == latinHalves.count ? lines : nil
+        }
+        return latinHalves.enumerated().map { index, halves in
+            let english = englishHalves?[index]
+            return .verse(
+                reference: "", firstHalf: halves.first, secondHalf: halves.second,
+                firstHalfEnglish: english?.first, secondHalfEnglish: english?.second
+            )
         }
     }
 
@@ -564,23 +617,29 @@ public struct HourAssembler {
                         .map { String($0).components(separatedBy: ";;").first ?? String($0) }
                 }
                 units.append(.antiphon(antiphon, english: english))
-                units.append(contentsOf: magnificatVerses(resolver: resolver))
-                units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
+                units.append(contentsOf: magnificatVerses(resolver: resolver, englishResolver: englishResolver))
+                units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
                 units.append(.antiphon(antiphon, english: english))
                 return Section(kind: .canticum, units: units)
             }
         }
-        units.append(contentsOf: magnificatVerses(resolver: resolver))
-        units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext))
+        units.append(contentsOf: magnificatVerses(resolver: resolver, englishResolver: englishResolver))
+        units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
         return Section(kind: .canticum, units: units)
     }
 
     /// The Magnificat canticle text lives alongside the psalms proper, in
     /// `Psalterium/Psalmorum/`, under the pseudo-psalm number `232`.
-    private func magnificatVerses(resolver: SectionResolver) -> [Unit] {
-        let text = resolver.resolve(path: "Psalterium/Psalmorum/Psalm232", section: RawSectionParser.wholeFileSectionName)
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        return Psalm.parseVerses(lines).map { .verse(reference: $0.reference, firstHalf: $0.firstHalf, secondHalf: $0.secondHalf) }
+    private func magnificatVerses(resolver: SectionResolver, englishResolver: SectionResolver?) -> [Unit] {
+        let path = "Psalterium/Psalmorum/Psalm232"
+        let text = resolver.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
+        let latinVerses = Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        let englishVerses: [PsalmVerse]? = englishResolver.flatMap { eng in
+            guard eng.sectionExists(path: path, section: RawSectionParser.wholeFileSectionName) else { return nil }
+            let englishText = eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
+            return Psalm.parseVerses(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+        }
+        return Self.pairedVerses(latin: latinVerses, english: englishVerses)
     }
 
     // MARK: - Capitulum / Hymnus / Versus

@@ -871,9 +871,66 @@ here; the fixture's actual language-fallback mechanism for a missing cross-refer
 section wasn't found in Perl either, and chasing it further was judged not worth
 blocking this slice — flagged, not silently assumed solved.
 
-**Not yet started**: psalm and canticle **verse**-level English remains the one
-substantial piece left — see the Bea/Vulgate boundary-mapping problem above, still
-unattempted. Once that's solved, M4's Latin/English pairing is complete.
+**Psalm/canticle verse-level English is now wired too (2026-09-17), scoped
+conservatively — and this pass uncovered and fixed a real, previously-undetectable
+content-loss bug affecting Latin alone, not just English.**
+
+*The alignment approach*: `pairedVerses` pairs Latin and English verses only when
+their reference sequences match **exactly** — same count, same reference string
+(`"114:3a"` etc., letter suffix and all) at every position. Confirmed necessary, not
+merely cautious: Bea's own `Latin-Bea/Psalterium/Psalmorum/Psalm114.txt`/`Psalm115.txt`
+divide the underlying material at a genuinely different point than English's
+same-named files — English embeds inline `"(4a) ..."`-style annotations marking a
+sub-clause as truly belonging to a different verse, and elsewhere splits mid-line at
+DO's own flex-mark convention (`†`/`‡`) rather than at `"*"`. DO's own real rendering
+strips these annotations and the `a`/`b` suffix for *display* (confirmed against the
+real fixture for 19 January 2026 — no `"(15)"` survives, and `"115:16a"`/`"115:16b"`
+both render as plain `"115:16"`) but doesn't attempt to *realign* the two languages'
+divisions at all — reconstructing a true per-half-verse alignment across that
+divergence would need to parse those annotations and `†`/`‡` as structural split
+points too (`Psalm.swift`'s own doc comment already deliberately scopes `†`/`‡` out
+for the Latin-only case) — a real, harder follow-up, not attempted now. Falling back
+to Latin-only when sequences don't match exactly is deliberate: no English for a
+handful of psalms beats a confidently-wrong pairing. The Gloria doxology always pairs
+positionally (fixed 2-line structure, no verse-numbering risk).
+
+*A real, wider-reaching bug found along the way*: verifying this against the real
+bilingual fixture for 16 September 2026 surfaced that the Magnificat's own opening
+verse, `"1:46"`, was missing **entirely** from the assembled output — not mismatched
+(which the existing `.contains()`-based oracle methodology can catch), but silently
+absent (which it structurally cannot, since it only flags wrong content, never missing
+content). The cause: `Psalm232.txt`'s own leading title-comment line,
+`"(Canticum B. Mariæ Virginis * Luc. 1:46-55)"`, was being resolved through the
+*general* `SectionResolver.resolve()` path — which runs `ConditionalLineProcessor`
+over every section's body. That processor misparses the parenthetical as a
+`(condition)` clause; its "condition" text (`"Canticum B. Mariæ Virginis * Luc.
+1:46-55"`) doesn't match any real subject/predicate, evaluates false, and the
+grammar's default forward scope for an unrecognised clause (`.line`) silently
+swallows the very next line — the psalm's own first verse. Tracing DO's own
+`horasscripts.pl:552` showed this was never DO's real behaviour at all: psalm/canticle
+files are read with a plain `do_read`, **bypassing** `setupstring_parse_file`/
+`process_conditional_lines` entirely, because verse text is static and never
+genuinely conditional — DO's own title-line handling (`horasscripts.pl:565-584`)
+`shift()`s it off as separate display metadata, never running it through conditional
+resolution in the first place. `SectionResolver.resolvePsalmText` now does the Swift
+equivalent (reads the winning `[Name] (condition)` variant's raw body directly,
+skipping `ConditionalLineProcessor`), and `psalmUnits`/`magnificatVerses` (Latin *and*
+English) now use it instead of the general `resolve()`. `Psalm.parseVerses`'s own
+existing "skip a leading `(...)` title line" logic (checking each line's reference
+starts with a digit) already correctly handles the now-unmangled raw input — no
+change needed there. This is a **Latin-only correctness fix**, not an English-pairing
+one: every psalm/canticle with a leading parenthetical title (confirmed common in the
+Bea overlay, and by extension in the Magnificat) was losing its first verse *before*
+this session ever touched English, silently, for as long as `HourAssembler` has
+existed — no earlier test could have caught it structurally.
+
+**Not yet attempted**: the harder Bea/Vulgate boundary-mapping problem itself (getting
+partial alignment for psalms like 114/115 rather than falling back to Latin-only
+entirely) remains open, but is no longer blocking — the conservative fallback in place
+is safe, tested, and confirmed correct for every case checked so far. With this,
+M4's Latin/English pairing covers every section CLAUDE.md's spec calls for at some
+level of fidelity (full alignment for whole-unit content and cleanly-dividing
+psalms/canticles, safe Latin-only fallback for the rest).
 
 ### M5 — User interface
 

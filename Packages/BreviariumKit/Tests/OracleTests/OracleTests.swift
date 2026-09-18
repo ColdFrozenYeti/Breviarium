@@ -256,6 +256,33 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
         "Gaudent in cælis * ánimæ Sanctórum, qui Christi vestígia sunt secúti: et quia pro eius amóre sánguinem suum fudérunt, ídeo cum Christo exsúltant sine fine.",
         english: "In heaven do rejoice the souls of the Saints * who have followed the steps of Christ; and because they shed their blood for the love of Christ, therefore shall they be made glad for ever with Christ."
     )))
+    // The Magnificat itself (Luke 1:46-55, New Testament) has no Bea/Vulgate numbering
+    // divergence to worry about -- its own verses pair cleanly. This specifically
+    // covers a real bug found via this exact assertion: Psalm232.txt's own leading
+    // "(Canticum B. Mariæ Virginis * Luc. 1:46-55)" title-comment line was being
+    // misparsed by ConditionalLineProcessor as a false (sed ...)-style condition,
+    // silently swallowing verse "1:46" itself -- fixed by SectionResolver.resolvePsalmText
+    // reading psalm/canticle text raw, bypassing conditional-line processing entirely,
+    // matching DO's own real behaviour (horasscripts.pl's plain do_read for these files).
+    #expect(canticum.units.contains {
+        if case .verse(let ref, _, _, let firstEnglish, _) = $0 { return ref == "1:46" && firstEnglish != nil } else { return false }
+    })
+    // Psalm 127 (this office's own weekday psalm) does NOT pair, and this is a real,
+    // confirmed data-quality issue in the pinned DO checkout, not our bug: the Bea
+    // Latin-Bea/Psalterium/Psalmorum/Psalm127.txt mislabels its own 4th verse as
+    // "127:3" (a bare repeat of the number, immediately after "127:3a"/"127:3b") instead
+    // of "127:4", breaking the exact reference-sequence match against English's clean
+    // "127:1,2,3a,3b,4,5,6". Confirming this falls back to Latin-only (not a silently
+    // wrong pairing) is the point of this assertion.
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    let psalm127Verses = psalmodia.units.filter { if case .verse(let ref, _, _, _, _) = $0 { return ref.hasPrefix("127:") } else { return false } }
+    #expect(!psalm127Verses.isEmpty)
+    #expect(psalm127Verses.allSatisfy { if case .verse(_, _, _, let firstEnglish, _) = $0 { return firstEnglish == nil } else { return false } })
+    // The Gloria doxology that follows Psalm 127 is fixed, 2-line, and always pairs
+    // positionally regardless of any psalm-specific numbering divergence.
+    #expect(psalmodia.units.contains {
+        if case .verse(let ref, _, _, let firstEnglish, _) = $0 { return ref.isEmpty && firstEnglish != nil } else { return false }
+    })
 
     // The versicle itself is a real, confirmed DO English-tree gap, not our bug:
     // Commune/C3.txt's English side has no [Versum 3] at all (only [Versum 1]/[Versum
