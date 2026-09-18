@@ -46,6 +46,16 @@ final class BreviariumUITests: XCTestCase {
         let totalPages = Int(footerText.label.replacingOccurrences(of: "Page 1 of ", with: "")) ?? 1
 
         for page in 1...totalPages {
+            // Wait for the footer to actually show this page number before capturing --
+            // swiping triggers the TabView's own transition animation asynchronously,
+            // so screenshotting immediately after swipeLeft() can catch the previous
+            // page mid-transition or not yet transitioned at all (confirmed real: an
+            // earlier export had two consecutive identical "Page 1 of 7" screenshots).
+            let expectedLabel = "Page \(page) of \(totalPages)"
+            XCTAssertTrue(
+                app.staticTexts[expectedLabel].waitForExistence(timeout: 5),
+                "Footer never showed \"\(expectedLabel)\""
+            )
             let attachment = XCTAttachment(screenshot: app.screenshot())
             attachment.name = "\(namePrefix)-page-\(page)-of-\(totalPages)"
             attachment.lifetime = .keepAlways
