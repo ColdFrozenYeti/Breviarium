@@ -45,8 +45,18 @@ public struct LiturgicalCalendarEngine {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
         guard let occurrence = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
 
-        let resolver = SectionResolver(corpus: corpus, context: context)
-        let title = resolver.resolve(path: occurrence.winningPath, section: "Officium")
+        // `winningRank.title` (not an independent `resolve(path:, section: "Officium")`
+        // call): `SectionResolver.resolveRank` already handles both cases -- a file
+        // with its own `[Officium]` gets that substituted in as the Rank's own leading
+        // field, but a file with NO separate `[Officium]` section at all (real example:
+        // `Sancti/08-14.txt`, In Vigilia Assumptionis B.M.V., whose own title is only
+        // ever written directly into `[Rank]`'s leading field) skips the substitution
+        // and returns the Rank text as-is, title already included. Calling `resolve`
+        // for "Officium" independently, as this used to, returns the "is missing!"
+        // placeholder text for exactly that second case, which then rendered as the
+        // literal day-title-block text -- a real bug, found via a full walkthrough for
+        // 14 August 2028.
+        let title = occurrence.winningRank.title
         let rankDisplayName = RankDisplayName1960.name(for: occurrence.winningRank.numericPrecedence)
         let color = LiturgicalColorClassifier.classify(title: title)
 
