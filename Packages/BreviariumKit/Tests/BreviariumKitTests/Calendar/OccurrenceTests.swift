@@ -185,3 +185,23 @@ private func makeFixture(
     )
     #expect(occurrence.resolve(day: 18, month: 1, year: 2026) == nil)
 }
+
+@Test func missingTemporalFileMeansSanctoralWinsOutrightChristmasAndEpiphany() {
+    // 25 December and 6 January have no Tempora/Nat25.txt or Tempora/Nat06.txt at all in
+    // the real checkout (confirmed: neither file exists on disk) -- both are always won
+    // by their own I. classis Sancti office, so DO never needed a temporal filler for
+    // either date. Found via ConditionalContextBuilder's own oracle test: before this
+    // fix, resolve() returned nil outright for Christmas Day because it unconditionally
+    // required a parseable temporal [Rank], even when sanctoral couldn't possibly lose.
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: "Sancti/12-25", sections: [
+            RawSection(name: "Rank", condition: "", body: ["In Nativitate Domini;;Duplex I Classis;;7"])
+        ])
+    ])
+    let occurrence = Occurrence(
+        corpus: corpus, context: context1960, calendar: SanctoralCalendar(entries: ["12-25": "12-25"])
+    )
+    let result = occurrence.resolve(day: 25, month: 12, year: 2026)
+    #expect(result?.sanctoralWins == true)
+    #expect(result?.winningPath == "Sancti/12-25")
+}

@@ -82,8 +82,7 @@ public struct Occurrence {
         let isSunday = weekday == 0
 
         let temporalPath = Self.temporalPath(day: day, month: month, year: year)
-        guard let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
-        else { return nil }
+        let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
 
         // The first sanctoral candidate with a real [Rank] is the one occurrence()
         // itself would load ($sfile = shift @commemoentries) -- later candidates in the
@@ -99,6 +98,16 @@ public struct Occurrence {
             sanctoralRank = rank
             sanctoralRule = resolver.resolve(path: path, section: "Rule")
             break
+        }
+
+        // 25 December and 6 January have no Tempora file at all -- confirmed against the
+        // real checkout (no Nat25.txt/Nat06.txt on disk): both are always won by their
+        // own I. classis Sancti office, so DO itself never needed a temporal filler for
+        // either date. A missing temporal file means sanctoral wins outright if it
+        // resolved; if neither resolved, there is genuinely no office for this date.
+        guard let temporalRank else {
+            guard let sanctoralPath, let sanctoralRank else { return nil }
+            return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
         }
 
         let sanctoralWins = decideSanctoralWins(

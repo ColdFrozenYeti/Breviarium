@@ -336,7 +336,12 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let context = ConditionalContextBuilder.build(
         day: 19, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
-    #expect(context.tempore == "post Epiphaniam")
+    // Not "post Epiphaniam": that bare value only comes from DO's own February branch
+    // (`SetupString.pl:189`) -- 14 January through 2 February is "...post partum"
+    // (`SetupString.pl:188`, the GABC "post partum" chant period), which is what this
+    // date's own hand-set placeholder context above ("post Epiphaniam", never itself
+    // verified against DO's real tempusID) got only approximately right.
+    #expect(context.tempore == "post Epiphaniam post partum")
     #expect(context.feria == 2)
 }
 
