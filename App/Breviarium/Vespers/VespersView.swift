@@ -81,7 +81,21 @@ struct VespersView: View {
         .opacity(0)
         .onPreferenceChange(HeightPreferenceKey.self) { newHeights in
             heights.merge(newHeights) { _, new in new }
+        }
+        .task(id: heights.count) {
             guard heights.count == blocks.count else { return }
+            // Working hypothesis, not yet independently confirmed: GeometryReader-based
+            // measurement can report a transient, not-yet-settled height on an early
+            // layout pass before reporting the real one moments later, without
+            // necessarily changing the *count* of blocks measured. This is the
+            // best-fit explanation for a real observed failure -- committing to `pages`
+            // the instant the count completed once made the Oratio collect's text
+            // vanish entirely (present in the assembled Hour, confirmed by a passing
+            // oracle test, but absent from every rendered page). Waiting a beat and
+            // re-reading `heights` picks up any late-arriving corrections before pages
+            // are computed from it; if the symptom recurs, this guess needs revisiting.
+            try? await Task.sleep(for: .milliseconds(150))
+            guard heights.count == blocks.count, pages.isEmpty else { return }
             // `height` is already the space left over between the navigation header and
             // the footer (this GeometryReader's own VStack siblings) -- a small safety
             // margin, not their heights again, avoids an off-by-a-hair overflow.
