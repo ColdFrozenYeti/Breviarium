@@ -26,7 +26,9 @@ struct ContentView: View {
         } else {
             ZStack {
                 Theme.background.ignoresSafeArea()
-                Text("Vespers could not be loaded for this date.")
+                // Includes OfficeDataStore's own diagnostic string -- temporary, while
+                // the bundling pipeline is still being shaken out (see its doc comment).
+                Text("Vespers could not be loaded for this date.\n\(dataStore.loadDiagnostic)")
                     .foregroundStyle(Theme.chrome)
                     .padding()
             }

@@ -26,6 +26,11 @@ final class OfficeDataStore {
     private let englishCorpus: OfficeCorpus?
     private let sanctoralCalendar: SanctoralCalendar?
 
+    /// What happened while loading the bundle, for the fallback UI to show verbatim --
+    /// temporary, diagnostic-only scaffolding while the bundling pipeline is still being
+    /// shaken out (`docs/PLAN.md`'s M5 status), not a user-facing error design.
+    private(set) var loadDiagnostic = "loaded"
+
     /// Always "Rubrics 1960 - 1960" for now — `CLAUDE.md`'s "Ritus: Romanus / Ambrosianus"
     /// setting and the Ambrosian rite provider both stay unimplemented until a later
     /// milestone.
@@ -48,19 +53,31 @@ final class OfficeDataStore {
     }()
 
     init() {
-        guard
-            let url = Bundle.main.url(forResource: "breviarium-data", withExtension: "json"),
-            let data = try? Data(contentsOf: url),
-            let bundle = try? JSONDecoder().decode(DataBundle.self, from: data)
-        else {
+        guard let url = Bundle.main.url(forResource: "breviarium-data", withExtension: "json") else {
             latinCorpus = nil
             englishCorpus = nil
             sanctoralCalendar = nil
+            loadDiagnostic = "resource breviarium-data.json not found in Bundle.main"
             return
         }
-        latinCorpus = bundle.makeLatinCorpus()
-        englishCorpus = bundle.makeEnglishCorpus()
-        sanctoralCalendar = SanctoralCalendar(entries: bundle.calendar)
+        guard let data = try? Data(contentsOf: url) else {
+            latinCorpus = nil
+            englishCorpus = nil
+            sanctoralCalendar = nil
+            loadDiagnostic = "could not read data at \(url.path)"
+            return
+        }
+        do {
+            let bundle = try JSONDecoder().decode(DataBundle.self, from: data)
+            latinCorpus = bundle.makeLatinCorpus()
+            englishCorpus = bundle.makeEnglishCorpus()
+            sanctoralCalendar = SanctoralCalendar(entries: bundle.calendar)
+        } catch {
+            latinCorpus = nil
+            englishCorpus = nil
+            sanctoralCalendar = nil
+            loadDiagnostic = "decode failed: \(error)"
+        }
     }
 
     /// Roman Vespers for `date`, in the given calendar's own day/month/year (defaults to
@@ -86,10 +103,16 @@ final class OfficeDataStore {
             corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
         )
         let assembler = HourAssembler(corpus: latinCorpus, context: context, calendar: sanctoralCalendar, englishCorpus: englishCorpus)
-        guard let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: priest) else { return nil }
+        guard let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: priest) else {
+            loadDiagnostic = "assembleVespers returned nil for \(year)-\(month)-\(day)"
+            return nil
+        }
 
         let calendarEngine = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-        guard let liturgicalDay = calendarEngine.day(day: day, month: month, year: year) else { return nil }
+        guard let liturgicalDay = calendarEngine.day(day: day, month: month, year: year) else {
+            loadDiagnostic = "LiturgicalCalendarEngine.day returned nil for \(year)-\(month)-\(day)"
+            return nil
+        }
 
         let displayDate = Self.utcCalendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
 
