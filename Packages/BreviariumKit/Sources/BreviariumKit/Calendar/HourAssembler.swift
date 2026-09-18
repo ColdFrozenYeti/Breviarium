@@ -326,10 +326,18 @@ public struct HourAssembler {
         }
 
         guard let antiphonLocation = location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
-        let antiphonText = resolver.resolve(path: antiphonLocation.path, section: antiphonLocation.section)
+        let rawAntiphonText = resolver.resolve(path: antiphonLocation.path, section: antiphonLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).first
             .map { String($0).components(separatedBy: ";;").first ?? String($0) }
-        guard let antiphonText, !antiphonText.isEmpty else { return nil }
+        guard var antiphonText = rawAntiphonText, !antiphonText.isEmpty else { return nil }
+        // orationes.pl:818: "$a =~ s/\s*\*\s*/ / unless ($version =~ /Monastic/i);" --
+        // unlike a psalm/canticle antiphon (which keeps its own "*" on screen, confirmed
+        // real: "Ecce quam bonum * et quam iucúndum..."), a commemoration's antiphon has
+        // its half-verse asterisk collapsed to a plain space. Confirmed against the same
+        // 24 February 2026 fixture: the real rendered text is "Scriptum est enim, quia
+        // domus mea..." with no "*" at all, even though the source file itself
+        // (Tempora/Quad1-2.txt's own [Ant 3]) writes it with one.
+        antiphonText = antiphonText.replacingOccurrences(of: #"\s*\*\s*"#, with: " ", options: .regularExpression)
 
         // A plain ferial temporal office often has no `[Versum N]` of its own at all,
         // and no Commune to fall back to either -- `orationes.pl:798-803`'s own final
