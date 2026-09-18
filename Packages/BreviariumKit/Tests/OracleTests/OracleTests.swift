@@ -307,3 +307,53 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let diff = mismatches(hour: hour, fixtureText: fixtureText, sectionKinds: [.introductio, .conclusio])
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 }
+
+// `ConditionalContextBuilder` is the missing piece that lets the app call `HourAssembler`
+// for an arbitrary date, rather than every test above's own hand-set `ConditionalContext`
+// (which several of these fixtures show were themselves only approximations -- e.g.
+// "Quadragesima"/"Nativitas"/"post Pascha" above are not DO's own real `tempore` strings,
+// just placeholders good enough for the sections those specific tests compare). These
+// checks confirm the builder reproduces the *real* DO values -- `feria` against this
+// file's own already-verified hand-set contexts, `tempore`/`die` against `SetupString.pl`
+// traced directly (`ConditionalContextBuilder.swift`'s own doc comments cite the exact
+// lines).
+@Test func contextBuilderMatchesTheRealSeasonAndFeriaFor16September2026() throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    #expect(context.tempore == "post Pentecosten")
+    #expect(context.feria == 4)
+    #expect(context.mense == 9)
+}
+
+@Test func contextBuilderMatchesTheRealSeasonAndFeriaFor19January2026() throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 19, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    #expect(context.tempore == "post Epiphaniam")
+    #expect(context.feria == 2)
+}
+
+@Test func contextBuilderNamesChristmasAndEpiphanyAndAllSoulsForTheDieField() throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    func die(_ day: Int, _ month: Int, _ year: Int) -> String {
+        ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        ).die
+    }
+    // First Vespers of Epiphany falls on 5 January (`$vesp_or_comp` true for Vespers).
+    #expect(die(5, 1, 2026) == "Epiphaniæ")
+    #expect(die(6, 1, 2026) == "Epiphaniæ")
+    #expect(die(25, 12, 2026) == "Nativitatis")
+    #expect(die(2, 11, 2026) == "Omnium Defunctorum")
+    #expect(die(3, 11, 2026) == "Malachiae")
+    #expect(die(4, 11, 2026) == "Caroli")
+}
