@@ -1,39 +1,45 @@
 import SwiftUI
 import BreviariumKit
 
-/// M0/M5-in-progress placeholder: proves the repo -> Kit -> bundled data -> app ->
-/// unsigned .ipa -> sideload pipeline end to end, including that the app can actually
-/// load the bundle and assemble a real Vespers. The real, styled views (Today/Vespers
-/// per `CLAUDE.md`'s visual spec, TOC, date picker, Settings) are still to come in M5 --
-/// this is deliberately unstyled so it isn't mistaken for that design work.
+/// The app's single screen for now: Roman Vespers for a given date (`CLAUDE.md`: "The
+/// alpha is Roman Vespers only"). Real content only -- no liturgical logic lives here,
+/// every decision already happened inside `OfficeDataStore`'s `BreviariumKit` calls.
 struct ContentView: View {
+    enum DateSource {
+        case now
+        /// A specific day/month/year, bypassing `Date`/`Calendar` entirely -- used for
+        /// deterministic UI-test snapshots (`BreviariumApp`'s `BREVIARIUM_SNAPSHOT_DATE`).
+        case fixed(day: Int, month: Int, year: Int)
+    }
+
+    let dateSource: DateSource
+
     private let dataStore = OfficeDataStore()
 
+    init(dateSource: DateSource = .now) {
+        self.dateSource = dateSource
+    }
+
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 12) {
-                Text("Breviarium")
-                    .font(.title)
-                    .foregroundStyle(.white)
-                Text("Kit data format v\(breviariumKitDataFormatVersion)")
-                    .font(.footnote)
-                    .foregroundStyle(Color(red: 0.7, green: 0.7, blue: 0.7))
-                Text(vespersSmokeTestSummary)
-                    .font(.footnote)
-                    .foregroundStyle(Color(red: 0.7, green: 0.7, blue: 0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+        if let content = vespersContent {
+            VespersView(content: content)
+        } else {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                Text("Vespers could not be loaded for this date.")
+                    .foregroundStyle(Theme.chrome)
+                    .padding()
             }
         }
     }
 
-    private var vespersSmokeTestSummary: String {
-        guard let hour = dataStore.vespers(on: Date(), priest: false) else {
-            return "Vespers: bundled data not found"
+    private var vespersContent: VespersContent? {
+        switch dateSource {
+        case .now:
+            return dataStore.vespersContent(on: Date(), priest: false)
+        case .fixed(let day, let month, let year):
+            return dataStore.vespersContent(day: day, month: month, year: year, priest: false)
         }
-        let unitCount = hour.sections.reduce(0) { $0 + $1.units.count }
-        return "Vespers loaded: \(hour.sections.count) sections, \(unitCount) units"
     }
 }
 
