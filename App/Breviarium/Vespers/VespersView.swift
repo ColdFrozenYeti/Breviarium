@@ -295,7 +295,10 @@ struct VespersView: View {
 }
 
 private struct HeightPreferenceKey: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
+    // A computed property, not a stored `static var =`, so there's no mutable global
+    // state for Swift 6's strict concurrency checking to flag -- each access just
+    // returns a fresh empty dictionary literal.
+    static var defaultValue: [String: CGFloat] { [:] }
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         value.merge(nextValue()) { _, new in new }
     }
