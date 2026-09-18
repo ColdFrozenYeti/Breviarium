@@ -5,6 +5,7 @@ import SwiftUI
 /// scheme, since there is no light theme to fall back to.
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -64,6 +65,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
         .preferredColorScheme(.dark)
     }

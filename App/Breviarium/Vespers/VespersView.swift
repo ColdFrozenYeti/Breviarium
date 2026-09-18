@@ -279,6 +279,11 @@ struct VespersView: View {
                 }
             }
             .navigationTitle(content.hourTitle)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { showingToc = false }
+                }
+            }
         }
         .preferredColorScheme(.dark)
     }

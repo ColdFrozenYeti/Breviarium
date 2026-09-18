@@ -163,4 +163,73 @@ final class BreviariumUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    /// Sets text size via the real Settings UI (not a launch-environment shortcut) --
+    /// `sizeLabel` is one of the segmented control's own visible labels ("M", "XXL").
+    /// Explicit every time rather than relying on whatever's already selected: the
+    /// setting persists in UserDefaults across app launches on the same simulator, so a
+    /// later test in the same CI run could otherwise inherit an earlier test's choice.
+    private func setTextSize(_ sizeLabel: String, in app: XCUIApplication) {
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.buttons[sizeLabel].tap()
+        app.buttons["Done"].tap()
+    }
+
+    /// `CLAUDE.md`'s own snapshot matrix, adapted for what's actually built so far:
+    /// English is deferred to the beta milestones (so every capture here is English
+    /// off), and swipeable paging is likewise deferred (`VespersView`'s own doc comment)
+    /// -- "page 1" is the scroll's own top, and "a psalmody page" is reached by
+    /// scrolling down a fixed amount rather than turning to a specific page number.
+    /// Default and largest text size, both captured within one launch per date.
+    private func captureSnapshotMatrix(dateString: String, namePrefix: String) {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = dateString
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+
+        for (sizeLabel, sizeName) in [("M", "default"), ("XXL", "largest")] {
+            setTextSize(sizeLabel, in: app)
+
+            let page1 = XCTAttachment(screenshot: app.screenshot())
+            page1.name = "\(namePrefix)-\(sizeName)-page1"
+            page1.lifetime = .keepAlways
+            add(page1)
+
+            for _ in 0..<3 {
+                app.swipeUp()
+                Thread.sleep(forTimeInterval: 0.3)
+            }
+            let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
+            psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
+            psalmodyPage.lifetime = .keepAlways
+            add(psalmodyPage)
+
+            // Back to the top before the next size's own "page 1" capture.
+            for _ in 0..<3 {
+                app.swipeDown()
+            }
+        }
+    }
+
+    func testSnapshotMatrixFerialDay() {
+        captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial")
+    }
+
+    /// 24 February 2026: S. Matthiæ Apostoli (II. classis) commemorating the Lenten
+    /// feria at Vespers -- the exact date `HourAssembler.assembleCommemorations` was
+    /// built and verified against this session.
+    func testSnapshotMatrixCommemorationDay() {
+        captureSnapshotMatrix(dateString: "2026-02-24", namePrefix: "matrix-commemoration")
+    }
+
+    /// 1 November 2026: All Saints, I. classis.
+    func testSnapshotMatrixIClassFeast() {
+        captureSnapshotMatrix(dateString: "2026-11-01", namePrefix: "matrix-feast")
+    }
+
+    /// 29 March 2026: Palm Sunday (Easter 2026 falls on 5 April).
+    func testSnapshotMatrixHolyWeekDay() {
+        captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek")
+    }
 }
