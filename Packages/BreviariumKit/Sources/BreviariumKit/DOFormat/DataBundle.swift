@@ -78,4 +78,11 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
         }
         return []
     }
+
+    public func baseFile(path: String) -> String? {
+        for layer in layers {
+            if let baseFile = layer.baseFile(path: path) { return baseFile }
+        }
+        return nil
+    }
 }

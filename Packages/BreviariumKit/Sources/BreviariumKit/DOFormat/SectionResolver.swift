@@ -54,11 +54,28 @@ public struct SectionResolver {
         resolveSection(path: path, section: section, depth: 0)
     }
 
-    /// Whether `path` defines `section` itself — for callers (`HourAssembler`) that need
-    /// to fall back to a different file (the Commune) when an office doesn't define a
-    /// section at all, distinct from the section existing but resolving empty.
+    /// Whether `path` defines `section` itself, following its `baseFile` chain
+    /// (`do-format.md`'s whole-file inclusion) if it doesn't directly — for callers
+    /// (`HourAssembler`) that need to fall back to a different file (the Commune) when
+    /// an office doesn't define a section at all, distinct from the section existing
+    /// but resolving empty.
     public func sectionExists(path: String, section: String) -> Bool {
-        !corpus.rawSections(path: path, name: section).isEmpty
+        !corpus.rawSections(path: resolvingBaseChain(from: path, section: section), name: section).isEmpty
+    }
+
+    /// Follows `path`'s `baseFile` chain to the first file (possibly `path` itself)
+    /// that actually defines `section` at all — needed before `winningVariant` can pick
+    /// among that file's own conditioned variants. Real example: `Commune/C7a.txt`
+    /// (a Commune sub-variant carrying only its own Mass-proper overrides) has no
+    /// `[Ant Vespera]`/`[Hymnus Vespera]` of its own, leaning on its own preamble's
+    /// `@Commune/C7` reference for those — confirmed as a real, previously-missing gap
+    /// via S. Elisabeth Viduæ's real Vespers (19 November), whose `[Rank]` names
+    /// exactly this Commune (`"vide C7a"`).
+    private func resolvingBaseChain(from path: String, section: String, depth: Int = 0) -> String {
+        guard depth < Self.maxInclusionDepth else { return path }
+        if !corpus.rawSections(path: path, name: section).isEmpty { return path }
+        guard let base = corpus.baseFile(path: path) else { return path }
+        return resolvingBaseChain(from: base, section: section, depth: depth + 1)
     }
 
     /// The `[Rank]` field with its title auto-filled from `[Officium]`'s resolved text --
@@ -124,8 +141,9 @@ public struct SectionResolver {
     /// `setupstring_parse_file`'s hash-overwrite semantics (`SetupString.pl:340-348`),
     /// where each new true-conditioned header replaces the previous entry for that key.
     private func winningVariant(path: String, section: String) -> RawSection? {
+        let resolvedPath = resolvingBaseChain(from: path, section: section)
         var winner: RawSection?
-        for candidate in corpus.rawSections(path: path, name: section) {
+        for candidate in corpus.rawSections(path: resolvedPath, name: section) {
             if candidate.condition.isEmpty || ConditionalEvaluator.evaluate(candidate.condition, context: context) {
                 winner = candidate
             }

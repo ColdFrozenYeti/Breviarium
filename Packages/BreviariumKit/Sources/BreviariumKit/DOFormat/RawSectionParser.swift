@@ -29,10 +29,15 @@ public struct RawOfficeFile: Codable, Equatable, Sendable {
     /// `"Sancti/01-18r.txt"`.
     public var path: String
     public var sections: [RawSection]
+    /// A whole-file inclusion from this file's own preamble (`do-format.md`) — e.g.
+    /// `Commune/C7a.txt`'s own leading `@Commune/C7` line. `nil` for the overwhelming
+    /// majority of files, which have no preamble reference at all.
+    public var baseFile: String?
 
-    public init(path: String, sections: [RawSection]) {
+    public init(path: String, sections: [RawSection], baseFile: String? = nil) {
         self.path = path
         self.sections = sections
+        self.baseFile = baseFile
     }
 }
 
@@ -66,6 +71,7 @@ public enum RawSectionParser {
         let fileNameWithoutExtension = fileNameStem(path)
         var sections: [RawSection] = []
         var wholeFileBody: [String] = []
+        var baseFile: String?
 
         var currentName = "__preamble"
         var currentBody: [String] = []
@@ -96,6 +102,16 @@ public enum RawSectionParser {
                 continue
             }
 
+            // A bare "@File" line in the preamble (before any [Header]) is a whole-file
+            // inclusion (do-format.md) -- captured from the *raw* line, since qualifying
+            // it against "__preamble" as the current section (below) would be meaningless.
+            if inPreamble, baseFile == nil, line.first == "@",
+                let match = try? inclusionRegex.firstMatch(in: line),
+                let file = match.output[1].substring, !file.isEmpty
+            {
+                baseFile = String(file)
+            }
+
             wholeFileBody.append(qualifySelfReferences(line, fileName: fileNameWithoutExtension, currentSection: currentName))
             guard !inPreamble else { continue }    // Preamble content isn't a section body we bundle.
 
@@ -107,7 +123,7 @@ public enum RawSectionParser {
             sections.append(RawSection(name: wholeFileSectionName, condition: "", body: wholeFileBody))
         }
 
-        return RawOfficeFile(path: path, sections: sections)
+        return RawOfficeFile(path: path, sections: sections, baseFile: baseFile)
     }
 
     // MARK: - Section header matching

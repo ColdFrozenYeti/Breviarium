@@ -15,6 +15,32 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(resolver.resolve(path: "Sancti/01-18r.txt", section: "Oratio") == "Da, quaesumus, omnipotens Deus.")
 }
 
+@Test func fallsBackToTheWholeFileInclusionNamedInAFilesOwnPreamble() {
+    // Real bug: Commune/C7a.txt (S. Elisabeth Viduæ's own Commune, "vide C7a") defines
+    // only its own Mass-proper overrides -- [Ant Vespera]/[Hymnus Vespera] live only on
+    // its own preamble's base file, Commune/C7. Before this fix, sectionExists/resolve
+    // never followed that chain, so a section defined only on the base silently
+    // "didn't exist" -- confirmed via a real 19 November Vespers walkthrough (wrong
+    // psalms, missing Capitulum/Hymnus/Versus entirely).
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(
+            path: "Commune/C7a.txt",
+            sections: [RawSection(name: "Oratio", condition: "", body: ["Exáudi nos, Deus."])],
+            baseFile: "Commune/C7"
+        ),
+        RawOfficeFile(path: "Commune/C7.txt", sections: [
+            RawSection(name: "Ant Vespera", condition: "", body: ["Dum esset Rex * in accúbitu suo.;;109"]),
+            RawSection(name: "Oratio", condition: "", body: ["This base Oratio should never win: C7a defines its own."]),
+        ]),
+    ])
+    let resolver = SectionResolver(corpus: corpus, context: vesperaContext())
+
+    #expect(resolver.sectionExists(path: "Commune/C7a", section: "Ant Vespera"))
+    #expect(resolver.resolve(path: "Commune/C7a", section: "Ant Vespera") == "Dum esset Rex * in accúbitu suo.;;109")
+    // The file's own section still wins over the base when both define it.
+    #expect(resolver.resolve(path: "Commune/C7a", section: "Oratio") == "Exáudi nos, Deus.")
+}
+
 @Test func resolvePsalmTextDoesNotLoseTheFirstVerseAfterALeadingTitleComment() {
     // Real bug, found via the bilingual oracle fixture for 16 September 2026:
     // Psalm232.txt's own leading "(Canticum B. Mariæ Virginis * Luc. 1:46-55)"

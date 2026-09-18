@@ -62,6 +62,28 @@ import Testing
 
     #expect(file.sections.count == 1)
     #expect(file.sections[0].name == "Officium")
+    #expect(file.baseFile == nil)
+}
+
+@Test func capturesAWholeFileInclusionFromThePreamble() {
+    // Real example: Commune/C7a.txt's own leading "@Commune/C7" line (do-format.md's
+    // "A reference appearing in the file's preamble... is a whole-file inclusion") --
+    // found via S. Elisabeth Viduæ's real Vespers (19 November), whose office names
+    // exactly this Commune ("vide C7a") and has no [Ant Vespera]/[Hymnus Vespera] of
+    // its own at all, silently falling through to the wrong content before this fix.
+    let text = """
+        @Commune/C7
+
+        [Officium]
+        Commune non Virginum non Martyrum
+
+        [Oratio]
+        Exáudi nos, Deus.
+        """
+    let file = RawSectionParser.parse(fileText: text, path: "Commune/C7a.txt")
+
+    #expect(file.baseFile == "Commune/C7")
+    #expect(file.sections.map(\.name) == ["Officium", "Oratio"])
 }
 
 @Test func qualifiesBareSelfReferences() {

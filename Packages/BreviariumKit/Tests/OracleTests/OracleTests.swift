@@ -362,3 +362,42 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     #expect(die(3, 11, 2026) == "Malachiae")
     #expect(die(4, 11, 2026) == "Caroli")
 }
+
+@Test func stElisabethsVespersUsesTheRealCommuneC7PsalmsAndHasACapitulumHymnusVersus() throws {
+    // Real bug, found via a full visual walkthrough of 19 November 2026 (S. Elisabeth
+    // Viduæ, "vide C7a"): Commune/C7a.txt defines only its own Mass-proper overrides,
+    // leaning on its own preamble's "@Commune/C7" whole-file inclusion for
+    // [Ant Vespera]/[Hymnus Vespera]/etc. -- a do-format.md-documented mechanism that
+    // was never actually implemented, so the engine silently fell through to the plain
+    // ferial psalm schedule (wrong psalms, no verses for the second one at all) and
+    // dropped Capitulum/Hymnus/Versus entirely. Fixed in SectionResolver via
+    // RawOfficeFile.baseFile.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar)
+    let context = ConditionalContextBuilder.build(
+        day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 11, year: 2026, priest: false))
+
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    let antiphonTexts = psalmodia.units.compactMap { unit -> String? in
+        if case .antiphon(let text, _) = unit { return text } else { return nil }
+    }
+    #expect(antiphonTexts.contains { $0.contains("Dum esset Rex") })
+    #expect(!antiphonTexts.contains { $0.contains("Ecce quam bonum") })
+
+    let capitulum = try #require(hour.sections.first { $0.kind == .capitulum })
+    #expect(!capitulum.units.isEmpty)
+
+    let hymnus = try #require(hour.sections.first { $0.kind == .hymnus })
+    #expect(!hymnus.units.isEmpty)
+    let hymnusText = hymnus.units.compactMap { unit -> String? in
+        if case .prose(let text, _) = unit { return text } else { return nil }
+    }.joined(separator: " ")
+    #expect(hymnusText.contains("Fortem viríli péctore"))
+
+    let versus = try #require(hour.sections.first { $0.kind == .versus })
+    #expect(!versus.units.isEmpty)
+}
