@@ -40,7 +40,9 @@ struct UnitView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        case .antiphon(let text, _), .prose(let text, _):
+        case .antiphon(let text, _):
+            latinText(text, font: LiturgicalFont.blackItalic(metrics.bodySize), color: Theme.liturgicalText)
+        case .prose(let text, _):
             latinText(text, font: LiturgicalFont.regular(metrics.bodySize), color: Theme.liturgicalText)
         }
     }

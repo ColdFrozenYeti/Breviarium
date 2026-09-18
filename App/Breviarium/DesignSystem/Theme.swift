@@ -70,8 +70,11 @@ enum LiturgicalFont {
     static let regularName = "HoeflerText-Regular"
     static let italicName = "HoeflerText-Italic"
     static let blackName = "HoeflerText-Black"
+    static let blackItalicName = "HoeflerText-BlackItalic"
 
     static func regular(_ size: CGFloat) -> Font { .custom(regularName, size: size) }
     static func italic(_ size: CGFloat) -> Font { .custom(italicName, size: size) }
     static func black(_ size: CGFloat) -> Font { .custom(blackName, size: size) }
+    /// Antiphons -- bold italic, per direct feedback comparing a real rendering.
+    static func blackItalic(_ size: CGFloat) -> Font { .custom(blackItalicName, size: size) }
 }
