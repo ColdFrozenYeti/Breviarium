@@ -54,13 +54,25 @@ public struct SectionResolver {
         resolveSection(path: path, section: section, depth: 0)
     }
 
-    /// Whether `path` defines `section` itself, following its `baseFile` chain
-    /// (`do-format.md`'s whole-file inclusion) if it doesn't directly — for callers
-    /// (`HourAssembler`) that need to fall back to a different file (the Commune) when
-    /// an office doesn't define a section at all, distinct from the section existing
-    /// but resolving empty.
+    /// Whether `path` actually resolves `section` under the current `context` — not just
+    /// whether a raw section by that name is present on disk at all, which real files
+    /// often have with every one of its variants gated to a *different* rubric (e.g.
+    /// `Sancti/09-14.txt`'s own `[Ant Vespera] (rubrica cisterciensis)`, the Holy Cross's
+    /// only variant of that section, present in the file but never true under Rubrics
+    /// 1960). Checking raw presence alone made a caller like `HourAssembler`'s Commune
+    /// fallback (`resolvedLocation`, and `assemblePsalmodia`'s own inline `location`)
+    /// conclude the office already defines the section itself and skip the fallback
+    /// entirely -- the office's own lookup then found no true-conditioned variant either
+    /// and printed the `"<path>:<section> is missing!"` placeholder verbatim into
+    /// rendered content. Found via a full sweep across 2025-2040
+    /// (`OracleTests.vespersAssemblesWithoutPlaceholderTextAcrossTheFullOracleRange`)
+    /// turning up ~260 instances across a dozen distinct
+    /// files, every single one this exact shape: a rubric-gated-only section with no
+    /// plain fallback variant of its own. `winningVariant` already has the correct,
+    /// already-tested condition-matching logic (`resolve()` itself is built on it) --
+    /// this was simply the one caller not consulting it.
     public func sectionExists(path: String, section: String) -> Bool {
-        !corpus.rawSections(path: resolvingBaseChain(from: path, section: section), name: section).isEmpty
+        winningVariant(path: path, section: section) != nil
     }
 
     /// Follows `path`'s `baseFile` chain to the first file (possibly `path` itself)
