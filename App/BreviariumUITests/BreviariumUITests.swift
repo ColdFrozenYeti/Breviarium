@@ -90,4 +90,26 @@ final class BreviariumUITests: XCTestCase {
     func testVespersAllPagesRandomSample3() {
         captureWholeScroll(dateString: "2038-07-05", namePrefix: "vespers-2038-07-05")
     }
+
+    /// Confirms the Settings sheet actually opens from the gear icon and shows every
+    /// `CLAUDE.md`-required toggle -- M5's own Settings screen.
+    func testSettingsSheetOpensAndShowsEveryToggle() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Romanus"].exists)
+        XCTAssertTrue(app.staticTexts["Ambrosianus"].exists)
+        XCTAssertTrue(app.switches["Sacerdos vel diaconus adest"].exists)
+        XCTAssertTrue(app.switches["Rubricæ"].exists)
+        XCTAssertTrue(app.switches["English translation"].exists)
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "settings-screen"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

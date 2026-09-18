@@ -15,6 +15,7 @@ struct ContentView: View {
     let dateSource: DateSource
 
     private let dataStore = OfficeDataStore()
+    @StateObject private var settings = SettingsStore()
 
     init(dateSource: DateSource = .now) {
         self.dateSource = dateSource
@@ -22,7 +23,7 @@ struct ContentView: View {
 
     var body: some View {
         if let content = vespersContent {
-            VespersView(content: content)
+            VespersView(content: content, settings: settings)
         } else {
             ZStack {
                 Theme.background.ignoresSafeArea()
@@ -38,9 +39,9 @@ struct ContentView: View {
     private var vespersContent: VespersContent? {
         switch dateSource {
         case .now:
-            return dataStore.vespersContent(on: Date(), priest: false)
+            return dataStore.vespersContent(on: Date(), priest: settings.priestPresent)
         case .fixed(let day, let month, let year):
-            return dataStore.vespersContent(day: day, month: month, year: year, priest: false)
+            return dataStore.vespersContent(day: day, month: month, year: year, priest: settings.priestPresent)
         }
     }
 }

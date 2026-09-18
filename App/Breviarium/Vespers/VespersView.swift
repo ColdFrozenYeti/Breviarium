@@ -19,11 +19,12 @@ import SwiftUI
 /// itself isn't going away.
 struct VespersView: View {
     let content: VespersContent
-    var showRubrics: Bool = true
+    @ObservedObject var settings: SettingsStore
 
     @State private var showingToc = false
+    @State private var showingSettings = false
 
-    private var metrics: Metrics { Metrics() }
+    private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
     private var blocks: [ContentBlock] { ContentBlock.blocks(for: content.hour) }
 
@@ -74,7 +75,7 @@ struct VespersView: View {
                 .padding(.vertical, metrics.bodySize * 0.5)
         case .unit(_, let unit, let alternateVerse, let trailingSpace):
             UnitView(
-                unit: unit, metrics: metrics, showRubrics: showRubrics,
+                unit: unit, metrics: metrics, showRubrics: settings.showRubrics,
                 italicizeWholeVerse: alternateVerse, suppressTrailingSpace: trailingSpace == .suppressed
             )
             .padding(.bottom, Self.trailingSpacePadding(trailingSpace, metrics: metrics))
@@ -91,13 +92,34 @@ struct VespersView: View {
 
     // MARK: Item 1 -- navigation title
 
+    /// A leading gear icon isn't itself part of `CLAUDE.md`'s visual spec (which only
+    /// describes the centred title here), but Settings needs *some* entry point and the
+    /// spec doesn't say where -- a small, chrome-coloured icon in the otherwise-empty
+    /// corner of this row was the chosen option among a few discussed, since it keeps
+    /// every other element of the reference screenshot untouched.
     private var navigationHeader: some View {
-        Text(content.hourTitle)
-            .font(.system(size: metrics.navTitleSize))
-            .foregroundStyle(Theme.chrome)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
+        ZStack {
+            Text(content.hourTitle)
+                .font(.system(size: metrics.navTitleSize))
+                .foregroundStyle(Theme.chrome)
+                .frame(maxWidth: .infinity)
+            HStack {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(Theme.chrome)
+                }
+                .accessibilityIdentifier("settingsButton")
+                Spacer()
+            }
+            .padding(.horizontal, metrics.margin)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(settings: settings)
+        }
     }
 
     // MARK: Items 2-6 -- page 1's own header block

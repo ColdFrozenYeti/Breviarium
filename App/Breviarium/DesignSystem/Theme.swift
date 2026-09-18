@@ -16,7 +16,7 @@ enum Theme {
 /// The text-size setting `CLAUDE.md` lists under Settings -- scales every serif size and
 /// the vertical spacing proportionally; chrome text scales "more gently" per the spec.
 /// `.standard` is what `design/reference/Format.png` was measured at.
-enum TextSizeSetting: CaseIterable {
+enum TextSizeSetting: String, CaseIterable {
     case small, standard, large, extraLarge, largest
 
     var serifScale: CGFloat {
