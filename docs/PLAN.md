@@ -1067,6 +1067,51 @@ multi-branch conditional `@:` reference like this.
 All Kit tests pass (`swift test`), including the full 2025-2040 oracle sweep and the new
 oracle-fixture-backed tests above.
 
+**Full-range content audit (2026-09-19).** Prompted by "how do we make sure we haven't
+missed anything across the next twenty-odd years" — the existing full sweep
+(`vespersAssemblesWithoutPlaceholderTextAcrossTheFullOracleRange`) only caught a resolver
+failing outright, never a section resolving to *nothing at all* silently (the exact shape
+of the Magnificat/Capitulum bugs above) or content that's present but *wrong*. Added
+`vespersFullRangeContentAudit`: the same exact-text fixture diff the named single-date
+tests use, every section kind, run across the entire already-fetched 2025-2040 range
+(~5,844 days), plus a structural check that every section Vespers should always have is
+actually present and non-empty. Not part of the default fast loop — a deliberately-run
+investigative tool, its findings triaged one at a time, never by editing a fixture.
+
+Two real, high-volume bugs found and fixed on the first run:
+
+- **~895 of 5,844 days (15%) had no Oratio at all.** An ordinary feria whose `[Rule]`
+  names `"Oratio Dominica"` (real example: `Tempora/Epi4-1`) has no collect of its own —
+  the real Oratio comes from *that same week's own Sunday* file (`orationes.pl:55-61`).
+  Ported as `HourAssembler.oratioDominicaOffice`. Dropped the count to 52 remaining days
+  (Holy Saturday and All Souls' Day among them — a different, narrower gap, not yet
+  investigated).
+- **Thousands of days had wrong Hymnus/Capitulum/Versus/Oratio content.** The Commune
+  fallback only ever followed *one* `"vide"`/`"ex"` hop; DO's own `getproprium` daisy-chains
+  up to 5 (`specials.pl:474-508`). Real example: `Tempora/Nat02`'s (2 January) hymn chain
+  is `Tempora/Nat02` → `Sancti/01-01` → `Sancti/12-25` — three hops, and the single-hop
+  version stopped after one, silently rendering nothing (or, after this session's other
+  fixes made `resolvedLocation` reachable more often, something wrong salvaged from a
+  half-followed chain). Fixed by making `resolvedLocation` itself daisy-chain, capped at 5
+  hops like the real Perl.
+
+**Not yet fixed, found by the same run**: a much larger remaining body of Hymnus
+(~3,956 days)/Psalmodia (~3,576)/Oratio-content (~1,992)/Versus (~1,876)/Capitulum
+(~1,197)/Canticum (~809) mismatches survives even after both fixes above. Spot-checked one
+(4 January 2025's Hymnus: real DO renders "Iesu, dulcis memória..." — the Holy Name of
+Jesus hymn — where this project's engine renders 2 January's own Christmas hymn instead,
+despite both dates sharing the identical `"vide Sancti/01-01"` commune reference) — the
+real rubric evidently disambiguates between the several overlapping Christmas-octave/
+Holy-Name-season observances by *date*, not purely by following the commune chain
+mechanically, the same class of `gettempora()`-branch gap M4's own doc comment already
+flagged as "only the ordinary time-after-Pentecost branches were reconstructed, not
+Advent/Lent/Paschaltide/Epiphany-resumption" — now confirmed to extend into early January
+specifically too, and evidently reaches much further (by day count) than that earlier,
+narrower characterisation suggested. **This is a substantial dedicated-pass undertaking on
+its own** — tracing `gettempora()`'s remaining real branches properly, the same way M4's
+original "time after Pentecost" pass was done — not a quick follow-on fix, and is being
+reported to you rather than attempted piecemeal.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

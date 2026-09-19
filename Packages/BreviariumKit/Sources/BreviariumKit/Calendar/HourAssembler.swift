@@ -115,10 +115,11 @@ public struct HourAssembler {
                 // exists -- same discovery and real example (Commune/C3.txt, Ss.
                 // Cornelii et Cypriani) as assemblePsalmodia's Ant Vespera 3 handling.
                 let indexedOratio = "Oratio \(macroContext.isFirstVespers ? 1 : 3)"
+                let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
                 let oratioLocation = resolvedLocation(
-                    office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: indexedOratio, resolver: resolver
+                    office: oratioOffice, communeReference: winner.winningRank.communeReference, section: indexedOratio, resolver: resolver
                 ) ?? resolvedLocation(
-                    office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
+                    office: oratioOffice, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
                 )
                 if let oratioLocation {
                     let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
@@ -269,11 +270,36 @@ public struct HourAssembler {
     /// in the requested language. Re-deriving English's own independent fallback chain
     /// (indexed, then plain) did exactly that; querying English at Latin's own winning
     /// `(path, section)` and returning `nil` when it's absent there instead matches DO.
+    /// Follows `office`'s own content first, then its Commune reference — daisy-chaining
+    /// through as many further `;;ex|vide ...`-tagged "Pseudo-Commune" hops as needed,
+    /// capped at 5 total like `getproprium`'s own `$loopcounter < 5`
+    /// (`specials.pl:474-508`: "if Pseudo-Commune ex Sancti, ensure daisy-chained
+    /// references work"). Real, confirmed example: `Tempora/Nat02` ("Die Secunda
+    /// Ianuarii") has no `[Hymnus Vespera]` of its own, and its own `[Rank]` names
+    /// `"vide Sancti/01-01"` — but `Sancti/01-01` (In Circumcisione Domini) *also* has
+    /// none of its own, and its own 1960-rubric `[Rank]` names a further
+    /// `"ex Sancti/12-25"` (Christmas Day) — which finally has the real hymn ("Iesu,
+    /// Redémptor ómnium..."). A single-hop version stopped at `Sancti/01-01`, found
+    /// nothing, and gave up. Found via a full 2025-2040 sweep: this single-hop gap left
+    /// ~3,900 days' worth of Hymnus (and, through the same shared lookup, a large share
+    /// of Capitulum/Versus/Oratio/Magnificat-antiphon) content wrong across every date
+    /// whose commune chain needed more than one hop.
     private func resolvedLocation(office: String, communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
         if resolver.sectionExists(path: office, section: section) { return (office, section) }
-        guard let fallbackPath = Self.communeFallbackPath(communeReference), resolver.sectionExists(path: fallbackPath, section: section)
-        else { return nil }
-        return (fallbackPath, section)
+
+        var reference = communeReference
+        var hops = 0
+        while hops < 5 {
+            guard let candidatePath = Self.communeFallbackPath(reference) else { return nil }
+            if resolver.sectionExists(path: candidatePath, section: section) { return (candidatePath, section) }
+
+            guard let nextReference = OfficeRank(rankFieldValue: resolver.resolveRank(path: candidatePath))?.communeReference,
+                !nextReference.isEmpty, nextReference != reference
+            else { return nil }
+            reference = nextReference
+            hops += 1
+        }
+        return nil
     }
 
     /// A section this office doesn't define at all, falling back to its Commune.
@@ -408,6 +434,25 @@ public struct HourAssembler {
             result.replaceSubrange(range, with: name)
         }
         return result.replacingOccurrences(of: "N.", with: String(name))
+    }
+
+    /// `orationes.pl:55-61`'s "Oratio Dominica" rule-flag redirect: a ferial file whose
+    /// own `[Rule]` names this (real example: `Tempora/Epi4-1`, "Feria Secunda infra
+    /// Hebdomadam IV post Epiphaniam") defines no collect of its own at all — the real
+    /// Oratio comes from *that same week's own Sunday* file instead (`"$weekName-0"`,
+    /// e.g. `Tempora/Epi4-0`), not the feria's own file or its (usually nonexistent)
+    /// Commune. `Epi1`/`Nat` weeks are a further named exception in the real Perl,
+    /// always redirecting to `Tempora/Epi1-0a` specifically regardless of which of the
+    /// two matched — confirmed real (`Tempora/Epi1-0a.txt` exists as its own distinct
+    /// file). Found via a full 2025-2040 sweep: ~895 of 5,844 days (~15%) were silently
+    /// rendering with no Oratio section at all before this, every one an ordinary
+    /// Feria/Sabbato whose own file carries exactly this rule.
+    private func oratioDominicaOffice(rule: String, weekName: String) -> String? {
+        guard rule.range(of: "Oratio Dominica", options: .caseInsensitive) != nil else { return nil }
+        if weekName.range(of: "Epi1|Nat", options: [.regularExpression, .caseInsensitive]) != nil {
+            return "Tempora/Epi1-0a"
+        }
+        return "Tempora/\(weekName)-0"
     }
 
     static func communeFallbackPath(_ reference: String) -> String? {

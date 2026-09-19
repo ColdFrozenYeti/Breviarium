@@ -664,3 +664,102 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
         "\(failures.count) placeholder/nil problem(s) across \(daysChecked) days -- first 50:\n\(failures.prefix(50).joined(separator: "\n"))"
     )
 }
+
+/// The sweep above only catches a resolver failing outright (its `"...is missing!"`
+/// placeholder leaking through) — it can't catch a section that resolves to *nothing at
+/// all* silently (no placeholder, just zero units, the exact shape of the missing
+/// Magnificat-antiphon and missing-Capitulum/Hymnus/Versus bugs a real device test found,
+/// neither of which this sweep would have caught), nor content that's present but *wrong*
+/// (only a real fixture diff catches that). This audit runs the same exact-text diff the
+/// named single-date tests above use (`mismatches`, every section kind, no scope
+/// narrowing) across the *entire* 2025-2040 fixture range already fetched
+/// (`data/oracle-fixtures/main/*.tar.gz`), plus a structural check that every section
+/// Vespers should always render (Introductio/Psalmodia/Capitulum/Hymnus/Versus/Canticum/
+/// Oratio/Conclusio — `Preces Feriales` is conditional, excluded) is actually present
+/// with at least one unit, and that `Canticum` specifically has its Magnificat antiphon
+/// (an `.antiphon` unit), not just the bare canticle.
+///
+/// Not part of the default fast loop: this is the investigative tool for "did we miss
+/// anything else across the next ~15 years," run deliberately and its findings triaged
+/// one at a time (a real bug gets fixed; a confirmed, cited DO limitation gets carved out
+/// of scope explicitly, the same way the named tests above already do for psalm-antiphon
+/// selection) — never by editing a fixture, per `CLAUDE.md`.
+@Test func vespersFullRangeContentAudit() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable)
+
+    struct Problem {
+        var days: Set<String> = []
+        var examples: [(date: String, text: String)] = []
+        mutating func record(date: String, text: String) {
+            days.insert(date)
+            if examples.count < 5 { examples.append((date, text)) }
+        }
+    }
+    var contentProblems: [Section.Kind: Problem] = [:]
+    var missingSection: [Section.Kind: Problem] = [:]
+    var missingMagnificatAntiphon = Problem()
+
+    let alwaysPresent: [Section.Kind] = [.introductio, .psalmodia, .capitulum, .hymnus, .versus, .canticum, .oratio, .conclusio]
+
+    var (day, month, year) = (1, 1, 2025)
+    var daysChecked = 0
+    while true {
+        let dateLabel = "\(year)-\(String(format: "%02d", month))-\(String(format: "%02d", day))"
+        let context = ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        )
+        let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+
+        if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false),
+            let fixtureText = try await OracleFixture.shared.main(year: year, date: dateLabel)
+        {
+            let present = Set(hour.sections.filter { !$0.units.isEmpty }.map(\.kind))
+            for kind in alwaysPresent where !present.contains(kind) {
+                missingSection[kind, default: Problem()].record(date: dateLabel, text: "(no units)")
+            }
+            if let canticum = hour.sections.first(where: { $0.kind == .canticum }),
+                !canticum.units.contains(where: { if case .antiphon = $0 { true } else { false } })
+            {
+                missingMagnificatAntiphon.record(date: dateLabel, text: "(no .antiphon unit in .canticum)")
+            }
+
+            for mismatch in mismatches(hour: hour, fixtureText: fixtureText) {
+                guard let closeBracket = mismatch.firstIndex(of: "]"), mismatch.hasPrefix("[") else { continue }
+                let kindText = mismatch[mismatch.index(after: mismatch.startIndex)..<closeBracket]
+                guard let kind = Section.Kind(rawValue: String(kindText)) else { continue }
+                let text = String(mismatch[mismatch.index(closeBracket, offsetBy: 2)...])
+                contentProblems[kind, default: Problem()].record(date: dateLabel, text: text)
+            }
+        }
+
+        daysChecked += 1
+        if (day, month, year) == (31, 12, 2040) { break }
+        (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
+    }
+
+    func report(_ title: String, _ problems: [Section.Kind: Problem]) -> String {
+        guard !problems.isEmpty else { return "" }
+        var lines = ["-- \(title) --"]
+        for (kind, problem) in problems.sorted(by: { $0.value.days.count > $1.value.days.count }) {
+            lines.append("[\(kind)] \(problem.days.count) day(s), e.g.:")
+            for example in problem.examples {
+                lines.append("    \(example.date): \(example.text.prefix(160))")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    var missingMagnificatReport: [Section.Kind: Problem] = [:]
+    if !missingMagnificatAntiphon.days.isEmpty { missingMagnificatReport[.canticum] = missingMagnificatAntiphon }
+
+    let fullReport = [
+        report("Sections entirely absent/empty", missingSection),
+        report("Canticum missing its Magnificat antiphon", missingMagnificatReport),
+        report("Content not found in the real oracle fixture", contentProblems),
+    ].filter { !$0.isEmpty }.joined(separator: "\n\n")
+
+    #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
+    #expect(fullReport.isEmpty, "\n\(fullReport)")
+}
