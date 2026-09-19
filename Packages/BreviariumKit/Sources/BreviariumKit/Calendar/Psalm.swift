@@ -27,13 +27,25 @@ public struct PsalmVerse: Equatable, Sendable {
 /// "alignment" concern for the (not yet built) English column — deferred rather than
 /// guessed at here, since there's no English content yet to align against.
 public enum Psalm {
+    /// A Bea-numbering cross-reference to the older Vulgate/Douay-Rheims verse split,
+    /// inline in the raw text itself (real example, `Latin-Bea/Psalterium/Psalmorum/
+    /// Psalm115.txt:6`: `"...coram omni pópulo ejus. * (15) Pretiósa est..."`). DO's own
+    /// `horasscripts.pl:397-407` (`handleverses`) confirms this is DO's own numbering
+    /// annotation, not stray source punctuation -- it's wrapped in the same `/:...:/ `
+    /// small-font-footnote convention as the verse's own leading reference number, which
+    /// this app already never renders (`reference` is kept as structured metadata, never
+    /// displayed literally) -- so the consistent treatment is to drop this one from the
+    /// displayed text the same way, not to show it inline as ordinary body text.
+    private nonisolated(unsafe) static let subVerseAnnotation: Regex<AnyRegexOutput> =
+        try! Regex(#"\s*\(\d+[a-z]?\)"#)
+
     public static func parseVerses(_ lines: [String]) -> [PsalmVerse] {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
             let reference = String(line[line.startIndex..<spaceIndex])
             guard reference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
 
-            let text = String(line[line.index(after: spaceIndex)...])
+            let text = String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: "")
             let (first, second) = splitHalves(text)
             return PsalmVerse(reference: reference, firstHalf: first, secondHalf: second)
         }
