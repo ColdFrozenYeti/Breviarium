@@ -189,60 +189,61 @@ final class BreviariumUITests: XCTestCase {
     /// off), and swipeable paging is likewise deferred (`VespersView`'s own doc comment)
     /// -- "page 1" is the scroll's own top, and "a psalmody page" is reached by
     /// scrolling down a fixed amount rather than turning to a specific page number.
-    /// Default and largest text size, both captured within one launch per date.
-    private func captureSnapshotMatrix(dateString: String, namePrefix: String) {
+    ///
+    /// One fresh launch per text size, not one launch reused for both: a scroll-to-top
+    /// gesture between sizes turned out to be unreliable two different ways --
+    /// `swipeDown()` a fixed few times wasn't always enough once "largest" made the
+    /// content noticeably taller (confirmed real: a first attempt left the date line
+    /// half-clipped under the nav header), and the usual fallback, tapping the status
+    /// bar, isn't queryable in this app's own accessibility hierarchy at all
+    /// (`app.statusBars` -- "No matches found"). A fresh launch always starts unscrolled,
+    /// sidestepping scroll-position bookkeeping entirely.
+    private func captureSnapshotMatrix(dateString: String, namePrefix: String, sizeLabel: String, sizeName: String) {
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = dateString
         app.launch()
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
 
-        for (sizeLabel, sizeName) in [("M", "default"), ("XXL", "largest")] {
-            setTextSize(sizeLabel, in: app)
+        setTextSize(sizeLabel, in: app)
+        Thread.sleep(forTimeInterval: 0.3)
 
-            // Tapping the status bar is the standard, reliable way to snap any
-            // UIScrollView-backed view back to its origin -- a fixed handful of
-            // swipeDown() gestures isn't always enough once the larger text size makes
-            // the content noticeably taller, confirmed real: a first attempt without
-            // this left "Dies 9 aprilis 2027" half-clipped under the nav header in the
-            // "largest" capture, the previous size's own scroll position having only
-            // been partly undone.
-            app.statusBars.firstMatch.tap()
+        let page1 = XCTAttachment(screenshot: app.screenshot())
+        page1.name = "\(namePrefix)-\(sizeName)-page1"
+        page1.lifetime = .keepAlways
+        add(page1)
+
+        for _ in 0..<3 {
+            app.swipeUp()
             Thread.sleep(forTimeInterval: 0.3)
-
-            let page1 = XCTAttachment(screenshot: app.screenshot())
-            page1.name = "\(namePrefix)-\(sizeName)-page1"
-            page1.lifetime = .keepAlways
-            add(page1)
-
-            for _ in 0..<3 {
-                app.swipeUp()
-                Thread.sleep(forTimeInterval: 0.3)
-            }
-            let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
-            psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
-            psalmodyPage.lifetime = .keepAlways
-            add(psalmodyPage)
         }
+        let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
+        psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
+        psalmodyPage.lifetime = .keepAlways
+        add(psalmodyPage)
     }
 
     func testSnapshotMatrixFerialDay() {
-        captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial")
+        captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial", sizeLabel: "M", sizeName: "default")
+        captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial", sizeLabel: "XXL", sizeName: "largest")
     }
 
     /// 24 February 2026: S. Matthiæ Apostoli (II. classis) commemorating the Lenten
     /// feria at Vespers -- the exact date `HourAssembler.assembleCommemorations` was
     /// built and verified against this session.
     func testSnapshotMatrixCommemorationDay() {
-        captureSnapshotMatrix(dateString: "2026-02-24", namePrefix: "matrix-commemoration")
+        captureSnapshotMatrix(dateString: "2026-02-24", namePrefix: "matrix-commemoration", sizeLabel: "M", sizeName: "default")
+        captureSnapshotMatrix(dateString: "2026-02-24", namePrefix: "matrix-commemoration", sizeLabel: "XXL", sizeName: "largest")
     }
 
     /// 1 November 2026: All Saints, I. classis.
     func testSnapshotMatrixIClassFeast() {
-        captureSnapshotMatrix(dateString: "2026-11-01", namePrefix: "matrix-feast")
+        captureSnapshotMatrix(dateString: "2026-11-01", namePrefix: "matrix-feast", sizeLabel: "M", sizeName: "default")
+        captureSnapshotMatrix(dateString: "2026-11-01", namePrefix: "matrix-feast", sizeLabel: "XXL", sizeName: "largest")
     }
 
     /// 29 March 2026: Palm Sunday (Easter 2026 falls on 5 April).
     func testSnapshotMatrixHolyWeekDay() {
-        captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek")
+        captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek", sizeLabel: "M", sizeName: "default")
+        captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek", sizeLabel: "XXL", sizeName: "largest")
     }
 }
