@@ -104,7 +104,10 @@ public struct HourAssembler {
                     englishResolver: englishResolver
                 ))
             case "Canticum: Magnificat":
-                sections.append(assembleMagnificat(office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
+                sections.append(assembleMagnificat(
+                    office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                    day: day, month: month, year: year
+                ))
             case "Oratio":
                 // Ports orationes.pl:34,63-74's `$ind = $hora eq 'Vespera' ? $vespera : 2`
                 // priority: an `[Oratio 1]` (first Vespers) or `[Oratio 3]` (second
@@ -848,7 +851,10 @@ public struct HourAssembler {
     /// this section** (only that `[Ant 3]` is right for *this* rank on second Vespers),
     /// so a higher-ranked feast that should actually get one of `[Ant Vespera $ind]`'s
     /// numbered candidates is a known open question, not a closed one.
-    private func assembleMagnificat(office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> Section {
+    private func assembleMagnificat(
+        office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?,
+        day: Int, month: Int, year: Int
+    ) -> Section {
         // `"Ant 3"` is keyed by the same first/second-Vespers index as `assemblePsalmodia`'s
         // `Ant Vespera 3` and the Oratio case's `Oratio 3` (`orationes.pl:34`'s `$ind` --
         // 1 for first Vespers, 3 for second): `[Ant 1]`/`[Ant 3]` sit right after
@@ -858,9 +864,26 @@ public struct HourAssembler {
         let ind = macroContext.isFirstVespers ? 1 : 3
         let communeReference = macroContext.winningRank.communeReference
         var units: [Unit] = []
-        let plainLocation = resolvedLocation(office: office, communeReference: communeReference, section: "Ant \(ind)", resolver: resolver)
+        // Found via a real device test: an ordinary "time after Pentecost" Sunday's own
+        // temporal file (`Tempora/PentNN-0`) defines no `[Ant 1]` of its own, and has no
+        // Commune fallback either (it's temporal), so first Vespers was silently
+        // rendering with no antiphon at all. `officestring()`'s own "monthday" merge
+        // (`monthdayLocation`) and, failing that, the `Psalterium/Special/Major
+        // Special.txt` fallback (`majorSpecialAntLocation`) are DO's own two remaining
+        // tiers, tried in the same order `getantvers`/`getproprium` try them -- confirmed
+        // against two real fixtures: 19-20 September 2026 (the monthday merge supplies
+        // `Tempora/093-0`'s own `[Ant 1]`, "Ne reminiscáris, Dómine..."), and 17-18
+        // January 2026, where month < 7 so the monthday merge doesn't apply at all, and
+        // the real antiphon ("Suscépit Deus Israël...") comes from Major Special's own
+        // `[Feria7 Ant 3]` instead.
+        let antSection = "Ant \(ind)"
+        let monthdayLoc = monthdayLocation(
+            office: office, section: antSection, day: day, month: month, year: year, tomorrow: macroContext.isFirstVespers, resolver: resolver
+        )
+        let plainLocation = resolvedLocation(office: office, communeReference: communeReference, section: antSection, resolver: resolver)
         let numberedLocation = resolvedLocation(office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver)
-        if let location = plainLocation ?? numberedLocation {
+        let majorSpecialLoc = majorSpecialAntLocation(ind: ind, dayOfWeek: macroContext.dayOfWeek, resolver: resolver)
+        if let location = monthdayLoc ?? plainLocation ?? numberedLocation ?? majorSpecialLoc {
             let text = resolver.resolve(path: location.path, section: location.section)
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
@@ -881,6 +904,61 @@ public struct HourAssembler {
         units.append(contentsOf: magnificatVerses(resolver: resolver, englishResolver: englishResolver))
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
         return Section(kind: .canticum, units: units)
+    }
+
+    /// `officestring()`'s own "monthday" merge (`SetupString.pl:723-780`, ported to
+    /// `Computus.monthday`), scoped to the one field this project's Vespers-only alpha
+    /// needs from it: the first-Vespers Magnificat antiphon on an ordinary "time after
+    /// Pentecost"/"after Epiphany" Sunday whose own temporal file doesn't define
+    /// `[Ant 1]`. The real merge overwrites *any* key the monthday file defines onto
+    /// the winner's own hash unconditionally (`SetupString.pl:772-778`), so this is
+    /// checked *before* the office's own direct lookup, not as a fallback after it —
+    /// though in practice a Pent/Epi file and its monthday counterpart never define the
+    /// same `Ant` index, so the distinction is untested, not just unlikely.
+    private func monthdayLocation(
+        office: String, section: String, day: Int, month: Int, year: Int, tomorrow: Bool, resolver: SectionResolver
+    ) -> (path: String, section: String)? {
+        guard Self.participatesInMonthdayMerge(office: office) else { return nil }
+        guard let key = Computus.monthday(day: day, month: month, year: year, tomorrow: tomorrow) else { return nil }
+        let path = "Tempora/\(key)"
+        return resolver.sectionExists(path: path, section: section) ? (path, section) : nil
+    }
+
+    /// `officestring()`'s own gate for whether the monthday merge applies at all
+    /// (`SetupString.pl:735-736`): ordinary "time after Pentecost"/"after Epiphany"
+    /// temporal files, excluding `Pent01`-`Pent05` (the weeks nearest Trinity Sunday,
+    /// which keep their own proper texts throughout and never reach into the
+    /// month/week Scripture cycle).
+    private static func participatesInMonthdayMerge(office: String) -> Bool {
+        guard office.range(of: #"^Tempora[^/]*/(Pent|Epi)"#, options: .regularExpression) != nil else { return false }
+        return office.range(of: #"^Tempora[^/]*/Pent0[1-5]"#, options: .regularExpression) == nil
+    }
+
+    /// `getfrompsalterium`'s own fallback order for a Magnificat antiphon miss
+    /// (`ind`, then 1, then 3, then 2 -- `specials.pl:648-651`, the same order
+    /// `majorSpecialLocation` already uses for `Versum`), confirmed real for 17-18
+    /// January 2026 (`Tempora/Epi2-0`, month < 7 so the monthday merge above doesn't
+    /// apply): the real antiphon is Major Special's own `[Feria Ant 3]` (`(feria 7)`
+    /// cross-referencing `[Feria7 Ant 3]`, "Suscépit Deus Israël..."), not `[Feria
+    /// Ant 1]`, which doesn't exist.
+    ///
+    /// **One real placeholder skipped**: Major Special's own `[Dominica Ant 2]`/`[Ant
+    /// 3]` (reached only when *today itself*, not tomorrow, is a Sunday) resolve to
+    /// `/:ut in Proprio de Tempore:/` -- DO's own small-font inline-comment convention
+    /// (`horas.pl:190`), not real antiphon text; rendered as-is it would show that
+    /// literal Latin phrase as if it were the antiphon, so a match starting with `/:`
+    /// is treated as absent rather than DO's own real (but out of this project's
+    /// rendering scope) small-font substitution.
+    private func majorSpecialAntLocation(ind: Int, dayOfWeek: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+        let path = "Psalterium/Special/Major Special"
+        let dominicaOrFeria = dayOfWeek == 0 ? "Dominica" : "Feria"
+        for candidate in [String(ind), "1", "3", "2"] {
+            let name = "\(dominicaOrFeria) Ant \(candidate)"
+            guard resolver.sectionExists(path: path, section: name) else { continue }
+            guard !resolver.resolve(path: path, section: name).hasPrefix("/:") else { continue }
+            return (path, name)
+        }
+        return nil
     }
 
     /// The Magnificat canticle text lives alongside the psalms proper, in

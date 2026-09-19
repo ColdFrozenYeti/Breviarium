@@ -71,6 +71,74 @@ public enum Computus {
         return christmas - daysSinceSunday - 21
     }
 
+    /// The "monthday" key (`"mmw-d"`, e.g. `"093-1"` for Monday after the third Sunday
+    /// of September) `officestring()` uses to find that week's Scripture-cycle file
+    /// (`Tempora/093-0.txt` etc.) and merge it into an ordinary "time after
+    /// Pentecost"/"after Epiphany" Sunday or feria's own office — ports `monthday()`
+    /// (`Date.pm:178-233`), hardcoded to the 1960-rubrics (`$modernstyle`) branches
+    /// throughout since this project only ever renders "Rubrics 1960 - 1960". `nil`
+    /// before July or once Advent begins (`Date.pm`'s own scope for this cycle).
+    ///
+    /// `tomorrow`: computes as if for the *next* day (`Date.pm`'s own `$tomorrow` flag,
+    /// passed when finding the antiphon/lesson for a first-Vespers-of-tomorrow page —
+    /// `today`'s own `day`/`month`/`year` are still passed as-is; the shift happens
+    /// internally, exactly as `officestring($lang, $winner, $flag)`'s caller never
+    /// changes `$day` itself for this).
+    public static func monthday(day: Int, month: Int, year: Int, tomorrow: Bool) -> String? {
+        guard month >= 7 else { return nil }
+
+        var dayOfYearValue = dayOfYear(day: day, month: month, year: year)
+        if tomorrow { dayOfYearValue += 1 }
+
+        var litMonth = 0
+        var firstSundayDayOfYear: [Int: Int] = [:]
+        for m in 8...12 {
+            let firstOfMonth = dayOfYear(day: 1, month: m, year: year)
+            let weekday = dayOfWeek(day: 1, month: m, year: year)
+            // `Date.pm:194`'s `$dofweek >= 4 || ($dofweek and $modernstyle)` reduces to
+            // "push to the next Sunday unless the 1st is already one" once modernstyle
+            // (always true here) is fixed: the Sunday on or after the 1st of the month.
+            var fsdoy = firstOfMonth - weekday
+            if weekday != 0 { fsdoy += 7 }
+            firstSundayDayOfYear[m] = fsdoy
+
+            if dayOfYearValue >= fsdoy {
+                litMonth = m
+            } else {
+                break
+            }
+        }
+        guard litMonth != 0 else { return nil }
+
+        var advent = 0
+        if litMonth > 10 {
+            advent = firstSundayOfAdvent(year: year)
+            guard dayOfYearValue < advent else { return nil }
+        }
+
+        var week = (dayOfYearValue - firstSundayDayOfYear[litMonth]!) / 7
+
+        // October, 1960 rubrics: the III. week vanishes when its Sunday would fall on
+        // the 18th-21st, i.e. when October's own first Sunday falls on the 4th-7th.
+        if litMonth == 10, week >= 2 {
+            let octoberFirstSunday = date(dayOfYear: firstSundayDayOfYear[10]!, year: year)
+            if octoberFirstSunday.day >= 4 { week += 1 }
+        }
+
+        // November, 1960 rubrics: the II. week vanishes every year -- counted backward
+        // from Advent instead of forward from the 1st, unconditionally under
+        // modernstyle (`Date.pm:224`'s own `|| $modernstyle`).
+        if litMonth == 11 {
+            week = 4 - Int(floor(Double(advent - dayOfYearValue - 1) / 7))
+            if week == 1 { week = 0 }
+        }
+
+        var weekday = dayOfWeek(day: day, month: month, year: year)
+        if tomorrow { weekday = (weekday + 1) % 7 }
+
+        return String(format: "%02d%01d-%01d", litMonth, week + 1, weekday)
+    }
+
     /// Adds `days` (positive or negative) to a calendar date, returning the result.
     /// Not present in `Date.pm` under this name, but built from the same
     /// day-of-year/day-of-week primitives as `prevnext()` (`Date.pm:229-238`) rather

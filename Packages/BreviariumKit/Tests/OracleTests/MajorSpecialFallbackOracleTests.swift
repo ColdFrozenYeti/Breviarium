@@ -53,3 +53,60 @@ import Testing
     #expect(fixture.contains("Iam sol recédit ígneus"))
     #expect(fixture.contains("Vespertína orátio ascéndat ad te"))
 }
+
+// Found via the same real device test as the Capitulum/Hymnus/Versus gap above: an
+// ordinary "time after Pentecost"/"after Epiphany" Sunday's own temporal file defines
+// no `[Ant 1]` (first Vespers), so the Magnificat antiphon was silently missing too.
+// `officestring()`'s own "monthday" merge (`Computus.monthday`,
+// `HourAssembler.monthdayLocation`) and, when that doesn't apply, the Major Special
+// fallback (`majorSpecialAntLocation`) are DO's own two remaining tiers.
+
+@Test func magnificatAntiphonUsesTheMonthdayMergeForAnOrdinarySundayInSeptember() async throws {
+    // 19 September 2026 (Saturday): first Vespers of Sunday XVII post Pentecosten.
+    // `Tempora/Pent17-0` has no `[Ant 1]` of its own; the real antiphon is `Tempora/
+    // 093-0.txt`'s own `[Ant 1]` ("Ne reminiscáris..."), September's third
+    // Matins-lesson week, merged in by `officestring()` since month >= 7.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable)
+    let context = ConditionalContextBuilder.build(
+        day: 19, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 19, month: 9, year: 2026, priest: false))
+
+    let canticum = try #require(hour.sections.first { $0.kind == .canticum })
+    guard case .antiphon(let antiphonText, _) = try #require(canticum.units.first) else {
+        Issue.record("expected an .antiphon canticum unit")
+        return
+    }
+    #expect(antiphonText.contains("Ne reminiscáris"))
+
+    let fixture = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-09-19"))
+    #expect(fixture.contains("Ne reminiscáris"))
+}
+
+@Test func magnificatAntiphonFallsBackToMajorSpecialBeforeJuly() async throws {
+    // 17 January 2026 (Saturday): first Vespers of Dominica II post Epiphaniam.
+    // `Tempora/Epi2-0` has no `[Ant 1]` of its own, and month < 7 so the monthday merge
+    // doesn't apply at all -- the real antiphon is Major Special's own `[Feria Ant 3]`
+    // (`(feria 7)` cross-referencing `[Feria7 Ant 3]`, "Suscépit Deus Israël...").
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable)
+    let context = ConditionalContextBuilder.build(
+        day: 17, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 17, month: 1, year: 2026, priest: false))
+
+    let canticum = try #require(hour.sections.first { $0.kind == .canticum })
+    guard case .antiphon(let antiphonText, _) = try #require(canticum.units.first) else {
+        Issue.record("expected an .antiphon canticum unit")
+        return
+    }
+    #expect(antiphonText.contains("Suscépit Deus"))
+
+    let fixture = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-01-17"))
+    #expect(fixture.contains("Suscépit Deus"))
+}

@@ -85,6 +85,33 @@ import Testing
     #expect(Computus.sanctoralKey(day: 25, month: 2, year: 2025) == "02-25")
 }
 
+@Test func monthdayMatchesTheRealScriptureCycleForSeptember2026() {
+    // 19-20 September 2026 (Saturday/Sunday): `Tempora/093-0.txt`'s own key --
+    // confirmed against the real oracle fixture (`MajorSpecialFallbackOracleTests`'s
+    // `magnificatAntiphonUsesTheMonthdayMergeForAnOrdinarySundayInSeptember`). Computed
+    // either directly for the Sunday itself, or with `tomorrow: true` from the
+    // preceding Saturday -- both must land on the same key.
+    #expect(Computus.monthday(day: 20, month: 9, year: 2026, tomorrow: false) == "093-0")
+    #expect(Computus.monthday(day: 19, month: 9, year: 2026, tomorrow: true) == "093-0")
+    // Without the tomorrow-shift, the 19th (a real Saturday) is still week II's own
+    // Saturday ("092-6") -- the week number only increments at the Sunday that starts
+    // week III (the 20th) -- confirming `tomorrow` genuinely changes which week/weekday
+    // this resolves to, not just the weekday digit.
+    #expect(Computus.monthday(day: 19, month: 9, year: 2026, tomorrow: false) == "092-6")
+}
+
+@Test func monthdayIsNilBeforeJuly() {
+    #expect(Computus.monthday(day: 30, month: 6, year: 2026, tomorrow: false) == nil)
+    #expect(Computus.monthday(day: 17, month: 1, year: 2026, tomorrow: true) == nil)
+}
+
+@Test func monthdayIsNilOnceAdventBegins() {
+    let year = 2026
+    let advent1 = Computus.firstSundayOfAdvent(year: year)
+    let (day, month) = Computus.date(dayOfYear: advent1, year: year)
+    #expect(Computus.monthday(day: day, month: month, year: year, tomorrow: false) == nil)
+}
+
 @Test func addDaysHandlesYearBoundaries() {
     #expect(Computus.addDays(1, day: 31, month: 12, year: 2025) == (1, 1, 2026))
     #expect(Computus.addDays(-1, day: 1, month: 1, year: 2026) == (31, 12, 2025))

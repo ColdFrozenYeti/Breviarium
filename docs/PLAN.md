@@ -1031,13 +1031,38 @@ the `!` citation marker and `v.` drop-cap marker, turning the closing `R.` into 
 tests pass again, and the new Major Special fallback test
 (`MajorSpecialFallbackOracleTests.swift`) passes for 19 September 2026.
 
-*The missing Magnificat antiphon*, by contrast, is **not fixed this pass** — investigated
-and confirmed to be a separate, deeper mechanism: DO's weekly Scripture-cycle antiphon
-rotation (`getseant()`, `Tabulae/Stransfer`) picks the Magnificat antiphon for an ordinary
-Sunday's first Vespers from a source this project hasn't ported at all (the winning
-office — an ordinary `Tempora/PentNN-0` file — defines no `[Ant 1]`/`[Ant Vespera 1]` and
-has no Commune fallback, so `assembleMagnificat` currently finds nothing to show). Flagged
-honestly rather than guessed at; needs its own dedicated investigation before the beta.
+*The missing Magnificat antiphon* was fixed in a follow-up pass the same day, once traced
+properly — the first investigation's guess (`getseant()`/`Tabulae/Stransfer`) turned out to
+be wrong: that mechanism only fires when the winning office matches `Tempora/Quadp[12]`
+(a narrow Lent/Passiontide branch), never for an ordinary "time after Pentecost"/"after
+Epiphany" Sunday. The real mechanism is `officestring()`'s own "monthday" merge
+(`SetupString.pl:717-780`): for any `Tempora/Pent*`/`Tempora/Epi*` file (except `Pent01`-
+`Pent05`), DO transparently merges in that calendar week's Matins-lesson file (e.g.
+`Tempora/093-0.txt`, "Dominica III. Septembris" — the historic monthly course of
+Scripture, keyed by month and week-of-month, wholly independent of the Pentecost-count
+numbering) *before* the office's own content is used at all. That merged-in file is where
+the first-Vespers Magnificat antiphon actually lives when the Pentecost-numbered file
+itself has none. Ported as `Computus.monthday` (`Date.pm:178-233`) plus
+`HourAssembler.monthdayLocation`, confirmed against the real 19-20 September 2026 fixture
+("Ne reminiscáris, Dómine..." — `Tempora/093-0`'s own `[Ant 1]`). For dates before July,
+where the monthday merge doesn't apply at all (`Date.pm:180`), DO's own next tier is the
+already-implemented `Psalterium/Special/Major Special.txt` fallback — extended to cover
+`Ant` sections too and confirmed against 17-18 January 2026 ("Suscépit Deus Israël...").
+
+That extension surfaced a genuine, previously-latent parser bug, not a Magnificat-specific
+one: `RawSectionParser.qualifySelfReferences` only qualified a same-file `@:Name`
+reference when it was the *first character* of the raw source line — which silently
+failed for the common `(condition) @:Name` shape (a `(feria N)`-conditioned line with the
+inclusion on the same line, real example: Major Special's own `[Feria Ant 3]`, six lines
+each shaped exactly like this), since the leading condition clause is only stripped later,
+at resolve time, by `ConditionalLineProcessor` — long after the parse-time qualification
+step had already looked at the line, seen a `(` instead of an `@`, and skipped it. The
+result: the literal text `"@:Feria2 Ant 3"` rendered verbatim instead of being followed.
+Fixed by stripping a leading `(condition)` clause (via `ConditionalGrammar.matchLeadingClause`,
+already used elsewhere for exactly this grammar) before checking for `@`, confirmed via a
+regression this exact gap broke (`plainFeriaMatchesTheRealOracleFor19January2026`) once
+this session's own `majorSpecialAntLocation` became the first caller to actually reach a
+multi-branch conditional `@:` reference like this.
 
 All Kit tests pass (`swift test`), including the full 2025-2040 oracle sweep and the new
 oracle-fixture-backed tests above.

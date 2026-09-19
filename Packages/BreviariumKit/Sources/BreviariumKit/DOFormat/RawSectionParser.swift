@@ -159,10 +159,35 @@ public enum RawSectionParser {
 
     /// Fills in a bare `@` reference's missing filename/keyword with the current
     /// file/section, mirroring `SetupString.pl:353-358`'s `$InclusionRegex` substitution.
-    /// Only applies to lines that are themselves a `@`-reference; everything else is
-    /// returned unchanged.
+    /// Only applies to lines that are themselves a `@`-reference (allowing for a leading
+    /// `(condition)` clause first — see below); everything else is returned unchanged.
     private static func qualifySelfReferences(_ line: String, fileName: String, currentSection: String) -> String {
-        guard line.first == "@", let match = try? inclusionRegex.firstMatch(in: line) else { return line }
+        if line.first == "@" {
+            return qualifyReferenceLine(line, fileName: fileName, currentSection: currentSection)
+        }
+
+        // A per-line conditional body (`ConditionalLineProcessor`'s own scope, evaluated
+        // only at *resolve* time) can put a `(condition)` clause directly ahead of an
+        // inclusion on the same line -- confirmed real:
+        // `Psalterium/Special/Major Special.txt`'s own `[Feria Ant 3]`, whose body is six
+        // lines each shaped `(feria N) @:FeriaN Ant 3`. Run at *parse* time, before any
+        // condition has been evaluated or stripped, this qualification step used to bail
+        // out immediately on a line like that (its first character is `(`, not `@`), so
+        // the bare `@:Name` reached `SectionResolver` still unqualified once
+        // `ConditionalLineProcessor` later stripped the clause -- and `SectionResolver`'s
+        // own inclusion parser requires an explicit file name before the colon, so it
+        // silently fell through and rendered the literal `"@:FeriaN Ant 3"` text instead
+        // of following it. Found via a real device test (a missing Magnificat antiphon)
+        // that finally exercised this fallback tier for the first time.
+        guard let (_, rest) = ConditionalGrammar.matchLeadingClause(in: Substring(line)) else { return line }
+        let trimmedRest = rest.drop(while: { $0 == " " || $0 == "\t" })
+        guard trimmedRest.first == "@" else { return line }
+        let clausePrefix = String(line[line.startIndex..<trimmedRest.startIndex])
+        return clausePrefix + qualifyReferenceLine(String(trimmedRest), fileName: fileName, currentSection: currentSection)
+    }
+
+    private static func qualifyReferenceLine(_ line: String, fileName: String, currentSection: String) -> String {
+        guard let match = try? inclusionRegex.firstMatch(in: line) else { return line }
 
         let capturedFile = match.output[1].substring.map(String.init)
         let capturedKeyword = match.output[2].substring.map(String.init)
