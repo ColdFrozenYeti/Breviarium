@@ -159,7 +159,7 @@ public struct Commemorations {
         let resolver = SectionResolver(corpus: corpus, context: context)
         var results: [Commemoration] = []
 
-        let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year)
+        let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar)
         if temporalPath != winnerPath,
             let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
         {

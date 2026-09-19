@@ -122,7 +122,9 @@ public enum ConditionalContextBuilder {
             rule = resolver.resolve(path: occurrence.winningPath, section: "Rule")
             winningKey = String(occurrence.winningPath.split(separator: "/").last ?? "")
         }
-        let temporalKey = String(Occurrence.temporalPath(day: day, month: month, year: year).split(separator: "/").last ?? "")
+        let temporalKey = String(
+            Occurrence.temporalPath(day: day, month: month, year: year, calendar: sanctoralCalendar).split(separator: "/").last ?? ""
+        )
 
         let tempore = TemporalCycle.tempusID(
             weekName: weekName, rubrica: rubrica, month: month, day: day, dayOfWeek: dayOfWeek, isVespersOrCompline: isVespersOrCompline

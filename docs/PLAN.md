@@ -1095,22 +1095,71 @@ Two real, high-volume bugs found and fixed on the first run:
   half-followed chain). Fixed by making `resolvedLocation` itself daisy-chain, capped at 5
   hops like the real Perl.
 
-**Not yet fixed, found by the same run**: a much larger remaining body of Hymnus
-(~3,956 days)/Psalmodia (~3,576)/Oratio-content (~1,992)/Versus (~1,876)/Capitulum
-(~1,197)/Canticum (~809) mismatches survives even after both fixes above. Spot-checked one
-(4 January 2025's Hymnus: real DO renders "Iesu, dulcis memória..." — the Holy Name of
-Jesus hymn — where this project's engine renders 2 January's own Christmas hymn instead,
-despite both dates sharing the identical `"vide Sancti/01-01"` commune reference) — the
-real rubric evidently disambiguates between the several overlapping Christmas-octave/
-Holy-Name-season observances by *date*, not purely by following the commune chain
-mechanically, the same class of `gettempora()`-branch gap M4's own doc comment already
-flagged as "only the ordinary time-after-Pentecost branches were reconstructed, not
-Advent/Lent/Paschaltide/Epiphany-resumption" — now confirmed to extend into early January
-specifically too, and evidently reaches much further (by day count) than that earlier,
-narrower characterisation suggested. **This is a substantial dedicated-pass undertaking on
-its own** — tracing `gettempora()`'s remaining real branches properly, the same way M4's
-original "time after Pentecost" pass was done — not a quick follow-on fix, and is being
-reported to you rather than attempted piecemeal.
+**Continued the same day ("we have got to fix this"), with Docker running the pinned DO
+checkout locally as ground truth** (`docker compose -f scripts/docker/docker-compose.yml
+up --build -d`, then invoking `officium.pl` directly inside the container exactly as
+`data/SOURCE.md` documents, and in one case patching a temporary `warn` into a copy of
+`capitulis.pl` inside the running container to print `$winner`/`%winner` directly — never
+committed, the container was torn down afterward). Found and fixed four more real bugs
+this way, each confirmed against a real fixture or the running engine directly, not
+guessed:
+
+- **A January-specific temporal transfer this project's transfer-table support hadn't
+  covered.** `SanctoralCalendar.transferredCandidates` already handled `Tabulae/
+  Transfer/*.txt` entries whose *source* is a Sancti reference; it explicitly skipped
+  entries whose source is a `Tempora/...` path (`TransferResolver`'s own documented
+  scope limit). Real example, found by patching `capitulis.pl` to print `$winner`
+  directly: `Tabulae/Transfer/e.txt`'s own `01-05=Tempora/Nat2-0` (2025's own dominical
+  letter) means 5 January 2025's real winning temporal file is `Tempora/Nat2-0.txt` (a
+  "Holy Name of Jesus"-season Sunday file), not the plain day-numbered `Tempora/Nat05`
+  this project's own week-name arithmetic would otherwise compute — and, since 4
+  January's own second Vespers is outranked by that Sunday's first Vespers, the same
+  wrong path was silently feeding into *its* Vespers too. Added
+  `SanctoralCalendar.transferredTemporalPath` (the analogous lookup for a `Tempora/`-
+  sourced entry) and a calendar-aware `Occurrence.temporalPath(day:month:year:calendar:)`
+  overload, wired into every real call site (`Occurrence.resolve`,
+  `Commemorations.runnersUp`, `ConditionalContextBuilder.build`).
+- **The psalm-antiphon Commune fallback was missing a guard `psalmi.pl:450` actually
+  has.** The `Ant Vespera 3` lookup's own Commune extension is gated not just on an
+  `"ex"`-type commune reference, but on the office's own file having *neither* the
+  numbered form *nor the plain* `[Ant Vespera]` — `elsif (!exists($w{'Ant Vespera'}) &&
+  ...)`. Missing that second half let an office with its own real plain `[Ant Vespera]`
+  (but no numbered `3` form) wrongly reach into an `"ex"`-type Commune that separately
+  happens to define *its own* `[Ant Vespera 3]`, instead of using the office's own plain
+  antiphons. Real, confirmed example: 1 January (`Sancti/01-01`, `"ex Sancti/12-25"`)
+  has its own plain `[Ant Vespera]` ("O admirábile commércium..."), but `Sancti/12-25`
+  (Christmas) also happens to define its own `[Ant Vespera 3]` ("Tecum princípium...",
+  Psalm 109's ordinary Sunday antiphon) — this project's engine was wrongly reaching the
+  latter. Fixed by adding the missing guard to `assemblePsalmodia`.
+- **A hymn stanza can carry its own leading `* ` marker**, confirmed real via the 5
+  January 2026 fixture (the closing "Iesu, tibi sit glória..." doxology of the Epiphany
+  hymn, `Sancti/01-06.txt`'s own `[Hymnus Vespera]`) — not referenced anywhere in DO's
+  own Perl (the same "found by comparing real fixtures, not cited" situation as the
+  `v. ` drop-cap marker already handled), stripped the same way.
+- **`hymnusmajor`'s own `checkmtv()` (`specials/hymni.pl:67-72`, `specials.pl:532-539`)**:
+  "after 'Cum Nostra Hac Aetate'" — Pope John XXIII's 1960 motu proprio reforming the
+  rubrics — "the verse has always changed" for the Confessor commons specifically
+  (`$winner{Rule} =~ /C[45]/`). 1960 swaps in a revised classical-meter hymn text, stored
+  under a separate `"Hymnus1 …"` key this project had never looked up at all — real
+  example, `Commune/C4.txt`'s own `[Hymnus1 Vespera]`, confirmed against the real 14
+  January 2025 fixture (S. Hilary): "méruit beátas Scándere sedes" (traditional) becomes
+  "méruit suprémos Laudis honóres" (revised) under 1960 specifically.
+
+Combined effect on the same 2025-2040 sweep: Oratio-entirely-missing 895→52 days;
+Hymnus 3,983→1,906 days — the single biggest mover, roughly halved by the last two fixes
+above. **Psalmodia (~3,560) barely moved** — spot-checking it turned up the *already-
+known, already-deferred* Bea/Vulgate half-verse boundary-mapping gap (M4's own "Not yet
+attempted" note, above) dominating that count, not a new bug; not re-opened here.
+**Oratio-content (~1,993)/Versus (~1,855)/Capitulum (~1,176)/Canticum (~789) remain
+largely unmoved** — spot-checking one more (30 January 2025, S. Martina Virgin *and
+Martyr*: this project renders the Common-of-Virgins hymn "Iesu, coróna Vírginum," but the
+real fixture's hymn, "Tu natale solum protege...", matches neither that Common nor its
+Virgin-Martyr counterpart directly — likely her own proper text, not yet traced) confirms
+this is still the same class of gap as before: individual, date/office-specific
+selection branches (`gettempora()`'s remaining real branches, proper-vs-Commune
+disambiguation for offices with more than one plausible source) that need tracing one at
+a time, the same way each of the last four fixes was — a long tail, not a handful of
+remaining root causes. Reported to you rather than continuing to guess at it blind.
 
 ### M5 — User interface
 

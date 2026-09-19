@@ -86,12 +86,32 @@ public struct Occurrence {
         return "Tempora/\(week)-\(weekday)"
     }
 
+    /// The same computation, but consulting `calendar`'s own annual transfer table
+    /// first — the January analogue of the December 26-31 case above, and (unlike that
+    /// one) not something this project's own week-name arithmetic can reconstruct by
+    /// pattern alone, since it's genuinely a per-year *dominical-letter* lookup, not a
+    /// fixed rule. Real, confirmed example (a debug trace against the real pinned DO
+    /// engine in Docker, not guessed): `Tabulae/Transfer/e.txt`'s own `01-05=Tempora/
+    /// Nat2-0` (2025's own dominical letter) means 5 January 2025's real winning
+    /// temporal file is `Tempora/Nat2-0.txt`, not the plain day-numbered `Tempora/
+    /// Nat05` this project's own week-name computation would otherwise return —
+    /// confirmed by patching `capitulis.pl` in the pinned container to print `$winner`
+    /// directly. Found via a full 2025-2040 content audit: this single gap alone
+    /// accounted for a large share of the thousands of wrong Hymnus/Capitulum/Versus/
+    /// Oratio/Psalmodia days that audit found across the whole range, since every date
+    /// within reach of a January transfer target (the target Sunday itself, its own
+    /// first Vespers the evening before, and any commemoration runner-up lookup for
+    /// nearby days) was computing its temporal file from the wrong path.
+    public static func temporalPath(day: Int, month: Int, year: Int, calendar: SanctoralCalendar) -> String {
+        calendar.transferredTemporalPath(day: day, month: month, year: year) ?? temporalPath(day: day, month: month, year: year)
+    }
+
     public func resolve(day: Int, month: Int, year: Int) -> OccurrenceResult? {
         let resolver = SectionResolver(corpus: corpus, context: context)
         let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
         let isSunday = weekday == 0
 
-        let temporalPath = Self.temporalPath(day: day, month: month, year: year)
+        let temporalPath = Self.temporalPath(day: day, month: month, year: year, calendar: calendar)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
 
         // The first sanctoral candidate with a real [Rank] is the one occurrence()

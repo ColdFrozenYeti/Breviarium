@@ -47,6 +47,32 @@ public struct SanctoralCalendar: Sendable {
     /// every `~`-joined piece is Sancti-style — see `TransferResolver`'s own doc comment
     /// for why a `Tempora/`-referencing or `"X-X"` piece isn't handled by this method.
     private func transferredCandidates(targetKey: String, year: Int) -> [String]? {
+        guard let source = transferSource(targetKey: targetKey, year: year) else { return nil }
+        let pieces = source.split(separator: "~").map(String.init).filter { !$0.isEmpty }
+        guard !pieces.isEmpty, pieces.allSatisfy(Self.isSanctiStyleTransferSource) else { return nil }
+        return pieces
+    }
+
+    /// The analogous lookup to `transferredCandidates`, for a transfer entry whose
+    /// source is a `Tempora/...` path rather than a Sancti reference — real example:
+    /// `01-05=Tempora/Nat2-0` (under 2025's own dominical letter), redirecting 5
+    /// January's Vespers to a week-numbered Sunday file instead of the plain
+    /// day-numbered `Tempora/Nat05`, confirmed against the real DO engine directly (a
+    /// debug trace inside the pinned Docker container, not guessed): `$winner` there is
+    /// literally `Tempora/Nat2-0.txt`, not `Tempora/Nat04`/`Nat05`. `nil` falls through
+    /// to the ordinary week-name computation (`TemporalCycle.weekName`).
+    public func transferredTemporalPath(day: Int, month: Int, year: Int) -> String? {
+        let key = Computus.sanctoralKey(day: day, month: month, year: year)
+        guard let source = transferSource(targetKey: key, year: year), source.hasPrefix("Tempora/"), !source.contains("~")
+        else { return nil }
+        return source
+    }
+
+    /// The merged transfer-table lookup shared by `transferredCandidates` and
+    /// `transferredTemporalPath` — letter file first, then the exact Easter-`MMDD`
+    /// numeric file overriding it for the same key, matching `Directorium.pm`'s own
+    /// `load_transfers` push order (a later push wins the hash).
+    private func transferSource(targetKey: String, year: Int) -> String? {
         guard !transferTable.isEmpty else { return nil }
 
         let easter = Computus.easter(year: year)
@@ -59,11 +85,7 @@ public struct SanctoralCalendar: Sendable {
         var source: String?
         if let letterFile = transferTable[letterKey], let value = letterFile[targetKey] { source = value }
         if let numericFile = transferTable[numericKey], let value = numericFile[targetKey] { source = value }
-
-        guard let source, !source.isEmpty else { return nil }
-        let pieces = source.split(separator: "~").map(String.init).filter { !$0.isEmpty }
-        guard !pieces.isEmpty, pieces.allSatisfy(Self.isSanctiStyleTransferSource) else { return nil }
-        return pieces
+        return source?.isEmpty == false ? source : nil
     }
 
     private static func isSanctiStyleTransferSource(_ reference: String) -> Bool {

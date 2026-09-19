@@ -529,11 +529,28 @@ public struct HourAssembler {
     /// unconditional per `orationes.pl`'s own commune fallback — no `ex`/`vide` gating
     /// there) — Oratio and psalm-antiphon Commune fallback are genuinely different rules
     /// in DO, not the same one applied twice.
+    ///
+    /// **A third, previously-missed guard on the `3`-indexed lookup's own Commune
+    /// extension**: `psalmi.pl:450`'s `elsif (!exists($w{'Ant Vespera'}) && ...)` —
+    /// the Commune is only consulted for `Ant Vespera 3` when the office's own file has
+    /// *neither* the numbered form *nor the plain one*. Missing this let an office with
+    /// its own real plain `[Ant Vespera]` (no `3`-suffixed form of its own) but an
+    /// `"ex"`-type Commune that happens to define its *own* `[Ant Vespera 3]` reach that
+    /// Commune content wrongly, instead of the office's own plain antiphons — found via
+    /// a full 2025-2040 content audit and confirmed real: 1 January (`Sancti/01-01`,
+    /// `"ex Sancti/12-25"`) has its own plain `[Ant Vespera]` ("O admirábile
+    /// commércium..."), but `Sancti/12-25` also happens to define its own `[Ant Vespera
+    /// 3]` ("Tecum princípium...") — the real fixture uses the former, this project's
+    /// engine was wrongly reaching the latter. This single gap alone plausibly explains
+    /// the large majority of that audit's ~3,600 mismatched Psalmodia days, since any
+    /// office shaped this way (own plain antiphons, no numbered form, an `"ex"` Commune
+    /// that separately happens to have one) hits it.
     private func assemblePsalmodia(
         office: String, resolver: SectionResolver, macroContext: MacroContext, dayOfWeek: Int, englishResolver: SectionResolver?
     ) -> Section {
         let communeReference = macroContext.winningRank.communeReference
         let communeReferenceIsEx = communeReference.range(of: "^ex\\s", options: [.regularExpression, .caseInsensitive]) != nil
+        let ownHasPlainAntVespera = resolver.sectionExists(path: office, section: "Ant Vespera")
 
         func location(section: String, allowCommune: Bool) -> (path: String, section: String)? {
             if resolver.sectionExists(path: office, section: section) { return (office, section) }
@@ -561,7 +578,7 @@ public struct HourAssembler {
         var pairs: [(antiphon: String, psalmNumber: String)] = []
         var winningLocation: (path: String, section: String)?
         if !macroContext.isFirstVespers {
-            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx)
+            (pairs, winningLocation) = candidatePairs(section: "Ant Vespera 3", allowCommune: communeReferenceIsEx && !ownHasPlainAntVespera)
         }
         if pairs.isEmpty {
             (pairs, winningLocation) = candidatePairs(section: "Ant Vespera", allowCommune: communeReferenceIsEx)
@@ -1067,7 +1084,19 @@ public struct HourAssembler {
                 .prose(Self.formatCapitulum(capitulum.latin), english: capitulum.english.map(Self.formatCapitulum)),
             ]))
         }
-        if let hymnus = lookup("Hymnus Vespera") {
+        // `hymnusmajor`'s own `checkmtv()` (`specials/hymni.pl:67-72`, `specials.pl:532-
+        // 539`): "after 'Cum Nostra Hac Aetate'" -- Pope John XXIII's 1960 motu proprio
+        // reforming the rubrics -- "the verse has always changed" for the Confessor
+        // commons specifically (`$winner{Rule} =~ /C[45]/`): 1960 (among other
+        // versions) swaps in the revised classical-meter hymn text, stored under a
+        // `"Hymnus1 …"` key alongside the traditional `"Hymnus …"` one (real example:
+        // `Commune/C4.txt`'s own `[Hymnus1 Vespera]`, a `@:Hymnus Vespera:s/…/…/`
+        // substitution turning "Iste Conféssor…beátas Scándere sedes" into "…suprémos
+        // Laudis honóres" — confirmed against the real fixture for 14 January 2025,
+        // S. Hilary, whose own `[Rule]` references `C4`). Scoped exactly to this real,
+        // narrow condition rather than guessing it might apply more broadly.
+        let hymnusIsRevised = macroContext.winningRule.range(of: "C[45]", options: .regularExpression) != nil
+        if let hymnus = lookup(hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera") {
             let latinStanzas = Self.hymnStanzas(hymnus.latin)
             let englishStanzas = hymnus.english.map(Self.hymnStanzas)
             let pairEnglish = englishStanzas?.count == latinStanzas.count
@@ -1168,7 +1197,15 @@ public struct HourAssembler {
             }
         }
         if !current.isEmpty { stanzas.append(current.joined(separator: "\n")) }
-        return stanzas
+
+        // A later stanza (real example: `Sancti/01-06.txt`'s own `[Hymnus Vespera]`,
+        // the closing "Iesu, tibi sit glória..." doxology) can carry its own leading
+        // `* ` marker -- confirmed real via the 5 January 2026 fixture, which renders
+        // that stanza with no leading asterisk at all. Not referenced anywhere in DO's
+        // own Perl (the same "found by comparing real fixtures, not cited" situation as
+        // the `v. ` drop-cap marker above) -- a structural marker on the stanza itself,
+        // stripped the same way, not liturgical content.
+        return stanzas.map { $0.hasPrefix("* ") ? String($0.dropFirst(2)) : $0 }
     }
 
     /// Cleans a resolved `[Capitulum Laudes]`/`[Capitulum Vespera]` body into the single
