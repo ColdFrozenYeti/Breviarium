@@ -932,6 +932,66 @@ M4's Latin/English pairing covers every section CLAUDE.md's spec calls for at so
 level of fidelity (full alignment for whole-unit content and cleanly-dividing
 psalms/canticles, safe Latin-only fallback for the rest).
 
+**Alpha-readiness correctness pass (2026-09-19).** Closed the gaps flagged when M5's
+snapshot-matrix pass was first checked against CLAUDE.md's own named edge cases: the
+Annunciation transferred in 2027/2029/2035 and St Joseph in 2035 were previously
+unimplemented (`Occurrence.swift`'s own doc comment had flagged the permanent-transfer
+mechanism as unported), and three smaller nuances flagged along the way during M4 itself.
+
+*The annual transfer mechanism* (`TransferResolver`, `TransferTableReader`,
+`DataBundle.transferTable`) ports `Tabulae/Transfer/*.txt` generally — both the 35
+numeric Easter-date files and the 7 dominical-letter files — rather than hand-coding just
+the two named feasts, since the mechanism itself doesn't distinguish why a date is
+listed. `SanctoralCalendar.candidates(...)` merges the two per `Directorium.pm`'s own
+letter-then-numeric push order and swaps in the transferred office on its target date,
+replacing (not merging with) the normal Kalendaria answer — `Occurrence`, `Concurrence`,
+and `Commemorations` all pick this up automatically with no changes of their own, since
+they already consume `candidates(...)` as their one source of sanctoral truth. Verified
+against the real oracle fixtures for all 4 named target dates, all 4 corresponding
+natural (impeded) dates, and — as a bonus, since the same mechanism covers it — Christ
+the King's "last Sunday of October" positioning (`docs/PLAN.md`'s own earlier Nat1-0 fix
+was the same idea, ported by hand for December; this generalises it).
+
+*A real, independent bug this surfaced*: `Occurrence.decideSanctoralWins` let any
+I. classis feast beat any Sunday on rank grounds alone, missing `horascommon.pl:492`'s
+own `$trank[2] <= 5` guard — the rubric is "beats **II. cl.** Sundays," not *any* Sunday.
+Real data confirms why this matters: `Tempora/Epi2-0` (an ordinary Sunday) is rank 5, but
+`Adv1-0`/`Quad6-0`/`Pasc0-0` (Advent, Palm, Easter Sunday) are deliberately elevated to
+6.9/6.91/7 specifically so a plain I. classis feast does *not* automatically win there.
+Caught by the real Palm Sunday 2029 and Easter Sunday 2035 fixtures, not by the
+pre-existing synthetic unit tests, which happened to pair a real high rank with the wrong
+path/date and so never actually exercised this comparison for real.
+
+*A second, related gap*: `Concurrence`'s plain rank-threshold check for "does tomorrow's
+office pre-empt today's" didn't compare tomorrow's rank against *today's own* — missing
+`horascommon.pl:1241-1242`'s "in concurrence of days of equal rank, the preceding takes
+precedence." Real case: the Annunciation and St Joseph, both transferred onto consecutive
+days in 2035, both I. classis. Fixed in `Concurrence` (today wins on a tie), and
+`Commemorations` now adds the one confirmed *guaranteed* single commemoration this
+produces (`horascommon.pl:1244-1249`'s own `$commemoratio = $cwinner`, separate from and
+not subject to the ordinary ranklimit-filtered runner-up mechanism) — confirmed against
+the real 2 April 2035 fixture ("Commemoratio: S. Joseph...").
+
+*Three smaller HourAssembler nuances*, each investigated rather than left flagged:
+- The Paschaltide `$commune =~ /C10/` Alleluia-antiphon branch (`psalmi.pl:629`) is now
+  implemented for faithfulness to the real condition, but a full search of every real
+  `Sancti/*.txt` referencing Commune C10 found none whose date can ever fall within
+  Paschaltide — likely unreachable for this project's Universal Calendar scope, not
+  confirmed against a real fixture the way the sibling branch already was.
+- The "displaced day-numbered office as a commemoration candidate" rule
+  (`horascommon.pl:457`, `$day > 28`) was investigated and confirmed **inert** for every
+  real Vespers 2025-2040 renders: 29 December's St Thomas of Canterbury is rank 1.1
+  (already excluded outright); 30 December has no Sancti file at all; 31 December's own
+  second Vespers is superseded by 1 January's first Vespers before this could matter
+  (confirmed against the real 2028 and 2034 fixtures). Closed as investigated, not
+  silently dropped a second time.
+- The "ex"-gated Commune psalm-antiphon fallback (traced from source, never confirmed
+  against a real fixture) is now confirmed: 22 February 2025, *In Cathedra S. Petri
+  Apostoli* (`Sancti/02-22`, `;;Duplex majus;;4;;ex C4`, no `[Ant Vespera]` of its own)
+  renders `Commune/C4.txt`'s own plain antiphon ("Ecce sacérdos magnus...") for real.
+
+All 225 Kit tests pass (`swift test`), including the full 2025-2040 oracle sweep.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

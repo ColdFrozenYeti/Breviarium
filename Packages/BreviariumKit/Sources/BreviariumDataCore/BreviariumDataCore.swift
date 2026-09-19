@@ -56,7 +56,8 @@ public enum BreviariumDataPipeline {
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
         )
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
+        let transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))
 
-        return DataBundle(latin: latin, latinBea: latinBea, english: english, calendar: calendar)
+        return DataBundle(latin: latin, latinBea: latinBea, english: english, calendar: calendar, transferTable: transferTable)
     }
 }

@@ -297,8 +297,12 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     // The counterpart to the test above: an "ex"-type commune reference DOES let the
     // second-Vespers "3" index reach the Commune's own [Ant Vespera 3] -- traced from
     // `psalmi.pl`'s `getproprium('Ant Vespera 3', ...)` fallback (gated to
-    // `$communetype =~ /ex/`), though not independently confirmed against a real
-    // "ex CN" fixture the way the "vide" case above is.
+    // `$communetype =~ /ex/`). The mechanism itself (not this exact numbered-index
+    // shape, which no real date's fixture happens to need) is now confirmed against a
+    // real fixture: 22 February 2025, In Cathedra S. Petri Apostoli (`Sancti/02-22`,
+    // `;;Duplex majus;;4;;ex C4`, no `[Ant Vespera]` of its own) renders
+    // `Commune/C4.txt`'s own plain `[Ant Vespera]` ("Ecce sacérdos magnus...") as the
+    // real first psalm antiphon -- see `Tests/OracleTests/CommuneFallbackOracleTests.swift`.
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
         RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;2.0;;ex C99"]),

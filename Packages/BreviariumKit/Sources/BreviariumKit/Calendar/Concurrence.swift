@@ -60,7 +60,17 @@ public struct Concurrence {
         let tomorrowIsFestumDomini = tomorrowRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
         let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
 
+        // "In 1960, in concurrence of days of equal rank, the preceding takes
+        // precedence" (`horascommon.pl:1241-1242`'s own comment, `$rank >= $crank`,
+        // where by that point in the real cascade `$rank`/`$crank` are today's/
+        // tomorrow's) -- clearing the ordinary threshold above isn't enough on its own
+        // when today's own rank is just as high (real case: the Annunciation and
+        // St Joseph, both transferred by `SanctoralCalendar`'s transfer-table lookup
+        // onto consecutive days in 2035, both I. classis). Not the full real cascade
+        // (`horascommon.pl:1130-1332` has many more specific exclusions this pass
+        // doesn't attempt), just this one confirmed, named case.
         let firstVespers = tomorrow.winningRank.numericPrecedence >= threshold
+            && tomorrow.winningRank.numericPrecedence > today.winningRank.numericPrecedence
         return ConcurrenceResult(
             isFirstVespersOfTomorrow: firstVespers,
             vespersOffice: firstVespers ? tomorrow : today

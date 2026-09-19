@@ -43,10 +43,29 @@ public struct Commemorations {
         guard let result = concurrence.resolve(day: day, month: month, year: year) else { return [] }
 
         guard result.isFirstVespersOfTomorrow else {
-            // §2a: tomorrow is never commemorated here in 1960 -- only today's own
-            // runners-up survive.
+            // §2a: tomorrow is never commemorated here in 1960 via the ordinary
+            // concurrence runner-up mechanism (`horascommon.pl:1365`'s own
+            // `$version =~ /1955|196/` guard makes that `unless(...)` always true, so
+            // its `push` never runs) -- only today's own runners-up survive that way.
+            //
+            // One confirmed exception, a *direct* single commemoration rather than that
+            // filtered mechanism: "in concurrence of days of equal rank, the preceding
+            // takes precedence" (`horascommon.pl:1241-1249`) explicitly sets
+            // `$commemoratio = $cwinner` (tomorrow's own winner) whenever today wins
+            // only because of this tie/precedence rule, not because tomorrow was
+            // genuinely too low-ranked to contend. `Concurrence`'s own doc comment at
+            // the equivalent check cites the same line and the same scope limit (this
+            // one confirmed case, not the full real cascade).
             let candidates = runnersUp(day: day, month: month, year: year, winnerPath: result.vespersOffice.winningPath)
-            return ownVespersCommemorations(candidates: candidates, winnerRank: result.vespersOffice.winningRank)
+            var commemorations = ownVespersCommemorations(candidates: candidates, winnerRank: result.vespersOffice.winningRank)
+            // `$commemoratio = $cwinner` is a *guaranteed* single commemoration in the
+            // real Perl, not subject to the ranklimit filter `ownVespersCommemorations`
+            // otherwise applies -- added unconditionally here to match, not folded into
+            // the filtered pool above.
+            if let tiedTomorrow = tomorrowsTiedFirstVespersCandidate(day: day, month: month, year: year, today: result.vespersOffice) {
+                commemorations.append(tiedTomorrow)
+            }
+            return commemorations
         }
 
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
@@ -71,6 +90,35 @@ public struct Commemorations {
         let winnerRunnersUp = winnerRunnersUpCommemorations(candidates: winnerCandidates, winnerRank: result.vespersOffice.winningRank)
 
         return displaced + winnerRunnersUp
+    }
+
+    /// The one confirmed direct-commemoration case for today's own second Vespers
+    /// winning outright: tomorrow's office cleared the ordinary first-Vespers rank
+    /// threshold (`Concurrence`'s own threshold formula, recomputed here the same way
+    /// `runnersUp` recomputes `Occurrence`'s own candidate list rather than widening its
+    /// return type) but didn't actually get first Vespers only because of the "equal
+    /// rank, the preceding takes precedence" tie-break (`horascommon.pl:1241-1249`,
+    /// cited identically at `Concurrence`'s own check). Confirmed against the real
+    /// oracle fixture for 2 April 2035 (the Annunciation, both transferred by
+    /// `SanctoralCalendar`'s transfer-table lookup onto consecutive days that year,
+    /// commemorating St Joseph's own transferred office the next day).
+    private func tomorrowsTiedFirstVespersCandidate(day: Int, month: Int, year: Int, today: OccurrenceResult) -> Commemoration? {
+        let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
+        let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
+        guard let tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
+        else { return nil }
+        guard tomorrow.winningRank.numericPrecedence <= today.winningRank.numericPrecedence else { return nil }
+
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        let tomorrowRule = resolver.resolve(path: tomorrow.winningPath, section: "Rule")
+        guard !matches(tomorrowRule, "No prima vespera") else { return nil }
+
+        let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
+        let tomorrowIsFestumDomini = matches(tomorrowRule, "Festum Domini")
+        let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
+        guard tomorrow.winningRank.numericPrecedence >= threshold else { return nil }
+
+        return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank)
     }
 
     // MARK: - Candidate pools

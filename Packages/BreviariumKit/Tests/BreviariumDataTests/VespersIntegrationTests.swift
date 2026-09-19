@@ -33,7 +33,7 @@ import Testing
     // "Rubrics 1960 - 1960", 16 September 2026 -- CLAUDE.md's own worked example
     // (Ss. Cornelii Papæ et Cypriani, III. classis, a Wednesday).
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable))
 
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
 

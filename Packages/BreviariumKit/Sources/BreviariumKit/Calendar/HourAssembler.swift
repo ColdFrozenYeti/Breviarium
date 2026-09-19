@@ -569,12 +569,29 @@ public struct HourAssembler {
         // the asterisk on DO's real closing repeat), so the asterisk form is kept for
         // both here rather than modelling DO's open/close distinction separately.
         //
-        // **Not covered**: `psalmi.pl`'s other OR-branch, `$commune =~ /C10/` -- a
-        // Sunday within Paschaltide using the Common-of-Sundays still gets replaced
-        // even when that commune *does* supply generic antiphons (so `pairs` wouldn't
-        // be empty and this check wouldn't fire). No real fixture for that exact case
-        // has been checked yet; flagged rather than guessed at.
-        if usedWeekdaySchedule, macroContext.weekName.range(of: "Pasc", options: .caseInsensitive) != nil {
+        // `psalmi.pl:629`'s full OR-condition is `!exists($winner{"Ant $hora"}) ||
+        // $commune =~ /C10/` -- the second branch (a Sunday within Paschaltide using the
+        // Common-of-Sundays) still gets replaced even when that Commune *does* supply
+        // generic antiphons (so `pairs` wouldn't be empty and `usedWeekdaySchedule`
+        // wouldn't fire on its own). `$communetype !~ /ex/i` gates the *whole*
+        // condition in the real Perl, not just this branch -- `communeReferenceIsEx`
+        // being false is what actually lets a `"vide C10"` reference reach this
+        // replacement at all (an `"ex C10"` office already has its own real antiphons
+        // reaching this point via the Commune fallback above, so it correctly doesn't
+        // get overwritten).
+        //
+        // **Not independently confirmed against a real fixture**: a full search of
+        // every `Sancti/*.txt` file referencing `C10` found none whose calendar date
+        // can ever fall within Paschaltide (all the real examples sit in
+        // July-November) -- this branch may be effectively unreachable for the
+        // Universal Calendar dates this project's alpha scope actually covers. Ported
+        // for faithfulness to the real condition and because the oracle sweep across
+        // 2025-2040 exercises it as a no-op either way, not because a specific date
+        // proved it right.
+        let communeIsC10 = communeReference.range(of: "C10") != nil
+        if (usedWeekdaySchedule || (communeIsC10 && !communeReferenceIsEx)),
+            macroContext.weekName.range(of: "Pasc", options: .caseInsensitive) != nil
+        {
             let alleluia = alleluiaAntiphon(resolver: resolver)
             pairs = pairs.map { (antiphon: alleluia, psalmNumber: $0.psalmNumber) }
             if let englishResolver {

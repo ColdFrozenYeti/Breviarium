@@ -1,21 +1,72 @@
+import Foundation
+
 /// Wraps the flattened 1960 sanctoral calendar table (`DataBundle.calendar`,
-/// `KalendariaResolver`) with date-based lookup.
+/// `KalendariaResolver`) with date-based lookup, plus the annual transfer tables
+/// (`DataBundle.transferTable`, `TransferResolver`) that can override a specific date's
+/// candidates in a specific year — e.g. the Annunciation or St Joseph, displaced by Holy
+/// Week/the Easter Octave or a Lenten Sunday onto a later free day.
 public struct SanctoralCalendar: Sendable {
     public var entries: [String: String]
+    public var transferTable: [String: [String: String]]
 
-    public init(entries: [String: String]) {
+    public init(entries: [String: String], transferTable: [String: [String: String]] = [:]) {
         self.entries = entries
+        self.transferTable = transferTable
     }
 
     /// Candidate `Sancti` file references for a date, in priority order (a Kalendaria
     /// entry can list several `~`-separated candidates — `do-format.md`). The `"XXXXX"`
     /// removal sentinel and any empty entries are filtered out; the result is empty when
     /// there's no sanctoral office at all on this date.
+    ///
+    /// When this date is an annual-transfer *target* in this year (e.g. 5 April 2027,
+    /// the first free day after the Easter Octave once the Annunciation is displaced
+    /// from its own 25 March), the transferred office(s) **replace** the normal
+    /// Kalendaria candidates entirely for this lookup — matching `horascommon.pl`'s own
+    /// `$sfile = $transfer; @commemoentries = @transfers;` (not merging the two), so the
+    /// transferred feast still competes for the day through the ordinary rank comparison
+    /// `Occurrence` already does, and any second `~`-joined piece still becomes an
+    /// ordinary commemoration runner-up through `Commemorations`, both automatically —
+    /// neither of those two types needed a single change for this.
     public func candidates(day: Int, month: Int, year: Int) -> [String] {
         let key = Computus.sanctoralKey(day: day, month: month, year: year)
+        if let transferred = transferredCandidates(targetKey: key, year: year) {
+            return transferred
+        }
         guard let raw = entries[key] else { return [] }
         return raw.split(separator: "~")
             .map(String.init)
             .filter { !$0.isEmpty && !KalendariaResolver.isRemovalSentinel($0) }
+    }
+
+    /// Looks up `targetKey` in the merged transfer table for `year`'s own Easter date —
+    /// the single-letter "dominical letter" file first, then the exact Easter-`MMDD`
+    /// numeric file overriding it for the same key, matching `Directorium.pm`'s
+    /// `load_transfers`'s own letter-then-numeric push order (a later push wins the
+    /// hash). Returns `nil` (falling through to the ordinary Kalendaria lookup) unless
+    /// every `~`-joined piece is Sancti-style — see `TransferResolver`'s own doc comment
+    /// for why a `Tempora/`-referencing or `"X-X"` piece isn't handled by this method.
+    private func transferredCandidates(targetKey: String, year: Int) -> [String]? {
+        guard !transferTable.isEmpty else { return nil }
+
+        let easter = Computus.easter(year: year)
+        let numericKey = "\(easter.month)\(String(format: "%02d", easter.day))"
+        let easterNumber = easter.month * 100 + easter.day
+        let letters = ["a", "b", "c", "d", "e", "f", "g"]
+        let letterIndex = (easterNumber - 319 + (easter.month == 4 ? 1 : 0)) % 7
+        let letterKey = letters[letterIndex]
+
+        var source: String?
+        if let letterFile = transferTable[letterKey], let value = letterFile[targetKey] { source = value }
+        if let numericFile = transferTable[numericKey], let value = numericFile[targetKey] { source = value }
+
+        guard let source, !source.isEmpty else { return nil }
+        let pieces = source.split(separator: "~").map(String.init).filter { !$0.isEmpty }
+        guard !pieces.isEmpty, pieces.allSatisfy(Self.isSanctiStyleTransferSource) else { return nil }
+        return pieces
+    }
+
+    private static func isSanctiStyleTransferSource(_ reference: String) -> Bool {
+        !reference.contains("/") && !reference.contains("Tempora") && reference != "X-X"
     }
 }

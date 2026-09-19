@@ -32,19 +32,27 @@ public struct DataBundle: Codable, Sendable {
     public var english: [RawOfficeFile]
     /// The flattened 1960 sanctoral calendar: `"MM-DD" -> fileref` (`KalendariaResolver`).
     public var calendar: [String: String]
+    /// The annual transfer tables (`TransferResolver`): outer key is an Easter-file
+    /// bucket (`"401"`, `"a"`..`"g"`), inner is `"MM-DD" -> source` for that bucket.
+    /// `SanctoralCalendar` merges these against a given year's own Easter date at
+    /// lookup time — see `TransferResolver`'s own doc comment for the full mechanism
+    /// and its deliberate scope limits.
+    public var transferTable: [String: [String: String]]
 
     public init(
         formatVersion: Int = breviariumKitDataFormatVersion,
         latin: [RawOfficeFile],
         latinBea: [RawOfficeFile],
         english: [RawOfficeFile],
-        calendar: [String: String]
+        calendar: [String: String],
+        transferTable: [String: [String: String]] = [:]
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
         self.latinBea = latinBea
         self.english = english
         self.calendar = calendar
+        self.transferTable = transferTable
     }
 
     /// The Latin corpus `SectionResolver` should read from: the Bea psalter layered on

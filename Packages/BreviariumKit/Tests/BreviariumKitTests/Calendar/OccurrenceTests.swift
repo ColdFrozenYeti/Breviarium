@@ -130,13 +130,16 @@ private func makeFixture(
     #expect(result?.winningPath == "Sancti/01-19")
 }
 
-@Test func sundayFirstClassFeastBeatsAHigherNumericSunday() {
-    // Real Advent Sunday data (Tempora/Adv1-0.txt) carries rank ";;Semiduplex;;6.9" --
-    // deliberately higher than a plain 6.0 first-class feast, yet the rubrics still let
-    // the I. classis feast win. This is exactly the case the Sunday-exception branch
-    // (not the plain numeric comparison) exists for.
+@Test func sundayFirstClassFeastBeatsAnOrdinarySunday() {
+    // Real data: `Tempora/Epi2-0.txt` (an ordinary Sunday after Epiphany) carries rank
+    // ";;Semiduplex;;5" -- the real "II. cl. Sunday" the rubrics doc's own citation
+    // means. A previous version of this test borrowed `Tempora/Adv1-0.txt`'s real 6.9
+    // rank instead (a "Major Sunday", deliberately elevated so it *isn't* beaten this
+    // way -- see `majorSundayIsNotBeatenByAnOrdinaryFirstClassFeast` below, added when a
+    // real oracle-fixture check against the Annunciation's own natural date in 2029/2035
+    // caught this file/rank mismatch for real).
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
         sanctoralRank: ";;S. Aliquis;;6.0;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
@@ -146,7 +149,7 @@ private func makeFixture(
 
 @Test func sundaySecondClassFeastOfTheLordBeatsSunday() {
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
         sanctoralRank: ";;Festum Domini Aliquod;;5.0;;vide C6",
         sanctoralRule: "Festum Domini; 9 lectiones"
     )
@@ -158,8 +161,33 @@ private func makeFixture(
     // Same rank (5.0) but no "Festum Domini" in the Rule -- an ordinary II. classis
     // saint's feast does NOT beat a Sunday.
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
         sanctoralRank: ";;S. Aliquis Magnus;;5.0;;vide C6"
+    )
+    let result = occurrence.resolve(day: d, month: m, year: y)
+    #expect(result?.sanctoralWins == false)
+}
+
+@Test func majorSundayIsNotBeatenByAnOrdinaryFirstClassFeast() {
+    // Real data: `Tempora/Adv1-0.txt` carries rank ";;Semiduplex;;6.9" -- Advent Sundays
+    // (like Palm Sunday's 6.91 and Easter Sunday's own 7) are deliberately elevated
+    // rather than left at the ordinary Sunday's 5, precisely so a plain I. classis
+    // feast's numeric win *and* the "beats II. cl. Sundays" exception both correctly
+    // fail here (`horascommon.pl:492`'s own `$trank[2] <= 5` guard) -- confirmed for
+    // real against Easter Sunday/Palm Sunday itself in
+    // `Tests/OracleTests/TemporalTransferOracleTests.swift`.
+    //
+    // `temporalPath` here still has to be `Tempora/Epi2-0`, matching what
+    // `Occurrence.temporalPath` actually computes for `makeFixture`'s own 18 January
+    // 2026 (`Self.temporalPath` recomputes the real path internally rather than trusting
+    // whatever's registered in the fixture -- confirmed the hard way: an earlier version
+    // of this test used the real "Tempora/Adv1-0" name at a date that doesn't compute to
+    // it, so the lookup silently found no temporal file at all and sanctoral won by
+    // default for the wrong reason). Only the rank value being borrowed from the real
+    // Adv1-0.txt matters here, not the path string.
+    let (occurrence, d, m, y) = makeFixture(
+        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        sanctoralRank: ";;S. Aliquis;;6.0;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
     #expect(result?.sanctoralWins == false)

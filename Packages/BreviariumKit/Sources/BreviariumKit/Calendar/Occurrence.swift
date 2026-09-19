@@ -59,13 +59,23 @@ public struct Occurrence {
     /// is exactly `Sancti/12-25`'s own `[Ant Vespera 3]`, reached via `Nat1-0`'s own
     /// `[Ant Vespera]` cross-reference, not any day-numbered file's own content.
     ///
-    /// **Not covered by this fix**: `horascommon.pl:457`'s further 1960-specific rule
-    /// that, once the Sunday claims `Nat1-0`, the *displaced* day-numbered office
-    /// (e.g. `Nat29` for 29 December, including that day's own named saint where one
-    /// exists) still competes as a commemoration candidate. Commemoration assembly
-    /// isn't folded into `HourAssembler` yet at all (its own doc comment already flags
-    /// this), so this is an extension of that existing, deliberate scope limit, not a
-    /// new gap this fix introduces.
+    /// **`horascommon.pl:457`'s further 1960-specific rule** -- once the Sunday claims
+    /// `Nat1-0`, the *displaced* day-numbered office (e.g. `Nat29` for 29 December,
+    /// including that day's own named saint where one exists) still competes as a
+    /// commemoration candidate -- was investigated and confirmed **inert for every
+    /// Vespers this project's alpha scope actually renders**, not implemented:
+    /// `horascommon.pl:457` itself only fires for `$day > 28` (29/30/31; 26-28 already
+    /// have real, separately-Kalendaria-listed saints that don't need this hijack), and
+    /// checking every real year 2025-2040 where one of those three dates is the Sunday
+    /// (2028/31, 2029/30, 2030/29, 2034/31, 2035/30, 2040/30) against the real oracle
+    /// fixtures shows the displaced saint never actually produces a visible
+    /// commemoration at Vespers: 29 December's St Thomas of Canterbury is rank 1.1 under
+    /// 1960 (`Occurrence.decideSanctoralWins`'s own `<= 1.1` cutoff already excludes it
+    /// as a candidate at all, hijack or not); 30 December has no Sancti file whatsoever;
+    /// 31 December's own second Vespers is superseded by 1 January's first Vespers
+    /// (ordinary concurrence, confirmed against the real 2028 fixture) before this
+    /// mechanism could matter. Flagged as investigated-and-closed rather than silently
+    /// dropped a second time.
     public static func temporalPath(day: Int, month: Int, year: Int) -> String {
         let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
         if month == 12, (26...31).contains(day), weekday == 0 {
@@ -135,13 +145,30 @@ public struct Occurrence {
 
         guard isSunday else { return false }
 
+        // RG 15: the Immaculate Conception is preferred in occurrence even without
+        // outranking the Sunday numerically (but not in concurrence -- see the rubrics
+        // doc; concurrence is out of scope for this pass regardless) -- a genuinely
+        // separate exception in the real Perl (`horascommon.pl:494`'s own `elsif`, at
+        // the same level as the `$trank[2] <= 5` branch below, not nested inside it), so
+        // this is the one Sunday-exception case that applies regardless of how
+        // privileged the Sunday itself is.
+        if sanctoralRank.title.range(of: "Conceptione Immaculata", options: .caseInsensitive) != nil { return true }
+
+        // "With the 1960 rubrics, II. cl. feasts of the Lord and all I. cl. feasts beat
+        // II. cl. Sundays" (`horascommon.pl:491`, `docs/rubrics-1960-vespers.md` §1) --
+        // real, confirmed real-data values: `Tempora/Epi2-0`'s actual rank (an ordinary
+        // Sunday after Epiphany) is 5, while `Tempora/Adv1-0`/`Quad6-0`/`Pasc0-0`
+        // (Advent, Palm, Easter Sunday) are deliberately elevated to 6.9/6.91/7 by
+        // `horascommon.pl:464-468`'s own "Major Sunday" rank-capping precisely so an
+        // ordinary I. classis feast does *not* automatically win there — the
+        // `$trank[2] <= 5` guard here (missing until a real oracle-fixture check against
+        // the Annunciation's own natural date in 2029/2035 caught it) is what actually
+        // distinguishes "II. cl. Sunday" from a Major Sunday, not the sanctoral side.
+        guard temporalRank.numericPrecedence <= 5 else { return false }
+
         let isFestumDomini = sanctoralRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
         if sanctoralRank.numericPrecedence >= 6 { return true }
         if sanctoralRank.numericPrecedence >= 5 && isFestumDomini { return true }
-        // RG 15: the Immaculate Conception is preferred in occurrence even without
-        // outranking the Sunday numerically (but not in concurrence -- see the rubrics
-        // doc; concurrence is out of scope for this pass regardless).
-        if sanctoralRank.title.range(of: "Conceptione Immaculata", options: .caseInsensitive) != nil { return true }
         return false
     }
 }

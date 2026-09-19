@@ -37,6 +37,7 @@ do {
     print("  Latin-Bea files:  \(bundle.latinBea.count)")
     print("  English files:    \(bundle.english.count)")
     print("  Calendar entries: \(bundle.calendar.count)")
+    print("  Transfer tables:  \(bundle.transferTable.count)")
     print("  Uncompressed JSON size: \(sizeInBytes) bytes (\(String(format: "%.2f", sizeInMB)) MB)")
     print("  JSONDecoder round-trip: \(String(format: "%.3f", decodeSeconds))s")
     print("    (measured on this CI runner's CPU, not an iOS device -- a rough proxy, not a real cold-load number)")
