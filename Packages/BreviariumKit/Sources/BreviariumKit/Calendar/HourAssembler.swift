@@ -138,7 +138,8 @@ public struct HourAssembler {
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":
                 sections.append(contentsOf: assembleCapitulumHymnusVersus(
-                    office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                    office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                    dayOfWeek: macroContext.dayOfWeek
                 ))
             case "Preces Feriales":
                 if let section = assemblePrecesFeriales(
@@ -916,11 +917,12 @@ public struct HourAssembler {
     /// Hymn stanzas are paired as one whole English block, not stanza-by-stanza
     /// (`CLAUDE.md`'s finer "hymns by stanza" alignment isn't attempted here yet).
     private func assembleCapitulumHymnusVersus(
-        office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+        office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?, dayOfWeek: Int
     ) -> [Section] {
         let communeReference = macroContext.winningRank.communeReference
         func lookup(_ section: String) -> (latin: String, english: String?)? {
             guard let location = resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
+                ?? majorSpecialLocation(section: section, dayOfWeek: dayOfWeek, resolver: resolver)
             else { return nil }
             let latin = resolver.resolve(path: location.path, section: location.section)
             let english = englishResolver.flatMap { eng in
@@ -930,8 +932,17 @@ public struct HourAssembler {
         }
 
         var sections: [Section] = []
-        if let capitulum = lookup("Capitulum Vespera") {
-            sections.append(Section(kind: .capitulum, units: [.prose(capitulum.latin, english: capitulum.english)]))
+        // `capitulis.pl`'s `capitulum_major`: the office's own shared Lauds/Vespers key
+        // is `"Capitulum Laudes"` (confirmed real: 109 real `Sancti`/`Commune`/`Tempora`
+        // files define it, against only 7 using `"Capitulum Vespera"` — the latter is a
+        // narrow, named exception in the real Perl for 25 December's own first Vespers
+        // and the C12 votive office, neither reconstructed exactly here; trying both
+        // keys, Laudes first, gets the right file for virtually every real date without
+        // needing those two conditions individually).
+        if let capitulum = lookup("Capitulum Laudes") ?? lookup("Capitulum Vespera") {
+            sections.append(Section(kind: .capitulum, units: [
+                .prose(Self.formatCapitulum(capitulum.latin), english: capitulum.english.map(Self.formatCapitulum)),
+            ]))
         }
         if let hymnus = lookup("Hymnus Vespera") {
             let latinStanzas = Self.hymnStanzas(hymnus.latin)
@@ -948,6 +959,53 @@ public struct HourAssembler {
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(latinLines, english: englishLines)))
         }
         return sections
+    }
+
+    /// The third fallback tier neither the office's own file nor a Commune reaches:
+    /// `Psalterium/Special/Major Special.txt`, keyed by *today's own real day of the
+    /// week* (not tomorrow's, even when tomorrow's first Vespers is what's actually
+    /// being rendered — `horascommon.pl`'s `$dayofweek` is never swapped for this).
+    /// Ports `capitulis.pl:5-23` (`capitulum_major`), `specials/hymni.pl:67-107`
+    /// (`hymnusmajor`), and `specials.pl:571-653` (`getantvers`/`getfrompsalterium`) —
+    /// traced in full and confirmed against the real fixture for 19 September 2026
+    /// (Saturday, first Vespers of an ordinary Sunday after Pentecost): `Capitulum
+    /// Laudes`/`Versum {1,3,2}` are keyed by `gettempora`'s `"Dominica"`/`"Feria"`
+    /// (`dayOfWeek == 0 ? "Dominica" : "Feria"`), `Hymnus Vespera` by `"Day$dayOfWeek"`
+    /// specifically — real Saturday entries land on a `(feria 7)`-conditioned variant
+    /// (`Psalterium/Special/Major Special.txt`'s own `[Feria Vespera] (feria 7)`) that
+    /// cross-references `Tempora/Pent01-0`'s own `Capitulum Laudes`/`Hymnus Vespera`
+    /// directly — both the conditional and the cross-file `@` reference are already
+    /// handled generically by `SectionResolver`, needing no special-casing here beyond
+    /// building the right section name.
+    ///
+    /// **Not covered**: this reconstructs `gettempora`'s branches for `'Capitulum
+    /// major'`/`'Hymnus major'`/`'getfrompsalterium major'` only — the real function has
+    /// further season-specific branches (Advent, Lent, Paschaltide, the Epiphany-season
+    /// reuse named-edge-case) this pass doesn't attempt, so this fallback is confirmed
+    /// correct for ordinary "time after Pentecost" dates specifically, not verified for
+    /// every season yet.
+    private func majorSpecialLocation(section: String, dayOfWeek: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+        let path = "Psalterium/Special/Major Special"
+        let dominicaOrFeria = dayOfWeek == 0 ? "Dominica" : "Feria"
+
+        if section == "Capitulum Laudes" {
+            let name = "\(dominicaOrFeria) Vespera"
+            return resolver.sectionExists(path: path, section: name) ? (path, name) : nil
+        }
+        if section == "Hymnus Vespera" {
+            let name = "Hymnus Day\(dayOfWeek) Vespera"
+            return resolver.sectionExists(path: path, section: name) ? (path, name) : nil
+        }
+        if section.hasPrefix("Versum ") {
+            // `getfrompsalterium`'s own fallback order for a `Versum $ind` miss: try the
+            // asked index, then 1, then 3, then 2 (`specials.pl:648-651`).
+            for ind in [section.replacingOccurrences(of: "Versum ", with: ""), "1", "3", "2"] {
+                let name = "\(dominicaOrFeria) Versum \(ind)"
+                if resolver.sectionExists(path: path, section: name) { return (path, name) }
+            }
+            return nil
+        }
+        return nil
     }
 
     /// Splits a raw resolved `[Hymnus Vespera]` body into its own stanzas, cleaning two
@@ -988,6 +1046,41 @@ public struct HourAssembler {
         }
         if !current.isEmpty { stanzas.append(current.joined(separator: "\n")) }
         return stanzas
+    }
+
+    /// Cleans a resolved `[Capitulum Laudes]`/`[Capitulum Vespera]` body into the single
+    /// prose paragraph DO itself renders it as — ports `capitulis.pl`'s own
+    /// `_format_capitulum` (`capitulis.pl:262-270`): the citation line's leading `!`
+    /// rubric marker is dropped (shown as plain text, not in the rubric colour —
+    /// confirmed real: the citation appears in the same white serif as the reading, not
+    /// red), the reading line's leading `v. ` drop-cap marker is dropped
+    /// (`DOMarkers.stripLineLabel`'s usual treatment — it's decorative styling, not a
+    /// real versicle), and the closing `$Deo gratias` macro (already macro-expanded by
+    /// `SectionResolver` to `"R. Deo grátias."` by the time this runs) has its `R.`
+    /// label turned into the real `℟.` glyph DO's own rendering uses there — *not*
+    /// stripped away the way a genuine versicle/response *pair* is elsewhere
+    /// (`CLAUDE.md`'s "no ℣/℟ glyphs" rule is for indented V/R pairs specifically; this
+    /// is a citation-plus-reading-plus-acclamation paragraph with no versicle to pair
+    /// against, so it stays one `.prose` unit). Confirmed against the real oracle
+    /// fixture for 16 September 2026 (`Commune/C3.txt`'s own `[Capitulum Laudes]`,
+    /// reached via this session's own "Laudes"-first key change): raw
+    /// `"!Sap 3:1-3\nv. Iustórum ánimæ...pace.\nR. Deo grátias."` becomes
+    /// `"Sap 3:1-3 Iustórum ánimæ...pace. ℟. Deo grátias."`, matching the fixture
+    /// exactly.
+    private static func formatCapitulum(_ text: String) -> String {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let cleaned = lines.map { line -> String in
+            if DOMarkers.isRubricLine(line) {
+                return DOMarkers.stripRubricMarkers(line)
+            }
+            if line.hasPrefix("R.") || line.hasPrefix("r.") {
+                return "℟." + line.dropFirst(2)
+            }
+            return DOMarkers.stripLineLabel(line)
+        }
+        return cleaned.joined(separator: " ")
     }
 
     // MARK: - Preces Feriales

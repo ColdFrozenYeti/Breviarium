@@ -992,6 +992,56 @@ the real 2 April 2035 fixture ("Commemoratio: S. Joseph...").
 
 All 225 Kit tests pass (`swift test`), including the full 2025-2040 oracle sweep.
 
+**Live-device correctness pass (2026-09-19).** After the first real sideload, you reported
+three concrete bugs from actual on-device use: a wrongly-shown commemoration on an evening
+whose Vespers was really pre-empted by the next day's Sunday; missing Capitulum/Hymnus/
+Versus on many days; and a missing Magnificat antiphon on a first-Vespers-of-Sunday date.
+Investigated each against real oracle fixtures rather than guessed at.
+
+*The wrongly-shown commemoration*: `Commemorations.resolve`'s §2b branch (tomorrow's first
+Vespers pre-empts today's) was treating today's own occurrence winner as an unconditional
+commemoration candidate whenever tomorrow pre-empted — but the real rule only does that
+when tomorrow won by outright numeric rank superiority. When tomorrow instead won via the
+Sunday/Festum-Domini-specific threshold (`horascommon.pl:1166-1176`'s own
+`$cwrank[0] =~ /Dominica/i || $cwinner{Rule} =~ /Festum Domini/i` cascade), today's own
+winner isn't a candidate at all. Confirmed against three real fixtures: St Januarius
+(19 September 2026, Duplex, rank 3) and Advent Ember Saturday (20 December 2025, rank 4.9
+— well above the old ranklimit of 2) both show no commemoration when an ordinary Sunday's
+first Vespers pre-empts them; SS. Petri et Pauli (29 June, I. classis, titled neither
+Dominica nor Festum Domini) pre-empting an *ordinary* Sunday the evening before *does*
+commemorate that Sunday directly. Fixed by gating the displaced-office candidate on
+whether tomorrow's winning office is itself titled "Dominica" or Rule-tagged "Festum
+Domini." New oracle tests for all three dates (`ConcurrenceCommemorationOracleTests.swift`).
+
+*Missing Capitulum/Hymnus/Versus*: traced to DO's third fallback tier,
+`Psalterium/Special/Major Special.txt` (`capitulis.pl`'s `capitulum_major`,
+`specials/hymni.pl`'s `hymnusmajor`, `specials.pl`'s `getantvers`/`getfrompsalterium`) —
+ordinary "time after Pentecost" temporal files define no `Capitulum Laudes`/`Hymnus
+Vespera`/`Versum N` of their own and have no Commune reference either, so `HourAssembler`
+was silently omitting these sections for every such date. Implemented the fallback, keyed
+by today's real day of the week (never tomorrow's, even for a first-Vespers date —
+`horascommon.pl`'s `$dayofweek` is never swapped for this) — confirmed against the real
+19 September 2026 fixture. This also surfaced that the Capitulum key-priority should try
+`"Capitulum Laudes"` before `"Capitulum Vespera"` (109 real files use the former, only 7
+narrow Dec-25/C12-votive files use the latter), which in turn found `Commune/C3.txt`'s own
+`[Capitulum Laudes]` for the first time for 16 September 2026 — exposing that raw resolved
+Capitulum text was never cleaned the way DO's own `_format_capitulum` cleans it (stripping
+the `!` citation marker and `v.` drop-cap marker, turning the closing `R.` into the real
+`℟.` glyph). Fixed with `HourAssembler.formatCapitulum`; both regressed 16 September 2026
+tests pass again, and the new Major Special fallback test
+(`MajorSpecialFallbackOracleTests.swift`) passes for 19 September 2026.
+
+*The missing Magnificat antiphon*, by contrast, is **not fixed this pass** — investigated
+and confirmed to be a separate, deeper mechanism: DO's weekly Scripture-cycle antiphon
+rotation (`getseant()`, `Tabulae/Stransfer`) picks the Magnificat antiphon for an ordinary
+Sunday's first Vespers from a source this project hasn't ported at all (the winning
+office — an ordinary `Tempora/PentNN-0` file — defines no `[Ant 1]`/`[Ant Vespera 1]` and
+has no Commune fallback, so `assembleMagnificat` currently finds nothing to show). Flagged
+honestly rather than guessed at; needs its own dedicated investigation before the beta.
+
+All Kit tests pass (`swift test`), including the full 2025-2040 oracle sweep and the new
+oracle-fixture-backed tests above.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

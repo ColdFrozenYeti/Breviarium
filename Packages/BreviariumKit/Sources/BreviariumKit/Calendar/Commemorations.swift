@@ -13,14 +13,20 @@ public struct Commemoration: Equatable, Sendable {
 /// implements; read that first if any of the four cases below looks surprising.
 ///
 /// The four cases, matched to the doc's §2a/§2b:
-/// - Today's own second Vespers wins: tomorrow's office is **never** commemorated (a
-///   real 1960 simplification, not an omission -- see `resolve(day:month:year:)`).
-///   Today's own runners-up (a losing Feria, or a lower-priority saint) still are,
-///   filtered by `ownVespersRanklimit`/`ownVespersCommemorations`.
+/// - Today's own second Vespers wins: tomorrow's office is **never** commemorated via
+///   the ordinary ranklimit-filtered mechanism (a real 1960 simplification, not an
+///   omission -- see `resolve(day:month:year:)`) -- except for the one confirmed,
+///   *unconditional* exception when today only won because of an equal-rank tie
+///   (`tomorrowsTiedFirstVespersCandidate`). Today's own runners-up (a losing Feria, or a
+///   lower-priority saint) still are, filtered by `ownVespersRanklimit`/
+///   `ownVespersCommemorations`.
 /// - Tomorrow's first Vespers pre-empts today's: the *displaced* office (today's own
-///   occurrence winner) is commemorated per `displacedRanklimit`, and the winner's own
-///   other runners-up per `winnerRanklimitAndSundayOnly` -- which reduces, for 1960, to
-///   "only if that runner-up is itself a Sunday" (the doc explains why).
+///   occurrence winner) is commemorated per `displacedRanklimit`, **but only when
+///   tomorrow pre-empted by outright numeric rank superiority** -- when tomorrow instead
+///   won via the Sunday/Festum-Domini-specific threshold, today's own winner isn't a
+///   candidate at all (see `resolve(day:month:year:)`'s own citation). The winner's own
+///   other runners-up follow `winnerRanklimitAndSundayOnly` regardless -- which reduces,
+///   for 1960, to "only if that runner-up is itself a Sunday" (the doc explains why).
 public struct Commemorations {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
@@ -75,9 +81,30 @@ public struct Commemorations {
         // The displaced office's own commemoration candidate pool is headlined by today's
         // own occurrence winner itself -- the office that would have had Vespers tonight
         // (`$commemoratio = $winner` in the Perl, ahead of the closing `@commemoentries`
-        // filter) -- plus any of its own runners-up, both subject to the same threshold.
+        // filter) -- **but only when tomorrow pre-empted by outright numeric superiority**
+        // (`horascommon.pl:1296`'s `elsif ($crank > $rank)`). When tomorrow instead wins
+        // via the Sunday/Festum-Domini-specific threshold (`:1166-1176`'s own cascade,
+        // `$cwrank[0] =~ /Dominica/i || $cwinner{Rule} =~ /Festum Domini/i`), today's own
+        // winner is *not* automatically a candidate at all -- confirmed the hard way,
+        // against three real fixtures, after a real device test flagged this: St
+        // Januarius (19 September 2026, Duplex, rank 3) shows no commemoration at all
+        // when an ordinary Sunday's first Vespers pre-empts it the next evening, and
+        // Advent Ember Saturday (20 December 2025, rank 4.9 -- well above this code's old
+        // ranklimit of 2) shows none either. Contrast SS. Petri et Pauli (29 June),
+        // I. classis and *not* itself Dominica/Festum-Domini-tagged, pre-empting an
+        // *ordinary* Sunday's own second Vespers the evening before (28 June 2026): there,
+        // the real fixture *does* commemorate the displaced Sunday itself
+        // ("Commemoratio: Dominica V Post Pentecosten"), confirming the distinction is
+        // genuinely about *why* tomorrow won, not a blanket rule either way. Only its
+        // genuine runners-up (a second co-occurring saint, say) still go through the
+        // ranklimit filter below regardless.
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        let tomorrowRule = resolver.resolve(path: result.vespersOffice.winningPath, section: "Rule")
+        let tomorrowIsDominicaOrFestumDomini =
+            matches(result.vespersOffice.winningRank.title, "Dominica") || matches(tomorrowRule, "Festum Domini")
+
         let displacedCandidates =
-            [Commemoration(path: today.winningPath, rank: today.winningRank)]
+            (tomorrowIsDominicaOrFestumDomini ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank)])
             + runnersUp(day: day, month: month, year: year, winnerPath: today.winningPath)
         let displaced = displacedVespersCommemorations(
             candidates: displacedCandidates, displacedRank: today.winningRank, winnerRank: result.vespersOffice.winningRank
