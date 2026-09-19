@@ -44,7 +44,10 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
 
         var previousImageData: Data?
-        let maxScreens = 20
+        // 30, not 20: confirmed real that a longer office (24 February 2026's own
+        // Vespers, with a full commemoration appended after the main Oratio) hit the
+        // old cap without ever reaching the bottom.
+        let maxScreens = 30
         for index in 1...maxScreens {
             // Let the scroll's own momentum/animation settle before capturing --
             // screenshotting immediately after swipeUp() can catch the view mid-scroll.
