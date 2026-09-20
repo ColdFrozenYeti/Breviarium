@@ -26,6 +26,30 @@
 /// is *always* deleted outright, no context needed. Confirmed real for 4 January 2025:
 /// `Psalm110.txt`'s own "110:9 Redemptiónem misit pópulo suo, † státuit..." renders in
 /// the real fixture as "...pópulo suo, státuit..." with no `†` anywhere.
+///
+/// A handful of verses (real example: `Psalm144.txt`'s own "144:19 Voluntátem
+/// timéntium se fáciet, ‡ et clamórem eórum áudiet, * et salvábit eos.") also carry a
+/// *raw* `‡` directly in their own source text — the other half of the same
+/// `Discussion #4504` rule, `s/‡\s+(.*?)\*\s*/* $1/g if $noflexa;`: the dagger *moves*
+/// to become the verse's own `*` half-split point, consuming whatever ordinary `*` came
+/// later in the same verse. This is the source-text case, distinct from `HourAssembler`'s
+/// own *inserted* `‡` (added at render time when an antiphon quotes a whole verse) —
+/// by the time that logic runs, any raw `‡` from the source has already been resolved
+/// away here, so the two never interact in `BreviariumData`'s own build-time pass.
+/// Confirmed real for 18 January 2026: the real fixture reads "144:19 Voluntátem
+/// timéntium se fáciet, * et clamórem eórum áudiet, et salvábit eos." — the `*` has
+/// moved to where the `‡` was, and the verse's own later `*` is gone.
+///
+/// **Scoped to a `‡` immediately preceded by `,`/`;`/`:`**, not every `‡` — this
+/// same function is *also* reused by `OracleTests` to normalise a real DO fixture
+/// (already-rendered output, per `data/SOURCE.md`'s own note) before comparing it
+/// against this project's engine, and a *real* fixture can legitimately contain a `‡`
+/// from `HourAssembler`'s own insertion (the antiphon-quotes-a-whole-verse case) —
+/// unlike a raw source `‡`, that one is never preceded by punctuation, only by a bare
+/// verse number (`"132:2 ‡ Sicut…"`). Applying the unscoped substitution there
+/// corrupted that separate, correct case — found the same day, comparing a real
+/// fixture against this project's own rendering after this fix first shipped too
+/// broadly.
 public enum LatinOrthography {
 
     /// Applies J -> I normalisation to a single line of Latin prose.
@@ -74,6 +98,7 @@ public enum LatinOrthography {
             }
         }
         result = result.replacingOccurrences(of: "er eúmdem", with: "er eúndem")
-        return result.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+        result = result.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+        return result.replacingOccurrences(of: #"(?<=[,;:])\s+‡\s+(.*?)\*\s*"#, with: " * $1", options: .regularExpression)
     }
 }

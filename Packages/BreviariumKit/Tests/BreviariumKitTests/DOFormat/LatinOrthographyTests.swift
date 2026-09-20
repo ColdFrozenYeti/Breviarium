@@ -60,3 +60,27 @@ import Testing
     let expected = "110:9 Redemptiónem misit pópulo suo, státuit in ætérnum fœdus suum; * sanctum et venerábile est nomen eius."
     #expect(LatinOrthography.normalize(input) == expected)
 }
+
+@Test func daggerAfterAVerseNumberIsLeftAloneNotConvertedLikeARawFlexaMark() {
+    // `HourAssembler`'s own *inserted* "‡" (the antiphon-quotes-a-whole-verse rule)
+    // marks the start of the *next* verse, right after its bare verse number -- no
+    // punctuation before it, unlike a genuine raw source "‡" (always mid-sentence,
+    // preceded by a comma/semicolon/colon). Confirmed this distinction matters for
+    // real: applying the unscoped conversion to a real DO fixture (which can
+    // legitimately contain this kind of "‡", e.g. "132:2 ‡ Sicut óleum óptimum in
+    // cápite, * quod défluit...") wrongly moved the "*", corrupting a fixture
+    // comparison that was otherwise correct.
+    let input = "132:2 ‡ Sicut óleum óptimum in cápite, * quod défluit in barbam, barbam Aaron,"
+    #expect(LatinOrthography.normalize(input) == input)
+}
+
+@Test func rawFlexaMarkerMovesTheAsteriskToItself() {
+    // Psalm144.txt's own "144:19 Voluntátem timéntium se fáciet, ‡ et clamórem eórum
+    // áudiet, * et salvábit eos." -- ports `horasscripts.pl`'s own
+    // `s/‡\s+(.*?)\*\s*/* $1/g if $noflexa`, confirmed against the real fixture for
+    // 18 January 2026: the "*" moves to where "‡" was, and the verse's own later "*"
+    // is gone.
+    let input = "144:19 Voluntátem timéntium se fáciet, ‡ et clamórem eórum áudiet, * et salvábit eos."
+    let expected = "144:19 Voluntátem timéntium se fáciet, * et clamórem eórum áudiet, et salvábit eos."
+    #expect(LatinOrthography.normalize(input) == expected)
+}
