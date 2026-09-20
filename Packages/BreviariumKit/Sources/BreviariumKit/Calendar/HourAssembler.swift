@@ -254,12 +254,20 @@ public struct HourAssembler {
     /// (a collect's `$Per Dominum` ending is its own separate line/unit on both sides,
     /// per `HourAssembler`'s own doc comment on why this doesn't join into one string).
     static func unitsFromResolvedText(_ text: String, english: String? = nil) -> [Unit] {
+        // A bare `_`-only line is DO's own general block-break marker (the same
+        // convention `hymnStanzas` already treats as a stanza boundary, dropped rather
+        // than shown) -- real example, `Sancti/02-22`'s own `[Oratio]`: a lone `_` line
+        // sits between the main collect's own `$Qui vivis` ending and the `@...
+        // :Commemoratio4` cross-reference that follows it, purely to separate the two
+        // blocks. Previously rendered as a literal `"_"` line of its own, since this
+        // function's own blank-line filter only ever checked for *empty* lines.
+        func isBlockBreak(_ line: String) -> Bool { line.trimmingCharacters(in: .whitespaces) == "_" }
         let latinLines = text.split(separator: "\n", omittingEmptySubsequences: false)
             .map { DOMarkers.stripLineLabel(String($0)) }
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !isBlockBreak($0) }
         let englishLines = english?.split(separator: "\n", omittingEmptySubsequences: false)
             .map { DOMarkers.stripLineLabel(String($0)) }
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !isBlockBreak($0) }
         let paired = (englishLines?.count == latinLines.count) ? englishLines : nil
 
         // A collect can carry its own inline `!text` rubric note (`do-format.md`'s

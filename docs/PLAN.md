@@ -1588,6 +1588,18 @@ plain text somewhere it shouldn't), and 6 March 2025's own wrong commemoration o
 Perpetua and Felicity (a *different* pattern from the Sunday-discard case just fixed,
 since 6 March 2025 isn't itself a Sunday) — neither traced yet.
 
+**Continued the same session**: `unitsFromResolvedText` (the Oratio/Commemoratio
+line-classifier) only ever filtered genuinely *empty* lines — a bare `_`-only line, DO's
+own general block-break marker (the same convention `hymnStanzas` already treats as a
+stanza boundary, dropped rather than shown), rendered as a literal `"_"` line of its
+own. Real example: `Sancti/02-22`'s own `[Oratio]` has a lone `_` line separating the
+main collect's own `$Qui vivis` ending from the `@...:Commemoratio4` cross-reference
+that follows it. Now filtered the same way blank lines already are. Full Kit test suite
+and all 52 named-case oracle tests, plus one new
+(`oratioDropsABareUnderscoreBlockBreakLine`), still pass — no change to the sweep's own
+day-count (every date this fix touches already had another, still-open mismatch that
+day), but a real, fixture-confirmed correctness fix regardless.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
