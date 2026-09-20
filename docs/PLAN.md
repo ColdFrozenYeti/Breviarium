@@ -1600,6 +1600,50 @@ and all 52 named-case oracle tests, plus one new
 day-count (every date this fix touches already had another, still-open mismatch that
 day), but a real, fixture-confirmed correctness fix regardless.
 
+**Continued the same session**, tracing 6 March 2025's own wrong commemoration of Ss.
+Perpetuae et Felicitatis (Duplex, rank 3, loses outright to "Feria V post Cineres",
+`Tempora/Quadp3-4`, rank 3.9): a direct Docker trace of `occurrence()` initially found
+`@commemoentries` empty by the time it returns, matching the shape of the Polycarp bug
+just fixed — but reading `horascommon.pl:220`'s own `$sfile = shift @commemoentries;`
+showed this was a red herring: for a single sanctoral candidate, the array is *always*
+consumed into `$sfile` for winner-evaluation, empty-vs-populated tells nothing about
+whether that candidate ends up commemorated. The real mechanism is a wholly separate
+gate, `climit1960` (`horascommon.pl:1894-1919`), never previously ported: when the
+*overall* winner of the day is the temporal office itself (not another sanctoral
+office), a `Sancti/` candidate needs rank ≥ 6 to be Vespers-eligible at all — below that
+it's Lauds-only (or nothing), never reaching Vespers, regardless of
+`ownVespersCommemorations`'s own separate ranklimit (a flat 2 for an ordinary winner).
+Simplifies this way because `$hora` is always `"Vespera"` in this engine, which collapses
+the function's own Dominica-specific branch to the identical `$r[2] >= 6` test the
+non-Dominica branch already uses — the winning office's own Dominica-ness turns out not
+to matter for this specific gate. Confirmed against a second real fixture beyond
+Perpetua/Felicity: 19 January 2026, where a Vigil similarly loses to an ordinary Feria
+and gets no commemoration at all. Added `Commemorations.isVespersCommemorationEligible1960`,
+applied in `runnersUp` before any `Sancti/` candidate reaches the later ranklimit
+filters — sitting *ahead* of `ownVespersCommemorations`, not folded into it, since it's a
+genuinely separate real gate.
+
+This also caught two synthetic (non-fixture) unit tests in `CommemorationsTests.swift`
+that had baked in the *old*, incomplete understanding — both asserted a rank-2 `Sancti/`
+candidate gets commemorated after losing outright to a tied-rank ordinary Feria, which
+the newly-confirmed `climit1960` gate now correctly excludes (and which two independent
+real fixtures confirm is the actual DO behaviour). Per `CLAUDE.md`'s "never edit a
+fixture to fix a test" — these aren't oracle fixtures, just hand-rolled synthetic ranks,
+so they were corrected to rank 6 (genuinely `climit1960`-eligible) to keep testing
+`ownVespersCommemorations`'s own ranklimit logic in isolation, plus one new test
+(`ownVespersExcludesASanctiRunnerUpBelowClimit1960SixRegardlessOfTheOrdinaryRanklimit`)
+pinning the composed behaviour directly.
+
+Combined effect on the same sweep: Oratio 689→379. Full Kit test suite (198 tests, two
+corrected) and all 53 named-case oracle tests, plus two new
+(`losingLenFeriaCandidateBelowRankSixGetsNoVespersCommemorationAtAll` in OracleTests,
+`ownVespersExcludesASanctiRunnerUpBelowClimit1960SixRegardlessOfTheOrdinaryRanklimit` in
+BreviariumKitTests), still pass. No change to any other category (Hymnus 792, Canticum
+449, Versus 438, Capitulum 261, Psalmodia 169, Conclusio 31), as expected — this fix is
+commemoration-specific. Still open: Oratio's remaining 379 mismatched days (plus the 24
+still entirely-absent and 3 missing-Magnificat-antiphon days, neither yet traced), and
+the still-large Hymnus/Canticum/Versus/Capitulum categories.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

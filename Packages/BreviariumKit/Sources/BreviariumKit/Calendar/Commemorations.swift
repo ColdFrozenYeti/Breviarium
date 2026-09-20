@@ -166,6 +166,7 @@ public struct Commemorations {
         }
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
+        let winnerIsSanctoral = winnerPath.hasPrefix("Sancti/")
         for candidate in calendar.candidates(day: day, month: month, year: year) {
             let path = "Sancti/\(candidate)"
             guard path != winnerPath,
@@ -176,9 +177,40 @@ public struct Commemorations {
             {
                 continue
             }
+            guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
+            else { continue }
             results.append(Commemoration(path: path, rank: rank))
         }
         return results
+    }
+
+    /// `horascommon.pl:1894-1919`'s `climit1960`, restricted to what this engine's
+    /// Vespers-only scope ever actually asks it: whether a losing `Sancti/` candidate is
+    /// eligible for a Vespers commemoration at all, when the *overall* winner of the day
+    /// is the temporal office (or `C10`, Our Lady in Sabbato -- not separately confirmed,
+    /// so left out of `winnerIsSanctoral`'s definition here) rather than another
+    /// sanctoral office. The early-return short-circuits (empty candidate; a `Tempora/`
+    /// candidate, which always returns 1; the `7-16`/`C10` special case) don't apply to
+    /// any candidate this function is ever called with -- only `Sancti/` paths reach it.
+    /// What's left, simplified for `$hora` always being `"Vespera"` here (which collapses
+    /// the Dominica-branch's own `$hora`-gated conditions to exactly the same `$r[2] >=
+    /// 6` test the non-Dominica branch already uses, making the winning office's own
+    /// Dominica-ness irrelevant to this specific check): eligible only at rank >= 6;
+    /// below that the real rubric is Lauds-only (`climit1960 == 2`) or no commemoration
+    /// at all (`== 0`), never Vespers. When a sanctoral office won instead, `climit1960`
+    /// returns 1 unconditionally (`$winner !~ /tempora|C10/i`), so this always passes and
+    /// the ordinary ranklimit filters (`ownVespersCommemorations` etc.) do the real
+    /// restricting.
+    ///
+    /// Confirmed real for 6 March 2025 ("Feria V post Cineres", a plain Lenten feria,
+    /// wins Vespers outright): Ss. Perpetuæ et Felicitatis (Duplex, rank 3) get no
+    /// commemoration at all in the real fixture, even though rank 3 would otherwise clear
+    /// `ownVespersCommemorations`'s own ranklimit of 2 for an ordinary winner -- traced
+    /// directly against the pinned DO engine's own `climit1960`, after `occurrence()`'s
+    /// `@commemoentries`-emptying turned out to be expected behaviour for a single
+    /// candidate (`$sfile = shift @commemoentries`), not the actual cause.
+    private static func isVespersCommemorationEligible1960(candidateRank: Double, winnerIsSanctoral: Bool) -> Bool {
+        winnerIsSanctoral || candidateRank >= 6
     }
 
     /// `horascommon.pl:364-387`'s own "discard this sanctoral candidate entirely"

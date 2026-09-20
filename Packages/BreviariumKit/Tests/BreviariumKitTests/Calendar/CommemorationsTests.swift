@@ -20,17 +20,24 @@ private func makeCommemorations(files: [RawOfficeFile], calendarEntries: [String
 
 @Test func ownVespersCommemoratesAQualifyingRunnerUpSaint() {
     // A Feria wins occurrence outright (tied rank -- Occurrence only lets sanctoral win by
-    // outranking, not tying); the tied-rank saint still clears the Feria-winner ranklimit
-    // (2, since the winning title is ordinary) and gets commemorated.
+    // outranking, not tying); the tied-rank saint clears both the Feria-winner ranklimit
+    // (2, since the winning title is ordinary) *and* `climit1960`'s own separate
+    // Vespers-eligibility gate for a `Sancti/` candidate losing to a non-sanctoral winner
+    // (`horascommon.pl:1894-1919`, ported as `isVespersCommemorationEligible1960` --
+    // requires rank >= 6 there), so it gets commemorated. Rank 6 rather than an ordinary
+    // Duplex's real-world rank is deliberate: confirmed against two real fixtures (6 March
+    // 2025, Ss. Perpetuae et Felicitatis, Duplex rank 3; 19 January 2026, a Vigil) that an
+    // ordinary-rank saint losing outright to a Feria gets *no* Vespers commemoration at
+    // all, even when it would otherwise clear this function's own ranklimit of 2.
     let commemorations = makeCommemorations(
         files: [
             RawOfficeFile(path: "Tempora/Epi2-1", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Feria II infra Hebdomadam II post Epiphaniam"]),
-                RawSection(name: "Rank", condition: "", body: [";;Feria;;2.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Feria;;6.0"]),
             ]),
             RawOfficeFile(path: "Sancti/01-19", sections: [
                 RawSection(name: "Officium", condition: "", body: ["S. Aliquis Confessor"]),
-                RawSection(name: "Rank", condition: "", body: [";;Duplex;;2.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Duplex;;6.0"]),
             ]),
         ],
         calendarEntries: ["01-19": "01-19"]
@@ -57,20 +64,46 @@ private func makeCommemorations(files: [RawOfficeFile], calendarEntries: [String
     #expect(result.isEmpty)
 }
 
+@Test func ownVespersExcludesASanctiRunnerUpBelowClimit1960SixRegardlessOfTheOrdinaryRanklimit() {
+    // `climit1960`'s own gate (ported as `isVespersCommemorationEligible1960`) sits
+    // *ahead* of this function's ranklimit filter, not behind it: a `Sancti/` candidate
+    // losing to a non-sanctoral winner needs rank >= 6 to reach Vespers at all, even when
+    // its rank would otherwise clear the ordinary-winner ranklimit of 2 here. Confirmed
+    // real for 6 March 2025 (Ss. Perpetuae et Felicitatis, Duplex rank 3, loses to "Feria
+    // V post Cineres" and gets no commemoration) and 19 January 2026 (a Vigil loses to
+    // "Feria II infra Hebdomadam II post Epiphaniam" and likewise gets none).
+    let commemorations = makeCommemorations(
+        files: [
+            RawOfficeFile(path: "Tempora/Quadp3-4", sections: [
+                RawSection(name: "Officium", condition: "", body: ["Feria V post Cineres"]),
+                RawSection(name: "Rank", condition: "", body: [";;Feria maior;;3.9"]),
+            ]),
+            RawOfficeFile(path: "Sancti/03-06", sections: [
+                RawSection(name: "Officium", condition: "", body: ["Ss. Perpetuae et Felicitatis Martyrum"]),
+                RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0"]),
+            ]),
+        ],
+        calendarEntries: ["03-06": "03-06"]
+    )
+    let result = commemorations.resolve(day: 6, month: 3, year: 2025)
+    #expect(result.isEmpty)
+}
+
 @Test func ownVespersNeverCommemoratesTomorrowRegardlessOfItsRank() {
     // Tomorrow's rank (4.0) would clear the pre-1960 commemoration threshold but not the
     // 1960 first-Vespers threshold (6, non-Sunday) -- so today's own Vespers still wins,
     // and per §2a, 1960 never commemorates tomorrow there. Tomorrow's path must not
-    // appear alongside the qualifying runner-up saint from the first test above.
+    // appear alongside the qualifying runner-up saint from the first test above (rank 6,
+    // matching that test's own `climit1960`-driven rationale, not an arbitrary lower one).
     let commemorations = makeCommemorations(
         files: [
             RawOfficeFile(path: "Tempora/Epi2-1", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Feria II infra Hebdomadam II post Epiphaniam"]),
-                RawSection(name: "Rank", condition: "", body: [";;Feria;;2.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Feria;;6.0"]),
             ]),
             RawOfficeFile(path: "Sancti/01-19", sections: [
                 RawSection(name: "Officium", condition: "", body: ["S. Aliquis Confessor"]),
-                RawSection(name: "Rank", condition: "", body: [";;Duplex;;2.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Duplex;;6.0"]),
             ]),
             RawOfficeFile(path: "Tempora/Epi2-2", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Feria III infra Hebdomadam II post Epiphaniam"]),
