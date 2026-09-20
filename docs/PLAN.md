@@ -1740,6 +1740,35 @@ engine renders "In hac triúmphi glória", DO's real Passiontide-specific text i
 Passiónis témpore" — looks like a genuine version-conditional substitution DO applies
 seasonally, not yet traced), plus Canticum/Versus/Oratio/Capitulum/Psalmodia/Conclusio.
 
+**Continued the same session**, tracing that Vexilla Regis example to a real
+architectural gap rather than a text-content bug: the hymn's own final verse in
+`Psalterium/Special/Major Special.txt` carries an inline `(sed tempore Passionis)` /
+`(sed tempore Paschali)` conditional (DO's ordinary conditional-line mechanism, already
+generically ported as `ConditionalLineProcessor` — confirmed working correctly in
+isolation with the right `tempore`). The real cause: on "Vespera de sequenti" (first
+Vespers of tomorrow's office wins — 5 April 2025 is the Saturday before Passion Sunday,
+"Dominica I Passionis ~ Vespera de sequenti"), DO's own whole rendering pass re-derives
+every date-dependent global from *tomorrow's* date, not the queried one —
+`get_tempus_id()` (`tempore`'s own source) among them. `HourAssembler.assembleVespers`
+already made this swap for `weekName` (feeding the Major Special season fallback), but
+never for `context.tempore` itself, which `ConditionalLineProcessor` actually uses to
+resolve `(sed tempore ...)` lines *inside* the winning office's own content — so a
+Saturday evening whose Vespers belongs to tomorrow's different season always evaluated
+its own hymn's seasonal conditionals against *today's* season instead. Fixed by
+deriving a `contentContext` (a copy of the ordinary context with `tempore`/`mense`
+overridden to tomorrow's, when applicable) and using it for the office's own `Rule`
+fetch and the main/English resolvers — while `Concurrence`/`Commemorations` keep the
+original, today-based context, since occurrence/precedence genuinely is about today.
+
+Combined effect on the same sweep: Hymnus 191→176. A comparatively narrow day-count
+change for how broad the underlying gap is (it affects every inline `(sed tempore ...)`
+or similar conditional inside *any* section of a "Vespera de sequenti" office, not just
+Hymnus — most other sections on the same dates just don't happen to carry a
+season-conditional line) — the day-count undercounts its real reach. Full Kit test
+suite (197 tests) and all 58 named-case oracle tests, plus one new
+(`firstVespersOfTomorrowUsesTomorrowsOwnSeasonForInlineConditionals`), still pass. No
+change to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -63,20 +63,40 @@ public struct HourAssembler {
         guard let result = concurrence.resolve(day: day, month: month, year: year) else { return nil }
         let winner = result.vespersOffice
 
+        // On "Vespera de sequenti" (first Vespers of tomorrow's office wins), DO's own
+        // whole rendering pass re-derives every date-dependent global -- `$dayname[0]`,
+        // `$day`, `$month` -- from *tomorrow's* date, not the queried one; `get_tempus_id()`
+        // (`tempusID`, ` tempore`'s own source) is one of them. `weekName` already made
+        // this swap; `contentContext` mirrors it for `tempore`/`mense` so `(sed tempore
+        // ...)` conditionals inside the winning office's own content -- not just the
+        // season-fallback lookups `weekName` alone already drives -- see the season the
+        // *winning* office is actually in, not the queried date's own season. Confirmed
+        // real for 5 April 2025 (Saturday before Passion Sunday, "Vespera de sequenti"):
+        // the real fixture's Vexilla Regis hymn shows its Passiontide-specific final
+        // verse ("Hoc Passiónis témpore"), which only a `tempore` of `"Passionis"` (from
+        // 6 April, Passion Sunday) rather than `"Quadragesimæ"` (from 5 April, still
+        // Lent's 4th week) selects via the hymn's own `(sed tempore Passionis)` line.
         let weekName: String
+        var contentContext = context
         if result.isFirstVespersOfTomorrow {
             let tomorrow = Computus.addDays(1, day: day, month: month, year: year)
             weekName = TemporalCycle.weekName(day: tomorrow.day, month: tomorrow.month, year: tomorrow.year)
+            contentContext.mense = tomorrow.month
+            contentContext.tempore = TemporalCycle.tempusID(
+                weekName: weekName, rubrica: context.rubrica, month: tomorrow.month, day: tomorrow.day,
+                dayOfWeek: Computus.dayOfWeek(day: tomorrow.day, month: tomorrow.month, year: tomorrow.year),
+                isVespersOrCompline: true
+            )
         } else {
             weekName = TemporalCycle.weekName(day: day, month: month, year: year)
         }
 
-        let winningRule = SectionResolver(corpus: corpus, context: context).resolve(path: winner.winningPath, section: "Rule")
+        let winningRule = SectionResolver(corpus: corpus, context: contentContext).resolve(path: winner.winningPath, section: "Rule")
         let macroContext = MacroContext(
             weekName: weekName, dayOfWeek: Computus.dayOfWeek(day: day, month: month, year: year), priest: priest,
             winningRank: winner.winningRank, winningRule: winningRule, isFirstVespers: result.isFirstVespersOfTomorrow
         )
-        let resolver = SectionResolver(corpus: corpus, context: context, macroContext: macroContext)
+        let resolver = SectionResolver(corpus: corpus, context: contentContext, macroContext: macroContext)
 
         let skeletonText = resolver.resolve(path: "Ordinarium/Vespera", section: RawSectionParser.wholeFileSectionName)
         let skeletonLines = skeletonText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -86,7 +106,7 @@ public struct HourAssembler {
         // per language — see `BreviariumDataPipeline`'s own doc comment), so resolving
         // it again against an English-backed resolver walks the *same* `#Name`-grouped
         // structure, just with `&`/`$` macros bottoming out in English text instead.
-        let englishResolver = englishCorpus.map { SectionResolver(corpus: $0, context: context, macroContext: macroContext, isEnglish: true) }
+        let englishResolver = englishCorpus.map { SectionResolver(corpus: $0, context: contentContext, macroContext: macroContext, isEnglish: true) }
         let englishGroups: [String: SkeletonGroup] = englishResolver.map { resolver in
             let text = resolver.resolve(path: "Ordinarium/Vespera", section: RawSectionParser.wholeFileSectionName)
             let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
