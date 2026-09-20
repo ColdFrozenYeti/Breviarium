@@ -1418,7 +1418,22 @@ public struct HourAssembler {
         // S. Hilary, whose own `[Rule]` references `C4`). Scoped exactly to this real,
         // narrow condition rather than guessing it might apply more broadly.
         let hymnusIsRevised = macroContext.winningRule.range(of: "C[45]", options: .regularExpression) != nil
-        if let hymnus = lookup(hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera", majorSpecialSection: "Hymnus Vespera") {
+        let hymnusBaseSection = hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera"
+        // `hymnusmajor`'s own second-Vespers-only extra attempt (`specials/hymni.pl:95-
+        // 97`): before falling to the plain `"Hymnus Vespera"` key, second Vespers
+        // specifically tries a `" 3"`-suffixed variant first — office's own file, then
+        // Commune, exactly like the plain key's own fallback chain (reusing `lookup`'s
+        // shared machinery, just without its Major Special tier for this first try).
+        // First Vespers never gets an indexed attempt at all — confirmed by the real
+        // Perl: the `$vespera == 3` guard around this extra `getproprium` call is
+        // unconditional there, with no first-Vespers equivalent. Real example:
+        // `Sancti/01-30.txt` (S. Martina, Virgin and Martyr, "vide C6") defines its own
+        // `[Hymnus Vespera 3]` (a same-file cross-reference to `[Hymnus Laudes]`, a hymn
+        // proper to her own office, not the Commune's generic one) — this project's
+        // engine used to skip straight past it to the Commune's "Iesu, corona
+        // Virginum" (Commune of Virgins), since it never tried the indexed key at all.
+        let hymnusFromIndexedSection = macroContext.isFirstVespers ? nil : lookup("\(hymnusBaseSection) 3")
+        if let hymnus = hymnusFromIndexedSection ?? lookup(hymnusBaseSection, majorSpecialSection: "Hymnus Vespera") {
             let latinStanzas = Self.hymnStanzas(hymnus.latin)
             let englishStanzas = hymnus.english.map(Self.hymnStanzas)
             let pairEnglish = englishStanzas?.count == latinStanzas.count

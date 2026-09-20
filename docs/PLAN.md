@@ -1644,6 +1644,33 @@ commemoration-specific. Still open: Oratio's remaining 379 mismatched days (plus
 still entirely-absent and 3 missing-Magnificat-antiphon days, neither yet traced), and
 the still-large Hymnus/Canticum/Versus/Capitulum categories.
 
+**Continued the same session**, moving to Hymnus (now the single largest category at
+792): `hymnusmajor` (`specials/hymni.pl:69-99`) tries a `" 3"`-suffixed section name
+(office's own file, then Commune -- the same fallback chain the plain key already gets)
+*before* falling to the plain `"Hymnus Vespera"` key, but only at second Vespers
+(`$vespera == 3`, an unconditional guard in the real Perl with no first-Vespers
+equivalent). This project's `assembleCapitulumHymnusVersus` only ever tried the plain
+key, so any office defining only the indexed `[Hymnus Vespera 3]` (proper to its own
+second Vespers) fell straight through to the Commune's generic hymn instead. Confirmed
+real for 30 January 2025: S. Martina (Virgin and Martyr, "vide C6"), whose own
+`Sancti/01-30.txt` defines `[Hymnus Vespera 3]` (a same-file cross-reference to `[Hymnus
+Laudes]`, "Tu natale solum protege...") but no plain `[Hymnus Vespera]` -- this project's
+engine used to render the Commune of Virgins' "Iesu, corona Virginum" instead. Checked
+`capitulis.pl`'s equivalent Capitulum logic too: real DO genuinely uses a single
+un-indexed `"Capitulum Laudes"` key shared between Laudes and Vespers (already this
+project's own implementation, confirmed by the real Perl: 109 files use it against 7
+narrow exceptions for 25 December's own first Vespers and the C12 votive office, neither
+reconstructed here) -- so Capitulum needed no equivalent change.
+
+Combined effect on the same sweep: Hymnus 792→758. Full Kit test suite and all 54
+named-case oracle tests, plus one new
+(`hymnusTriesTheIndexedSecondVespersSectionBeforeFallingToCommune`), still pass. No
+change to any other category, as expected. Still open: the remaining 758 Hymnus
+mismatches (a fresh example, 1 February 2025's "Ave maris stella" leaking its own
+`/:...:/` flexis-genibus stage direction as literal text, looks like a different,
+not-yet-traced pattern within the same category), plus Canticum/Versus/Oratio/
+Capitulum/Psalmodia/Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
