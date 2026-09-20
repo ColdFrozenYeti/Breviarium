@@ -1676,7 +1676,21 @@ public struct HourAssembler {
         if let range = cleaned.range(of: #"^\{:.*?:\}"#, options: .regularExpression) {
             cleaned.removeSubrange(range)
         }
-        cleaned = DOMarkers.stripLineLabel(cleaned)
+
+        // The `v. ` drop-cap marker belongs to the first genuine line of hymn content --
+        // usually `line 0`, but a whole-line small-font stage direction (see
+        // `stripSmallFontMarkers` below) can precede it, real example: `Commune/C11.txt`'s
+        // own `[Hymnus Vespera]` opens with `/:Prima stropha...:/` *before* `v. Ave maris
+        // stella,`. Found the same way as the small-font marker itself (checking real
+        // fixtures directly, not cited in DO's own Perl) -- the old whole-string
+        // `hasPrefix` check silently did nothing whenever such a preface line was present,
+        // leaving a literal `"v. "` in the rendered text.
+        var lines = cleaned.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        if let firstContentIndex = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("/:") }) {
+            lines[firstContentIndex] = DOMarkers.stripLineLabel(lines[firstContentIndex])
+        }
+        lines = lines.map(DOMarkers.stripSmallFontMarkers)
+        cleaned = lines.joined(separator: "\n")
 
         var stanzas: [String] = []
         var current: [String] = []

@@ -86,6 +86,19 @@ enum DOMarkers {
         return String(s)
     }
 
+    /// DO's own generic "render in a smaller font" wrapper (`horas.pl:190`'s
+    /// `s{/:(.*?):/}{setfont($smallfont, $1)}eg`) — unlike `!`, this doesn't change
+    /// colour (no rubric red), so it isn't a `.rubric` marker; the real rendered page
+    /// just shows the wrapped text plainly, in a font size this project's `Unit` model
+    /// has no per-run equivalent for. Stripping the delimiters and keeping the inner
+    /// text is the closest faithful match. Real example: `Commune/C11.txt`'s own
+    /// `[Hymnus Vespera]` ("Ave maris stella") opens with `/:Prima stropha sequentis
+    /// hymni dicitur flexis genibus.:/`, a genuine printed-Breviary stage direction
+    /// that the real fixture shows as a plain, undecorated line.
+    static func stripSmallFontMarkers(_ text: String) -> String {
+        text.replacingOccurrences(of: #"/:(.*?):/"#, with: "$1", options: .regularExpression)
+    }
+
     /// Strips a leading `V.`/`R.`/`v.`/`r.`/`Ant.` label (with its following
     /// whitespace), if the line starts with one — used when building `Unit`s directly
     /// from resolved text rather than from a macro that already returns clean text.

@@ -1671,6 +1671,34 @@ mismatches (a fresh example, 1 February 2025's "Ave maris stella" leaking its ow
 not-yet-traced pattern within the same category), plus Canticum/Versus/Oratio/
 Capitulum/Psalmodia/Conclusio.
 
+**Continued the same session**, tracing that same fresh example: `/:...:/` is DO's own
+generic "render in a smaller font" wrapper (`horas.pl:190`'s own
+`s{/:(.*?):/}{setfont($smallfont, $1)}eg`) — not a rubric (no colour change, just a
+font-size wrapper), and it appears literally inside real source text, e.g.
+`Commune/C11.txt`'s own `[Hymnus Vespera]` ("Ave maris stella") opens with
+`/:Prima stropha sequentis hymni dicitur flexis genibus.:/`. This project's Hymnus
+pipeline rendered the raw delimiters as literal text; added
+`DOMarkers.stripSmallFontMarkers`, stripping them while keeping the inner text (the
+closest faithful match this project's plain-text `Unit` model has for a font-size-only
+change). Fixing that alone surfaced a second, related bug in the same stanza: the
+following line's own `v. ` drop-cap marker (`DOMarkers.stripLineLabel`) was silently
+never stripped, because the old code checked the *whole hymn text's own prefix* for
+`"v. "` — which only ever matched when there was no preceding stage-direction line to
+push the real first content line off of `line 0`. `hymnStanzas` now finds the first line
+that isn't itself small-font-wrapped and strips the drop-cap from *that* line instead.
+Confirmed real for 1 February 2025.
+
+Combined effect on the same sweep: Hymnus 758→463 — the single highest-leverage fix of
+this whole round, since the `/:...:/` convention turned out to be reused broadly across
+many hymns and seasons, not just this one Marian common. Full Kit test suite and all 55
+named-case oracle tests, plus one new
+(`hymnusStripsTheSmallFontStageDirectionAndTheFollowingDropCap`), still pass. No change
+to any other category. Still open: the remaining 463 Hymnus mismatches (a fresh example,
+12 February 2025's revised-meter Confessor hymn "Iste Confessor..." — S. Gregorius,
+whose own Rule references a Confessor Common but the checkmtv-revised text doesn't match
+the real fixture, not yet traced), plus Canticum/Versus/Oratio/Capitulum/Psalmodia/
+Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
