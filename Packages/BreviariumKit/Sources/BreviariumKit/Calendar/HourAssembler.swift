@@ -577,12 +577,30 @@ public struct HourAssembler {
             guard let loc = location(section: section, allowCommune: allowCommune) else { return ([], nil) }
             let text = resolver.resolve(path: loc.path, section: loc.section)
             var pairs = Self.parseAntiphonPsalmPairs(text)
-            if pairs.isEmpty, let fifthPsalm = festalFifthPsalmNumber(
-                office: office, antiphonSourcePath: loc.path, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
-            ) {
+            if pairs.isEmpty {
+                // `psalmi.pl:606-609`: an antiphon with no `;;N` tag of its own always
+                // pairs positionally with `@p` -- the office's own *default* five-psalm
+                // set (`Day0 $h`'s "Psalmi Dominica" numbers, 109-113, for a Sunday or
+                // feast's own proper antiphons) -- REGARDLESS of whether a `Psalm5`
+                // rule exists to override the fifth. The previous version of this code
+                // only attempted the zip when `festalFifthPsalmNumber` found an
+                // override, so an ordinary Sunday/feast `[Ant Vespera]` with five
+                // *unnumbered* antiphons and no `Psalm5` tag at all (the plain,
+                // un-overridden case, not a rare one) fell through to the ferial
+                // weekday schedule instead, losing its own proper antiphons entirely.
+                // Confirmed real for 30 November 2025 (First Sunday of Advent):
+                // `Tempora/Adv1-0`'s own `[Ant Vespera]` is `@:Ant Laudes` (a same-file
+                // cross-reference, already resolved correctly), five plain antiphons
+                // with no tags and no `Psalm5` rule -- the real fixture pairs them with
+                // 109/110/111/112/113 exactly like an ordinary Sunday.
                 let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
-                let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
-                pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+                if antiphons.count == 5 {
+                    let fifthPsalm = festalFifthPsalmNumber(
+                        office: office, antiphonSourcePath: loc.path, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
+                    ) ?? "113"
+                    let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
+                    pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+                }
             }
             return (pairs, pairs.isEmpty ? nil : loc)
         }
@@ -676,6 +694,17 @@ public struct HourAssembler {
                 let englishAlleluia = alleluiaAntiphon(resolver: englishResolver)
                 englishAntiphons = Array(repeating: englishAlleluia, count: pairs.count)
             }
+        }
+
+        pairs = pairs.map {
+            (
+                antiphon: Self.applyingSeasonalAlleluia(
+                    to: $0.antiphon, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers
+                ), psalmNumber: $0.psalmNumber
+            )
+        }
+        englishAntiphons = englishAntiphons.map {
+            $0.map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
         }
 
         var units: [Unit] = []
@@ -1098,12 +1127,14 @@ public struct HourAssembler {
             let text = resolver.resolve(path: location.path, section: location.section)
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
+                .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
             if let antiphon, !antiphon.isEmpty {
                 let english: String? = englishResolver.flatMap { eng in
                     guard eng.sectionExists(path: location.path, section: location.section) else { return nil }
                     let englishText = eng.resolve(path: location.path, section: location.section)
                     return englishText.split(separator: "\n", omittingEmptySubsequences: false).first
                         .map { String($0).components(separatedBy: ";;").first ?? String($0) }
+                        .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
                 }
                 units.append(.antiphon(antiphon, english: english))
                 units.append(contentsOf: magnificatVerses(resolver: resolver, englishResolver: englishResolver))
@@ -1374,6 +1405,76 @@ public struct HourAssembler {
         if weekName.range(of: "^Pasc[0-5]", options: .regularExpression) != nil { return "Pasch" }
         if weekName.hasPrefix("Pasc7") { return "Pent" }
         return nil
+    }
+
+    /// Ports DO's inline-Alleluia handling for antiphon text (`process_inline_alleluias`/
+    /// `suppress_alleluia`, `LanguageTextTools.pm:39-73`, called for every displayed text
+    /// block from `webdia.pl:681-685`). Some Commune/Sancti antiphon files carry a
+    /// literal "Allelúia" annotation whose visibility depends on the season, not the
+    /// office's own rank -- either bare (the Common of a Confessor-Bishop's own C4.txt
+    /// "Sacerdótes Dei... Allelúia.") or parenthesized (the Annunciation's own proper
+    /// "Missus est... (Allelúia.)"). Confirmed real for 22 February 2025 (Sexagesima
+    /// week -- pre-Lent -- Chair of St Peter using Commune C4): the real fixture shows
+    /// "...hymnum dícite Deo." with no "Allelúia" anywhere. And for 24 March 2025
+    /// (Lent, the Annunciation's own proper antiphon): "...desponsátam Ioseph." with no
+    /// "(Allelúia.)" either.
+    ///
+    /// Two rules combine, matching `webdia.pl:681-685`'s own order:
+    /// - Outside Paschaltide, a *parenthesized* "(Allelúia...)" is removed entirely,
+    ///   parens and all (`process_inline_alleluias`'s non-Paschal branch); inside
+    ///   Paschaltide it's kept but unbracketed instead (confirmed unreachable by any
+    ///   Vespers-only fixture this project's alpha scope covers, since this project has
+    ///   no Paschaltide antiphon carrying this annotation yet -- ported for
+    ///   faithfulness to the real condition, not confirmed against a real fixture).
+    /// - From Septuagesima through Lent (`isAlleluiaSuppressed`, the same window
+    ///   `suppress_alleluia`'s own call site gates on), *any* occurrence of the word
+    ///   "Allelúia" -- parenthesized or bare -- is removed outright, along with an
+    ///   immediately preceding comma or period (so "Deo. Allelúia." becomes "Deo.", the
+    ///   trailing period surviving as the sentence's own new end, not the antiphon's
+    ///   own original one).
+    /// Outside both windows (ordinary time), a bare, unparenthesized "Allelúia" is real,
+    /// fixed antiphon text (many Common-of-Saints antiphons genuinely end that way) and
+    /// stays exactly as written.
+    private static func applyingSeasonalAlleluia(to text: String, weekName: String, isFirstVespers: Bool) -> String {
+        guard text.range(of: "allel[uú][ij]a", options: [.regularExpression, .caseInsensitive]) != nil else { return text }
+        var result = text
+        let paschal = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
+        if paschal {
+            result = result.replacingOccurrences(
+                of: #"\((allel[uú][ij]a[^)]*)\)"#, with: " $1 ", options: [.regularExpression, .caseInsensitive]
+            )
+        } else {
+            result = result.replacingOccurrences(
+                of: #"\(allel[uú][ij]a[^)]*\)"#, with: "", options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        if Self.isAlleluiaSuppressed(weekName: weekName, isFirstVespers: isFirstVespers) {
+            result = result.replacingOccurrences(
+                of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        result = result.replacingOccurrences(of: #" {2,}"#, with: " ", options: .regularExpression)
+        return result.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The Septuagesima-to-Holy-Saturday Alleluia-suppression window
+    /// (`suppress_alleluia`'s own gate, `webdia.pl:684-685`: `$dayname[0] =~
+    /// /Quadp|Quad[1-5]|Quad6-[0-5]/`), matching this project's own `weekName` naming
+    /// (`Quadp1`-`Quadp3` for Septuagesima/Sexagesima/Quinquagesima, `Quad1`-`Quad6` for
+    /// Lent including Holy Week). **First Vespers of Septuagesima Sunday itself is
+    /// exempted** (`Septuagesima_vesp()`, `horas.pl:214-221`): it's the last office
+    /// where Alleluia is still said, even though the office being prayed (`weekName`,
+    /// already the *next* day's for a first-Vespers office) already reads `"Quadp1"`.
+    ///
+    /// **Not ported**: `Quad6-[0-5]`'s own exclusion of day 6 specifically (Holy
+    /// Saturday) -- this project's `weekName` doesn't carry Holy Week's own day-within-
+    /// week number, and Holy Saturday's Vespers is a Triduum-rubric special case out of
+    /// this project's current scope regardless; treating all of `Quad6` as suppressed
+    /// is the safe, cautious default until the Triduum itself is implemented.
+    private static func isAlleluiaSuppressed(weekName: String, isFirstVespers: Bool) -> Bool {
+        guard weekName.range(of: "^(Quadp[1-3]|Quad[1-5]|Quad6)", options: .regularExpression) != nil else { return false }
+        if weekName == "Quadp1", isFirstVespers { return false }
+        return true
     }
 
     /// Splits a raw resolved `[Hymnus Vespera]` body into its own stanzas, cleaning two

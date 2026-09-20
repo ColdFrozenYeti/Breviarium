@@ -1329,6 +1329,88 @@ above (Oratio-content ~1,444, Hymnus ~1,015, Canticum ~789, Versus ~647, Capitul
 Bea/Vulgate half-verse boundary gap rather than a missed general rule, though not
 re-confirmed by a fresh trace this pass.
 
+**New session, prompted by "Let's clear up the psalmody before anything else!"** —
+continued chasing the remaining ~475 Psalmodia mismatches rather than accepting them as
+the Bea/Vulgate gap:
+
+- **A literal or parenthesized "Allelúia" in antiphon source text is season-dependent,
+  not fixed.** Some Commune/Sancti antiphon files carry this annotation either bare
+  (Commune C4's own "Sacerdótes Dei... Allelúia.") or parenthesized (the Annunciation's
+  own proper "Missus est... (Allelúia.)"). Ports `process_inline_alleluias`/
+  `suppress_alleluia` (`LanguageTextTools.pm:39-73`, called for every displayed text
+  block from `webdia.pl:681-685`): outside Paschaltide, a parenthesized occurrence is
+  removed entirely (parens and all); inside Paschaltide it's kept but unbracketed
+  instead. Separately, from Septuagesima through Lent (`suppress_alleluia`'s own gate,
+  matching this project's own `Quadp1-3`/`Quad1-6` `weekName` naming), *any* occurrence
+  — parenthesized or bare — is removed outright, along with an immediately preceding
+  comma or period. First Vespers of Septuagesima Sunday itself is exempted
+  (`Septuagesima_vesp()`, `horas.pl:214-221`): the last office where Alleluia is still
+  said, even though the office being prayed already reads `weekName == "Quadp1"`.
+  Confirmed against two real fixtures found via a fresh audit sweep: 22 February 2025
+  (Sexagesima week, "In Cathedra S. Petri" using Commune C4 — the real fixture shows
+  "...hymnum dícite Deo." with no "Allelúia" anywhere) and 24 March 2025 (Lent, the
+  Annunciation's own proper antiphon — "...desponsátam Ioseph." with no "(Allelúia.)"
+  either). Added `applyingSeasonalAlleluia`, applied to every Psalmodia antiphon (Latin
+  and English) and the Magnificat's own antiphon — the two places this project's engine
+  currently surfaces raw antiphon text.
+
+Combined effect on the same sweep: Psalmodia 475→436; Canticum also dropped 789→737 as
+a direct side effect (the Magnificat antiphon shares the exact same seasonal-Alleluia
+exposure, several Marian and Confessor Commune antiphons carrying the same annotation).
+Full Kit test suite and all 42 named-case oracle tests (two new:
+`bareAlleluiaIsSuppressedDuringSexagesimaWeek`,
+`parenthesizedAlleluiaIsRemovedEntirelyDuringLent`) still pass. **Not yet applied**:
+Versus, which the same sweep shows carrying the identical, still-unfixed pattern
+("2025-03-24: Ave, María, grátia plena. (Allelúia.)" — a versicle/response pair, not an
+antiphon) — `process_inline_alleluias`/`suppress_alleluia` are DO's own general,
+whole-page mechanism, so Versus (and likely some of Hymnus/Capitulum/Oratio too) plausibly
+need the same treatment; out of scope for this pass, which stayed deliberately scoped to
+Psalmodia per the user's own instruction. Psalmodia's remaining ~436 includes at least
+one confirmed structural (not textual) gap unrelated to this fix: 19 April 2025 is Holy
+Saturday, a Triduum-rubric special case this project's alpha doesn't yet model (Oratio is
+also entirely absent that same day) — not chased further this pass.
+
+**Continued the same session**, still chasing Psalmodia:
+
+- **An antiphon with no `;;N` tag of its own was only ever paired with the default
+  109-113 Sunday psalm set when a `Psalm5` override *also* existed.** `psalmi.pl:
+  606-609` always does this pairing for an unnumbered antiphon, positionally against
+  `@p` (the office's own default five-psalm set) — the `Psalm5` rule only ever
+  overrides the *fifth* slot specifically, it was never a precondition for the pairing
+  itself. This project's earlier code required `festalFifthPsalmNumber` to succeed
+  before attempting the zip at all, so an ordinary Sunday or feast `[Ant Vespera]` with
+  five plain, unnumbered antiphons and *no* `Psalm5` tag anywhere fell through to the
+  generic ferial weekday schedule instead, losing its own proper antiphons entirely and
+  substituting the wrong psalms *and* the wrong antiphons both. Confirmed real for two
+  different real fixtures reached two different ways: 30 November 2025, First Sunday of
+  Advent (`Tempora/Adv1-0`'s own direct `[Ant Vespera]`, resolved via its own `@:Ant
+  Laudes` same-file cross-reference — already handled correctly by the existing
+  inclusion resolver) and 21 April 2025, Easter Monday (`Tempora/Pasc0-1`'s own `[Rank]`
+  is `ex Pasc0-0` — Easter Sunday's own file used as a Commune-like fallback via
+  `communeFallbackPath`, not a genuine Commune code — whose own antiphons are the same
+  unnumbered shape). Fixed by defaulting the fifth psalm to `"113"` (the ordinary
+  Sunday/feast default) whenever `festalFifthPsalmNumber` finds no override, and
+  attempting the positional zip whenever exactly five unnumbered antiphon lines are
+  found, with or without a `Psalm5` tag.
+
+Combined effect on the same sweep: Psalmodia 436→295 — this single fix also silently
+resolved the whole Easter Octave's own wrong "Allelúia, * allelúia, allelúia." ferial
+Paschaltide replacement (Easter week has its own proper, day-by-day antiphons that
+simply weren't being found before, not the ferial-Paschaltide fallback this project's
+engine was substituting instead) and the weekly Advent-Sunday pattern, both visible in
+the same sweep's own "before" examples. Full Kit test suite and all 42 named-case
+oracle tests, plus two new
+(`firstSundayOfAdventPairsItsOwnUnnumberedAntiphonsWithTheDefaultSundaySet`,
+`easterMondayInheritsEasterSundaysOwnUnnumberedAntiphonsViaTheExFallback`), still pass.
+Psalmodia's remaining ~295 is now dominated by: the Holy Saturday/Triduum structural gap
+noted above (out of this alpha's current scope); a handful of proper-feast antiphon sets
+this pass didn't individually trace (Corpus Christi's own octave, Pentecost, a few
+Marian feasts — visible in the sweep's own remaining examples, each a small, specific
+day-count rather than a systemic pattern); and, presumably, a growing proportional share
+of the original Bea/Vulgate half-verse boundary gap, not re-confirmed by a fresh trace
+this pass. Combined, this session's whole Psalmodia investigation: **3,560→295, a 91.7%
+reduction** across five general fixes, none of them a per-date hardcode.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
