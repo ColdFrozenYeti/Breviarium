@@ -465,31 +465,57 @@ public struct HourAssembler {
         return nil
     }
 
-    /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect with
-    /// the winning office's own saint name — DO's `replaceNdot()` (`specials.pl:778-817`),
-    /// confirmed against the real oracle fixture for 5 February 2026 (`Sancti/02-05`,
-    /// falling back to `Commune/C6`'s `"...beátæ N. Vírginis..."`, real rendered result
-    /// `"...beátæ Agathæ Vírginis..."`). No-ops when `text` has no `"N."` at all (a
-    /// proper collect that already names the saint directly, the common case) or the
-    /// office defines no `[Name]` of its own.
+    /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect (or,
+    /// with `isAntiphon: true`, an antiphon) with the winning office's own saint name —
+    /// DO's `replaceNdot()` (`specials.pl:778-817`), confirmed against the real oracle
+    /// fixture for 5 February 2026 (`Sancti/02-05`, falling back to `Commune/C6`'s
+    /// `"...beátæ N. Vírginis..."`, real rendered result `"...beátæ Agathæ
+    /// Vírginis..."`). No-ops when `text` has no `"N."` at all (a proper collect that
+    /// already names the saint directly, the common case) or the office defines no
+    /// `[Name]` of its own.
     ///
-    /// **Not ported:** the `"Oratio="`/`"Ant="`/`"Invit="`-tagged variant selection for
-    /// names needing a different grammatical case depending on where they're
-    /// substituted (real example found: `Sancti/02-05`'s own `[Name]` carries a
-    /// `"Postcommunio=Agatha"` tag alongside the plain `"Agathæ"` — for a Mass proper,
-    /// not our Office concern, but confirms the tagging convention is real and in use).
-    /// Untagged names, the common case confirmed above, are unaffected by this gap.
-    private func substituteName(in text: String, office: String, resolver: SectionResolver) -> String {
+    /// **The `"Ant="`-tagged variant selection is ported** (`specials.pl:797-800`'s own
+    /// "Doctor Antiphone: Casus vocativus"): when `isAntiphon` is true *and* the text
+    /// itself starts with `"O"`/`"Ó"` (optionally followed by a comma) and whitespace —
+    /// or is literally the Common of Doctors' own `"O Doctor óptime"` — the `[Name]`
+    /// section's own `"Ant="`-tagged line wins over the plain/default one, if present.
+    /// Confirmed real for 14 January 2025 (St Hilary, a Doctor): `Sancti/01-14`'s own
+    /// `[Name]` is `"Hilárium\n(sed rubrica 1570 aut rubrica 1617)\nHilárii\nAnt=Hilári"`
+    /// — the Oratio gets the plain `"Hilárium"`, but `Commune/C4a`'s own Magnificat
+    /// antiphon `"O Doctor óptime, * ... beáte N., ..."` needs the vocative `"Hilári"`
+    /// instead, which this project's engine was never substituting into the antiphon at
+    /// all before (it wasn't calling this function there), rendering the literal `"N."`.
+    ///
+    /// **Not ported:** the `"Invit="`-tagged variant (a Matins-only Invitatory case, out
+    /// of this project's Vespers-only scope) and the `"Oratio="` tag itself (real
+    /// example found: `Sancti/02-05`'s own `[Name]` carries a `"Postcommunio=Agatha"`
+    /// tag for a *Mass* proper, not an Office one — confirms the tagging convention is
+    /// real, but no real `[Name]` this project's own oracle sweep has found carries an
+    /// `"Oratio="` tag specifically, so the default/untagged line already serves that
+    /// role correctly without it).
+    private func substituteName(in text: String, office: String, resolver: SectionResolver, isAntiphon: Bool = false) -> String {
         guard text.contains("N."), resolver.sectionExists(path: office, section: "Name") else { return text }
-        guard let name = resolver.resolve(path: office, section: "Name")
-            .split(separator: "\n", omittingEmptySubsequences: false).first, !name.isEmpty
-        else { return text }
+        let lines = resolver.resolve(path: office, section: "Name")
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return text }
+
+        let isVocativeEligible = isAntiphon
+            && (text.range(of: #"^[OÓ],?\s"#, options: .regularExpression) != nil || text.hasPrefix("O Doctor óptime"))
+        var candidates = lines
+        if isVocativeEligible, lines.contains(where: { $0.hasPrefix("Ant=") }) {
+            candidates = lines.filter { $0.hasPrefix("Ant=") }
+        }
+        guard var name = candidates.first, !name.isEmpty else { return text }
+        if let equals = name.firstIndex(of: "=") {
+            name = String(name[name.index(after: equals)...])
+        }
+        guard !name.isEmpty else { return text }
 
         var result = text
         if let range = result.range(of: #"N\. .*? N\."#, options: .regularExpression) {
             result.replaceSubrange(range, with: name)
         }
-        return result.replacingOccurrences(of: "N.", with: String(name))
+        return result.replacingOccurrences(of: "N.", with: name)
     }
 
     /// `orationes.pl:55-61`'s "Oratio Dominica" rule-flag redirect: a ferial file whose
@@ -1209,6 +1235,7 @@ public struct HourAssembler {
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
                 .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
+                .map { substituteName(in: $0, office: office, resolver: resolver, isAntiphon: true) }
             if let antiphon, !antiphon.isEmpty {
                 let english: String? = englishResolver.flatMap { eng in
                     guard eng.sectionExists(path: location.path, section: location.section) else { return nil }
@@ -1216,6 +1243,7 @@ public struct HourAssembler {
                     return englishText.split(separator: "\n", omittingEmptySubsequences: false).first
                         .map { String($0).components(separatedBy: ";;").first ?? String($0) }
                         .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
+                        .map { substituteName(in: $0, office: office, resolver: eng, isAntiphon: true) }
                 }
                 units.append(.antiphon(antiphon, english: english))
                 units.append(contentsOf: magnificatVerses(resolver: resolver, englishResolver: englishResolver))

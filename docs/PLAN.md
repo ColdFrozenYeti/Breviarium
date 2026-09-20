@@ -1529,6 +1529,27 @@ pass. Next: 26 January 2025 (S. Polycarpi) shows the *next* distinct pattern in 
 same category — a whole cluster of wrong commemoration content (antiphon, versicle,
 collect, and the "Commemoratio ..." heading itself) — not yet traced.
 
+**Continued the same session**: `replaceNdot()`'s own general "N." name-substitution
+mechanism (`specials.pl:778-817`) is used for *any* resolved text via `getproprium()`'s
+own Commune fallback (`specials.pl:510-511`), not just the Oratio — this project's
+engine only ever called its own `substituteName` for the Oratio, so a Magnificat
+antiphon carrying its own "N." (the Common of Doctors' own "O Doctor óptime... beáte
+N., ...") rendered the literal "N." instead of the saint's own name. The real mechanism
+also picks a *different* tagged `[Name]` variant for this exact antiphon shape (the
+`"Ant="`-tagged line, vocative case, `specials.pl:797-800`'s own "Doctor Antiphone:
+Casus vocativus") than it does for the Oratio (the plain/default line, a different
+case) — confirmed real for 14 January 2025 (St Hilary of Poitiers): `Sancti/01-14`'s
+own `[Name]` is `"Hilárium\n(sed rubrica 1570 aut rubrica 1617)\nHilárii\n
+Ant=Hilári"` — the Oratio gets the plain `"Hilárium"`, the Magnificat antiphon needs
+the vocative `"Hilári"`. `substituteName` now takes an `isAntiphon` flag porting this
+exact tag-selection logic, applied to the Magnificat's own antiphon (Latin and
+English) in `assembleMagnificat`.
+
+Combined effect on the same sweep: Canticum 628→449 (every Doctor-of-the-Church feast
+across the whole range shares this one antiphon). Full Kit test suite and all 50
+named-case oracle tests, plus one new
+(`magnificatAntiphonSubstitutesTheDoctorsOwnVocativeName`), still pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
