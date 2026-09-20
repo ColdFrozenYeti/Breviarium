@@ -1161,6 +1161,64 @@ disambiguation for offices with more than one plausible source) that need tracin
 a time, the same way each of the last four fixes was — a long tail, not a handful of
 remaining root causes. Reported to you rather than continuing to guess at it blind.
 
+**Continued the same day, prompted by "is it necessary to conduct every case on its own?
+I do not want this to be hard-coded, but generated in the app."** Confirmed: none of the
+fixes above or below hard-code a date — each ports a real, general rule from DO's own
+source, verified against a real fixture, that then applies to every date that rule
+governs. Kept pulling the same thread and found three more general mechanisms, one of
+them (the Major Special mirrored-index retry landing here too) already itself a
+generalisation:
+
+- **`majorSpecialLocation` only ever used the ordinary "time after Pentecost" naming.**
+  `gettempora()`'s *first* computation (`horascommon.pl:2291-2299`) picks a season
+  prefix — Advent, Lent (`Quad`), Passiontide (`Quad5`), Ascension week (`Asc`),
+  Paschaltide (`Pasch`), the week after Pentecost (`Pent`) — *before* ever falling back
+  to the day-of-week naming this project's own fallback already had; that ordinary-time
+  naming only actually applies outside every one of those seasons. Confirmed real for 10
+  March 2025 (Monday, First Week of Lent): the real Capitulum/Hymnus/Versus are Major
+  Special's own `[Quad Vespera]`/`[Hymnus Quad Vespera]`/`[Quad Versum 3]`, not the
+  ordinary `[Feria Vespera]` this project's engine fell to before. Added
+  `majorSpecialSeasonPrefix`, ported from the same `gettempora()` block already partly
+  ported for the ordinary-time case.
+- **`communeFallbackPath` assumed every bare (no `/`) commune reference meant
+  `"Commune/…"`.** DO's own `extract_common()` (`horascommon.pl:1475-1519`) only does
+  that for a reference actually shaped like a Commune *code*
+  (`^C[0-9]+[a-z]*-*[123]*$`, e.g. `"C4a"`, `"C6-1"`) — its real catch-all branch
+  defaults anything else to `"Tempora/…"` instead. This surfaced as a real regression
+  from the season-prefix fix just above: once ordinary Pentecost-octave ferias (`Tempora/
+  Pasc7-1` through `-6`) stopped silently absorbing generic ordinary-time content, their
+  own real chain — `[Rank]`'s `"ex Pasc7-0"`, Pentecost Sunday's own file — turned out to
+  resolve to the nonexistent `"Commune/Pasc7-0"` under the old assumption, losing the
+  whole chain. Confirmed real for 9 June 2025 (Monday within the Octave of Pentecost):
+  the real Capitulum/Versus are Pentecost Sunday's own "Act. 2:1-2..."/"Loquebántur
+  váriis linguis...", reached only once the reference defaults to `Tempora/` correctly.
+- **The psalm-verse dagger rule (`getantcross()`) was only half-ported.** When a
+  psalm's antiphon quotes its own first verse verbatim (common — e.g. Psalm 132's "Ecce
+  quam bonum..."), DO marks the boundary with a `‡` dagger rather than the verse's own
+  ordinary mid-verse `*` split. This project's engine already added the dagger to verse
+  2 (`getantcross()`'s own boundary point, `horas.pl:238-278`) but never removed verse
+  1's own natural split, which never matches DO's real text there (shown as one plain,
+  unsplit line). `oracleComparisonTexts`'s own `.verse` case already anticipated this
+  exact shape (`guard !second.isEmpty else { return [first] }`) without it ever being
+  produced. Confirmed real for 2 January 2025: "132:1 Ecce quam bonum et quam iucúndum,
+  habitáre fratres in unum:" has no `*` anywhere in it. Added `removingSplit
+  (fromFirstVerseOf:)`. This alone dropped the Psalmodia mismatch count from ~3,560 to
+  ~3,044 — the single highest-leverage fix of this batch, since a psalm quoted verbatim
+  as its own antiphon is a very common pattern, not a rare one.
+
+Combined effect on the same sweep: Hymnus 1,906→1,015; Versus 1,855→647; Capitulum
+1,176→499; Psalmodia 3,560→3,044; the Oratio/Hymnus/Capitulum/Versus "entirely absent"
+counts introduced transiently by the season-prefix fix (then fixed by the commune-
+fallback correction) settled back down to roughly where they started (Oratio 52,
+Hymnus 14, Capitulum/Versus 0). **Still open, the same "long tail" as above**:
+Psalmodia (~3,044, only the *already-known* Bea/Vulgate gap confirmed so far, not
+re-investigated further this pass), Oratio-content (~1,444), Hymnus (~1,015,
+S. Martina's own proper text among them), Canticum (~789), Capitulum (~499), Versus
+(~647). Also noted but not fixed: a `(rubric text)`-as-parenthetical convention leaking
+into rendered hymn *content* rather than being treated as a rubric, confirmed on 6 real
+files (`"Prima stropha hymni sequentis dicitur flexibus genibus"`-style prefatory notes,
+e.g. before *Veni Creator Spiritus*) — narrow (6 files), not chased this pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -455,6 +455,22 @@ public struct HourAssembler {
         return "Tempora/\(weekName)-0"
     }
 
+    /// Ports `extract_common()`'s own three-way dispatch (`horascommon.pl:1475-1519`)
+    /// for a bare (no `/`) reference — this project's own earlier version always
+    /// assumed `"Commune/$ref"`, which is only actually branch 1 there
+    /// (`^(ex|vide)\s*C[0-9]+[a-z]*-*[123]*`, a genuine Commune *code*, e.g. `"C4a"`,
+    /// `"C6-1"`). The real catch-all branch (`horascommon.pl:1513-1514`) defaults a
+    /// bare reference that *doesn't* match that Commune-code shape to `"Tempora/"`
+    /// instead — confirmed real and necessary: `Tempora/Pasc7-1`'s own `[Rank]` names
+    /// `"ex Pasc7-0"` (Pentecost Sunday's own file, for the ferias within its octave),
+    /// and the old `"Commune/Pasc7-0"` guess resolved to a file that doesn't exist,
+    /// silently losing that whole chain — found via a full 2025-2040 content audit
+    /// once the new season-prefix fallback (above) stopped silently absorbing the
+    /// resulting gap with generic ordinary-time content.
+    private nonisolated(unsafe) static let communeCodeRegex: Regex<AnyRegexOutput> =
+        // swiftlint:disable:next force_try
+        try! Regex(#"^C[0-9]+[a-z]*-*[123]*$"#)
+
     static func communeFallbackPath(_ reference: String) -> String? {
         var ref = reference
         for prefix in ["vide ", "ex "] where ref.hasPrefix(prefix) {
@@ -462,7 +478,9 @@ public struct HourAssembler {
             break
         }
         guard !ref.isEmpty else { return nil }
-        return ref.contains("/") ? ref : "Commune/\(ref)"
+        if ref.contains("/") { return ref }
+        if (try? communeCodeRegex.firstMatch(in: ref)) != nil { return "Commune/\(ref)" }
+        return "Tempora/\(ref)"
     }
 
     // MARK: - Psalmodia
@@ -680,12 +698,26 @@ public struct HourAssembler {
             // "dagger anywhere N words into the psalm" algorithm, which treats the whole
             // psalm as one continuous word stream rather than per-verse and would need a
             // bigger restructuring than this warrants.
+            //
+            // A second, previously-missed half of the same real rule (`horasscripts.pl`'s
+            // own `s/‡\s+(.*?)\*\s*/* $1/g if $noflexa` -- Breviarium Romanum style,
+            // confirmed the version this project always renders under): the psalm's own
+            // *first* verse loses its ordinary mid-verse `*` split entirely in this case
+            // — it's shown as one plain, unsplit line, not two halves. Missing this let
+            // verse 1 keep rendering with a `*` at its own natural (Bea-psalter) split
+            // point even when the antiphon rule fired, which never matches DO's real
+            // text there. Confirmed against the real fixture for 2 January 2025: "132:1
+            // Ecce quam bonum et quam iucúndum, habitáre fratres in unum:" has no `*`
+            // anywhere in it. Found via a full 2025-2040 content audit — this single
+            // fix plausibly explains a large share of the ~3,560 mismatched Psalmodia
+            // days that sweep found, since a psalm quoted verbatim as its own antiphon
+            // is a common pattern, not a rare one.
             var antiphonText = pair.antiphon
             if let firstVerseText = Self.firstVerseText(in: psalmContent),
                 Self.antiphonMatchesWholeVerse(antiphon: pair.antiphon, verseText: firstVerseText)
             {
                 antiphonText = "\(pair.antiphon) ‡"
-                psalmContent = Self.addingLeadingDagger(toSecondVerseOf: psalmContent)
+                psalmContent = Self.addingLeadingDagger(toSecondVerseOf: Self.removingSplit(fromFirstVerseOf: psalmContent))
             }
 
             units.append(.antiphon(antiphonText, english: english))
@@ -714,6 +746,27 @@ public struct HourAssembler {
             }
         }
         return nil
+    }
+
+    /// Rejoins the first `.verse` unit's two halves into one unsplit line (empty
+    /// `secondHalf`) — `oracleComparisonTexts`'s own `.verse` case already special-cases
+    /// this shape (`guard !second.isEmpty else { return [first] }`), so this is
+    /// completing an already-anticipated design, not inventing a new one.
+    private static func removingSplit(fromFirstVerseOf units: [Unit]) -> [Unit] {
+        func rejoin(_ first: String, _ second: String) -> String {
+            let withoutAsterisk = first.hasSuffix("*") ? String(first.dropLast()) : first
+            return "\(withoutAsterisk) \(second)"
+        }
+        var seenFirst = false
+        return units.map { unit in
+            guard case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = unit, !seenFirst else { return unit }
+            seenFirst = true
+            let englishJoined = firstEnglish.map { rejoin($0, secondEnglish ?? "") }
+            return .verse(
+                reference: reference, firstHalf: rejoin(firstHalf, secondHalf), secondHalf: "",
+                firstHalfEnglish: englishJoined, secondHalfEnglish: nil
+            )
+        }
     }
 
     /// Prepends "‡ " to the second `.verse` unit's `firstHalf` (Gloria's own two lines
@@ -1060,9 +1113,34 @@ public struct HourAssembler {
         office: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?, dayOfWeek: Int
     ) -> [Section] {
         let communeReference = macroContext.winningRank.communeReference
-        func lookup(_ section: String) -> (latin: String, english: String?)? {
+        // `ownSection`/`majorSpecialSection` differ only for the checkmtv-revised
+        // Confessor hymn (`"Hymnus1 Vespera"` vs plain `"Hymnus Vespera"`) — DO's own
+        // `hymnusmajor` discards its checkmtv-computed name entirely once it falls
+        // through to the Major Special tier (`specials/hymni.pl:106-107`'s own
+        // `$name = gettempora('Hymnus major') . " $hora"` reassignment), so that
+        // fallback always uses the plain, unrevised key regardless of checkmtv.
+        func lookup(_ ownSection: String, majorSpecialSection: String? = nil) -> (latin: String, english: String?)? {
+            guard let location = resolvedLocation(office: office, communeReference: communeReference, section: ownSection, resolver: resolver)
+                ?? majorSpecialLocation(
+                    section: majorSpecialSection ?? ownSection, weekName: macroContext.weekName, dayOfWeek: dayOfWeek, resolver: resolver
+                )
+            else { return nil }
+            let latin = resolver.resolve(path: location.path, section: location.section)
+            let english = englishResolver.flatMap { eng in
+                eng.sectionExists(path: location.path, section: location.section) ? eng.resolve(path: location.path, section: location.section) : nil
+            }
+            return (latin, english)
+        }
+
+        // `getantvers`'s own mirrored-index retry (`specials.pl:584-589`): a missing
+        // `Versum $ind` on the office's own file/Commune retries the *other* Vespers'
+        // index (`4-ind`) on that same office/Commune tier — before ever falling to
+        // Major Special. Real example: Epiphany's own `Sancti/01-06.txt` defines only
+        // `[Versum 1]` (no `3`); its own second Vespers (6 January itself) still uses
+        // that same `[Versum 1]` content ("Reges Tharsis..."), not the generic ferial
+        // Major Special fallback this project's engine fell straight to before this fix.
+        func ownOrCommune(_ section: String) -> (latin: String, english: String?)? {
             guard let location = resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
-                ?? majorSpecialLocation(section: section, dayOfWeek: dayOfWeek, resolver: resolver)
             else { return nil }
             let latin = resolver.resolve(path: location.path, section: location.section)
             let english = englishResolver.flatMap { eng in
@@ -1096,7 +1174,7 @@ public struct HourAssembler {
         // S. Hilary, whose own `[Rule]` references `C4`). Scoped exactly to this real,
         // narrow condition rather than guessing it might apply more broadly.
         let hymnusIsRevised = macroContext.winningRule.range(of: "C[45]", options: .regularExpression) != nil
-        if let hymnus = lookup(hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera") {
+        if let hymnus = lookup(hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera", majorSpecialSection: "Hymnus Vespera") {
             let latinStanzas = Self.hymnStanzas(hymnus.latin)
             let englishStanzas = hymnus.english.map(Self.hymnStanzas)
             let pairEnglish = englishStanzas?.count == latinStanzas.count
@@ -1105,7 +1183,12 @@ public struct HourAssembler {
             }
             sections.append(Section(kind: .hymnus, units: units))
         }
-        if let versus = lookup("Versum \(macroContext.isFirstVespers ? 1 : 3)") {
+        let primaryVersumIndex = macroContext.isFirstVespers ? 1 : 3
+        let mirroredVersumIndex = 4 - primaryVersumIndex
+        if let versus = ownOrCommune("Versum \(primaryVersumIndex)")
+            ?? ownOrCommune("Versum \(mirroredVersumIndex)")
+            ?? lookup("Versum \(primaryVersumIndex)")
+        {
             let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
             let englishLines = versus.english?.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(latinLines, english: englishLines)))
@@ -1130,33 +1213,70 @@ public struct HourAssembler {
     /// handled generically by `SectionResolver`, needing no special-casing here beyond
     /// building the right section name.
     ///
-    /// **Not covered**: this reconstructs `gettempora`'s branches for `'Capitulum
-    /// major'`/`'Hymnus major'`/`'getfrompsalterium major'` only — the real function has
-    /// further season-specific branches (Advent, Lent, Paschaltide, the Epiphany-season
-    /// reuse named-edge-case) this pass doesn't attempt, so this fallback is confirmed
-    /// correct for ordinary "time after Pentecost" dates specifically, not verified for
-    /// every season yet.
-    private func majorSpecialLocation(section: String, dayOfWeek: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+    /// **Now covers Advent/Lent/Passiontide/Ascension/Paschaltide/the week after
+    /// Pentecost too** (`majorSpecialSeasonPrefix`, below) — originally confirmed
+    /// correct for ordinary "time after Pentecost" dates only; extended after a full
+    /// 2025-2040 content audit found the same fallback silently using the *ordinary*
+    /// `Dominica`/`Feria`/`Day$dayOfWeek` naming for every season, when DO's own
+    /// `gettempora()` gives Lenten (etc.) ferias a completely different, season-prefixed
+    /// key instead. Confirmed real for 10 March 2025 (Monday, First Week of Lent):
+    /// `Tempora/Quad1-1`'s own Vespers has no proper Capitulum/Hymnus/Versus of its own,
+    /// and the real fixture's are Major Special's own `[Quad Vespera]` ("Joël 2:17..."),
+    /// `[Hymnus Quad Vespera]` ("Audi, benígne Cónditor..."), and `[Quad Versum 3]` —
+    /// not the ordinary-time `[Feria Vespera]` this project's engine fell to before.
+    private func majorSpecialLocation(section: String, weekName: String, dayOfWeek: Int, resolver: SectionResolver) -> (path: String, section: String)? {
         let path = "Psalterium/Special/Major Special"
-        let dominicaOrFeria = dayOfWeek == 0 ? "Dominica" : "Feria"
+        let seasonPrefix = Self.majorSpecialSeasonPrefix(weekName: weekName, dayOfWeek: dayOfWeek)
+        // Capitulum and Versum fall back to the ordinary `Dominica`/`Feria` naming
+        // outside every named season; Hymnus falls back to `Day$dayOfWeek` instead
+        // (`specials/hymni.pl:73-78`'s own separate `Hymnus major` branch) — two
+        // different ordinary-time defaults sharing the same season detection.
+        let capitulumOrVersumPrefix = seasonPrefix ?? (dayOfWeek == 0 ? "Dominica" : "Feria")
+        let hymnusPrefix = seasonPrefix ?? "Day\(dayOfWeek)"
 
         if section == "Capitulum Laudes" {
-            let name = "\(dominicaOrFeria) Vespera"
+            let name = "\(capitulumOrVersumPrefix) Vespera"
             return resolver.sectionExists(path: path, section: name) ? (path, name) : nil
         }
         if section == "Hymnus Vespera" {
-            let name = "Hymnus Day\(dayOfWeek) Vespera"
+            let name = "Hymnus \(hymnusPrefix) Vespera"
             return resolver.sectionExists(path: path, section: name) ? (path, name) : nil
         }
         if section.hasPrefix("Versum ") {
             // `getfrompsalterium`'s own fallback order for a `Versum $ind` miss: try the
             // asked index, then 1, then 3, then 2 (`specials.pl:648-651`).
             for ind in [section.replacingOccurrences(of: "Versum ", with: ""), "1", "3", "2"] {
-                let name = "\(dominicaOrFeria) Versum \(ind)"
+                let name = "\(capitulumOrVersumPrefix) Versum \(ind)"
                 if resolver.sectionExists(path: path, section: name) { return (path, name) }
             }
             return nil
         }
+        return nil
+    }
+
+    /// Ports `gettempora()`'s own season detection (`horascommon.pl:2288-2343`) for the
+    /// callers relevant to Major Special lookups (`'Capitulum major'`/`'Hymnus major'`/
+    /// `'getfrompsalterium major'`, all matched by the same real `$caller =~ /^Capitulum
+    /// |major$/` branch there — a Perl alternation-precedence trap: "starts with
+    /// Capitulum" OR "ends with major", not "starts with Capitulum-or-major", but all
+    /// three real caller strings satisfy it either way): Advent, Lent (weeks 1-4),
+    /// Passiontide (weeks 5-6), Ascension week, Paschaltide, and the week after
+    /// Pentecost each get their own season-prefixed Major Special key, taking priority
+    /// over the ordinary "day of week" naming — which only actually applies outside
+    /// every one of those seasons. `nil` means ordinary time.
+    ///
+    /// **Not ported**: the Ascension-week branch's own further `$dayname[1] !~
+    /// /^Dominica/` guard (unconfirmed against a real fixture, and a narrow date range
+    /// regardless); Advent's own `Adv3`-for-`Invitatorium` special case (Matins, out of
+    /// this project's Vespers-only scope).
+    private static func majorSpecialSeasonPrefix(weekName: String, dayOfWeek: Int) -> String? {
+        if weekName.hasPrefix("Adv") { return "Adv" }
+        if weekName.hasPrefix("Quad5") || weekName.hasPrefix("Quad6") { return "Quad5" }
+        if weekName.hasPrefix("Quad"), !weekName.hasPrefix("Quadp") { return "Quad" }
+        if weekName.hasPrefix("Pasc6") { return "Asc" }
+        if weekName.hasPrefix("Pasc5"), dayOfWeek > 3 { return "Asc" }
+        if weekName.range(of: "^Pasc[0-5]", options: .regularExpression) != nil { return "Pasch" }
+        if weekName.hasPrefix("Pasc7") { return "Pent" }
         return nil
     }
 

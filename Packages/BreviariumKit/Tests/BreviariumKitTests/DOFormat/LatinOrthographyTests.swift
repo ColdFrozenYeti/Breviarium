@@ -34,3 +34,18 @@ import Testing
     let expected = "Iesum\n&Deus_in_adjutorium\neius"
     #expect(LatinOrthography.normalize(input) == expected)
 }
+
+@Test func eumdemBecomesEundemAfterEr() {
+    // `Prayers.txt`'s own `[Per eumdem]` collect-ending macro body -- ports DO's own
+    // `spell_var()`'s `s/er eúmdem/er eúndem/g`, confirmed against the real fixture for
+    // 4 January 2025 ("Per eúndem Dóminum nostrum...", not "eúmdem").
+    let input = "r. Per eúmdem Dóminum nostrum Jesum Christum Fílium tuum, qui tecum vivit."
+    let expected = "r. Per eúndem Dóminum nostrum Iesum Christum Fílium tuum, qui tecum vivit."
+    #expect(LatinOrthography.normalize(input) == expected)
+}
+
+@Test func eumdemUnrelatedToErIsUntouched() {
+    // Only the literal "er eúmdem" substring is rewritten -- a bare "eúmdem" without a
+    // preceding "er " is left alone (matches DO's own unanchored-but-literal regex).
+    #expect(LatinOrthography.normalize("eúmdem") == "eúmdem")
+}
