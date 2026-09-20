@@ -1257,6 +1257,78 @@ boundary gap (M4's own note, above) now a larger share of what's left proportion
 Oratio-content/Hymnus/Canticum/Capitulum/Versus counts unchanged by this specific pass
 (they weren't the target), still the long tail documented above.
 
+**Continued the same day again**, still chasing Psalmodia:
+
+- **A raw `‡` in a verse's own source text is the other half of the same
+  `Discussion #4504` rule as `†`.** `horasscripts.pl`'s own `s/‡\s+(.*?)\*\s*/* $1/g if
+  $noflexa;` (Breviarium Romanum style): the dagger *moves* to become the verse's own
+  `*` half-split point, consuming whatever ordinary `*` came later in the same verse.
+  Confirmed real for 18 January 2026: `Psalm144.txt`'s own "144:19 Voluntátem
+  timéntium se fáciet, ‡ et clamórem eórum áudiet, * et salvábit eos." renders as
+  "...fáciet, * et clamórem eórum áudiet, et salvábit eos." — the `*` has moved to
+  where the `‡` was. Added to `LatinOrthography.normalize`.
+- **Self-caught regression in the same fix**: the new substitution was unscoped at
+  first, and — since `OracleTests`'s own `mismatches()` reuses `LatinOrthography.
+  normalize` on the *real fixture* too (`data/SOURCE.md`'s documented design) — it
+  wrongly rewrote `HourAssembler`'s own *inserted* `‡` (the antiphon-quotes-a-verse
+  rule, e.g. real fixture text `"132:2 ‡ Sicut óleum..."`) into a `*`, corrupting a
+  comparison that was otherwise correct. Never surfaced by the user — caught by
+  re-running the audit after the fix, per this project's own "always re-verify, never
+  assume" discipline, and finding a *new* mismatch pattern appear where none existed
+  before. Fixed by scoping the substitution to a `‡` immediately preceded by
+  `,`/`;`/`:` — a genuine raw source dagger is always mid-sentence, preceded by
+  punctuation; `HourAssembler`'s own inserted dagger is always preceded by a bare verse
+  number, never punctuation. Regression test added
+  (`daggerAfterAVerseNumberIsLeftAloneNotConvertedLikeARawFlexaMark`).
+
+Combined effect on the same sweep: Psalmodia 1,550→989. The scope fix turned out to be
+the larger contributor of the two — unsurprising in hindsight, since the corrupted,
+unscoped version was quietly breaking *every* fixture comparison for a day whose
+antiphon-dagger rule had already fired correctly, not just the narrow raw-`‡` case the
+fix was originally written for.
+
+**Continued the same day again, with explicit approval ("yes please, and let's continue
+with this pace!") to generalise the dagger rule properly**, rather than accumulate more
+special cases:
+
+- **The psalm-verse dagger rule was still only the whole-verse special case.**
+  `getantcross()` (`horas.pl:238-278`) is actually a general word-by-word matcher: it
+  walks the antiphon's own words against the psalm verse's own words in lockstep
+  (skipping either side's punctuation-only tokens via `depunct()`), and marks wherever
+  the antiphon's words stop matching — not only when they run out exactly at the
+  verse's own end. `horasscripts.pl:619-621` (the sole call site) is what unifies the
+  two shapes: if the result ends with the dagger (nothing left of verse 1 to append —
+  the whole-verse case), the dagger moves to the very start of verse 2 instead, and
+  verse 1 loses its own split entirely; otherwise the dagger simply lands wherever the
+  match stopped, right after any punctuation immediately following it (most often the
+  verse's own natural `*`). Confirmed against two real fixtures with the manual trace
+  before writing any code: 2 January 2025 (Psalm 132, whole match, as before) and
+  19 January 2025 (Psalm 109, antiphon "Dixit Dóminus * Dómino meo: Sede a dextris
+  meis." quotes only the verse's opening words — real fixture shows "109:1 Dixit
+  Dóminus Dómino meo: «Sede a dextris meis, * ‡ donec ponam..." with the dagger
+  landing right after the verse's own mid-verse `*`, not at the end). The antiphon's
+  own display text gets a trailing `‡` whenever the match succeeds at all, confirmed
+  empirically true for both fixtures, not only the whole-match case.
+  Replaced the narrow `antiphonMatchesWholeVerse`/`removingSplit`/`addingLeadingDagger`
+  special case with a general, token-indexed port (`daggerTokens`, `sourceTokens`,
+  `displayHalves`, `applyingAntiphonDagger`) mirroring `getantcross()`'s own `pind`/
+  `aind` loop exactly, including its asymmetry between a verse token skipped *during*
+  matching (dropped, never reappears) and one skipped *after* the match ends (kept,
+  appended literally before the dagger) — the distinction that makes the whole-match
+  and partial-match cases render differently. Both real fixtures re-verified via a
+  temporary diagnostic before writing permanent tests
+  (`psalmVerseOneGetsAMidVerseDaggerWhenTheAntiphonQuotesOnlyItsOpeningWords` added
+  alongside the existing whole-match test).
+
+Combined effect on the same sweep: Psalmodia 989→475 — again nearly halved, confirming
+the generalisation's premise: an antiphon partially quoting its own psalm's opening
+words is at least as common a pattern as quoting the whole first verse. Full Kit test
+suite and all 40 named-case oracle tests still pass. Still open: the same long tail as
+above (Oratio-content ~1,444, Hymnus ~1,015, Canticum ~789, Versus ~647, Capitulum
+~499), plus whatever remains of Psalmodia's ~475 — now plausibly dominated by the real
+Bea/Vulgate half-verse boundary gap rather than a missed general rule, though not
+re-confirmed by a fresh trace this pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

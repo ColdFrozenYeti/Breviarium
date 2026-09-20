@@ -683,36 +683,30 @@ public struct HourAssembler {
             let english = index < englishAntiphons.count ? englishAntiphons[index] : nil
             var psalmContent = psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
 
-            // Direct feedback, comparing a real rendering against real DO output: when
-            // the antiphon's own words exactly equal the psalm's first verse (a real,
-            // common case -- e.g. Psalm 132's antiphon "Ecce quam bonum..." verbatim
-            // repeats 132:1), DO marks this with a "‡" at the end of the antiphon and
-            // another at the start of the second verse (getantcross(), horas.pl:238-278).
-            // Ported for exactly this whole-first-verse case, not DO's fully general
-            // "dagger anywhere N words into the psalm" algorithm, which treats the whole
-            // psalm as one continuous word stream rather than per-verse and would need a
-            // bigger restructuring than this warrants.
-            //
-            // A second, previously-missed half of the same real rule (`horasscripts.pl`'s
-            // own `s/‡\s+(.*?)\*\s*/* $1/g if $noflexa` -- Breviarium Romanum style,
-            // confirmed the version this project always renders under): the psalm's own
-            // *first* verse loses its ordinary mid-verse `*` split entirely in this case
-            // — it's shown as one plain, unsplit line, not two halves. Missing this let
-            // verse 1 keep rendering with a `*` at its own natural (Bea-psalter) split
-            // point even when the antiphon rule fired, which never matches DO's real
-            // text there. Confirmed against the real fixture for 2 January 2025: "132:1
-            // Ecce quam bonum et quam iucúndum, habitáre fratres in unum:" has no `*`
-            // anywhere in it. Found via a full 2025-2040 content audit — this single
-            // fix plausibly explains a large share of the ~3,560 mismatched Psalmodia
-            // days that sweep found, since a psalm quoted verbatim as its own antiphon
-            // is a common pattern, not a rare one.
-            var antiphonText = pair.antiphon
-            if let firstVerseText = Self.firstVerseText(in: psalmContent),
-                Self.antiphonMatchesWholeVerse(antiphon: pair.antiphon, verseText: firstVerseText)
-            {
-                antiphonText = "\(pair.antiphon) ‡"
-                psalmContent = Self.addingLeadingDagger(toSecondVerseOf: Self.removingSplit(fromFirstVerseOf: psalmContent))
-            }
+            // Direct feedback, comparing a real rendering against real DO output: DO's
+            // own getantcross() (horas.pl:238-278) walks an antiphon's words against
+            // its psalm's own first verse, word by word, and marks the point where
+            // they stop matching with a "‡" dagger -- covering not just a whole-verse
+            // quote (e.g. Psalm 132's antiphon "Ecce quam bonum..." verbatim repeats
+            // 132:1) but any partial-prefix quote too (e.g. Psalm 109's antiphon
+            // quoting only "Dixit Dominus Domino meo", confirmed against the real
+            // fixture for 19 January 2025). `horasscripts.pl:619-621` is the sole call
+            // site: if the result ends with the dagger (nothing left of verse 1 to
+            // append -- the whole-verse case), the dagger moves to the very start of
+            // verse 2 instead, and verse 1's own ordinary mid-verse `*` split is
+            // dropped entirely (shown as one plain, unsplit line, confirmed against the
+            // real fixture for 2 January 2025). Otherwise the dagger lands wherever the
+            // match stopped, right after any punctuation immediately following it (most
+            // often the verse's own natural `*`). The antiphon's own display text gets
+            // a trailing "‡" whenever the match succeeds at all, not only on a whole
+            // match -- confirmed empirically against both real fixtures above. Found via
+            // a full 2025-2040 content audit, generalising an earlier whole-verse-only
+            // special case that the same audit had already shown explained a large
+            // share of the mismatched Psalmodia days -- a psalm quoted, in whole or in
+            // part, by its own antiphon is a common pattern, not a rare one.
+            let (taggedPsalmContent, antiphonMatched) = Self.applyingAntiphonDagger(antiphon: pair.antiphon, psalmContent: psalmContent)
+            psalmContent = taggedPsalmContent
+            let antiphonText = antiphonMatched ? "\(pair.antiphon) ‡" : pair.antiphon
 
             units.append(.antiphon(antiphonText, english: english))
             units.append(.psalmTitle("Psalmus \(Self.psalmTitleNumber(from: pair.psalmNumber)) [\(index + 1)]"))
@@ -729,54 +723,6 @@ public struct HourAssembler {
     private static func psalmTitleNumber(from psalmNumber: String) -> String {
         guard let parenIndex = psalmNumber.firstIndex(of: "(") else { return psalmNumber }
         return String(psalmNumber[..<parenIndex])
-    }
-
-    /// The first `.verse` unit's full text (both halves rejoined) -- used only to check
-    /// against the antiphon for the dagger rule above.
-    private static func firstVerseText(in units: [Unit]) -> String? {
-        for unit in units {
-            if case .verse(_, let firstHalf, let secondHalf, _, _) = unit {
-                return "\(firstHalf) \(secondHalf)".trimmingCharacters(in: .whitespaces)
-            }
-        }
-        return nil
-    }
-
-    /// Rejoins the first `.verse` unit's two halves into one unsplit line (empty
-    /// `secondHalf`) — `oracleComparisonTexts`'s own `.verse` case already special-cases
-    /// this shape (`guard !second.isEmpty else { return [first] }`), so this is
-    /// completing an already-anticipated design, not inventing a new one.
-    private static func removingSplit(fromFirstVerseOf units: [Unit]) -> [Unit] {
-        func rejoin(_ first: String, _ second: String) -> String {
-            let withoutAsterisk = first.hasSuffix("*") ? String(first.dropLast()) : first
-            return "\(withoutAsterisk) \(second)"
-        }
-        var seenFirst = false
-        return units.map { unit in
-            guard case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = unit, !seenFirst else { return unit }
-            seenFirst = true
-            let englishJoined = firstEnglish.map { rejoin($0, secondEnglish ?? "") }
-            return .verse(
-                reference: reference, firstHalf: rejoin(firstHalf, secondHalf), secondHalf: "",
-                firstHalfEnglish: englishJoined, secondHalfEnglish: nil
-            )
-        }
-    }
-
-    /// Prepends "‡ " to the second `.verse` unit's `firstHalf` (Gloria's own two lines
-    /// count as `.verse` too, but the dagger rule only ever concerns a psalm's own
-    /// verse 2, which always comes first).
-    private static func addingLeadingDagger(toSecondVerseOf units: [Unit]) -> [Unit] {
-        var verseCount = 0
-        return units.map { unit in
-            guard case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = unit else { return unit }
-            verseCount += 1
-            guard verseCount == 2 else { return unit }
-            return .verse(
-                reference: reference, firstHalf: "‡ \(firstHalf)", secondHalf: secondHalf,
-                firstHalfEnglish: firstEnglish, secondHalfEnglish: secondEnglish
-            )
-        }
     }
 
     /// Ports `depunct()` (`horas.pl:280-292`) for word comparison: strips the same
@@ -804,17 +750,152 @@ public struct HourAssembler {
         return lowered.isEmpty ? nil : lowered
     }
 
-    private static func depunctuatedWords(_ text: String) -> [String] {
-        text.split(separator: " ").compactMap { depunctuatedWord($0) }
+    /// Ports `getantcross()` (`horas.pl:238-278`): walks the psalm verse's own words and
+    /// the antiphon's own words in lockstep (skipping either side's punctuation-only
+    /// tokens via `depunctuatedWord`, exactly like the real `depunct()`-based
+    /// comparison), and reports where the antiphon's words stop matching the verse's --
+    /// the "‡" dagger point. Returns `nil` when there's no match at all, or when the
+    /// antiphon runs longer than the verse (`horas.pl:250`'s own `return $psalmline if
+    /// ($aind < @antline && $pind == @psalmline)` -- functionally "leave the verse
+    /// untouched" here, since a no-op return is the same as never applying a dagger).
+    ///
+    /// A verse token skipped *during* the matching loop (either side's own mid-match
+    /// punctuation, e.g. a "*" that happens to fall between two matched words) is
+    /// dropped entirely from the output, never reappearing -- but a verse token skipped
+    /// *after* the match ends (trailing punctuation immediately following the
+    /// antiphon's last matched word, most often the verse's own natural "*" split
+    /// point) is kept, appended literally right before the dagger. This asymmetry is
+    /// exactly what makes a *whole* Psalm 132:1 quoted by its antiphon (dagger falls at
+    /// the very end, past the verse's own trailing "." with no "*" ever met after the
+    /// match) render differently from a *partial* Psalm 109:1 quote (dagger falls right
+    /// after the verse's own mid-verse "*", hit only once the match had already ended)
+    /// -- confirmed against both real fixtures (2 and 19 January 2025).
+    private static func daggerTokens(verseTokens: [String], antiphonTokens: [String]) -> [String]? {
+        var pind = 0
+        var aind = 0
+        var output: [String] = []
+        var matchedAnyWord = false
+
+        while aind < antiphonTokens.count, pind < verseTokens.count {
+            let rawVerseToken = verseTokens[pind]
+            pind += 1
+            guard let verseWord = depunctuatedWord(Substring(rawVerseToken)) else { continue }
+
+            let rawAntiphonToken = antiphonTokens[aind]
+            aind += 1
+            guard let antiphonWord = depunctuatedWord(Substring(rawAntiphonToken)) else {
+                pind -= 1
+                continue
+            }
+
+            guard verseWord.contains(antiphonWord) else { return nil }
+            output.append(rawVerseToken)
+            matchedAnyWord = true
+        }
+
+        guard matchedAnyWord, !(aind < antiphonTokens.count && pind == verseTokens.count) else { return nil }
+
+        while pind < verseTokens.count, depunctuatedWord(Substring(verseTokens[pind])) == nil {
+            output.append(verseTokens[pind])
+            pind += 1
+        }
+        output.append("‡")
+        output.append(contentsOf: verseTokens[pind...])
+        return output
     }
 
-    /// Ports `getantcross()`'s word-by-word matching (`horas.pl:238-278`), scoped to an
-    /// exact whole-verse match (see the dagger rule's own doc comment in
-    /// `assemblePsalmodia` for what's not attempted).
-    private static func antiphonMatchesWholeVerse(antiphon: String, verseText: String) -> Bool {
-        let antiphonWords = depunctuatedWords(antiphon)
-        guard !antiphonWords.isEmpty else { return false }
-        return antiphonWords == depunctuatedWords(verseText)
+    /// Reconstructs a `.verse` unit's original, space-tokenised source line from its
+    /// already-split `firstHalf`/`secondHalf` display halves -- the "*" that display
+    /// attaches directly to `firstHalf`'s last word becomes its own token again,
+    /// matching how DO's own source line looks before `horasscripts.pl`'s display-time
+    /// split runs.
+    private static func sourceTokens(firstHalf: String, secondHalf: String) -> [String] {
+        var tokens = firstHalf.split(separator: " ").map(String.init)
+        guard !secondHalf.isEmpty else { return tokens }
+        if let last = tokens.last, last.hasSuffix("*") {
+            let withoutAsterisk = String(last.dropLast())
+            if withoutAsterisk.isEmpty {
+                tokens.removeLast()
+            } else {
+                tokens[tokens.count - 1] = withoutAsterisk
+            }
+        }
+        tokens.append("*")
+        tokens.append(contentsOf: secondHalf.split(separator: " ").map(String.init))
+        return tokens
+    }
+
+    /// The inverse of `sourceTokens`: turns a dagger-annotated token stream back into
+    /// display halves. A "*" still present splits the line exactly as before; the
+    /// dagger (wherever it landed) simply travels with whichever half it ends up in.
+    private static func displayHalves(from tokens: [String]) -> (first: String, second: String) {
+        guard let starIndex = tokens.firstIndex(of: "*") else {
+            return (tokens.joined(separator: " "), "")
+        }
+        let firstTokens = tokens[..<starIndex]
+        let secondTokens = tokens[(starIndex + 1)...]
+        let first = firstTokens.isEmpty ? "*" : "\(firstTokens.joined(separator: " "))*"
+        return (first, secondTokens.joined(separator: " "))
+    }
+
+    private static func rejoinEnglishHalves(_ first: String, _ second: String?) -> String {
+        guard let second, !second.isEmpty else { return first }
+        return "\(first) \(second)"
+    }
+
+    /// Prepends "‡ " to the next `.verse` unit found after `index` (Gloria's own two
+    /// lines count as `.verse` too, but the dagger rule only ever concerns a psalm's
+    /// own verse 2, which always immediately follows verse 1).
+    private static func addingLeadingDagger(toVerseAfter index: Int, in units: [Unit]) -> [Unit] {
+        var units = units
+        guard let nextVerseIndex = units[(index + 1)...].firstIndex(where: {
+            if case .verse = $0 { return true } else { return false }
+        }) else { return units }
+        guard case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = units[nextVerseIndex] else {
+            return units
+        }
+        units[nextVerseIndex] = .verse(
+            reference: reference, firstHalf: "‡ \(firstHalf)", secondHalf: secondHalf,
+            firstHalfEnglish: firstEnglish, secondHalfEnglish: secondEnglish
+        )
+        return units
+    }
+
+    /// Applies the general `getantcross()` dagger port to a psalm's own first verse
+    /// against the antiphon that precedes it. Returns the input unchanged, with
+    /// `antiphonMatched == false`, when there's no match at all (the ordinary case:
+    /// most antiphons don't quote their own psalm's opening words).
+    private static func applyingAntiphonDagger(antiphon: String, psalmContent: [Unit]) -> (units: [Unit], antiphonMatched: Bool) {
+        guard let firstVerseIndex = psalmContent.firstIndex(where: {
+            if case .verse = $0 { return true } else { return false }
+        }), case .verse(let reference, let firstHalf, let secondHalf, let firstEnglish, let secondEnglish) = psalmContent[firstVerseIndex]
+        else { return (psalmContent, false) }
+
+        let verseTokens = Self.sourceTokens(firstHalf: firstHalf, secondHalf: secondHalf)
+        let antiphonTokens = antiphon.split(separator: " ").map(String.init)
+        guard let taggedTokens = Self.daggerTokens(verseTokens: verseTokens, antiphonTokens: antiphonTokens) else {
+            return (psalmContent, false)
+        }
+
+        var units = psalmContent
+        if taggedTokens.last == "‡" {
+            // Whole-verse match: verse 1 loses its own split entirely, and the dagger
+            // moves to the start of verse 2 instead (`horasscripts.pl:619-621`'s own
+            // "if $lines[0] ends with the dagger" branch).
+            let unsplit = taggedTokens.dropLast().joined(separator: " ")
+            units[firstVerseIndex] = .verse(
+                reference: reference, firstHalf: unsplit, secondHalf: "",
+                firstHalfEnglish: firstEnglish.map { Self.rejoinEnglishHalves($0, secondEnglish) }, secondHalfEnglish: nil
+            )
+            units = Self.addingLeadingDagger(toVerseAfter: firstVerseIndex, in: units)
+        } else {
+            let (newFirst, newSecond) = Self.displayHalves(from: taggedTokens)
+            units[firstVerseIndex] = .verse(
+                reference: reference, firstHalf: newFirst, secondHalf: newSecond,
+                firstHalfEnglish: firstEnglish, secondHalfEnglish: secondEnglish
+            )
+        }
+        return (units, true)
     }
 
     /// Ports `alleluia_ant()`'s plain (non-GABC) form (`"$u, * $l, $l."`,
