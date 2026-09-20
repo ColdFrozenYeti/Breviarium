@@ -1550,6 +1550,44 @@ across the whole range shares this one antiphon). Full Kit test suite and all 50
 named-case oracle tests, plus one new
 (`magnificatAntiphonSubstitutesTheDoctorsOwnVocativeName`), still pass.
 
+**Continued the same session**, still on 26 January 2025 (S. Polycarpi)'s own wrong
+commemoration cluster: static reading of `horascommon.pl`'s own multi-branch "discard
+this sanctoral candidate entirely" check (`:364-387`) wasn't enough to confirm which
+branch actually applied, so this round traced it directly against the pinned DO engine
+running in the project's own Docker container (`scripts/docker/docker-compose.yml`) —
+temporary `warn` statements added to a running container's own in-memory copy of
+`horascommon.pl` (never the pinned checkout on disk), confirming `@commemoentries`
+itself was already empty by the time `concurrence()`'s own commemoration-ranklimit
+filter ran, i.e. the exclusion happens earlier, inside `occurrence()` itself. (One real
+false trail on the way: querying `officium.pl` with an ISO `date=2025-01-26` parameter
+silently falls back to the container's own system clock date instead of erroring —
+DO's real CLI param is `MM-DD-YYYY`, per `scripts/oracle-date-list.pl`'s own
+`"$month-$day-$year"` — a full round of debug output was garbage as a result until this
+was caught and corrected.)
+
+- **`horascommon.pl:379-381`'s own 1960-specific branch**: on *any* Sunday, once the
+  winning temporal office's own rank reaches II. classis (5) or I. classis (6), a
+  sanctoral candidate ranked below that *same* threshold is discarded from
+  commemoration entirely — not merely filtered by the ordinary ranklimit
+  (`ownVespersCommemorations`'s own flat 2 for an ordinary Sunday, which alone would
+  have kept S. Polycarpi's Duplex/rank-3). Confirmed real for 26 January 2025
+  ("Dominica III Post Epiphaniam", II. classis, rank 5). Added
+  `Commemorations.isDiscardedOnSunday`, applied in `runnersUp` before any sanctoral
+  candidate reaches the later ranklimit filters. **Only this one branch of the real
+  check's four is ported** — the other three (non-Sunday I./II. classis feasts, common
+  octaves, specific vigil rules) aren't yet confirmed against a real fixture, so porting
+  them now would be guessing, not citing; flagged for a future pass if a real fixture
+  surfaces one.
+
+Combined effect on the same sweep: Oratio 1,088→689 — the single highest-leverage fix
+of this whole Oratio round. Full Kit test suite and all 51 named-case oracle tests,
+plus one new (`aDuplexRankedSaintIsNotCommemoratedOnAnIIClassisSunday`), still pass.
+Still open, visible in the same sweep's own fresh examples: a literal `"_"` leaking
+into Oratio content for 22 February 2025 (a stanza/paragraph-break marker rendering as
+plain text somewhere it shouldn't), and 6 March 2025's own wrong commemoration of Ss.
+Perpetua and Felicity (a *different* pattern from the Sunday-discard case just fixed,
+since 6 March 2025 isn't itself a Sunday) — neither traced yet.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

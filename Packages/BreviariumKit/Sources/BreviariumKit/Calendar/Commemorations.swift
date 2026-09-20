@@ -160,20 +160,47 @@ public struct Commemorations {
         var results: [Commemoration] = []
 
         let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar)
-        if temporalPath != winnerPath,
-            let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
-        {
-            results.append(Commemoration(path: temporalPath, rank: rank))
+        let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
+        if temporalPath != winnerPath, let temporalRank {
+            results.append(Commemoration(path: temporalPath, rank: temporalRank))
         }
 
+        let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
         for candidate in calendar.candidates(day: day, month: month, year: year) {
             let path = "Sancti/\(candidate)"
             guard path != winnerPath,
                 let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path))
             else { continue }
+            if isSunday, let temporalRank,
+                Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
+            {
+                continue
+            }
             results.append(Commemoration(path: path, rank: rank))
         }
         return results
+    }
+
+    /// `horascommon.pl:364-387`'s own "discard this sanctoral candidate entirely"
+    /// check — only its fourth, 1960-specific branch (`:379-381`) is ported; the other
+    /// three (vigils, common octaves, non-Sunday I./II. classis feasts) aren't yet
+    /// confirmed against a real fixture, so porting them now would be guessing, not
+    /// citing. This one: on *any* Sunday, once the winning temporal office's own rank
+    /// reaches II. classis (5) or I. classis (6), a sanctoral candidate ranked below
+    /// that *same* threshold is discarded from commemoration entirely — not merely
+    /// filtered by the ordinary ranklimit `ownVespersCommemorations`/
+    /// `displacedVespersCommemorations` apply afterwards (whose own limit for an
+    /// ordinary Sunday is a flat 2, which alone would have kept it).
+    ///
+    /// Confirmed real for 26 January 2025 ("Dominica III Post Epiphaniam", II. classis,
+    /// rank 5): S. Polycarpi (Duplex, rank 3) gets no commemoration at all in the real
+    /// fixture, even though 3 ≥ 2 would otherwise pass the ordinary filter — traced
+    /// directly against the pinned DO engine (a debug trace inside the project's own
+    /// Docker container, not guessed): `@commemoentries` itself is wiped to empty by
+    /// this earlier check, inside `occurrence()`, before the ranklimit filter this
+    /// project already ported ever runs.
+    private static func isDiscardedOnSunday(candidateRank: Double, temporalRank: Double) -> Bool {
+        (temporalRank >= 6 && candidateRank < 6) || (temporalRank >= 5 && candidateRank < 5)
     }
 
     // MARK: - §2a: today's own second Vespers wins
