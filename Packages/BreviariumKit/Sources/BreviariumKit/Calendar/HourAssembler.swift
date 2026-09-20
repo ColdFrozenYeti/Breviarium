@@ -302,12 +302,6 @@ public struct HourAssembler {
         return nil
     }
 
-    /// A section this office doesn't define at all, falling back to its Commune.
-    private func resolveWithCommuneFallback(office: String, communeReference: String, section: String, resolver: SectionResolver) -> String? {
-        resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
-            .map { resolver.resolve(path: $0.path, section: $0.section) }
-    }
-
     // MARK: - Commemorations
 
     /// The `Ant.`/versicle-response/`Oratio` block(s) appended after the winning
@@ -584,7 +578,7 @@ public struct HourAssembler {
             let text = resolver.resolve(path: loc.path, section: loc.section)
             var pairs = Self.parseAntiphonPsalmPairs(text)
             if pairs.isEmpty, let fifthPsalm = festalFifthPsalmNumber(
-                office: office, communeReference: communeReference, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
+                office: office, antiphonSourcePath: loc.path, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
             ) {
                 let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
                 let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
@@ -840,15 +834,36 @@ public struct HourAssembler {
     /// The `[Rule]` field's `"Psalm5 Vespera3=NNN"` (today's own second Vespers,
     /// preferred) or `"Psalm5 Vespera=NNN"` (fallback, presumably first Vespers) entry —
     /// see `assemblePsalmodia`'s doc comment for the confirmed real example.
+    ///
+    /// Checks the office's own `[Rule]` first, unconditionally, then — separately —
+    /// `antiphonSourcePath`'s own `[Rule]` (`psalmi.pl:577-580`'s own `$rule =~
+    /// /Psalm5.../ || ($commune{Rule} =~ /Psalm5.../ && $c eq 4)`: the Commune's own
+    /// tag is only consulted when the *antiphons themselves* came from that Commune,
+    /// i.e. exactly when `antiphonSourcePath != office`). A single all-or-nothing
+    /// office-then-Commune fallback (this function's own earlier version) missed this:
+    /// the office's own `[Rule]` existing at all (even without a `Psalm5` tag of its
+    /// own) short-circuited the Commune check entirely. Confirmed real for 13 January
+    /// 2025 (`Sancti/01-13`, "Commemoratio Baptismatis Domini", `"ex Sancti/01-06"` —
+    /// Epiphany): `Sancti/01-13`'s own `[Rule]` has no `Psalm5` tag at all, but its
+    /// antiphons come from Epiphany's own `[Ant Laudes]` (via the Commune chain, no
+    /// `;;psalmNumber` tags of their own), and Epiphany's own `[Rule]` has `"Psalm5
+    /// Vespera3=113"` — the real fixture's own fifth psalm for that date's second
+    /// Vespers is exactly Psalm 113.
     private func festalFifthPsalmNumber(
-        office: String, communeReference: String, resolver: SectionResolver, isFirstVespers: Bool
+        office: String, antiphonSourcePath: String, resolver: SectionResolver, isFirstVespers: Bool
     ) -> String? {
-        guard let ruleText = resolveWithCommuneFallback(
-            office: office, communeReference: communeReference, section: "Rule", resolver: resolver
-        ) else { return nil }
         let preferredKey = isFirstVespers ? "Psalm5 Vespera=" : "Psalm5 Vespera3="
         let fallbackKey = isFirstVespers ? "Psalm5 Vespera3=" : "Psalm5 Vespera="
-        return Self.value(forRuleKey: preferredKey, in: ruleText) ?? Self.value(forRuleKey: fallbackKey, in: ruleText)
+
+        func tag(at path: String) -> String? {
+            guard resolver.sectionExists(path: path, section: "Rule") else { return nil }
+            let ruleText = resolver.resolve(path: path, section: "Rule")
+            return Self.value(forRuleKey: preferredKey, in: ruleText) ?? Self.value(forRuleKey: fallbackKey, in: ruleText)
+        }
+
+        if let ownTag = tag(at: office) { return ownTag }
+        guard antiphonSourcePath != office else { return nil }
+        return tag(at: antiphonSourcePath)
     }
 
     private static func value(forRuleKey key: String, in ruleText: String) -> String? {

@@ -17,6 +17,15 @@
 /// a hymn-tune identifier like `{:H-IesuRedemptorOmnium:}`), is deliberately not
 /// ported: this project's own `hymnStanzas` strips that whole `{:...:}` prefix before
 /// display, so the identifier's own spelling is never shown to begin with.
+///
+/// Also strips the mid-verse `†` "flexa" mark some Bea-psalter verses carry directly in
+/// their own source text — ports `horasscripts.pl`'s own `s/†\s*//g if $noflexa;`, the
+/// unconditional half of the same "Breviarium Romanum style" rule (`Discussion #4504`)
+/// that governs the `‡` dagger this project's engine already handles separately and
+/// contextually (`HourAssembler`'s own psalm-antiphon dagger rule) — `†`, unlike `‡`,
+/// is *always* deleted outright, no context needed. Confirmed real for 4 January 2025:
+/// `Psalm110.txt`'s own "110:9 Redemptiónem misit pópulo suo, † státuit..." renders in
+/// the real fixture as "...pópulo suo, státuit..." with no `†` anywhere.
 public enum LatinOrthography {
 
     /// Applies J -> I normalisation to a single line of Latin prose.
@@ -64,6 +73,7 @@ public enum LatinOrthography {
             default: result.append(character)
             }
         }
-        return result.replacingOccurrences(of: "er eúmdem", with: "er eúndem")
+        result = result.replacingOccurrences(of: "er eúmdem", with: "er eúndem")
+        return result.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
     }
 }

@@ -49,3 +49,14 @@ import Testing
     // preceding "er " is left alone (matches DO's own unanchored-but-literal regex).
     #expect(LatinOrthography.normalize("eúmdem") == "eúmdem")
 }
+
+@Test func flexaDaggerIsStrippedEntirely() {
+    // Psalm110.txt's own "110:9 Redemptiónem misit pópulo suo, † státuit in ætérnum
+    // fœdus suum; * sanctum et venerábile est nomen ejus." -- ports
+    // `horasscripts.pl`'s own `s/†\s*//g if $noflexa` (Breviarium Romanum style),
+    // confirmed against the real fixture for 4 January 2025: no "†" survives, and the
+    // surrounding spacing collapses to a single space, not a double one.
+    let input = "110:9 Redemptiónem misit pópulo suo, † státuit in ætérnum fœdus suum; * sanctum et venerábile est nomen ejus."
+    let expected = "110:9 Redemptiónem misit pópulo suo, státuit in ætérnum fœdus suum; * sanctum et venerábile est nomen eius."
+    #expect(LatinOrthography.normalize(input) == expected)
+}

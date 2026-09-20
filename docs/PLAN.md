@@ -1219,6 +1219,44 @@ into rendered hymn *content* rather than being treated as a rubric, confirmed on
 files (`"Prima stropha hymni sequentis dicitur flexibus genibus"`-style prefatory notes,
 e.g. before *Veni Creator Spiritus*) — narrow (6 files), not chased this pass.
 
+**Continued the same day again, prompted by "please continue with the psalmody, it
+doesn't make much sense to me that it's that off for so many."** Right instinct — two
+more general fixes nearly halved the Psalmodia count:
+
+- **The `†` "flexa" mid-verse mark, unlike `‡`, is unconditionally deleted, not kept.**
+  Some Bea-psalter verses carry a literal `†` directly in their own source text (8 real
+  files, 14 occurrences) — `horasscripts.pl`'s own `s/†\s*//g if $noflexa;` (the
+  unconditional half of the same "Breviarium Romanum style" rule that governs the `‡`
+  dagger already handled contextually). This project's own `Psalm.swift` doc comment
+  had explicitly scoped `†` out as "kept as literal text" — that scope note was simply
+  wrong once actually checked against a real fixture. Confirmed real for 4 January
+  2025: `Psalm110.txt`'s own "110:9 Redemptiónem misit pópulo suo, † státuit..." renders
+  in the real fixture as "...pópulo suo, státuit..." with no `†` anywhere. Added to
+  `LatinOrthography.normalize`, alongside the `eumdem`→`eundem` fix.
+- **The festal fifth-psalm rule (`festalFifthPsalmNumber`) only ever checked the
+  winning office's own `[Rule]`.** `psalmi.pl:577-580`'s own condition is `$rule =~
+  /Psalm5.../ || ($commune{Rule} =~ /Psalm5.../ && $c eq 4)` — the Commune's own tag is
+  consulted separately, precisely when the *antiphons themselves* came from that
+  Commune (unnumbered, no `;;psalmNumber` tags), not merged with or gated by whether
+  the office happens to have *any* `[Rule]` section at all. This project's earlier,
+  single all-or-nothing office-then-Commune fallback meant an office with its own real
+  `[Rule]` (just missing a `Psalm5` tag) never even looked at the Commune's — confirmed
+  real for 13 January 2025 (`Sancti/01-13`, "Commemoratio Baptismatis Domini", `"ex
+  Sancti/01-06"` — Epiphany): `Sancti/01-13`'s own `[Rule]` has no `Psalm5` tag, its
+  antiphons come from Epiphany's own `[Ant Laudes]`, and Epiphany's own `[Rule]` has
+  `"Psalm5 Vespera3=113"` — the real fixture's own fifth psalm is exactly Psalm 113,
+  not the plain ferial Psalm 114 this project's engine fell back to (a *completely
+  different* psalm, not a formatting difference — the kind of bug the audit's own
+  substring-diff comparison catches but a quick eyeball check of "roughly the right
+  shape" would have missed).
+
+Combined effect on the same sweep: Psalmodia 3,044→1,550 — nearly halved, confirming
+your own instinct that "off for so many" days pointed at a real, fixable, general cause
+rather than the Bea/Vulgate gap alone. Still open: the same real Bea/Vulgate half-verse
+boundary gap (M4's own note, above) now a larger share of what's left proportionally;
+Oratio-content/Hymnus/Canticum/Capitulum/Versus counts unchanged by this specific pass
+(they weren't the target), still the long tail documented above.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
