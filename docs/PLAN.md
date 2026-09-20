@@ -1694,10 +1694,51 @@ many hymns and seasons, not just this one Marian common. Full Kit test suite and
 named-case oracle tests, plus one new
 (`hymnusStripsTheSmallFontStageDirectionAndTheFollowingDropCap`), still pass. No change
 to any other category. Still open: the remaining 463 Hymnus mismatches (a fresh example,
-12 February 2025's revised-meter Confessor hymn "Iste Confessor..." — S. Gregorius,
-whose own Rule references a Confessor Common but the checkmtv-revised text doesn't match
-the real fixture, not yet traced), plus Canticum/Versus/Oratio/Capitulum/Psalmodia/
-Conclusio.
+12 February 2025's revised-meter Confessor hymn "Iste Confessor..." — a mislabelled
+citation, corrected below — but the checkmtv-revised text doesn't match the real
+fixture, not yet traced), plus Canticum/Versus/Oratio/Capitulum/Psalmodia/Conclusio.
+
+**Continued the same session**, tracing that 12 February 2025 example properly (Ss.
+Septem Fundatorum Ordinis Servorum B.M.V., not S. Gregorius as mislabelled above):
+`hymnusmajor`'s `checkmtv()` matches on the winning office's own `[Rule]` field
+(`specials/hymni.pl:67-72`), which for this office says `"vide C5"` — inheriting C5's
+own `[Rule]` behaviour, and matching the same `C[45]` regex `checkmtv` itself uses,
+correctly per the real Perl. But the office's *real* Commune reference (its `[Rank]`
+field's own `"vide C5c"`) chains through Commune/C5c → Commune/C5 → Commune/C4 (C5 itself
+chain-extends `@Commune/C4`, confirmed by reading the raw file), landing on C4's own
+revised `[Hymnus1 Vespera]`, "Iste Conféssor Dómini sacrátus..." (the Common of a
+*Single* Confessor's hymn) — wrong for this feast of *seven* founders, and wrong anyway
+since the office's own file has a proper `[Hymnus Vespera 3]`, "Matris sub almæ
+numine...". Real DO guards against exactly this with its own reset-to-plain check
+(`specials/hymni.pl:74-81`, not previously ported, flagged as a known gap in the earlier
+addendum above): if the office's own file has neither the revised name nor its indexed
+variant, but does have the plain (unrevised) name or its indexed variant, the revision
+is dropped before any lookup happens. Ported as an explicit `resetsToPlain` check ahead
+of `hymnusBaseSection`'s own construction.
+
+Combined effect on the same sweep: Hymnus 463→408. Full Kit test suite and all 56
+named-case oracle tests, plus one new
+(`hymnusResetsToThePlainNameWhenTheOfficeHasItsOwnUnrevisedHymn`), still pass.
+
+**Continued the same session**, on a second fresh example from the same sweep (5 April
+2025, Passiontide): DO's own `!`-marked "red line" rubric convention (`horas.pl:167-
+172`) can appear *mid-hymn*, not just as the whole-hymn-opening kind the `/:...:/`
+small-font fix above already handles — a genuflection direction between two stanzas of
+the Vexilla Regis ("`!Sequens stropha dicitur flexis genibus.`", right before "O Crux,
+ave..."). `hymnStanzas` never checked `DOMarkers.isRubricLine` at all, unlike
+`unitsFromLines`/`unitsFromResolvedText`, which already did elsewhere — so the literal
+`!` leaked into the rendered text. Now stripped the same way, per line, alongside the
+small-font marker.
+
+Combined effect on the same sweep: Hymnus 408→191 — again a broad, high-leverage fix,
+since this rubric convention recurs across multiple Passiontide/Holy-Week hymns. Full
+Kit test suite and all 57 named-case oracle tests, plus one new
+(`hymnusStripsAMidHymnRubricLineMarker`), still pass. No change to any other category.
+Still open: the remaining 191 Hymnus mismatches (a fresh example, still 5 April 2025:
+the Vexilla Regis's own final verse differs by *wording*, not markup — this project's
+engine renders "In hac triúmphi glória", DO's real Passiontide-specific text is "Hoc
+Passiónis témpore" — looks like a genuine version-conditional substitution DO applies
+seasonally, not yet traced), plus Canticum/Versus/Oratio/Capitulum/Psalmodia/Conclusio.
 
 ### M5 — User interface
 

@@ -1417,7 +1417,34 @@ public struct HourAssembler {
         // Laudis honóres" — confirmed against the real fixture for 14 January 2025,
         // S. Hilary, whose own `[Rule]` references `C4`). Scoped exactly to this real,
         // narrow condition rather than guessing it might apply more broadly.
-        let hymnusIsRevised = macroContext.winningRule.range(of: "C[45]", options: .regularExpression) != nil
+        let rawHymnusIsRevised = macroContext.winningRule.range(of: "C[45]", options: .regularExpression) != nil
+        // `hymnusmajor`'s own reset-to-plain guard (`specials/hymni.pl:74-81`), confirmed
+        // real and ported this session: `checkmtv` matches on the *Rule* field, which can
+        // say `"vide C5"` (inheriting C5's own `[Rule]` behaviour) even when the office's
+        // real Commune reference is a lettered variant like `"vide C5c"` whose own chain
+        // eventually reaches C4 -- so `hymnusIsRevised` can fire correctly per the real
+        // Perl's own identical regex, yet still be the *wrong* name to search with when
+        // the office itself already has a perfectly good unrevised hymn of its own. Real
+        // DO guards against exactly this: if the office's own file has neither the
+        // revised name nor its indexed variant, but does have the plain (unrevised) name
+        // or its indexed variant, the revision is dropped before any lookup happens.
+        // Confirmed real for 12 February 2025 (Ss. Septem Fundatorum, whose own `[Rule]`
+        // is `"vide C5"` — matching `C[45]` and triggering the revision — but whose own
+        // file defines a proper `[Hymnus Vespera 3]`, "Matris sub almæ numine..."; without
+        // this guard, the revised-name search skips past it, falls through the Commune
+        // chain past C5c and C5 (neither of which defines a Vespers hymn of its own) to
+        // C4's own revised `[Hymnus1 Vespera]`, "Iste Conféssor Dómini sacrátus...").
+        let hymnusIsRevised: Bool
+        if rawHymnusIsRevised {
+            let officeHasRevisedPlain = resolver.sectionExists(path: office, section: "Hymnus1 Vespera")
+            let officeHasRevisedIndexed = !macroContext.isFirstVespers && resolver.sectionExists(path: office, section: "Hymnus1 Vespera 3")
+            let officeHasPlainIndexed = !macroContext.isFirstVespers && resolver.sectionExists(path: office, section: "Hymnus Vespera 3")
+            let officeHasPlain = resolver.sectionExists(path: office, section: "Hymnus Vespera")
+            let resetsToPlain = !officeHasRevisedPlain && !officeHasRevisedIndexed && (officeHasPlainIndexed || officeHasPlain)
+            hymnusIsRevised = !resetsToPlain
+        } else {
+            hymnusIsRevised = false
+        }
         let hymnusBaseSection = hymnusIsRevised ? "Hymnus1 Vespera" : "Hymnus Vespera"
         // `hymnusmajor`'s own second-Vespers-only extra attempt (`specials/hymni.pl:95-
         // 97`): before falling to the plain `"Hymnus Vespera"` key, second Vespers
@@ -1690,6 +1717,17 @@ public struct HourAssembler {
             lines[firstContentIndex] = DOMarkers.stripLineLabel(lines[firstContentIndex])
         }
         lines = lines.map(DOMarkers.stripSmallFontMarkers)
+        // A `!`-marked line mid-hymn is DO's own real "red line" rubric convention
+        // (`horas.pl:167-172`'s `s/^\!(.*)/setfont($redfont, $1)/`) — a genuflection
+        // direction between two stanzas, not the whole-hymn-opening kind
+        // `stripSmallFontMarkers`/the drop-cap search above already handle. Confirmed
+        // real for 5 April 2025 (Passiontide): `Psalterium/Special/Major Special.txt`'s
+        // own Passiontide hymn ("Vexilla Regis") carries a lone `!Sequens stropha dicitur
+        // flexis genibus.` line right before its own "O Crux, ave..." stanza; this
+        // project's engine rendered the literal `!` instead of stripping it (unlike
+        // `unitsFromLines`/`unitsFromResolvedText`, which already check
+        // `DOMarkers.isRubricLine` elsewhere -- `hymnStanzas` never did).
+        lines = lines.map { DOMarkers.isRubricLine($0) ? DOMarkers.stripRubricMarkers($0) : $0 }
         cleaned = lines.joined(separator: "\n")
 
         var stanzas: [String] = []
