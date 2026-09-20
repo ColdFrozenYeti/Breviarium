@@ -42,13 +42,33 @@ public enum Psalm {
     public static func parseVerses(_ lines: [String]) -> [PsalmVerse] {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
-            let reference = String(line[line.startIndex..<spaceIndex])
-            guard reference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
+            let rawReference = String(line[line.startIndex..<spaceIndex])
+            guard rawReference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
 
             let text = String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: "")
             let (first, second) = splitHalves(text)
-            return PsalmVerse(reference: reference, firstHalf: first, secondHalf: second)
+            return PsalmVerse(reference: strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second)
         }
+    }
+
+    /// Strips a Bea-only `a`/`b` sub-verse letter from a verse reference for display,
+    /// matching DO's own real rendering (`horasscripts.pl:400-401`'s "remove subverse
+    /// letter", `s/\d\K[a-z]//`, gated by `$noinnumbers` — confirmed active for this
+    /// project's own rendering the same way `$noflexa`'s sibling flag already is):
+    /// `"115:16a"` and `"115:16b"` both display as `"115:16"`, matching the real fixture
+    /// for 19 January 2026 exactly (`"115:16"` shown twice, not `"115:16a"`/`"115:16b"`).
+    /// The two verses stay separate `PsalmVerse`s — DO still renders them as two distinct
+    /// lines, each with its own `*` split — only the visible label merges.
+    ///
+    /// **Not attempted**: reconstructing a true per-half-verse Latin/English alignment
+    /// across this divergence (`pairedVerses`'s own doc comment has the full story on
+    /// why — it would need treating `†`/`‡` as structural split points too, which
+    /// `Psalm.swift`'s own scope note above deliberately doesn't).
+    private static func strippingSubVerseLetter(_ reference: String) -> String {
+        guard let last = reference.last, last.isLowercase,
+            let secondToLast = reference.dropLast().last, secondToLast.isNumber
+        else { return reference }
+        return String(reference.dropLast())
     }
 
     /// Splits one already-de-referenced line of text at its `*` half-verse marker,

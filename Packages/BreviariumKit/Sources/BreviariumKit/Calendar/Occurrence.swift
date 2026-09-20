@@ -103,7 +103,8 @@ public struct Occurrence {
     /// first Vespers the evening before, and any commemoration runner-up lookup for
     /// nearby days) was computing its temporal file from the wrong path.
     public static func temporalPath(day: Int, month: Int, year: Int, calendar: SanctoralCalendar) -> String {
-        calendar.transferredTemporalPath(day: day, month: month, year: year) ?? temporalPath(day: day, month: month, year: year)
+        let path = calendar.transferredTemporalPath(day: day, month: month, year: year) ?? temporalPath(day: day, month: month, year: year)
+        return calendar.redirectedTemporalPath(path)
     }
 
     public func resolve(day: Int, month: Int, year: Int) -> OccurrenceResult? {

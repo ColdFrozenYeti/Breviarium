@@ -1411,6 +1411,94 @@ of the original Bea/Vulgate half-verse boundary gap, not re-confirmed by a fresh
 this pass. Combined, this session's whole Psalmodia investigation: **3,560→295, a 91.7%
 reduction** across five general fixes, none of them a per-date hardcode.
 
+**New session, prompted by "all vespers are within scope of the alpha and fix the
+bea/vulgate issue. Then get on the oratio!"** — Holy Saturday's own Vespers (19 April
+2025) had been carved out of scope as a "Triduum structural gap" above; tracing it
+properly surfaced a previously entirely-missing, general mechanism affecting far more
+than just the Triduum:
+
+- **`Tabulae/Tempora/Generale.txt`'s own version-gated whole-week redirect table was
+  never ported at all.** `Directorium.pm`'s own `load_tempora()`: the day's winning
+  temporal file path (`horascommon.pl`'s own `$tday`, this project's
+  `Occurrence.temporalPath`) is looked up in this table *after* being computed, and
+  substituted wholesale under the 1960 rubrics — e.g. `Tempora/Quad6-6=Tempora/
+  Quad6-6r;;1960 Newcal`. The redirect target is a thin override file that
+  chain-extends the base file via its own leading `@Tempora/Quad6-6` line (already
+  correctly handled by this project's existing inclusion resolver) for everything it
+  doesn't itself redefine. Applies to *every hour of the day*, not just Vespers.
+  Twenty-five real 1960-tagged entries exist across the whole liturgical year — Palm
+  Sunday, Holy Thursday, Good Friday, Holy Saturday, several Sundays and ferias in
+  Eastertide, Ascension, Trinity Sunday, and two more Sundays after Pentecost — none of
+  which this project's engine had ever been reaching, at any hour, for any section.
+  Added `TemporaRedirectResolver` (parses the table, filtered to `Tempora/`-to-`Tempora/`
+  entries tagged `"1960"`, mirroring `TransferResolver`'s own established pattern),
+  bundled it in `DataBundle`/`BreviariumDataPipeline` alongside the existing transfer
+  table, and applied it in `Occurrence.temporalPath` right after the ordinary
+  week-numbered (or date-transferred) path is computed. Confirmed real for 19 April 2025
+  (Holy Saturday): the real fixture's own Vespers (`Oratio {ex Proprio de Tempore}`,
+  "Concéde, quǽsumus, omnípotens Deus...") comes from `Quad6-6r`'s own `[Oratio
+  Matutinum]` — text this project's engine could never reach while resolving
+  `Tempora/Quad6-6` directly, since that file has no Vespers content of its own at all.
+  Also confirmed for 15 June 2025 (Trinity Sunday, `Pent01-0` → `Pent01-0r`, an entirely
+  non-Triduum trigger with no `Omit` involved) — proving the mechanism is genuinely
+  general, not a Holy-Week special case.
+- **`[Rule]`'s own general `"Omit A B C..."` directive was never ported either** — only
+  its narrow `Preces Feriales` case existed. Ported `ruleOmits` (`specials.pl:83-94`:
+  `$rule =~ /Omit.*? $ite/i`, `$ite` being the skeleton's own `#Name` marker's first
+  word) and applied it to Incipit, the combined `Capitulum Hymnus Versus` group, and
+  Conclusio, plus a separate application suppressing the appended Commemoratio.
+  A substring match (not a whole-word one) is DO's own real behaviour here, not a
+  simplification: the keyword `"Conclusio"` (this project's own marker spelling)
+  matches a rule that says `"Conclusion"` (the English-suffixed spelling some real
+  `[Rule]`s use, including Holy Saturday's own) purely because `"Conclusio"` is a
+  literal prefix of `"Conclusion"`.
+- **The Gloria Patri doxology after every psalm/canticle is replaced, not silently
+  dropped, from Maundy Thursday's own second Vespers through Holy Saturday's**
+  (`isTriduumGloriaOmitted`, ported from `horas.pl:223-234`/`303-311`): the visible page
+  substitutes a small-font "Gloria omittitur" rubric note at the `&Gloria` macro's own
+  call site, confirmed real for 19 April 2025 (every one of the five psalms and the
+  Magnificat itself).
+- **`unitsFromResolvedText` (the Oratio collect's own line-classifier) never checked for
+  DO's own `!text` red-rubric-line convention** (`do-format.md`, already correctly
+  handled by the sibling `unitsFromLines` via `DOMarkers.isRubricLine`) — a collect's own
+  inline rubric note (`Quad6-6r`'s own "!Et sub silentio concluditur", telling the priest
+  to conclude the prayer silently, one of several real Triduum rubrics of this shape) was
+  rendering as plain prose with a literal leading "!" instead of as a rubric.
+- **The Bea psalter's own `"a"`/`"b"` sub-verse letter is stripped from the *displayed*
+  verse reference, not shown.** Ported `Psalm.strippingSubVerseLetter`
+  (`horasscripts.pl:400-401`'s "remove subverse letter", `s/\d\K[a-z]//`): confirmed
+  real for 19 January 2026 — a `"115:16a"`/`"115:16b"` pair both display as plain
+  `"115:16"` on the real page (still two separate lines, only the visible label merges).
+  This field wasn't previously displayed or oracle-compared anywhere in this project's
+  own engine, so the fix has no effect on any mismatch count — it's required correctness
+  ahead of the (not yet built) parallel-English UI, which `CLAUDE.md`'s own "merging
+  half-verges where the Bea and Vulgate divisions differ" alignment rule already
+  anticipates. The *further* step of realigning Latin/English across a genuine
+  mid-verse Bea/Vulgate split (rather than just matching the displayed label) remains
+  deliberately out of scope, per `pairedVerses`'s own existing doc comment — no English
+  content exists yet to align against, and it would need treating `†`/`‡` as structural
+  split points too.
+
+Combined effect on the same full sweep — the redirect table alone explains most of it,
+landing across nearly every section kind at once, confirming it as the single highest-
+leverage fix this whole session found: **Psalmodia 295→169; Oratio 1,444→1,176; Hymnus
+1,015→792; Canticum 737→628; Versus 647→438; Capitulum 499→261; Conclusio 79→31;
+Introductio's own "entirely absent" count (previously 63, a `.introductio` sitting in
+the audit's own `alwaysPresent` list) dropped to 0** (the audit's own `alwaysPresent`
+list was also updated to drop `.introductio`/`.capitulum`/`.hymnus`/`.versus`/
+`.conclusio`, since a real `[Rule]`'s own `Omit` can now legitimately make any of them
+absent — matching how `.precesFeriales` was already excluded for the same reason;
+`.psalmodia`/`.canticum`/`.oratio` never appear in any confirmed real `Omit` list, so
+they stay). Full Kit test suite (196 tests) and all 48 named-case oracle tests, plus
+four new (`holySaturdayVespersOmitsIncipitCapitulumAndConclusioEntirely`,
+`holySaturdayVespersOratioComesFromTheRRedirectFileWithNoWrongCommemoration`,
+`holySaturdayPsalmsAndCanticleShowGloriaOmittiturInsteadOfTheDoxology`,
+`trinitySundayUsesItsOwnRRedirectedProperAntiphonNotTheOrdinaryFallback`), still pass.
+Still open: Oratio's own "entirely absent" count (43 remaining, e.g. 2-3 November —
+All Souls-adjacent, not yet traced) and the bulk of each category's own remaining
+content mismatches — the next target, per the session's own explicit direction, is
+Oratio specifically (still the largest single category by far).
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

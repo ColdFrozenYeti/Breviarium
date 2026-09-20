@@ -97,6 +97,7 @@ public struct HourAssembler {
         for group in groups {
             switch group.name {
             case "Incipit":
+                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit") else { continue }
                 sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Psalmi":
                 sections.append(assemblePsalmodia(
@@ -133,14 +134,25 @@ public struct HourAssembler {
                         return substituteName(in: text, office: winner.winningPath, resolver: eng)
                     }
                     var oratioUnits = Self.unitsFromResolvedText(named, english: englishCollect)
-                    oratioUnits.append(contentsOf: assembleCommemorations(
-                        day: day, month: month, year: year, winningRank: winner.winningRank, resolver: resolver, macroContext: macroContext
-                    ))
+                    if !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Commemoratio") {
+                        oratioUnits.append(contentsOf: assembleCommemorations(
+                            day: day, month: month, year: year, winningRank: winner.winningRank, resolver: resolver, macroContext: macroContext
+                        ))
+                    }
                     sections.append(Section(kind: .oratio, units: oratioUnits))
                 }
             case "Conclusio":
+                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Conclusio") else { continue }
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":
+                // `specials.pl:60-81`'s own "Capitulum Versum 2" replacement takes
+                // priority over "Omit" when it actually fires -- not ported (no Vespers-
+                // relevant date this project's alpha covers has an unqualified
+                // "Capitulum Versum 2" rule; Holy Saturday's own is qualified "ad Laudes
+                // tantum", so it never reaches Vespers at all) -- so checking "Omit"
+                // directly here is faithful for every date this project renders, not a
+                // simplification of a case that would otherwise fire.
+                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Capitulum") else { continue }
                 sections.append(contentsOf: assembleCapitulumHymnusVersus(
                     office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
                     dayOfWeek: macroContext.dayOfWeek
@@ -254,7 +266,18 @@ public struct HourAssembler {
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let paired = (englishLines?.count == latinLines.count) ? englishLines : nil
 
-        return latinLines.enumerated().map { index, line in .prose(line, english: paired?[index]) }
+        // A collect can carry its own inline `!text` rubric note (`do-format.md`'s
+        // `!text` -> red rubric line convention) -- real example, `Quad6-6r`'s own
+        // `[Oratio Matutinum]`: "!Et sub silentio concluditur" between Holy Saturday
+        // Vespers' own collect and its "Per eúndem..." ending. Previously rendered as
+        // plain prose with the leading "!" shown literally, since this function (unlike
+        // `unitsFromLines`) never checked `DOMarkers.isRubricLine`.
+        return latinLines.enumerated().map { index, line in
+            if DOMarkers.isRubricLine(line) {
+                return .rubric(DOMarkers.stripRubricMarkers(line), english: (paired?[index]).map(DOMarkers.stripRubricMarkers))
+            }
+            return .prose(line, english: paired?[index])
+        }
     }
 
     // MARK: - Commune fallback
@@ -1057,7 +1080,26 @@ public struct HourAssembler {
     /// `&Gloria`'s two lines, each itself `*`-split like a psalm verse. Always paired
     /// positionally (no verse-reference divergence risk: the doxology is fixed, 2
     /// lines, identical structure regardless of language).
+    ///
+    /// **Maundy Thursday through Holy Saturday's own second Vespers replace this
+    /// entirely** with a single small-font rubric note (`horas.pl:303-311`: the `&Gloria`
+    /// macro call itself is intercepted *before* resolving, returning `translate('Gloria
+    /// omittitur', $lang)` instead of the real doxology text) — not merely omitted
+    /// silently (`Gloria`'s own `ScriptFunc`, `horasscripts.pl:89-95`, returns `""` for
+    /// the *macro's own* value, but the visible page substitutes the rubric note at the
+    /// call site, not blank space). Confirmed real for 19 April 2025 (Holy Saturday):
+    /// every one of the real fixture's five psalms and the Magnificat itself end "Gloria
+    /// omittitur" with no doxology text at all.
     private func gloriaUnits(resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
+        if Self.isTriduumGloriaOmitted(
+            weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, isFirstVespers: macroContext.isFirstVespers
+        ) {
+            // `Psalterium/Common/Translate.txt`'s own `[Gloria omittitur]` entry —
+            // hardcoded here, matching this project's existing convention for DO's fixed
+            // `translate()`-sourced UI labels (e.g. the "Psalmus" title prefix), rather
+            // than adding a whole second lookup mechanism for one string.
+            return [.rubric("Gloria omittitur", english: englishResolver != nil ? "omit Glory be" : nil)]
+        }
         let text = ScriptMacros.resolve("Gloria", context: macroContext, resolver: resolver) ?? ""
         let latinHalves = text.split(separator: "\n", omittingEmptySubsequences: false)
             .map { Psalm.splitHalves(DOMarkers.stripLineLabel(String($0))) }
@@ -1475,6 +1517,49 @@ public struct HourAssembler {
         guard weekName.range(of: "^(Quadp[1-3]|Quad[1-5]|Quad6)", options: .regularExpression) != nil else { return false }
         if weekName == "Quadp1", isFirstVespers { return false }
         return true
+    }
+
+    /// Ports `specials.pl:83-94`'s own "omit this section if the rule says so" check:
+    /// `$rule =~ /Omit.*? $ite/i`, where `$ite` is the skeleton's own `#Name` marker's
+    /// *first word* (our own skeleton groups already match this shape one-for-one —
+    /// `Ordinarium/Vespera.txt`'s own `#Capitulum Hymnus Versus` marker's first word is
+    /// `"Capitulum"`, so an `[Rule]` that lists `"Capitulum"` after `"Omit"` hides the
+    /// whole combined group, Versus included). `.` doesn't cross lines in Perl's own
+    /// default (non-`/s`) regex mode, so this only checks the single line `"Omit"`
+    /// itself appears on, matching every real `[Rule]`'s own single-line `"Omit A B
+    /// C..."` layout. A substring match, not a whole-word one, is DO's own actual
+    /// behaviour here (not a simplification): `keyword` `"Conclusio"` (our own marker's
+    /// spelling) matches a rule that says `"Conclusion"` (the English-suffixed spelling
+    /// some real `[Rule]`s use, e.g. Holy Saturday's own) purely because `"Conclusio"` is
+    /// a literal prefix of `"Conclusion"` — confirmed real against Holy Saturday's own
+    /// fixture (19 April 2025): `[Rule]`'s own `"...Preces Suffragium Conclusion
+    /// Martyrologium..."` line hides `Conclusio{omittitur}` exactly where the real page
+    /// shows it.
+    private static func ruleOmits(rule: String, keyword: String) -> Bool {
+        for line in rule.split(separator: "\n", omittingEmptySubsequences: false) {
+            guard let omitRange = line.range(of: "Omit", options: .caseInsensitive) else { continue }
+            if line[omitRange.upperBound...].range(of: " \(keyword)", options: .caseInsensitive) != nil { return true }
+        }
+        return false
+    }
+
+    /// Ports `triduum_gloria_omitted()` (`horas.pl:223-234`): the Gloria Patri doxology
+    /// after each psalm/canticle is omitted from Maundy Thursday's own Vespers through
+    /// Holy Saturday's (`Quad6`, days 4-6 -- Thursday/Friday/Saturday -- but *not* first
+    /// Vespers, e.g. Palm Sunday's own second Vespers reaching into Holy Monday still
+    /// keeps its Gloria). Confirmed real for 19 April 2025 (Holy Saturday): every one of
+    /// the real fixture's five psalms and the Magnificat itself end "Gloria omittitur"
+    /// with no Gloria Patri text at all, immediately followed by the antiphon's own
+    /// repeat.
+    ///
+    /// **Not ported**: the Perl's own documented imprecision here (`horas.pl`'s own
+    /// `dayofweek > 3` -- our `dayOfWeek` -- is a coarser proxy than "today's own
+    /// office," by its own author's admission) — this project's `weekName`/`dayOfWeek`
+    /// pairing already reflects the *office actually being prayed* (this project's own
+    /// "first Vespers of tomorrow" adjustment), which is a strictly more precise signal
+    /// than what the real Perl had available, so the same coarse proxy isn't needed here.
+    private static func isTriduumGloriaOmitted(weekName: String, dayOfWeek: Int, isFirstVespers: Bool) -> Bool {
+        weekName.hasPrefix("Quad6") && dayOfWeek > 3 && !isFirstVespers
     }
 
     /// Splits a raw resolved `[Hymnus Vespera]` body into its own stanzas, cleaning two

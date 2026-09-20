@@ -8,10 +8,17 @@ import Foundation
 public struct SanctoralCalendar: Sendable {
     public var entries: [String: String]
     public var transferTable: [String: [String: String]]
+    /// `Tabulae/Tempora/Generale.txt`'s own version-gated whole-week redirect table
+    /// (`TemporaRedirectResolver`) — see `redirectedTemporalPath`'s own doc comment.
+    public var temporaRedirect: [String: String]
 
-    public init(entries: [String: String], transferTable: [String: [String: String]] = [:]) {
+    public init(
+        entries: [String: String], transferTable: [String: [String: String]] = [:],
+        temporaRedirect: [String: String] = [:]
+    ) {
         self.entries = entries
         self.transferTable = transferTable
+        self.temporaRedirect = temporaRedirect
     }
 
     /// Candidate `Sancti` file references for a date, in priority order (a Kalendaria
@@ -90,5 +97,15 @@ public struct SanctoralCalendar: Sendable {
 
     private static func isSanctiStyleTransferSource(_ reference: String) -> Bool {
         !reference.contains("/") && !reference.contains("Tempora") && reference != "X-X"
+    }
+
+    /// `Tabulae/Tempora/Generale.txt`'s own version-gated whole-week redirect
+    /// (`TemporaRedirectResolver`, `Directorium.pm`'s `load_tempora()`) — a *completely
+    /// separate* mechanism from the annual, date-keyed transfer table above: this one is
+    /// keyed by the temporal file path itself (`"Tempora/Quad6-6"`), not by date, and
+    /// applies to every hour of the affected week (not just Vespers). Returns `path`
+    /// unchanged when there's no matching entry (the overwhelming majority of dates).
+    public func redirectedTemporalPath(_ path: String) -> String {
+        temporaRedirect[path] ?? path
     }
 }

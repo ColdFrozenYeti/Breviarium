@@ -38,6 +38,12 @@ public struct DataBundle: Codable, Sendable {
     /// lookup time — see `TransferResolver`'s own doc comment for the full mechanism
     /// and its deliberate scope limits.
     public var transferTable: [String: [String: String]]
+    /// `Tabulae/Tempora/Generale.txt`'s own version-gated whole-week redirect table
+    /// (`TemporaRedirectResolver`): `"Tempora/Quad6-6" -> "Tempora/Quad6-6r"` and the
+    /// two dozen other 1960-tagged entries. `Occurrence.temporalPath` consults this after
+    /// computing (or transfer-overriding) the ordinary week-numbered path, for every hour
+    /// of the day, not just Vespers.
+    public var temporaRedirect: [String: String]
 
     public init(
         formatVersion: Int = breviariumKitDataFormatVersion,
@@ -45,7 +51,8 @@ public struct DataBundle: Codable, Sendable {
         latinBea: [RawOfficeFile],
         english: [RawOfficeFile],
         calendar: [String: String],
-        transferTable: [String: [String: String]] = [:]
+        transferTable: [String: [String: String]] = [:],
+        temporaRedirect: [String: String] = [:]
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
@@ -53,6 +60,7 @@ public struct DataBundle: Codable, Sendable {
         self.english = english
         self.calendar = calendar
         self.transferTable = transferTable
+        self.temporaRedirect = temporaRedirect
     }
 
     /// The Latin corpus `SectionResolver` should read from: the Bea psalter layered on
