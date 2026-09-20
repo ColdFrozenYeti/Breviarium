@@ -110,17 +110,13 @@ public struct HourAssembler {
                     day: day, month: month, year: year
                 ))
             case "Oratio":
-                // Ports orationes.pl:34,63-74's `$ind = $hora eq 'Vespera' ? $vespera : 2`
-                // priority: an `[Oratio 1]` (first Vespers) or `[Oratio 3]` (second
-                // Vespers, our common case) wins over the plain `[Oratio]` whenever it
-                // exists -- same discovery and real example (Commune/C3.txt, Ss.
-                // Cornelii et Cypriani) as assemblePsalmodia's Ant Vespera 3 handling.
-                let indexedOratio = "Oratio \(macroContext.isFirstVespers ? 1 : 3)"
+                // Ports orationes.pl:34,63-82's `$ind = $hora eq 'Vespera' ? $vespera : 2`
+                // priority via `oratioLocation` -- see its own doc comment for the exact
+                // office-then-Commune order (not a simple indexed-then-plain fallback).
+                let ind = macroContext.isFirstVespers ? 1 : 3
                 let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
-                let oratioLocation = resolvedLocation(
-                    office: oratioOffice, communeReference: winner.winningRank.communeReference, section: indexedOratio, resolver: resolver
-                ) ?? resolvedLocation(
-                    office: oratioOffice, communeReference: winner.winningRank.communeReference, section: "Oratio", resolver: resolver
+                let oratioLocation = oratioLocation(
+                    office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver
                 )
                 if let oratioLocation {
                     let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
@@ -309,7 +305,14 @@ public struct HourAssembler {
     /// whose commune chain needed more than one hop.
     private func resolvedLocation(office: String, communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
         if resolver.sectionExists(path: office, section: section) { return (office, section) }
+        return Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver)
+    }
 
+    /// The Commune-daisy-chain half of `resolvedLocation`, factored out so
+    /// `oratioLocation` can reuse the exact same chain-walking without re-checking the
+    /// office's own content first (its own real priority order needs the office check
+    /// done differently — see its own doc comment).
+    private static func communeChainLocation(communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
         var reference = communeReference
         var hops = 0
         while hops < 5 {
@@ -321,6 +324,42 @@ public struct HourAssembler {
             else { return nil }
             reference = nextReference
             hops += 1
+        }
+        return nil
+    }
+
+    /// Ports `orationes.pl:63-82`'s own real priority order for the main Oratio — subtly
+    /// different from `resolvedLocation`'s "one section, office-then-commune" shape, and
+    /// wrong to model as a simple `resolvedLocation(section: indexed) ??
+    /// resolvedLocation(section: plain)` fallback (this project's own earlier code did
+    /// exactly that): the *office's own* indexed `[Oratio N]` only overrides the
+    /// *office's own* plain `[Oratio]` (`$w = $w{Oratio}; ... elsif (!$w ||
+    /// exists($winner{"Oratio $ind"})) { $w = $w{"Oratio $ind"}; }` — both read from
+    /// `%winner`, never the Commune, at this stage) — the Commune is only ever consulted
+    /// afterwards, and only if the office has *neither* (`if (!$w) { ... look in commune
+    /// ... }`), trying the Commune's own indexed Oratio first, then the *opposite*
+    /// Vespers/Laudes index (`$i = 4 - $i`), then finally the Commune's own plain one.
+    ///
+    /// The earlier, wrong ordering let a Commune's own generic indexed Oratio (e.g.
+    /// `Commune/C2`'s own `[Oratio 3]`, a "Common of Several Martyrs" collect with no
+    /// name substituted in) win over the *office's own* plain `[Oratio]` even when that
+    /// office's own file had a perfectly good one — confirmed real for 20 January 2025
+    /// (Ss. Fabian and Sebastian): `Sancti/01-20`'s own plain `[Oratio]` is `@Commune/
+    /// C2::s/beáti N\. Mártyris tui atque Pontíficis/beatórum Mártyrum tuórum Fabiáni et
+    /// Sebastiáni/` (a same-file-resolvable, name-substituted collect this project's own
+    /// resolver already handles correctly *when actually reached*), but the previous
+    /// priority order found `Commune/C3`'s own generic `[Oratio 3]` first instead (Ss.
+    /// Fabian and Sebastian's own `[Rank]` names `"vide C3"`), rendering the wrong,
+    /// unsubstituted "N. et N." text. Found via a full 2025-2040 content audit as the
+    /// single largest share of the ~1,176 remaining Oratio mismatches at the time.
+    private func oratioLocation(office: String, communeReference: String, ind: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+        if resolver.sectionExists(path: office, section: "Oratio \(ind)") { return (office, "Oratio \(ind)") }
+        if resolver.sectionExists(path: office, section: "Oratio") { return (office, "Oratio") }
+
+        for section in ["Oratio \(ind)", "Oratio \(4 - ind)", "Oratio"] {
+            if let location = Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver) {
+                return location
+            }
         }
         return nil
     }

@@ -1499,6 +1499,36 @@ All Souls-adjacent, not yet traced) and the bulk of each category's own remainin
 content mismatches — the next target, per the session's own explicit direction, is
 Oratio specifically (still the largest single category by far).
 
+**Continued the same session, "get on the oratio!"**:
+
+- **The main Oratio's own real priority order was wrong**: `orationes.pl:63-82`
+  resolves the office's own file completely — plain `[Oratio]`, then that *same
+  office's own* indexed `[Oratio N]` overriding it if present — before ever consulting
+  the Commune. This project's earlier code instead checked indexed-then-plain *across
+  both* office and Commune together (`resolvedLocation(section: indexed) ??
+  resolvedLocation(section: plain)`), which let a Commune's own generic indexed Oratio
+  win over the office's own perfectly good plain one. Confirmed real for 20 January
+  2025 (Ss. Fabian and Sebastian): `Sancti/01-20`'s own plain `[Oratio]` is `@Commune/
+  C2::s/beáti N\. Mártyris tui atque Pontíficis/beatórum Mártyrum tuórum Fabiáni et
+  Sebastiáni/` (a same-file-resolvable, name-substituted collect this project's own
+  resolver already handled correctly *when actually reached* — confirmed by querying it
+  directly before writing any fix), but the office's own `[Rank]` names `"vide C3"`,
+  and `Commune/C3`'s own generic `[Oratio 3]` ("Da, quǽsumus... N. et N. ...", no name
+  substituted) won instead under the old ordering. Added `oratioLocation`, replacing
+  the old fallback chain and reusing `resolvedLocation`'s own Commune-daisy-chain logic
+  (factored out into `communeChainLocation`) for the *Commune* half only, tried after
+  the office's own file comes up empty — matching `orationes.pl`'s own real shape,
+  including its "opposite index" Commune fallback (`$i = 4 - $i`) that hadn't been
+  ported at all before.
+
+Combined effect on the same sweep: Oratio 1,176→1,088; Oratio's own "entirely absent"
+count also dropped 43→24 as a side effect (the same fix reaches offices that
+previously found nothing at all). Full Kit test suite and all 48 named-case oracle
+tests, plus one new (`officesOwnPlainOratioWinsOverTheCommunesOwnIndexedOne`), still
+pass. Next: 26 January 2025 (S. Polycarpi) shows the *next* distinct pattern in the
+same category — a whole cluster of wrong commemoration content (antiphon, versicle,
+collect, and the "Commemoratio ..." heading itself) — not yet traced.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
