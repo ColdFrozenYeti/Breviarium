@@ -1942,6 +1942,24 @@ confirming the exclusion didn't regress the original confirmed case), plus one n
 (`holyMondayDoesNotWronglyCommemorateHolyTuesday`), still pass. No change to any other
 category.
 
+**Still open, found but not yet fixed**: 16 April 2025 (Holy Wednesday) reveals a
+substantially different, deeper Oratio bug than the pattern above. The real fixture is
+plain: "Réspice, quǽsumus, Dómine...crucis subíre torméntum: Qui tecum vivit...Amen."
+straight into `Conclusio`, with a `"secunda Domine, exaudi omittitur"` rubric noted (the
+second `Domine, exaudi` versicle before `Orémus` is dropped). This project's own engine
+instead renders a long, elaborate structure after that same collect: a blank
+`"Commemoratio"` rubric, Holy Thursday's own Institution antiphon ("Cenántibus autem
+illis..."), a `V/R` about angels (Psalm 90), `"Christus factus est pro nobis
+obédiens..."` (the real Passiontide `Dominus vobiscum` replacement), `"secreto"` +
+`Pater noster`, `"aliquantulum altius"`, the *same* collect repeated, and `"Et sub
+silentio concluditur"` + a second `"Qui tecum vivit...Amen."` — a whole pre-existing
+elaborate ritual sequence (not built this session) that appears to be misapplied to
+this specific date, mixed with a wrongly-inserted commemoration of Holy Thursday. This
+needs its own dedicated investigation into where that elaborate structure is meant to
+apply for real, and why a commemoration block is threading through the middle of it —
+substantially more involved than tonight's steady run of narrower, single-mechanism
+fixes, so left for a fresh, focused pass rather than guessed at under fatigue.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
