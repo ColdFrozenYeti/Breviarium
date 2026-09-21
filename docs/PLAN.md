@@ -1820,6 +1820,28 @@ sweep, 20-22 April 2025 — Easter Octave dates — show "Mane nobíscum, Dómin
 "Quóniam advesperáscit, allelúia." mismatched; this looks like the *opposite* direction
 of pattern, not yet traced), plus Canticum/Oratio/Capitulum/Hymnus/Psalmodia/Conclusio.
 
+**Continued the same session**, tracing that Easter Octave example: the real fixture
+doesn't show a Versus at all in the ordinary sense — its own heading reads "Versus (In
+loco Capituli)" ("versicle in place of the Chapter"), and the content is a single
+antiphon-formatted line, "Ant. Hæc dies * quam fecit Dóminus: exsultémus et lætémur in
+ea.". This is `specials.pl:60-81`'s own "Capitulum Versum 2" rule: it replaces the whole
+Capitulum/Hymnus/Versus group with the office's own `[Versum 2]` section (falling back
+to Commune's), whose real content here isn't a versicle/response pair at all despite the
+section's name. An earlier pass here had assumed no Vespers-relevant date had an
+*unqualified* "Capitulum Versum 2" rule (Holy Saturday's own is qualified "ad Laudes
+tantum", so it never reaches Vespers) — wrong: the whole Easter Octave (Easter Sunday
+through Low Sunday) chain-extends `Tempora/Pasc0-0`'s own plain, unqualified "Capitulum
+Versum 2;" via "Rule: ex Pasc0-0", so it applies at Vespers throughout the Octave. Added
+`capitulumVersum2Qualifier`, checked ahead of the ordinary Capitulum/Hymnus/Versus
+assembly in the main skeleton switch.
+
+Combined effect on the same sweep (replacing an entire wrong three-part group with the
+correct one-line content reaches every section in the group at once, across the whole
+Easter Octave — 8 dates × up to 16 years): Versus 406→329, Capitulum 245→149, Hymnus
+176→80. Full Kit test suite and all 62 named-case oracle tests, plus one new
+(`easterSundayReplacesCapitulumHymnusVersusWithVersum2`), still pass. No change to
+Canticum/Oratio/Psalmodia/Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

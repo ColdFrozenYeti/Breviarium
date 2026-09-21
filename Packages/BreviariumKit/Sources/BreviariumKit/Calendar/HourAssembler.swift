@@ -162,12 +162,35 @@ public struct HourAssembler {
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":
                 // `specials.pl:60-81`'s own "Capitulum Versum 2" replacement takes
-                // priority over "Omit" when it actually fires -- not ported (no Vespers-
-                // relevant date this project's alpha covers has an unqualified
-                // "Capitulum Versum 2" rule; Holy Saturday's own is qualified "ad Laudes
-                // tantum", so it never reaches Vespers at all) -- so checking "Omit"
-                // directly here is faithful for every date this project renders, not a
-                // simplification of a case that would otherwise fire.
+                // priority over "Omit" when it fires: the whole Capitulum/Hymnus/Versus
+                // group is replaced by a single `Versus (In loco Capituli)` section
+                // built from the office's own `[Versum 2]` (falling back to Commune's),
+                // whose content is itself an antiphon-formatted line, not a genuine
+                // versicle/response pair. Confirmed real for 20 April 2025 (Easter
+                // Sunday, whose own `Tempora/Pasc0-0.txt` `[Rule]` has a plain,
+                // unqualified "Capitulum Versum 2;" -- contradicting an earlier
+                // assumption here that no Vespers-relevant date has one unqualified;
+                // that assumption held only for Holy Saturday's own "ad Laudes tantum"-
+                // qualified rule, not the whole Easter Octave, which chain-extends
+                // Pasc0-0's Rule via `Rule: ex Pasc0-0` and so shares it for all eight
+                // days): the real fixture's own `[Versum 2]`, "Ant. Hæc dies * quam
+                // fecit Dóminus: exsultémus et lætémur in ea.", replaces the normal
+                // triad entirely.
+                if let cv2Qualifier = Self.capitulumVersum2Qualifier(rule: macroContext.winningRule),
+                    cv2Qualifier.range(of: "ad Laudes tantum", options: .caseInsensitive) == nil
+                {
+                    if let versus2 = resolvedLocation(
+                        office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Versum 2", resolver: resolver
+                    ) {
+                        let text = DOMarkers.stripLineLabel(resolver.resolve(path: versus2.path, section: versus2.section))
+                        let english: String? = englishResolver.flatMap { eng in
+                            eng.sectionExists(path: versus2.path, section: versus2.section)
+                                ? DOMarkers.stripLineLabel(eng.resolve(path: versus2.path, section: versus2.section)) : nil
+                        }
+                        sections.append(Section(kind: .versus, units: [.antiphon(text, english: english)]))
+                    }
+                    continue
+                }
                 guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Capitulum") else { continue }
                 sections.append(contentsOf: assembleCapitulumHymnusVersus(
                     office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
@@ -1690,6 +1713,24 @@ public struct HourAssembler {
             if line[omitRange.upperBound...].range(of: " \(keyword)", options: .caseInsensitive) != nil { return true }
         }
         return false
+    }
+
+    /// Ports `specials.pl:60-81`'s own "Capitulum Versum 2" rule-text parsing: `nil`
+    /// when the rule doesn't mention it at all, else whatever qualifier text (if any)
+    /// follows it on the same line up to the next `;` — an empty string for an
+    /// unqualified rule (applies everywhere, Vespers included), or e.g. `"ad Laudes
+    /// tantum"` to restrict it to Laudes only. The caller only needs to distinguish
+    /// "applies to Vespers" from "doesn't" (this project only ever renders Vespers), so
+    /// the real Perl's own `"nisi ad Laudes"`/`"ad Laudes et Vesperas"` branches (which
+    /// only matter for hours besides Vespers) aren't ported separately.
+    private static func capitulumVersum2Qualifier(rule: String) -> String? {
+        for line in rule.split(separator: "\n", omittingEmptySubsequences: false) {
+            guard let range = line.range(of: "Capitulum Versum 2", options: .caseInsensitive) else { continue }
+            var qualifier = String(line[range.upperBound...])
+            if let semicolon = qualifier.firstIndex(of: ";") { qualifier = String(qualifier[..<semicolon]) }
+            return qualifier.trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     /// Ports `triduum_gloria_omitted()` (`horas.pl:223-234`): the Gloria Patri doxology
