@@ -1842,6 +1842,36 @@ Easter Octave — 8 dates × up to 16 years): Versus 406→329, Capitulum 245→
 (`easterSundayReplacesCapitulumHymnusVersusWithVersum2`), still pass. No change to
 Canticum/Oratio/Psalmodia/Conclusio.
 
+**Continued the same session**, on a fresh Canticum example (28 April 2025, S. Pauli a
+Cruce, within the weeks following the Easter Octave): the real fixture's own Magnificat
+antiphon reads "...cælo cóndidit ore, manu, allelúia.", but the office's own antiphon
+text (`Sancti/04-28.txt`) ends plainly "...ore, manu." with no alleluia at all — a
+*missing addition*, not a wrong removal, the opposite direction from every alleluia fix
+so far this session. The real mechanism is `ensure_single_alleluia`
+(`LanguageTextTools.pm:78-96`, called unconditionally from `postprocess_ant`/
+`postprocess_vr` for *every* antiphon and versicle/response throughout Paschaltide,
+`horas.pl:675,687-690`): add a trailing ", allelúia." whenever the text doesn't already
+end with one. `applyingSeasonalAlleluia` only ever handled *removing or unbracketing*
+an alleluia the source text already carried (the far rarer case — most proper antiphons
+carry no alleluia annotation of their own); it never added a missing one. Folded this
+in as a third step, alongside the existing bracket-handling and Septuagesima-to-Lent
+suppression.
+
+This also caught a synthetic (non-fixture) unit test
+(`leavesAGenuinelyProperAntiphonAloneEvenDuringPaschaltide`) that had conflated two
+different real mechanisms: the bare-"Alleluia, * alleluia, alleluia." *replacement*
+(which genuinely only applies when nothing proper is defined) and
+`ensure_single_alleluia`'s own separate, unconditional trailing-alleluia append (which
+applies to every Paschaltide antiphon regardless of properness). Updated its expectation
+to keep testing the replacement-vs-properness distinction while accepting the append.
+
+Combined effect on the same sweep: Canticum 433→263, Versus 329→159 — both huge, since
+`ensure_single_alleluia` reaches essentially every proper antiphon and versicle across
+the whole ~8-10 week Paschaltide season, every year. Full Kit test suite (197 tests, one
+corrected) and all 63 named-case oracle tests, plus one new
+(`magnificatAntiphonGetsATrailingAllelujaDuringPaschaltideWhenMissingOne`), still pass.
+No change to Oratio/Capitulum/Psalmodia/Hymnus/Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

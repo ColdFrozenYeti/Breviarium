@@ -462,11 +462,16 @@ private let paschaltideFeria = RawOfficeFile(path: "Tempora/Pasc2-1", sections: 
 }
 
 @Test func leavesAGenuinelyProperAntiphonAloneEvenDuringPaschaltide() throws {
-    // The replacement only applies to the "nothing defined at all" fallback case --
-    // an office (or its Commune) that genuinely defines its own [Ant Vespera] keeps
-    // that antiphon even in Paschaltide (`psalmi.pl`'s own `$communetype !~ /ex/i`
-    // gate is vacuously satisfied only when nothing was found; this is the case where
-    // something *was* found).
+    // The bare-"Alleluia, * alleluia, alleluia." *replacement* only applies to the
+    // "nothing defined at all" fallback case -- an office (or its Commune) that
+    // genuinely defines its own [Ant Vespera] keeps that antiphon even in Paschaltide
+    // (`psalmi.pl`'s own `$communetype !~ /ex/i` gate is vacuously satisfied only when
+    // nothing was found; this is the case where something *was* found). It still gets
+    // `ensure_single_alleluia`'s own separate, unconditional trailing-alleluia *append*
+    // for every Paschaltide antiphon regardless of properness
+    // (`LanguageTextTools.pm:78-96`, confirmed real for 28 April 2025's own proper
+    // Magnificat antiphon in `EnsureSingleAlleluiaOracleTests`) -- these are two
+    // different real mechanisms, not one.
     let feast = RawOfficeFile(path: "Sancti/04-20", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis"]),
         RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0"]),
@@ -478,7 +483,7 @@ private let paschaltideFeria = RawOfficeFile(path: "Tempora/Pasc2-1", sections: 
     let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
-    #expect(psalmodia.units.first == .antiphon("Antiphona propria"))
+    #expect(psalmodia.units.first == .antiphon("Antiphona propria, allelúia."))
 }
 
 // MARK: - Preces Feriales

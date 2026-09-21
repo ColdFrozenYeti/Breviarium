@@ -1649,8 +1649,20 @@ public struct HourAssembler {
     /// Outside both windows (ordinary time), a bare, unparenthesized "Allelúia" is real,
     /// fixed antiphon text (many Common-of-Saints antiphons genuinely end that way) and
     /// stays exactly as written.
+    ///
+    /// **Also ports `ensure_single_alleluia`** (`LanguageTextTools.pm:78-96`, called from
+    /// `postprocess_ant`/`postprocess_vr` for every antiphon and versicle/response
+    /// throughout Paschaltide, `horas.pl:675,687-690`): unlike the two rules above, which
+    /// only ever *remove or unbracket* an alleluia the source text already carries, this
+    /// one *adds* a trailing "', allelúia.'" during Paschaltide whenever the text doesn't
+    /// already end with one — the far more common case, since most proper antiphons
+    /// carry no alleluia annotation of their own at all. Confirmed real for 28 April
+    /// 2025 (S. Pauli a Cruce, within the Easter Octave's own following weeks): the real
+    /// fixture's own Magnificat antiphon reads "...cælo cóndidit ore, manu, allelúia.",
+    /// where `Sancti/04-28.txt`'s own antiphon text ends plainly "...ore, manu." with no
+    /// alleluia at all.
     private static func applyingSeasonalAlleluia(to text: String, weekName: String, isFirstVespers: Bool) -> String {
-        guard text.range(of: "allel[uú][ij]a", options: [.regularExpression, .caseInsensitive]) != nil else { return text }
+        guard !text.isEmpty else { return text }
         var result = text
         let paschal = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
         if paschal {
@@ -1666,6 +1678,9 @@ public struct HourAssembler {
             result = result.replacingOccurrences(
                 of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive]
             )
+        } else if paschal, result.range(of: #"allel[uú][ij]a\p{P}?\)?\s*$"#, options: [.regularExpression, .caseInsensitive]) == nil {
+            result = result.replacingOccurrences(of: #"\p{P}?\s*$"#, with: "", options: .regularExpression)
+            result += ", allelúia."
         }
         result = result.replacingOccurrences(of: #" {2,}"#, with: " ", options: .regularExpression)
         return result.trimmingCharacters(in: .whitespaces)
