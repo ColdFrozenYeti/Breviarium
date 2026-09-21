@@ -1799,6 +1799,27 @@ so it reaches several sections at once on the same handful of dates): Canticum
 Kit test suite (197 tests) and all 60 named-case oracle tests, plus one new
 (`sabbatoInAlbisGivesWayToLowSundaysFirstVespersViaNoSecundaVespera`), still pass.
 
+**Continued the same session**, moving to Versus (now the largest category at 438): a
+`Versum` can carry its own literal `"(Allelúja.)"` directly in the source text (real
+example: the Annunciation's own `[Versum 1]`, `Sancti/03-25.txt`, shared as-is between
+its ordinary Lenten occurrence and the far rarer occasion it falls within Paschaltide)
+rather than an inline `(sed tempore paschali)` conditional — the same seasonal add/strip
+`applyingSeasonalAlleluia` already applies to antiphons (`assemblePsalmodia`/
+`assembleMagnificat`) had never been wired up for `Versus` at all. Confirmed real for 24
+March 2025 (first Vespers of the Annunciation, still Lent): the real fixture's own
+versicle/response reads "Ave, María, grátia plena." / "Dóminus tecum." with no
+"(Allelúja.)" at all — this project's engine rendered the office's own literal
+parenthetical unstripped. Applied the same function to each Versus line before building
+its units.
+
+Combined effect on the same sweep: Versus 438→406. Full Kit test suite and all 61
+named-case oracle tests, plus one new
+(`versusStripsALiteralAllelujaOutsidePaschaltide`), still pass. No change to any other
+category. Still open: the remaining 406 Versus mismatches (fresh examples from the same
+sweep, 20-22 April 2025 — Easter Octave dates — show "Mane nobíscum, Dómine, allelúia."/
+"Quóniam advesperáscit, allelúia." mismatched; this looks like the *opposite* direction
+of pattern, not yet traced), plus Canticum/Oratio/Capitulum/Hymnus/Psalmodia/Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

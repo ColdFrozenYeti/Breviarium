@@ -1495,8 +1495,20 @@ public struct HourAssembler {
             ?? ownOrCommune("Versum \(mirroredVersumIndex)")
             ?? lookup("Versum \(primaryVersumIndex)")
         {
-            let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-            let englishLines = versus.english?.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            // A `Versum` can carry its own literal `(Allelúja.)` in the source text (real
+            // example: the Annunciation's own `[Versum 1]`, shared as-is between its
+            // ordinary occurrence and the far rarer Paschaltide one) rather than an
+            // inline `(sed tempore paschali)` conditional -- the same seasonal
+            // add/strip `applyingSeasonalAlleluia` already applies to antiphons
+            // (`assemblePsalmodia`/`assembleMagnificat`) needs to run here too. Confirmed
+            // real for 24 March 2025 (first Vespers of the Annunciation, still Lent):
+            // the real fixture's own versicle/response reads "Ave, María, grátia plena."
+            // / "Dóminus tecum." with no "(Allelúja.)" at all — this project's engine
+            // rendered the office's own literal parenthetical unstripped.
+            let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
+            let englishLines = versus.english?.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(latinLines, english: englishLines)))
         }
         return sections
