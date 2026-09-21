@@ -1769,6 +1769,36 @@ suite (197 tests) and all 58 named-case oracle tests, plus one new
 (`firstVespersOfTomorrowUsesTomorrowsOwnSeasonForInlineConditionals`), still pass. No
 change to any other category.
 
+**Continued the same session**, on a fresh Canticum example (26 April 2025, Sabbato in
+Albis within the Easter Octave): the real fixture's own title reads "Dominica in Albis
+in Octava Paschæ ~ Vespera de sequenti", but this project's own `Concurrence` computed
+`isFirstVespersOfTomorrow == false`, rendering the Octave's own shared antiphon ("Et
+respiciéntes...", from `Tempora/Pasc0-0`) instead of Low Sunday's proper Magnificat
+antiphon ("Cum esset sero..."). Root cause: `Concurrence`'s existing threshold cascade
+(the ordinary Sunday/Festum-Domini branch, `horascommon.pl:1130-1189`) requires
+tomorrow's rank to *strictly outrank* today's — Low Sunday's own 1960-conditioned rank
+(6) is numerically *lower* than Sabbato in Albis's own (6.9), so that cascade alone
+wrongly kept today's own Vespers. The real cause is a wholly separate branch,
+`horascommon.pl:1072-1076`'s "two concurrent Tempora" case: when *neither* today's nor
+tomorrow's winning office is sanctoral, the Sunday/Festum-Domini cascade doesn't apply
+at all, and today's own `[Rule]` saying `"No secunda vespera"` forces tomorrow's first
+Vespers to win outright regardless of rank — exactly what `Tempora/Pasc0-6.txt` (Sabbato
+in Albis) says. Ported *only* this narrow, confirmed trigger (not the branch's other
+disjunct, a non-strict rank comparison sitting inside a much larger real cascade this
+project doesn't otherwise port) — two existing synthetic (non-fixture) unit tests
+assumed the ordinary threshold cascade applies to *every* temporal-vs-temporal rank
+comparison, which going further would have contradicted without real evidence either
+way; left alone. The broader version was tried first and caught its own real regression
+before being narrowed: it broke three real, previously-passing Holy Saturday fixture
+tests (Holy Saturday's own Triduum-specific handling, already ported earlier this
+session, isn't ordinary two-Tempora concurrence and must not go through this branch).
+
+Combined effect on the same sweep (this fix touches which *office* wins Vespers at all,
+so it reaches several sections at once on the same handful of dates): Canticum
+449→433, Oratio 379→364, Capitulum 261→245, Psalmodia 169→153, Conclusio 31→15. Full
+Kit test suite (197 tests) and all 60 named-case oracle tests, plus one new
+(`sabbatoInAlbisGivesWayToLowSundaysFirstVespersViaNoSecundaVespera`), still pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

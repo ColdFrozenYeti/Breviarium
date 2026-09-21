@@ -56,6 +56,31 @@ public struct Concurrence {
             return ConcurrenceResult(isFirstVespersOfTomorrow: false, vespersOffice: today)
         }
 
+        // `horascommon.pl:1072-1076`'s own "two concurrent Tempora" branch includes an
+        // unconditional trigger: when *neither* today's nor tomorrow's winning office is
+        // sanctoral (and tomorrow isn't the BVM-in-Sabbato Commune, `C10`, a separate
+        // special case), today's own Rule saying `"No secunda vespera"` forces tomorrow's
+        // first Vespers to win outright, regardless of rank. Only this one, narrow
+        // trigger is ported here -- the branch's *other* disjunct (`$crank >= $rank`,
+        // a non-strict rank comparison) sits inside a much larger real if/elsif cascade
+        // (`horascommon.pl:965-1072`) this project doesn't otherwise port, and two
+        // existing synthetic (non-fixture) unit tests assume the ordinary
+        // Sunday/Festum-Domini threshold cascade below still applies to an ordinary
+        // temporal-vs-temporal rank comparison -- unconfirmed either way against a real
+        // fixture, so left alone rather than guessed at. Confirmed real for 26 April
+        // 2025 (Sabbato in Albis, within the Easter Octave): its own
+        // `Tempora/Pasc0-6.txt` `[Rule]` includes exactly "No secunda Vespera", forcing
+        // Low Sunday's first Vespers to win outright even though Low Sunday's own
+        // 1960-conditioned rank (6) is numerically *lower* than today's own (6.9) --
+        // the generic threshold cascade below (which requires tomorrow to strictly
+        // *outrank* today) would otherwise wrongly keep today's own second Vespers.
+        if !today.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.contains("C10") {
+            let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+            if todayRule.range(of: "No secunda vespera", options: .caseInsensitive) != nil {
+                return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
+            }
+        }
+
         let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
         let tomorrowIsFestumDomini = tomorrowRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
         let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
