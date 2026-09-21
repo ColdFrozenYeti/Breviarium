@@ -129,12 +129,27 @@ public struct Commemorations {
     /// oracle fixture for 2 April 2035 (the Annunciation, both transferred by
     /// `SanctoralCalendar`'s transfer-table lookup onto consecutive days that year,
     /// commemorating St Joseph's own transferred office the next day).
+    ///
+    /// Also applies `Concurrence`'s own title-based exclusion
+    /// (`Feria|Sabbato|Vigilia|Quat[t]*uor`, unless overridden by `in Vigilia Epi|in
+    /// octava|infra octavam|Dominica`) — this project's earlier version didn't reuse it
+    /// here, only at `Concurrence.resolve`'s own separate `isFirstVespersOfTomorrow`
+    /// check, so a privileged-but-still-`"Feria"`-titled office (a Holy Week weekday,
+    /// every one I. classis) could still clear the rank threshold above and wrongly
+    /// become a "tied" commemoration candidate. Confirmed real for 14 April 2025 (Holy
+    /// Monday, `Tempora/Quad6-1`, I. classis): the real fixture shows no commemoration
+    /// at all, even though tomorrow (Holy Tuesday, `Quad6-2`) is *also* I. classis and
+    /// would otherwise satisfy the rank/threshold check the same way St Joseph 2035
+    /// does — the difference is Holy Tuesday's own title, "Feria Tertia Hebdomadæ
+    /// Sanctæ", which St Joseph's ("In festo Sancti Ioseph...") never had to contend
+    /// with.
     private func tomorrowsTiedFirstVespersCandidate(day: Int, month: Int, year: Int, today: OccurrenceResult) -> Commemoration? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
         guard let tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
         else { return nil }
         guard tomorrow.winningRank.numericPrecedence <= today.winningRank.numericPrecedence else { return nil }
+        guard !isExcludedByTitle(tomorrow.winningRank.title) else { return nil }
 
         let resolver = SectionResolver(corpus: corpus, context: context)
         let tomorrowRule = resolver.resolve(path: tomorrow.winningPath, section: "Rule")
@@ -146,6 +161,18 @@ public struct Commemorations {
         guard tomorrow.winningRank.numericPrecedence >= threshold else { return nil }
 
         return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank)
+    }
+
+    /// `Concurrence`'s own title-based exclusion, duplicated here (that struct's own
+    /// version is `private`) rather than exposed, since this is the only other call site
+    /// that's confirmed to need it.
+    private func isExcludedByTitle(_ title: String) -> Bool {
+        let excludedPattern = "Feria|Sabbato|Vigilia|Quat[t]*uor"
+        let overridePattern = "in Vigilia Epi|in octava|infra octavam|Dominica"
+        guard let excluded = try? Regex("(?i)\(excludedPattern)"), (try? excluded.firstMatch(in: title)) != nil
+        else { return false }
+        guard let override = try? Regex("(?i)\(overridePattern)") else { return true }
+        return (try? override.firstMatch(in: title)) == nil
     }
 
     // MARK: - Candidate pools

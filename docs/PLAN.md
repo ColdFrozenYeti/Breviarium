@@ -1922,6 +1922,26 @@ suite and all 65 named-case oracle tests, plus one new
 (`sPetriMartyrisUsesThePaschaltideCommuneVariantForItsAntiphon`), still pass. No change
 to Psalmodia/Conclusio.
 
+**Continued the same session**, on a fresh Oratio example (14 April 2025, Holy Monday):
+the real fixture shows a plain "Adiuva nos, Deus, salutáris noster..." collect with no
+commemoration at all, but this project's engine wrongly appended a "Commemoratio Feria
+Tertia Hebdomadæ Sanctæ" (Holy Tuesday) block. `Commemorations
+.tomorrowsTiedFirstVespersCandidate` (the "equal rank, the preceding takes precedence"
+tie-break, confirmed real for the Annunciation/St Joseph 2035 case) never reused
+`Concurrence`'s own title-based exclusion (`Feria|Sabbato|Vigilia|Quat[t]*uor`, unless
+overridden by `in Vigilia Epi|in octava|infra octavam|Dominica`) — every day of Holy
+Week is I. classis, so tomorrow's rank clears the exact same threshold St Joseph 2035
+does, but tomorrow's title is still `"Feria [Tertia/Quarta/...] Hebdomadæ Sanctæ"`,
+which the exclusion should have caught. Duplicated `Concurrence`'s own (private)
+exclusion check locally in `Commemorations.swift` rather than exposing it, since this
+is the only other confirmed call site.
+
+Combined effect on the same sweep: Oratio 325→262. Full Kit test suite and all 66
+named-case oracle tests (including `josephTransfersToTheDayAfterAnnunciationsOwnTransfer2035`,
+confirming the exclusion didn't regress the original confirmed case), plus one new
+(`holyMondayDoesNotWronglyCommemorateHolyTuesday`), still pass. No change to any other
+category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
