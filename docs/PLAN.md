@@ -1872,6 +1872,29 @@ corrected) and all 63 named-case oracle tests, plus one new
 (`magnificatAntiphonGetsATrailingAllelujaDuringPaschaltideWhenMissingOne`), still pass.
 No change to Oratio/Capitulum/Psalmodia/Hymnus/Conclusio.
 
+**Continued the same session**, moving to Oratio (now the largest category at 364): a
+fresh example, 22 February 2025 (In Cathedra S. Petri Apostoli), showed the main
+collect's own closing doxology ("Qui vivis et regnas cum Deo Patre...Amen.") appearing
+where the real fixture goes straight from the main collect to "Commemoratio S. Pauli
+Apostoli" with no doxology in between at all. The office's own `[Rule]` says "Sub unica
+concl[usione]" ("under a single conclusion") — `orationes.pl:216-222`'s own real
+handling: when several collects are chained together within the *same* raw `[Oratio]`
+section under one shared conclusion, 1960 drops the *main* collect's own closing macro
+reference entirely before it's ever resolved (`$w =~ s/\$(Per|Qui) .*?\n//`), letting
+the chain's own *final* collect (here, the Commemoratio S. Pauli) supply the one and
+only "...Amen." at its own end. Added `strippingTrailingDoxologyMacro`, operating on the
+already-resolved text (this project's `SectionResolver` has no public "raw, before
+macro expansion" fetch): finds the *first* line starting "Qui "/"Per " (after stripping
+its own `r. `/`v. ` drop-cap label) and removes only that line and its own
+immediately-following "Amen." — deliberately `firstIndex`, not `lastIndex`, since the
+chain's own *final* collect ends the exact same way and a last-match search was first
+tried and caught removing exactly the wrong one before being corrected.
+
+Combined effect on the same sweep: Oratio 364→341. Full Kit test suite and all 64
+named-case oracle tests, plus one new
+(`inCathedraSPetriOmitsItsOwnConclusionUnderSubUnicaConclusione`), still pass. No
+change to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

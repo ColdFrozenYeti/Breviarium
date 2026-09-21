@@ -140,14 +140,35 @@ public struct HourAssembler {
                 )
                 if let oratioLocation {
                     let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
-                    let named = substituteName(in: collect, office: winner.winningPath, resolver: resolver)
+                    var named = substituteName(in: collect, office: winner.winningPath, resolver: resolver)
                     // English only if it has this *exact* section too -- never a
                     // different (mismatched) one, per this case's own doc comment on
                     // `resolvedLocation`.
-                    let englishCollect: String? = englishResolver.flatMap { eng in
+                    var englishCollect: String? = englishResolver.flatMap { eng in
                         guard eng.sectionExists(path: oratioLocation.path, section: oratioLocation.section) else { return nil }
                         let text = eng.resolve(path: oratioLocation.path, section: oratioLocation.section)
                         return substituteName(in: text, office: winner.winningPath, resolver: eng)
+                    }
+                    // `orationes.pl:216-222`'s own "Sub unica conclusione" handling: when
+                    // several collects are said in series under one shared conclusion (the
+                    // office's own `[Rule]` says so directly), 1960 drops the main
+                    // collect's own closing doxology macro entirely (`$w =~ s/\$(Per|Qui)
+                    // .*?\n//`) rather than moving it — whatever chained commemoration text
+                    // follows within the *same* raw `[Oratio]` section (real example:
+                    // `Sancti/02-22.txt`'s own `[Oratio]` chains the main collect, a `_`
+                    // block-break, and a `!Commemoratio S. Pauli Apostoli`-headed second
+                    // collect all in one section) supplies the one and only "...Amen." at
+                    // its own end instead. Confirmed real for 22 February 2025 (In Cathedra
+                    // S. Petri, `Rule`: "ex C4; ... Sub unica concl..."): the real fixture
+                    // goes straight from the main collect's own "...néxibus liberémur:" to
+                    // "Commemoratio S. Pauli Apostoli" with no "Qui vivis...Amen." at all in
+                    // between. Applied unconditionally on the flag, not gated on whether
+                    // `assembleCommemorations`'s own separate rank-based mechanism finds
+                    // anything -- that's an unrelated system; the chained content here is
+                    // already embedded in this same section's own raw text either way.
+                    if macroContext.winningRule.range(of: "Sub unica conc", options: .caseInsensitive) != nil {
+                        named = Self.strippingTrailingDoxologyMacro(named)
+                        englishCollect = englishCollect.map(Self.strippingTrailingDoxologyMacro)
                     }
                     var oratioUnits = Self.unitsFromResolvedText(named, english: englishCollect)
                     if !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Commemoratio") {
@@ -279,6 +300,39 @@ public struct HourAssembler {
             }
         }
         return units
+    }
+
+    /// Strips a resolved collect's own closing-doxology macro expansion (the `"Qui
+    /// vivis..."`/`"Per Dóminum..."` line, plus its own following `"Amen."` response) --
+    /// used only for `orationes.pl:216-222`'s own "Sub unica conclusione" case, where
+    /// 1960 drops the *main* collect's own closing macro reference entirely before it's
+    /// ever resolved (`$w =~ s/\$(Per|Qui) .*?\n//`, operating on the raw, unresolved
+    /// text -- the substitution only ever touches the literal macro-reference line
+    /// itself, never anything chained after it) rather than moving it, letting the
+    /// chain's own final commemoration supply the one and only conclusion at its own
+    /// end instead. Operating on the *resolved* text here (this project's
+    /// `SectionResolver` has no public "raw, before macro expansion" fetch): finds the
+    /// *first* line starting `"Qui "` or `"Per "` (matching the real regex's own
+    /// alternation, after stripping its own leading `r. `/`v. ` drop-cap label --
+    /// confirmed real: `Sancti/02-22.txt`'s own resolved `[Oratio]` reads `"r. Qui vivis
+    /// et regnas..."`, not a bare `"Qui "` line) and removes only that line and its own
+    /// immediately-following `"Amen."` response — *not* `lastIndex`, which would
+    /// instead find and strip the *chain's own final* doxology (real example: this
+    /// office's own chained `Commemoratio S. Pauli` collect ends the *same* way,
+    /// "...r. Per Dóminum...R. Amen.", so a last-match search removes exactly the wrong
+    /// one).
+    private static func strippingTrailingDoxologyMacro(_ text: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let index = lines.firstIndex(where: { line in
+            let stripped = DOMarkers.stripLineLabel(line)
+            return stripped.hasPrefix("Qui ") || stripped.hasPrefix("Per ")
+        }) else { return text }
+        var removeCount = 1
+        if index + 1 < lines.count, DOMarkers.stripLineLabel(lines[index + 1]).hasPrefix("Amen") {
+            removeCount += 1
+        }
+        lines.removeSubrange(index..<min(index + removeCount, lines.count))
+        return lines.joined(separator: "\n")
     }
 
     /// Cleans a resolved multi-line prose block (a collect, e.g.) into one `.prose` unit
