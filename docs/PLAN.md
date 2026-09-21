@@ -1895,6 +1895,33 @@ named-case oracle tests, plus one new
 (`inCathedraSPetriOmitsItsOwnConclusionUnderSubUnicaConclusione`), still pass. No
 change to any other category.
 
+**Continued the same session**, on a fresh Canticum example (29 April 2025, S. Petri
+Martyris, within the weeks following the Easter Octave): the real fixture's own
+Magnificat antiphon, "Sancti et iusti * in Dómino gaudéte, allelúia...", is completely
+different text from what this project's engine rendered ("Qui vult veníre post
+me..."). The office's own `[Rank]` names `"vide C2a-1"` (Common of a Martyr not a
+Bishop); real DO's `extract_common()` has a Paschaltide branch never previously ported
+(`horascommon.pl:1501-1509`): for a genuine Commune-code reference, during Paschaltide,
+if a `"p"`-suffixed variant of that Commune file actually exists, it's used instead,
+unconditionally, for *every* section looked up against that Commune, not just the ones
+the plain variant would have missed — `Commune/C2a-1p.txt` exists and chain-extends (→
+`C2ap` → `C2p` → `C1p`) to a wholly different, Paschaltide-proper antiphon set. This
+project's own Commune-chain walker (`communeFallbackPath`/`communeChainLocation`,
+underlying essentially every Oratio/Hymnus/Versus/antiphon lookup that falls through to
+a Commune) had no equivalent at all, always following the ordinary chain regardless of
+season. Added `paschalCommuneFallbackPath` (checking `sectionExists(section:
+"Officium")` as a proxy for the real Perl's own `-e $paschal_fname` file-existence
+check, since this project has no direct "does this file exist" primitive), threaded
+`weekName` through `resolvedLocation`/`communeChainLocation`/`oratioLocation` and all
+their call sites to reach it.
+
+Combined effect on the same sweep (reaching essentially every Commune-referencing
+lookup throughout the whole ~8-10 week Paschaltide season, every year): Canticum
+263→175, Versus 159→59, Capitulum 149→49, Hymnus 80→29, Oratio 341→325. Full Kit test
+suite and all 65 named-case oracle tests, plus one new
+(`sPetriMartyrisUsesThePaschaltideCommuneVariantForItsAntiphon`), still pass. No change
+to Psalmodia/Conclusio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

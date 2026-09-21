@@ -136,7 +136,8 @@ public struct HourAssembler {
                 let ind = macroContext.isFirstVespers ? 1 : 3
                 let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
                 let oratioLocation = oratioLocation(
-                    office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver
+                    office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver,
+                    weekName: macroContext.weekName
                 )
                 if let oratioLocation {
                     let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
@@ -201,7 +202,8 @@ public struct HourAssembler {
                     cv2Qualifier.range(of: "ad Laudes tantum", options: .caseInsensitive) == nil
                 {
                     if let versus2 = resolvedLocation(
-                        office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Versum 2", resolver: resolver
+                        office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Versum 2", resolver: resolver,
+                        weekName: macroContext.weekName
                     ) {
                         let text = DOMarkers.stripLineLabel(resolver.resolve(path: versus2.path, section: versus2.section))
                         let english: String? = englishResolver.flatMap { eng in
@@ -408,20 +410,24 @@ public struct HourAssembler {
     /// ~3,900 days' worth of Hymnus (and, through the same shared lookup, a large share
     /// of Capitulum/Versus/Oratio/Magnificat-antiphon) content wrong across every date
     /// whose commune chain needed more than one hop.
-    private func resolvedLocation(office: String, communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
+    private func resolvedLocation(
+        office: String, communeReference: String, section: String, resolver: SectionResolver, weekName: String
+    ) -> (path: String, section: String)? {
         if resolver.sectionExists(path: office, section: section) { return (office, section) }
-        return Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver)
+        return Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver, weekName: weekName)
     }
 
     /// The Commune-daisy-chain half of `resolvedLocation`, factored out so
     /// `oratioLocation` can reuse the exact same chain-walking without re-checking the
     /// office's own content first (its own real priority order needs the office check
     /// done differently — see its own doc comment).
-    private static func communeChainLocation(communeReference: String, section: String, resolver: SectionResolver) -> (path: String, section: String)? {
+    private static func communeChainLocation(
+        communeReference: String, section: String, resolver: SectionResolver, weekName: String
+    ) -> (path: String, section: String)? {
         var reference = communeReference
         var hops = 0
         while hops < 5 {
-            guard let candidatePath = Self.communeFallbackPath(reference) else { return nil }
+            guard let candidatePath = Self.paschalCommuneFallbackPath(reference, weekName: weekName, resolver: resolver) else { return nil }
             if resolver.sectionExists(path: candidatePath, section: section) { return (candidatePath, section) }
 
             guard let nextReference = OfficeRank(rankFieldValue: resolver.resolveRank(path: candidatePath))?.communeReference,
@@ -457,12 +463,14 @@ public struct HourAssembler {
     /// Fabian and Sebastian's own `[Rank]` names `"vide C3"`), rendering the wrong,
     /// unsubstituted "N. et N." text. Found via a full 2025-2040 content audit as the
     /// single largest share of the ~1,176 remaining Oratio mismatches at the time.
-    private func oratioLocation(office: String, communeReference: String, ind: Int, resolver: SectionResolver) -> (path: String, section: String)? {
+    private func oratioLocation(
+        office: String, communeReference: String, ind: Int, resolver: SectionResolver, weekName: String
+    ) -> (path: String, section: String)? {
         if resolver.sectionExists(path: office, section: "Oratio \(ind)") { return (office, "Oratio \(ind)") }
         if resolver.sectionExists(path: office, section: "Oratio") { return (office, "Oratio") }
 
         for section in ["Oratio \(ind)", "Oratio \(4 - ind)", "Oratio"] {
-            if let location = Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver) {
+            if let location = Self.communeChainLocation(communeReference: communeReference, section: section, resolver: resolver, weekName: weekName) {
                 return location
             }
         }
@@ -513,7 +521,7 @@ public struct HourAssembler {
         let communeReference = commemoration.rank.communeReference
 
         func location(_ section: String) -> (path: String, section: String)? {
-            resolvedLocation(office: commemoration.path, communeReference: communeReference, section: section, resolver: resolver)
+            resolvedLocation(office: commemoration.path, communeReference: communeReference, section: section, resolver: resolver, weekName: weekName)
         }
 
         guard let antiphonLocation = location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
@@ -668,6 +676,26 @@ public struct HourAssembler {
         if ref.contains("/") { return ref }
         if (try? communeCodeRegex.firstMatch(in: ref)) != nil { return "Commune/\(ref)" }
         return "Tempora/\(ref)"
+    }
+
+    /// `extract_common()`'s own Paschaltide branch (`horascommon.pl:1501-1509`), not
+    /// previously ported: for a genuine Commune-code reference, during Paschaltide, if a
+    /// `"p"`-suffixed variant of that Commune file actually exists (real DO checks with
+    /// `-e $paschal_fname`; this project has no "does a file exist" primitive, so
+    /// `sectionExists(section: "Officium")` stands in for it — every real Commune file's
+    /// own chain eventually reaches an `[Officium]` title, so this is equivalent in
+    /// practice), that variant is used instead, unconditionally, for *every* section
+    /// looked up against that Commune -- not just the ones the plain variant would have
+    /// missed. Confirmed real for 29 April 2025 (S. Petri Martyris, `"vide C2a-1"`, in
+    /// the weeks following the Easter Octave): the real fixture's own Magnificat
+    /// antiphon, "Sancti et iusti * in Dómino gaudéte, allelúia...", comes from
+    /// `Commune/C2a-1p.txt`'s own chain (→ `C2ap` → `C2p` → `C1p`), not the ordinary
+    /// `C2a-1` chain this project's engine used to follow instead.
+    private static func paschalCommuneFallbackPath(_ reference: String, weekName: String, resolver: SectionResolver) -> String? {
+        guard let path = communeFallbackPath(reference) else { return nil }
+        guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil, path.hasPrefix("Commune/") else { return path }
+        let paschalPath = "\(path)p"
+        return resolver.sectionExists(path: paschalPath, section: "Officium") ? paschalPath : path
     }
 
     // MARK: - Psalmodia
@@ -1332,8 +1360,12 @@ public struct HourAssembler {
         let monthdayLoc = monthdayLocation(
             office: office, section: antSection, day: day, month: month, year: year, tomorrow: macroContext.isFirstVespers, resolver: resolver
         )
-        let plainLocation = resolvedLocation(office: office, communeReference: communeReference, section: antSection, resolver: resolver)
-        let numberedLocation = resolvedLocation(office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver)
+        let plainLocation = resolvedLocation(
+            office: office, communeReference: communeReference, section: antSection, resolver: resolver, weekName: macroContext.weekName
+        )
+        let numberedLocation = resolvedLocation(
+            office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver, weekName: macroContext.weekName
+        )
         let majorSpecialLoc = majorSpecialAntLocation(ind: ind, dayOfWeek: macroContext.dayOfWeek, resolver: resolver)
         if let location = monthdayLoc ?? plainLocation ?? numberedLocation ?? majorSpecialLoc {
             let text = resolver.resolve(path: location.path, section: location.section)
@@ -1461,7 +1493,9 @@ public struct HourAssembler {
         // `$name = gettempora('Hymnus major') . " $hora"` reassignment), so that
         // fallback always uses the plain, unrevised key regardless of checkmtv.
         func lookup(_ ownSection: String, majorSpecialSection: String? = nil) -> (latin: String, english: String?)? {
-            guard let location = resolvedLocation(office: office, communeReference: communeReference, section: ownSection, resolver: resolver)
+            guard let location = resolvedLocation(
+                office: office, communeReference: communeReference, section: ownSection, resolver: resolver, weekName: macroContext.weekName
+            )
                 ?? majorSpecialLocation(
                     section: majorSpecialSection ?? ownSection, weekName: macroContext.weekName, dayOfWeek: dayOfWeek, resolver: resolver
                 )
@@ -1481,7 +1515,9 @@ public struct HourAssembler {
         // that same `[Versum 1]` content ("Reges Tharsis..."), not the generic ferial
         // Major Special fallback this project's engine fell straight to before this fix.
         func ownOrCommune(_ section: String) -> (latin: String, english: String?)? {
-            guard let location = resolvedLocation(office: office, communeReference: communeReference, section: section, resolver: resolver)
+            guard let location = resolvedLocation(
+                office: office, communeReference: communeReference, section: section, resolver: resolver, weekName: macroContext.weekName
+            )
             else { return nil }
             let latin = resolver.resolve(path: location.path, section: location.section)
             let english = englishResolver.flatMap { eng in
