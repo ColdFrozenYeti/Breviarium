@@ -169,11 +169,16 @@ private func makeCommemorations(files: [RawOfficeFile], calendarEntries: [String
     // own second Vespers the evening before (28 June) commemorates that displaced Sunday
     // directly ("Commemoratio: Dominica V Post Pentecosten"). Today here is 18 Jan 2026
     // (the Sunday itself, per this file's own dated fixtures), tomorrow 19 Jan (Monday).
+    // Rank 5 for the Sunday is the real value (`Tempora/Epi2-0.txt`'s own `[Rank]`), not
+    // an arbitrary lower one -- `displacedVespersCommemorations`'s own ranklimit is keyed
+    // by *tomorrow's* rank (confirmed by direct Docker tracing of the real `$comrank`
+    // mechanism, `horascommon.pl:1203`), so a synthetic rank below that threshold would
+    // wrongly exclude the very case this test means to confirm.
     let commemorations = makeCommemorations(
         files: [
             RawOfficeFile(path: "Tempora/Epi2-0", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Dominica II post Epiphaniam"]),
-                RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;3.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;5.0"]),
             ]),
             RawOfficeFile(path: "Tempora/Epi2-1", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Feria II infra Hebdomadam II post Epiphaniam"]),
@@ -191,6 +196,12 @@ private func makeCommemorations(files: [RawOfficeFile], calendarEntries: [String
 }
 
 @Test func firstVespersCommemoratesTheWinnersDisplacedSundayButNotANonSundayRunnerUp() {
+    // 01-18a's own rank must genuinely *outrank* the Sunday's real rank (5, matching
+    // `Tempora/Epi2-0.txt`'s own real `[Rank]`, corrected below from an earlier
+    // synthetic 3.0) for this test's own scenario to hold: 01-18a needs to win 18
+    // January's occurrence outright, displacing the Sunday office itself into a mere
+    // runner-up for that same date -- a tie wouldn't do that (`Occurrence`'s own
+    // `srank[2] > trank[2]` is strict).
     let commemorations = makeCommemorations(
         files: [
             RawOfficeFile(path: "Tempora/Epi1-6", sections: [
@@ -199,11 +210,11 @@ private func makeCommemorations(files: [RawOfficeFile], calendarEntries: [String
             ]),
             RawOfficeFile(path: "Tempora/Epi2-0", sections: [
                 RawSection(name: "Officium", condition: "", body: ["Dominica II post Epiphaniam"]),
-                RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;3.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Semiduplex;;5.0"]),
             ]),
             RawOfficeFile(path: "Sancti/01-18a", sections: [
                 RawSection(name: "Officium", condition: "", body: ["S. Feast Aliquod"]),
-                RawSection(name: "Rank", condition: "", body: [";;Duplex II classis;;5.0"]),
+                RawSection(name: "Rank", condition: "", body: [";;Duplex I classis;;6.0"]),
             ]),
             RawOfficeFile(path: "Sancti/01-18b", sections: [
                 RawSection(name: "Officium", condition: "", body: ["S. Minor Confessor"]),

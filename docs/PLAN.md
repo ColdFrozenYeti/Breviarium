@@ -1990,6 +1990,40 @@ tests) and all 68 named-case oracle tests, plus two new
 what `resolveRank` feeds (every title-based check in the whole engine), this fix likely
 reaches further than the sweep's own day-counts show on their own.
 
+**Continued in a later session**, on a fresh Oratio example (30 April 2025, S.
+Catharinæ Senensis, displaced by St Joseph the Worker's own first Vespers the next
+day): `displacedVespersCommemorations`'s own ranklimit was keyed by the *displaced*
+office's own rank rather than the *winner's* (tomorrow's) — confirmed wrong by direct
+Docker tracing of `$comrank`, the real variable this mechanism actually gates on
+(`horascommon.pl:1203`'s own `$comrank == 1.15 || ... || $comrank == 3.9` check, inside
+a branch whose own entry condition requires the *winner's* rank, `$crank`, to reach 5
+or 6 — never the displaced office's own `$rank`). The old, wrong threshold (based on the
+displaced office's own rank) was nearly always trivially cleared (`>= 2`, the fallback
+case), regardless of how high tomorrow's own rank actually was — so a plain Duplex
+saint (St Catherine, rank 3) kept getting wrongly commemorated at any pre-empting first
+Vespers, no matter how far it outranked her. Confirmed real for two contrasting
+fixtures: 30 April 2025 itself ("Vespera de sequenti; nihil de præcedenti" — no
+commemoration at all, rank 3 below the winner-rank-6 threshold of 4.2) and the
+already-confirmed 28 June 2026 (SS. Petri et Pauli pre-empting an ordinary Sunday,
+which *does* get commemorated, since its own real rank — 5, corrected in the synthetic
+unit tests below from an earlier unrealistic 3.0 — clears that same threshold). Swapped
+`displacedRank` for `winnerRank` in the ranklimit computation, matching the identical
+pattern `ownVespersCommemorations` already used correctly.
+
+This also caught two synthetic (non-fixture) unit tests whose own rank values were
+unrealistic for an ordinary Sunday (3.0, when the real `Tempora/Epi2-0.txt` uses 5) —
+correcting one directly, and correcting the second's own *sanctoral* candidate rank
+(from a tied 5.0 to a genuinely outranking 6.0) to keep its own distinct scenario (the
+Sunday losing occurrence entirely, becoming a runner-up rather than a displaced office)
+intact once the Sunday's own rank became realistic.
+
+Combined effect on the same sweep: Oratio 230→184. Full Kit test suite (197 tests, two
+corrected) and all 69 named-case oracle tests (including
+`aNonSundayHigherRankTomorrowDoesCommemorateTodaysOwnDisplacedWinner`, confirming the
+SS. Petri et Pauli case still passes), plus one new
+(`stCatharineIsNotCommemoratedWhenStJosephTheWorkersFirstVespersPreEmptsHer`), still
+pass. No change to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -293,14 +293,31 @@ public struct Commemorations {
 
     /// The displaced office (today's own occurrence winner), commemorated at the
     /// pre-empting Vespers -- `horascommon.pl:1401-1424`.
+    ///
+    /// The ranklimit is keyed by the *winner's* rank (tomorrow's), not the displaced
+    /// office's own — confirmed by direct Docker tracing of `$comrank`, the real
+    /// variable this whole mechanism actually gates on (`horascommon.pl:1203`'s own
+    /// `$comrank == 1.15 || ... || $comrank == 3.9` check, inside the branch whose own
+    /// entry condition requires `$crank >= 6` or `$crank >= 5` — `$crank` is always
+    /// *tomorrow's* rank there, never today's own `$rank`). An earlier version of this
+    /// port used `displacedRank` instead, which made the threshold trivially easy to
+    /// clear (nearly any real rank passes `>= 2`, the fallback case), regardless of how
+    /// high tomorrow's own rank actually was. Confirmed real for two contrasting
+    /// fixtures: 30 April 2025 (S. Catharinæ Senensis, Duplex rank 3, displaced by St
+    /// Joseph the Worker's own first Vespers the next day, I. classis rank 6) shows
+    /// "Vespera de sequenti; nihil de præcedenti" — no commemoration at all, since 3 is
+    /// below the winner-rank-6 threshold of 4.2 and isn't one of the privileged values
+    /// either — while 28 June 2026 (an ordinary Sunday, rank ~5, displaced by SS. Petri
+    /// et Pauli's own first Vespers, also I. classis rank 6) *does* commemorate the
+    /// displaced Sunday, since its own rank (~5) clears that same 4.2 threshold.
     private func displacedVespersCommemorations(
         candidates: [Commemoration], displacedRank: OfficeRank, winnerRank: OfficeRank
     ) -> [Commemoration] {
         let resolver = SectionResolver(corpus: corpus, context: context)
-        let displacedIsOrdinary = matches(displacedRank.title, "Dominica|feria|in.*octava")
+        let winnerIsOrdinary = matches(winnerRank.title, "Dominica|feria|in.*octava")
         let ranklimit: Double =
-            (displacedRank.numericPrecedence >= 6 && !displacedIsOrdinary) ? 4.2
-            : (displacedRank.numericPrecedence >= 5 && !displacedIsOrdinary) ? 2.99
+            (winnerRank.numericPrecedence >= 6 && !winnerIsOrdinary) ? 4.2
+            : (winnerRank.numericPrecedence >= 5 && !winnerIsOrdinary) ? 2.99
             : 2
 
         return candidates.filter { candidate in
