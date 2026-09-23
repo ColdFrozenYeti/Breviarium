@@ -2397,11 +2397,8 @@ since neither actually depends on the Commune fallback once traced through (13 J
 113 comes from the ordinary default; 28 May's 116 comes from the office's own `[Rule]`
 directly, term A/C, never gated by `$c`).
 
-Combined effect on the same sweep (measured against targeted, single-test runs — see
-note below on the full-suite run): the priority-key fix and the Psalm5 fix both target
-categories (Oratio, Psalmodia) with known remaining mismatches from the prior session's
-close (Oratio 93, Psalmodia 95); exact before/after counts from a full 2025-2040 sweep
-are **not yet confirmed** as of this writing (see below).
+Combined effect confirmed against a full 2025-2040 sweep, run later the same session:
+Oratio 93→86, Psalmodia 95→81 — both net-positive, no other category affected.
 
 **Full-suite validation note (this session):** this machine suffered severe, sustained,
 oscillating CPU contention for several hours (independently confirmed via `Get-Process`
@@ -2425,6 +2422,124 @@ fallback isn't real DO behaviour at all. Fixed the test to match the confirmed r
 shape instead (the `[Rule]` tag lives directly on the office, like the real S. Agatha
 case its own comment already cites, not on the Commune) rather than the disproven one.
 Full suite (203 Kit + 8 Data + 84 named oracle) now passes clean.
+
+**Continued in the same session**, a full fresh 2025-2040 sweep (run once the above was
+confirmed clean) surfaced counts of Oratio 86, Psalmodia 81, Canticum 51, Versus 27,
+Capitulum 13, Hymnus 9, Conclusio 1 — and, using the sweep's own wait time for active
+investigation rather than idle polling (per standing guidance), found and fixed four
+more bugs, three of them confirmed by reading `specials.pl`/`psalmi.pl`/`orationes.pl`
+directly rather than by a sweep diff (the sweep's own `mismatches()` can only ever catch
+*wrong* rendered content, never *missing* content it never saw at all — a structural
+blind spot these four exploit in different ways):
+
+1. **`ruleOmits` lacked a real global guard.** `specials.pl:83-94`'s own closing
+   condition, `($rule !~ /Omit ad Matutinum/ || $hora eq 'Matutinum')`, checks the
+   *whole* `[Rule]` text, not the specific `Omit` clause being evaluated — if the rule
+   contains `"Omit ad Matutinum"` **anywhere**, no `"Omit ..."` directive in that rule
+   applies to any hour but Matins, for *any* item. Since this project only ever renders
+   `hora == "Vespera"`, this project's own version of the check collapses to: whenever
+   the rule contains `"Omit ad Matutinum"` anywhere, never omit anything. Confirmed real
+   for 6 January 2025 (Epiphany, first Vespers): `Sancti/01-06.txt`'s own `[Rule]` is
+   exactly `"Omit ad Matutinum Incipit Invitatorium Hymnus"` — Matins-only — but this
+   project's earlier version matched `"Omit"` then found `" Incipit"` later on the same
+   line and wrongly rendered an *empty* Incipit section, even though the real fixture's
+   own Vespers shows the ordinary "Deus in adiutorium..." Incipit in full. Grepping the
+   whole corpus found exactly one file using this literal phrase (`Sancti/01-06.txt`,
+   plus the Dominican `SanctiOP` variant) — narrow, but genuinely invisible to the sweep:
+   `.introductio` is deliberately excluded from `alwaysPresent` (a real `"Omit"` can
+   legitimately empty it), and `mismatches` only checks that *rendered* text appears in
+   the fixture — an empty section has no rendered text to check at all. New tests:
+   `epiphanyDoesNotWronglyOmitVespersOwnIncipit`,
+   `holySaturdayStillOmitsItsOwnIncipitAtVespers` (confirms the fix doesn't disturb Holy
+   Saturday's own genuine, unqualified Vespers-scoped Omit).
+
+2. **`oratioDominicaOffice` missed a second, dynamic trigger.** `orationes.pl:44-53`'s
+   own "Special handling for days during the suppressed octave of the Epiphany"
+   synthesizes an `"Oratio Dominica"` flag on the fly (`$rule .= "Oratio Dominica\n"`)
+   whenever the current week is `Epi1` and the winning office's own `[Rule]` carries
+   `"Infra octavam Epiphaniæ Domini"` — even though the office's own literal `[Rule]`
+   text never says `"Oratio Dominica"` itself. This project's port only checked for the
+   literal text, missing the synthetic case entirely. Confirmed real for 12 January 2026
+   (`Sancti/01-12`, the Monday after that year's 11 January Sunday within the octave):
+   the real fixture's own collect is `Epi1-0a`'s "Vota, quaesumus, Domine..." — not
+   `Sancti/01-06`'s own "Deus, qui hodierna die..." this project rendered instead via the
+   office's ordinary `"vide Sancti/01-06"` Commune-chain fallback (a real mechanism, just
+   the wrong one here) — and confirmed the gate is genuinely week-scoped, not
+   octave-wide, against 7 January 2026 (still week `Nat1`, before that year's Sunday),
+   where the real fixture *does* still show Epiphany's own collect. New test:
+   `epiphanyOctaveDayAfterTheOctaveSundayUsesTheOldSundayCollect`.
+
+3. **The unnumbered-antiphon default psalm numbers were hardcoded to 109-113.**
+   `psalmi.pl:606-609`'s own positional pairing of an unnumbered antiphon with `@p` was
+   already ported, but `@p` itself isn't always the festal 109-113 set — `psalmi.pl:
+   499-524`'s own gate (`$rule =~ /Psalmi Dominica/i || ($commune{Rule} && $commune{Rule}
+   =~ /Psalmi Dominica/i)`, this project's 1960/non-Cist scope) decides which of two real
+   sources supplies it: the festal `"Day0 $hora"` set when the gate passes, or the
+   *plain weekday* `"Day$dayofweek $hora"` default when it doesn't — `$dayofweek` being
+   the actual calendar day of the date rendered, not the winning Sunday office's own
+   natural day. A Sunday reached via its own *first* Vespers is rendered on the
+   preceding Saturday's own calendar date, so `$dayofweek` is 6, not 0. Confirmed real
+   for 29 November 2025 (First Vespers of Advent I, `Tempora/Adv1-0`, rendered on its own
+   Saturday date): `[Rule]` has no `"Psalmi Dominica"` tag and no Commune at all, so the
+   gate fails — the real fixture's own first psalm is "143(1-8)" (`Psalmi major.txt`'s
+   own "Day6 Vespera" first entry), not "109". Contrast 30 November 2025 (the same
+   Sunday's own *second* Vespers, rendered on the Sunday's own date, `$dayofweek == 0`):
+   the real fixture *does* use 109-113 there — not because of the gate (still fails, same
+   `[Rule]`) but because `"Day0 Vespera"` *is* the ordinary Sunday-default numbering
+   anyway, confirming the fix's dayOfWeek-keyed lookup (not a reintroduced hardcoded
+   festal default) gets this contrasting case right too. New tests:
+   `firstVespersOfAnUngatedSundayUsesTheWeekdaysOwnPsalmNumbersNotTheFestalDefault`,
+   `secondVespersOfTheSameSundayStillUsesTheFestalDefault`.
+
+4. **`psalmTitleNumber` wrongly stripped a real, displayed verse-range suffix.** A long
+   psalm split across two of the hour's five Vespers slots (`Psalmi major.txt`'s own
+   notation, e.g. `"138(1-13)"`/`"138(14-24)"`) had its own `"(N-M)"` range stripped from
+   the *title* by this project's engine, on the assumption — never actually checked
+   against the literal fixture text — that the range was "an internal file-organisation
+   detail... not something recited or printed as part of the title." Direct fixture
+   checks for two separate real dates disprove this: 9 April 2027 (`Tempora/Quad6-6`,
+   a plain ferial Friday, `Psalmus 138` split) and 29 November 2025 (Advent I's own first
+   Vespers, `Psalmus 143` split, found investigating fix 3 above) both show the range in
+   the title verbatim — "Psalmus 138(1-13)", "Psalmus 143(1-8)". Removed the stripping
+   entirely; fixed the one pre-existing test whose own assertion had silently encoded the
+   wrong behaviour (`fridayFerialVespersSplitsPsalm138AcrossItsFirstTwoSlots`, `docs/
+   PLAN.md`'s own M4-era citation had only confirmed verses stopped crashing, never
+   checked the literal title text).
+
+The fast suite's own first run after these four landed caught one real regression in a
+*synthetic* unit test, `festalUnnumberedAntiphonsPairWithTheSundayPsalmsAndARuleGivenFifth`
+— not a bug in the fix itself, but a fixture gap: fix 3's own "Psalmi Dominica" gate now
+genuinely needs a real `"Day0 Vespera"` number source to consult, and the shared
+synthetic `Psalmi major` fixture only ever defined `"Day1 Vespera"` (sufficient for
+every previously-existing test). Added `"Day0 Vespera"` (five placeholder-antiphon,
+real-number entries) and a `"Psalmi Dominica"` tag on the synthetic test's own
+`Commune/C99` (matching the real S. Agatha shape this test already cites — her own
+"Psalmi Dominica" comes from her Commune, C6, not her own office file either). Full
+suite (203 Kit + 8 Data + 89 named oracle, four new) confirmed clean after this fix.
+
+Combined effect on a fresh full sweep: not yet measured as of this writing -- the
+immediate next step.
+
+**Still open, traced but not resolved**: a distinct Oratio-commemoration-versicle bug
+found in the same sweep, 24/25 March-adjacent (Annunciation displacing a Passiontide
+feria's own second Vespers, commemorated at Annunciation's first Vespers). The real
+fixture's own commemoration versicle is "Eripe me, Domine, ab homine malo. / A viro
+iniquo eripe me." (Psalm 139:2-shaped); this project's engine renders the generic
+seasonal fallback "Angelis suis Deus mandavit de te." (`Psalterium/Special/Major
+Special.txt`'s own `[Quad Versum 3]`) instead. Traced the real `getcommemoratio`'s own
+versicle-lookup chain (`orationes.pl:791-802`) directly via live Perl instrumentation in
+the pinned Docker container: the displaced office (`Tempora/Quad5-2`, "Feria Tertia
+infra Hebdomadam Passionis") genuinely has no `[Versum]` section of its own and no
+Commune reference at all, so by that chain's own logic the render *should* reach
+`getfrompsalterium('Versum', 3, ...)` — which *does* return exactly the "Angelis suis"
+text this project renders, `[Quad Versum 3]` being the only real `[Quad Versum N]`
+section that exists at all (no `[Quad Versum 1]`). Instrumenting `getcommemoratio`
+directly at that lookup showed `$commemo`/`$file` both empty and no `Versum` keys in
+either `%w`/`%c` — consistent with what's expected, yet the *actual* rendered fixture
+still doesn't match, meaning either a different, not-yet-found real function handles
+this specific "commemorate the displaced office at a pre-empting first Vespers"
+case, or something downstream of this lookup overrides `$v` before final output.
+Left unresolved rather than guessed at — flagged here for a fresh, focused pass.
 
 ### M5 — User interface
 

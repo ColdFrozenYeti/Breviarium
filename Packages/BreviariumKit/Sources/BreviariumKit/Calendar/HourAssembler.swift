@@ -726,8 +726,34 @@ public struct HourAssembler {
     /// file). Found via a full 2025-2040 sweep: ~895 of 5,844 days (~15%) were silently
     /// rendering with no Oratio section at all before this, every one an ordinary
     /// Feria/Sabbato whose own file carries exactly this rule.
+    ///
+    /// **A second, dynamic trigger for the same redirect** — `orationes.pl:44-53`'s own
+    /// "Special handling for days during the suppressed octave of the Epiphany": when
+    /// the current week is `Epi1` and the winning office's own `[Rule]` carries `"Infra
+    /// octavam Epiphaniæ Domini"` (every day 7–12 January's own `Sancti/` file has this,
+    /// confirmed by grepping the whole corpus), the real Perl *synthesizes* an "Oratio
+    /// Dominica" flag on the fly (`$rule .= "Oratio Dominica\n"`) even though the
+    /// office's own literal `[Rule]` text never says so — triggering the exact same
+    /// `Epi1-0a` redirect above, for a `Sancti/`-prefixed office this time, not a
+    /// `Tempora/` one. The real comment explains *why*: "before the Sunday [that used to
+    /// fall within the octave], the collect of the Epiphany is said, as in the past;
+    /// afterwards, the collect of the Sunday is said" — under 1955/1960 rubrics, an
+    /// octave weekday reached only *after* that week has already become `Epi1` (i.e.
+    /// after the actual Sunday has passed) no longer uses Epiphany's own collect at all.
+    /// Confirmed real for 12 January 2026 (`Sancti/01-12`, the Monday after that year's
+    /// 11 January Sunday within the octave): the real fixture's own collect is exactly
+    /// `Epi1-0a`'s "Vota, quaesumus, Domine..." — not `Sancti/01-06`'s own "Deus, qui
+    /// hodierna die..." this project's engine rendered instead, reached via the
+    /// office's own ordinary `"vide Sancti/01-06"` Commune-chain fallback (a real
+    /// mechanism, just the wrong one for this specific case) — and *not* reached at all
+    /// for 7 January the same year (still within the pre-Sunday part of the octave,
+    /// week `Nat1`, not yet `Epi1`), where the real fixture *does* still show Epiphany's
+    /// own collect, confirming the week-name gate (not a blanket octave-wide override).
     private func oratioDominicaOffice(rule: String, weekName: String) -> String? {
-        guard rule.range(of: "Oratio Dominica", options: .caseInsensitive) != nil else { return nil }
+        let hasLiteralFlag = rule.range(of: "Oratio Dominica", options: .caseInsensitive) != nil
+        let hasSyntheticEpiphanyOctaveFlag =
+            weekName.hasPrefix("Epi1") && rule.range(of: "Infra octavam Epiphaniæ Domini", options: .caseInsensitive) != nil
+        guard hasLiteralFlag || hasSyntheticEpiphanyOctaveFlag else { return nil }
         if weekName.range(of: "Epi1|Nat", options: [.regularExpression, .caseInsensitive]) != nil {
             return "Tempora/Epi1-0a"
         }
@@ -884,29 +910,42 @@ public struct HourAssembler {
             var pairs = Self.parseAntiphonPsalmPairs(text)
             if pairs.isEmpty {
                 // `psalmi.pl:606-609`: an antiphon with no `;;N` tag of its own always
-                // pairs positionally with `@p` -- the office's own *default* five-psalm
-                // set (`Day0 $h`'s "Psalmi Dominica" numbers, 109-113, for a Sunday or
-                // feast's own proper antiphons) -- REGARDLESS of whether a `Psalm5`
-                // rule exists to override the fifth. The previous version of this code
-                // only attempted the zip when `festalFifthPsalmNumber` found an
-                // override, so an ordinary Sunday/feast `[Ant Vespera]` with five
-                // *unnumbered* antiphons and no `Psalm5` tag at all (the plain,
-                // un-overridden case, not a rare one) fell through to the ferial
-                // weekday schedule instead, losing its own proper antiphons entirely.
-                // Confirmed real for 30 November 2025 (First Sunday of Advent):
-                // `Tempora/Adv1-0`'s own `[Ant Vespera]` is `@:Ant Laudes` (a same-file
-                // cross-reference, already resolved correctly), five plain antiphons
-                // with no tags and no `Psalm5` rule -- the real fixture pairs them with
-                // 109/110/111/112/113 exactly like an ordinary Sunday.
+                // pairs positionally with `@p` -- but `@p` is *not* always the festal
+                // "Psalmi Dominica" 109-113 set. `psalmi.pl:499-524`'s own gate
+                // (`$rule =~ /Psalmi Dominica/i || ($commune{Rule} && $commune{Rule} =~
+                // /Psalmi Dominica/i)`, this project's 1960/non-Cist scope) decides which
+                // of two real sources supplies `@p`: when the gate passes, `"Day0
+                // $hora"` (109-113, the festal default); when it doesn't, the *plain
+                // weekday* default `"Day$dayofweek $hora"` instead — `$dayofweek` being
+                // the actual calendar day of the date being rendered, not the winning
+                // Sunday office's own natural day, so a Sunday reached via *first*
+                // Vespers (rendered on the preceding Saturday's own date) gets Saturday's
+                // own numbers, not Sunday's. Confirmed real for 29 November 2025 (First
+                // Vespers of Advent I, `Tempora/Adv1-0`, reached on its own Saturday
+                // date): `[Rule]` has no "Psalmi Dominica" tag and no Commune at all, so
+                // the gate fails — the real fixture's own first psalm is "143(1-8)",
+                // `Psalmi major.txt`'s own "Day6 Vespera" (Saturday) first entry, not
+                // "109". Contrast 30 November 2025 (the same Sunday's own *second*
+                // Vespers, rendered on the Sunday's own date, `$dayofweek == 0`): the
+                // real fixture *does* use 109-113 there — not because of the gate (still
+                // fails, same Rule) but because `"Day0 Vespera"` *is* the ordinary
+                // Sunday-default numbering anyway. Confirmed against the same office
+                // both ways this project's earlier version conflated into one hardcoded
+                // festal default, having only ever checked the second-Vespers case.
                 let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
                 if antiphons.count == 5 {
+                    let communeRule = Self.communeFallbackPath(communeReference).map { resolver.resolve(path: $0, section: "Rule") }
+                    let usesFestalSet =
+                        macroContext.winningRule.range(of: "Psalmi Dominica", options: .caseInsensitive) != nil
+                        || (communeRule?.range(of: "Psalmi Dominica", options: .caseInsensitive) != nil)
+                    let numberSourceDay = usesFestalSet ? 0 : dayOfWeek
+                    let numberSourceText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: "Day\(numberSourceDay) Vespera")
+                    let numbers = Self.parseAntiphonPsalmPairs(numberSourceText).map(\.psalmNumber)
                     // The 5th psalm's own `Psalm5` override, if any, is applied
                     // unconditionally further down (`psalmi.pl:560-586`'s own check
                     // runs regardless of whether the antiphon already carries a
-                    // `;;N` tag) — this default of plain "113" is only the
-                    // un-overridden festal baseline.
-                    let festalNumbers = ["109", "110", "111", "112", "113"]
-                    pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
+                    // `;;N` tag) — this default is only the un-overridden baseline.
+                    pairs = zip(antiphons, numbers).map { ($0, $1) }
                 }
             }
             return (pairs, pairs.isEmpty ? nil : loc)
@@ -1059,20 +1098,11 @@ public struct HourAssembler {
             let antiphonText = antiphonMatched ? "\(pair.antiphon) ‡" : pair.antiphon
 
             units.append(.antiphon(antiphonText, english: english))
-            units.append(.psalmTitle("Psalmus \(Self.psalmTitleNumber(from: pair.psalmNumber)) [\(index + 1)]"))
+            units.append(.psalmTitle("Psalmus \(pair.psalmNumber) [\(index + 1)]"))
             units.append(contentsOf: psalmContent)
             units.append(.antiphon(antiphonText, english: english))
         }
         return Section(kind: .psalmodia, units: units)
-    }
-
-    /// Strips a Bea half-verse-split annotation like `"135(1-9)"` down to the bare
-    /// psalm number for display -- the range is an internal file-organisation detail
-    /// (`Psalmi major.txt` splits a long psalm across two of the hour's five slots),
-    /// not something recited or printed as part of the title.
-    private static func psalmTitleNumber(from psalmNumber: String) -> String {
-        guard let parenIndex = psalmNumber.firstIndex(of: "(") else { return psalmNumber }
-        return String(psalmNumber[..<parenIndex])
     }
 
     /// Ports `depunct()` (`horas.pl:280-292`) for word comparison: strips the same
@@ -1960,7 +1990,29 @@ public struct HourAssembler {
     /// fixture (19 April 2025): `[Rule]`'s own `"...Preces Suffragium Conclusion
     /// Martyrologium..."` line hides `Conclusio{omittitur}` exactly where the real page
     /// shows it.
+    /// `specials.pl:83-94`'s own final guard, `($rule !~ /Omit ad Matutinum/ || $hora eq
+    /// 'Matutinum')`: a *global* check against the whole `[Rule]` text, not scoped to
+    /// the particular `Omit` clause being evaluated — if the rule contains `"Omit ad
+    /// Matutinum"` **anywhere at all**, no `"Omit ..."` directive in that rule applies to
+    /// any hour but Matins, for *any* item, even ones the rule separately omits with no
+    /// `"ad Matutinum"` qualifier of their own. Since this project only ever renders
+    /// `hora == "Vespera"`, that collapses to: whenever the rule contains `"Omit ad
+    /// Matutinum"` anywhere, `ruleOmits` never omits anything here at all.
+    ///
+    /// Confirmed real for 6 January 2025 (Epiphany, first Vespers): `Sancti/01-06.txt`'s
+    /// own `[Rule]` has exactly `"Omit ad Matutinum Incipit Invitatorium Hymnus"` — this
+    /// project's earlier version, lacking this guard, matched `"Omit"` then found
+    /// `" Incipit"` later on the same line and wrongly rendered an *empty* Incipit
+    /// section, even though the real fixture's own Vespers shows the ordinary
+    /// `"Deus in adiutorium..."` Incipit in full — the omission is Matins-only. Silently
+    /// invisible to the sweep's own audit test: `.introductio` is deliberately excluded
+    /// from `alwaysPresent` (a real `"Omit"` can legitimately empty it), and `mismatches`
+    /// only ever checks that *rendered* text appears in the fixture — an empty section
+    /// has no rendered text to check at all, so a wrongly-omitted section produces zero
+    /// mismatch entries regardless. Found by reading `specials.pl`'s own Omit-handling
+    /// logic directly, not by a sweep diff.
     private static func ruleOmits(rule: String, keyword: String) -> Bool {
+        guard rule.range(of: "Omit ad Matutinum", options: .caseInsensitive) == nil else { return false }
         for line in rule.split(separator: "\n", omittingEmptySubsequences: false) {
             guard let omitRange = line.range(of: "Omit", options: .caseInsensitive) else { continue }
             if line[omitRange.upperBound...].range(of: " \(keyword)", options: .caseInsensitive) != nil { return true }

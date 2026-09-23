@@ -66,7 +66,14 @@ private let psalm232 = RawOfficeFile(path: "Psalterium/Psalmorum/Psalm232", sect
 ])
 
 private let weekdaySchedule = RawOfficeFile(path: "Psalterium/Psalmi/Psalmi major", sections: [
-    RawSection(name: "Day1 Vespera", condition: "", body: ["Antiphona feriae * de psalmo.;;114"])
+    RawSection(name: "Day1 Vespera", condition: "", body: ["Antiphona feriae * de psalmo.;;114"]),
+    // The festal "Psalmi Dominica" number source (`assemblePsalmodia`'s own
+    // `candidatePairs` doc comment): only the numbers matter here, zipped positionally
+    // against a *different* office's own unnumbered antiphons, so the placeholder
+    // antiphon text on each line is never actually used.
+    RawSection(name: "Day0 Vespera", condition: "", body: [
+        "placeholder;;109", "placeholder;;110", "placeholder;;111", "placeholder;;112", "placeholder;;113",
+    ]),
 ])
 
 /// The fixed Sunday/festal Vespers psalm set (109-112) `assemblePsalmodia` hardcodes for
@@ -412,6 +419,16 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     // passes in real DO (see `festalFifthPsalmNumber`'s own doc comment for the full
     // trace) -- so the Rule must live on the office to have any effect, matching what's
     // exercised here.
+    //
+    // The *first four* psalms' own 109-112 numbering is a separate mechanism
+    // (`psalmi.pl:499-524`'s own "Psalmi Dominica" gate, `assemblePsalmodia`'s own doc
+    // comment on `candidatePairs`) -- real for S. Agatha too, but via her own Commune
+    // (C6, which has "Psalmi Dominica" in *its* [Rule]), not her own office file
+    // (neither has it directly). This fixture's own Commune/C99 needs the same tag for
+    // the same reason, or the fix correctly falls through to the plain weekday default
+    // instead (19 January 2026 is a Monday) -- confirmed to actually happen the hard
+    // way, when an earlier version of this fixture (missing this tag) started failing
+    // once that gate was ported for real.
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis Virgo"]),
         RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;ex C99"]),
@@ -422,6 +439,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
         RawSection(name: "Ant Vespera", condition: "", body: [
             "Ant unus * primi.", "Ant duo * secundi.", "Ant tres * tertii.", "Ant quattuor * quarti.", "Ant quinque * quinti.",
         ]),
+        RawSection(name: "Rule", condition: "", body: ["Psalmi Dominica"]),
     ])
     let corpus = InMemoryOfficeCorpus(
         files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune, festalFifthPsalm] + festalPsalms109to112

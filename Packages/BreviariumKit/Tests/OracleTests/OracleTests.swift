@@ -486,6 +486,16 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // unstripped as a file path (`Psalm138(1-13)`, which doesn't exist) -- confirmed via
     // `PsalmVerseRangeTests`'s own unit tests for the parsing/boundary logic in
     // isolation; this test is the end-to-end confirmation against the real checkout.
+    //
+    // The title's own "(1-13)" range is genuinely kept, not stripped -- the real
+    // fixture shows "Psalmus 138(1-13)"/"Psalmus 138(14-24)" for these two slots
+    // verbatim, confirmed directly against it. This test's own original assertion
+    // ("Psalmus 138 [1]", no range) was never actually checked against that literal
+    // text -- only that verses rendered at all, without crashing on the bad file path
+    // above -- and silently encoded a stripping behaviour (`psalmTitleNumber`) that
+    // turned out to be wrong, found via a full 2025-2040 content audit surfacing the
+    // same range on a different split psalm (143(1-8)/143(9-15), First Vespers of
+    // Advent I) and prompting a direct recheck of this date too.
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
@@ -499,7 +509,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles.first == "Psalmus 138 [1]")
+    #expect(titles.first == "Psalmus 138(1-13) [1]")
 
     let allVerseText = psalmodia.units.compactMap { unit -> String? in
         if case .verse(_, let first, let second, _, _) = unit { return "\(first) \(second)" } else { return nil }
