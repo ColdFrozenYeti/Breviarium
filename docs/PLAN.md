@@ -2179,11 +2179,12 @@ December dates in the same sweep:
   antiphon is exactly `Major Special.txt`'s own `[Adv Ant 17]`, "O Sapiéntia, * quæ ex
   ore Altíssimi prodiísti...".
 
-Combined effect on the same sweep: Capitulum 38→(pending re-measurement), Canticum
-133→(pending re-measurement). Full Kit test suite and all named-case oracle tests, plus
-two new (`christmasEveUsesChristmasDaysOwnFirstVespersCapitulumNotItsSecond`,
+Combined effect on the same sweep: Capitulum 38→22, Canticum 133→63 (the O Antiphons
+recur every year's 17-23 December window, the single highest-leverage part of this
+pair). Full Kit test suite (200 tests) and all 76 named-case oracle tests, plus two new
+(`christmasEveUsesChristmasDaysOwnFirstVespersCapitulumNotItsSecond`,
 `oAntiphonOverridesTheOrdinaryMagnificatAntiphonSeventeenToTwentyThirdDecember`), still
-pass — full sweep re-run pending.
+pass.
 
 ### M5 — User interface
 

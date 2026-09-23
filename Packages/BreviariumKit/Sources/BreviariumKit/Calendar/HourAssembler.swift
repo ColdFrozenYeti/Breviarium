@@ -1366,6 +1366,9 @@ public struct HourAssembler {
         // the real antiphon ("Suscépit Deus Israël...") comes from Major Special's own
         // `[Feria7 Ant 3]` instead.
         let antSection = "Ant \(ind)"
+        let oAntiphonLoc = Self.oAntiphonLocation(
+            office: office, isFirstVespers: macroContext.isFirstVespers, day: day, month: month, year: year, resolver: resolver
+        )
         let monthdayLoc = monthdayLocation(
             office: office, section: antSection, day: day, month: month, year: year, tomorrow: macroContext.isFirstVespers, resolver: resolver
         )
@@ -1376,7 +1379,7 @@ public struct HourAssembler {
             office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver, weekName: macroContext.weekName
         )
         let majorSpecialLoc = majorSpecialAntLocation(ind: ind, dayOfWeek: macroContext.dayOfWeek, resolver: resolver)
-        if let location = monthdayLoc ?? plainLocation ?? numberedLocation ?? majorSpecialLoc {
+        if let location = oAntiphonLoc ?? monthdayLoc ?? plainLocation ?? numberedLocation ?? majorSpecialLoc {
             let text = resolver.resolve(path: location.path, section: location.section)
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
@@ -1418,6 +1421,33 @@ public struct HourAssembler {
         guard Self.participatesInMonthdayMerge(office: office) else { return nil }
         guard let key = Computus.monthday(day: day, month: month, year: year, tomorrow: tomorrow) else { return nil }
         let path = "Tempora/\(key)"
+        return resolver.sectionExists(path: path, section: section) ? (path, section) : nil
+    }
+
+    /// The seven "O Antiphons" (17-23 December, `Psalterium/Special/Major Special.txt`'s
+    /// own `[Adv Ant 17]`...`[Adv Ant 23]`) — ports `ant123_special` (`horas.pl:471-500`),
+    /// called *unconditionally first*, ahead of every other antiphon lookup this
+    /// function tries (`canticum()`'s own `($ant, $df) = ant123_special($lang); unless
+    /// ($ant) { ($ant, $c) = getantvers(...) }`) — not a fallback tier at the bottom of
+    /// the chain like `monthdayLocation`/`majorSpecialAntLocation`, but an override that
+    /// wins outright whenever it applies, before the office's own `[Ant $ind]` is ever
+    /// consulted. Scoped to the real condition exactly: `$month == 12 && $day > 16 &&
+    /// $day < 24 && $winner =~ /tempora/i` — a *sanctoral* office winning Vespers within
+    /// this window (rare, but not impossible: a votive/commemorated saint could still
+    /// outrank an Ember day) keeps its own proper antiphon instead. Confirmed real for
+    /// 17 December 2025 (Ember Wednesday in Advent, `Tempora/`-won): the real fixture's
+    /// own Magnificat antiphon is exactly "O Sapiéntia, * quæ ex ore Altíssimi
+    /// prodiísti...", not the office's own `[Ant 3]` (this project's engine fell
+    /// through to whatever fallback tier found something first, before this override
+    /// existed).
+    private static func oAntiphonLocation(
+        office: String, isFirstVespers: Bool, day: Int, month: Int, year: Int, resolver: SectionResolver
+    ) -> (path: String, section: String)? {
+        guard office.hasPrefix("Tempora/") else { return nil }
+        let effective = isFirstVespers ? Computus.addDays(1, day: day, month: month, year: year) : (day: day, month: month, year: year)
+        guard effective.month == 12, effective.day > 16, effective.day < 24 else { return nil }
+        let path = "Psalterium/Special/Major Special"
+        let section = "Adv Ant \(effective.day)"
         return resolver.sectionExists(path: path, section: section) ? (path, section) : nil
     }
 
@@ -1538,12 +1568,20 @@ public struct HourAssembler {
         var sections: [Section] = []
         // `capitulis.pl`'s `capitulum_major`: the office's own shared Lauds/Vespers key
         // is `"Capitulum Laudes"` (confirmed real: 109 real `Sancti`/`Commune`/`Tempora`
-        // files define it, against only 7 using `"Capitulum Vespera"` — the latter is a
-        // narrow, named exception in the real Perl for 25 December's own first Vespers
-        // and the C12 votive office, neither reconstructed exactly here; trying both
-        // keys, Laudes first, gets the right file for virtually every real date without
-        // needing those two conditions individually).
-        if let capitulum = lookup("Capitulum Laudes") ?? lookup("Capitulum Vespera") {
+        // files define it, against only 7 using `"Capitulum Vespera"`) — but the real
+        // Perl's own selection is a hardcoded, narrow two-way special case, not a
+        // general "prefer the indexed key" rule: `$name = 'Capitulum Vespera 1' if
+        // $winner =~ /12-25/ && $vespera == 1;` and separately `$name = 'Capitulum
+        // Vespera' if $winner =~ /C12/ && $hora eq 'Vespera';` (the not-yet-implemented
+        // votive office, left as the existing plain fallback below). Confirmed real for
+        // 24 December 2025 (first Vespers of Christmas): `Sancti/12-25.txt`'s own
+        // `[Capitulum Vespera 1]` is "Titus 3:4-5" ("Appáruit benígnitas..."), the real
+        // fixture's own text — trying `"Capitulum Laudes"` first (this project's own
+        // earlier, un-special-cased version) found `[Capitulum Laudes]` instead
+        // ("Heb 1:1-2", the *second* Vespers/Lauds text) since that key exists in the
+        // same file and was tried unconditionally first.
+        let capitulumSection = office.hasSuffix("12-25") && macroContext.isFirstVespers ? "Capitulum Vespera 1" : "Capitulum Laudes"
+        if let capitulum = lookup(capitulumSection) ?? lookup("Capitulum Vespera") {
             sections.append(Section(kind: .capitulum, units: [
                 .prose(Self.formatCapitulum(capitulum.latin), english: capitulum.english.map(Self.formatCapitulum)),
             ]))
