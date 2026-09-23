@@ -2280,6 +2280,25 @@ which returned to the numbers above) rather than ship a broad regression; the
 Epiphany/Holy Family case remains open, flagged here rather than silently dropped,
 for a more careful re-derivation of the full real cascade before it's attempted again.
 
+**Continued in the same session**, a fourth, cleaner fix: `festalFifthPsalmNumber` (the
+`[Rule]`'s own `Psalm5 Vespera(3)=` override) was only ever consulted for the
+*unnumbered*-antiphon case — but the real Perl (`psalmi.pl:560-586`) checks it
+unconditionally for the 5th psalm slot, overriding even an antiphon that already
+carries its own explicit `;;N` tag. Confirmed real for 15 June 2025 (Trinity Sunday,
+second Vespers): `Tempora/Pent01-0`'s own `[Ant Vespera]` antiphons are all explicitly
+numbered, the fifth tagged `;;116` directly — but its own `[Rule]` has `"Psalm5
+Vespera3=113"` (a *different* value from its `"Psalm5 Vespera=116"`, for first
+Vespers), so the real fifth psalm is 113, not the antiphon's own literal tag. Applied
+as a single unconditional final step in `assemblePsalmodia` (covering the numbered,
+unnumbered, and weekday-schedule-fallback cases alike, matching the real Perl's own
+unconditional check), rather than duplicated across each of the three paths
+separately.
+
+Combined effect on the same sweep: Psalmodia 111→95. Full Kit test suite (203 tests)
+and all 80 named-case oracle tests, plus one new
+(`explicitlyNumberedFifthAntiphonStillGetsOverriddenByItsOwnRuleTag`), still pass. No
+change to any other category, and no regression this time.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

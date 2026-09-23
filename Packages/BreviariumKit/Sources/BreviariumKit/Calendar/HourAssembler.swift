@@ -836,10 +836,12 @@ public struct HourAssembler {
                 // 109/110/111/112/113 exactly like an ordinary Sunday.
                 let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
                 if antiphons.count == 5 {
-                    let fifthPsalm = festalFifthPsalmNumber(
-                        office: office, antiphonSourcePath: loc.path, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
-                    ) ?? "113"
-                    let festalNumbers = ["109", "110", "111", "112", fifthPsalm]
+                    // The 5th psalm's own `Psalm5` override, if any, is applied
+                    // unconditionally further down (`psalmi.pl:560-586`'s own check
+                    // runs regardless of whether the antiphon already carries a
+                    // `;;N` tag) — this default of plain "113" is only the
+                    // un-overridden festal baseline.
+                    let festalNumbers = ["109", "110", "111", "112", "113"]
                     pairs = zip(antiphons, festalNumbers).map { ($0, $1) }
                 }
             }
@@ -861,6 +863,25 @@ public struct HourAssembler {
             usedWeekdaySchedule = true
             let weekdayText = resolver.resolve(path: "Psalterium/Psalmi/Psalmi major", section: weekdaySection)
             pairs = Self.parseAntiphonPsalmPairs(weekdayText)
+        }
+
+        // `psalmi.pl:560-586`'s own `Psalm5` override applies to the 5th psalm slot
+        // *unconditionally* — checked regardless of whether that antiphon already
+        // carries its own explicit `;;N` tag, not only in the unnumbered-antiphon
+        // festal-default case `festalFifthPsalmNumber` was originally scoped to.
+        // Confirmed real for 15 June 2025 (Trinity Sunday, `Tempora/Pent01-0`): its
+        // own `[Ant Vespera]` antiphons are all explicitly numbered, the fifth
+        // tagged `;;116` directly — but this date is Trinity's own *second* Vespers,
+        // and its own `[Rule]` has `"Psalm5 Vespera3=113"` (a *different* value from
+        // its `"Psalm5 Vespera=116"`, for first Vespers), so the real fifth psalm is
+        // 113, not the antiphon's own literal tag.
+        if pairs.count == 5 {
+            let antiphonSourcePath = usedWeekdaySchedule ? "Psalterium/Psalmi/Psalmi major" : (winningLocation?.path ?? office)
+            if let override = festalFifthPsalmNumber(
+                office: office, antiphonSourcePath: antiphonSourcePath, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
+            ) {
+                pairs[4].psalmNumber = override
+            }
         }
 
         // English antiphon *text* only (never the psalm numbers, which are Latin's own
