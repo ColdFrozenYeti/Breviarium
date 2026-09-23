@@ -2219,6 +2219,67 @@ range). Full Kit test suite (202 tests, two new) and all 77 named-case oracle te
 plus one new (`fridayAfterAscensionUsesAscensionsOwnCapitulumNotSundayAfterAscensions`),
 still pass.
 
+**Continued in a later session**, opening with a full remaining-bugs plan (executive
+summary + staged steps, approved before execution) targeting the last ~230 mismatched
+lines toward zero. Two fixes landed clean; a third was found, built, confirmed to
+regress broadly, and reverted rather than shipped — all reported here for the full
+picture, not just the wins.
+
+- **The general Oratio-fallback catch-all.** `orationes.pl:115-120`'s own final
+  catch-all — general, not gated on any `[Rule]` text (unlike `oratioDominicaOffice`'s
+  own literal `"Oratio Dominica"` trigger, a narrower, separate real mechanism nearer
+  the top of the same real function): whenever the winning office is a `Tempora/` path
+  and nothing else found an Oratio at all, DO falls back to that same week's own Sunday
+  file's plain `[Oratio]`, or failing that, its `[Oratio 2]`. Confirmed real for 8 June
+  2026 (an ordinary low-rank feria whose own winning `[Rank]` variant under 1960 has no
+  Commune reference at all and no `[Oratio]` of its own): `Tempora/Pent02-0.txt`'s own
+  `[Oratio]` ("Sancti nóminis tui, Dómine...") is exactly the real fixture's own text.
+  This closed all 24 real dates that previously rendered with an entirely empty Oratio
+  section — a structural gap flagged, not silently carried, since M4.
+- **All Souls' Day transferred away by a Sunday.** Initially mistaken for a missing
+  "Office of the Dead" feature — the real mechanism is much narrower and was already
+  half-built: when 2 November falls on a Sunday (a dominical-letter-"e" year, e.g.
+  2025), `Tabulae/Transfer/e.txt` redirects 2 November's sanctoral office from All
+  Souls (`Sancti/11-02`, I. classis rank 6) to `Sancti/11-02oct` ("Secunda die infra
+  Octavam Omnium Sanctorum," rank 2), which then naturally loses to the Sunday through
+  completely ordinary occurrence rules — no special-casing needed once the transfer
+  itself is read correctly. The bug: `TransferResolver.parseEntries` treated a line's
+  *present but empty* trailing version list (`"11-02=11-02oct;;"`, nothing after the
+  second `;;`) the same as a version list that explicitly doesn't list `"1960"`,
+  silently discarding the one real line in the whole corpus shaped this way. Confirmed
+  real for 2 November 2025: the real fixture's own winner is "Dominica XXI Post
+  Pentecosten", with a plain Sunday Oratio ("Famíliam tuam..."), not any
+  Requiem/Office-of-the-Dead text.
+
+Combined effect on the same sweep: Oratio 111→108, Canticum 54→51, Versus 30→27, plus
+the "sections entirely absent" structural category (24 days) closed to zero entirely.
+Full Kit test suite (203 tests, three new) and all 79 named-case oracle tests, plus two
+new (`ordinaryFeriaWithNoOratioOfItsOwnFallsBackToItsOwnWeeksSunday`,
+`allSoulsIsTransferredAwayWhenTwoNovemberFallsOnASunday`), still pass.
+
+**A third fix was attempted and reverted.** 6 January 2029 (Epiphany, `Sancti/01-06`,
+I. classis rank 6.5, own `[Rule]` tagged `"Festum Domini"`) is real-fixture-confirmed
+to lose its own second Vespers to Holy Family's first Vespers the next evening
+(`Tempora/Epi1-0`, II. classis rank 5 under 1960 — numerically *lower* than Epiphany's
+own), matching a second, separate real concurrence disjunct
+(`horascommon.pl:1157-1163`, "on any Sunday or 1st Vespers of a Feast of the Lord:
+nothing of a preceding III. cl feast") distinct from the strict-rank-inequality
+pre-emption `Concurrence.resolve` already ports. A direct transcription of that
+disjunct was implemented, confirmed correct for the Holy Family/Epiphany date in
+isolation, but the full sweep showed a **severe regression** — Psalmodia, Oratio,
+Canticum, Versus, Capitulum, and Hymnus mismatches all roughly *doubled* (e.g. Oratio
+111→173), with wrong content appearing throughout the Epiphany octave and beyond
+(dates like 2025-01-12, unrelated to Holy Family at all). The disjunct's own condition,
+taken in isolation, doesn't explain firing that broadly — grepping the corpus found
+only one other nearby file (`Epi1-0` itself) tagged `"Festum Domini"` at all — so
+either the port has a mechanical bug not yet found, or this disjunct genuinely
+requires more of the surrounding real cascade's own context (the several other
+disjuncts in the same real `elsif`, or an ordering/precondition from an earlier branch)
+to behave correctly in isolation. Reverted cleanly (confirmed via a full clean re-run,
+which returned to the numbers above) rather than ship a broad regression; the
+Epiphany/Holy Family case remains open, flagged here rather than silently dropped,
+for a more careful re-derivation of the full real cascade before it's attempted again.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -57,7 +57,23 @@ public enum TransferResolver {
                 withoutVersion = line[...]
                 versionList = nil
             }
-            if let versionList, !appliesTo1960(versionList) { continue }
+            // A trailing ";;" with nothing after it (real example: `Transfer/e.txt`'s
+            // own "11-02=11-02oct;;") is a *present but empty* version list -- DO's own
+            // real semantics treat this the same as no ";;" at all ("applies
+            // universally"), not as "doesn't list 1960" (which an empty string would
+            // otherwise always fail to match). Confirmed real: without this
+            // distinction, this exact line -- the only one in the whole corpus shaped
+            // this way -- was silently discarded, leaving the *next* same-key line
+            // (`"11-02=X-X;;CAV"`, correctly rejected on its own non-matching "CAV"
+            // tag) with nothing to override, so 2 November fell through to the
+            // ordinary, untransferred Kalendaria entry (All Souls' Day proper, rank 6)
+            // instead of the real transferred one ("Secunda die infra Octavam Omnium
+            // Sanctorum", rank 2) whenever the year's dominical letter is "e" (e.g.
+            // 2025) -- confirmed against the real fixture for 2 November 2025, where an
+            // ordinary Sunday (rank ~5) correctly outranks the low-rank transferred
+            // office, needing no further special-casing once the transfer itself is
+            // read correctly.
+            if let versionList, !versionList.isEmpty, !appliesTo1960(versionList) { continue }
 
             let fields = withoutVersion.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
             guard fields.count == 2, isDateKey(fields[0]) else { continue }

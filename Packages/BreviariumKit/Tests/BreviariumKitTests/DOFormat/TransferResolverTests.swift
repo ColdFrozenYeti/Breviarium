@@ -43,3 +43,19 @@ import Testing
     let entries = TransferResolver.parseEntries("04-05=03-25~04-05;;1888 1906 1960 DA M1963 Newcal")
     #expect(entries["04-05"] == "03-25~04-05")
 }
+
+@Test func parseEntriesTreatsATrailingEmptyVersionListAsUniversal() {
+    // Real line, Transfer/e.txt (the dominical-letter bucket 2025 falls under): a
+    // trailing ";;" with nothing after it is a *present but empty* version list --
+    // DO's own real semantics treat this the same as no ";;" at all, not as "doesn't
+    // list 1960" (which an empty string would otherwise always fail to match).
+    // Confirmed real: without this distinction, this line was silently discarded,
+    // leaving the day's real transfer target unapplied. A later same-key line
+    // correctly tagged for a different version (not 1960) must still be dropped.
+    let text = """
+        11-02=11-02oct;;
+        11-02=X-X;;CAV
+        """
+    let entries = TransferResolver.parseEntries(text)
+    #expect(entries["11-02"] == "11-02oct")
+}

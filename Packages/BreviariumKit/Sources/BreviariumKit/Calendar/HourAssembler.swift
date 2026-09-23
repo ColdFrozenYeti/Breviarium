@@ -474,6 +474,27 @@ public struct HourAssembler {
                 return location
             }
         }
+
+        // `orationes.pl:115-120`'s own final catch-all — general, not gated on any
+        // `[Rule]` text (unlike `oratioDominicaOffice`'s own literal `"Oratio
+        // Dominica"` trigger, a *different*, narrower real mechanism near the top of
+        // the same real function): whenever the winning office is a `Tempora/` path
+        // and nothing above found an Oratio at all (office's own, Commune's own), DO
+        // falls back to that same week's own Sunday file's plain `[Oratio]`, or
+        // failing that, its `[Oratio 2]` — never `[Oratio $ind]`/`[Oratio (4-$ind)]`,
+        // just these two fixed keys. Confirmed real for 8 June 2026 (Monday, "Feria II
+        // infra Hebdomadam II post Octavam Pentecostes", an ordinary low-rank feria
+        // whose own winning `[Rank]` variant under 1960 has *no* Commune reference at
+        // all — `;;Feria;;1`, no fourth field — and no `[Oratio]` of its own):
+        // `Tempora/Pent02-0.txt`'s own `[Oratio]` ("Sancti nóminis tui, Dómine...") is
+        // exactly the real fixture's own text. Found via a full 2025-2040 content
+        // audit: this gap alone left 24 real dates with *no* Oratio rendered at all
+        // (a silently empty section, not a wrong one).
+        if office.hasPrefix("Tempora/") {
+            let sundayPath = "Tempora/\(weekName)-0"
+            if resolver.sectionExists(path: sundayPath, section: "Oratio") { return (sundayPath, "Oratio") }
+            if resolver.sectionExists(path: sundayPath, section: "Oratio 2") { return (sundayPath, "Oratio 2") }
+        }
         return nil
     }
 
