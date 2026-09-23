@@ -2543,6 +2543,61 @@ this specific "commemorate the displaced office at a pre-empting first Vespers"
 case, or something downstream of this lookup overrides `$v` before final output.
 Left unresolved rather than guessed at — flagged here for a fresh, focused pass.
 
+**Continued in a later session (2026-09-24)**, working from an explicit user gameplan:
+investigate the All Souls and Epiphany mismatch clusters in depth first (without making
+changes), then execute fixes for what those investigations found, then whittle down each
+remaining category least-to-most. The two investigations, done via live Docker tracing
+and careful reading of `specials.pl`/`horascommon.pl` with no code changes, surfaced four
+independent, narrowly-scoped bugs, all now fixed and confirmed:
+
+1. **All Souls: the `Capitulum Versum 2` replacement always built an `.antiphon` unit.**
+   `specials.pl:60-81`'s own replacement mechanism doesn't always produce an
+   antiphon-formatted line — All Souls' own `[Versum 2]` (→ `Commune/C9`'s own
+   `[Versum 1]` via cross-reference) is a genuine `"V. .../R. ..."` pair ("Audívi vocem
+   de cælo dicéntem mihi. / Beáti mórtui qui in Dómino moriúntur."), confirmed real for
+   3 November 2025 (transferred All Souls). The engine joined it into one prose-like
+   string with a literal "R." embedded instead of a real `.versicleResponse`. Fixed by
+   detecting the shape from the first non-blank line (`"V."`-prefixed → pair; otherwise
+   → the pre-existing single-antiphon behaviour, confirmed unchanged for Easter Sunday's
+   own antiphon-formatted `[Versum 2]`, 20 April 2025). New tests:
+   `allSoulsCapitulumVersum2IsAGenuineVersicleResponsePair`,
+   `easterStillUsesItsOwnAntiphonFormattedCapitulumVersum2`.
+
+2. **All Souls: `assembleMagnificat` had no `getantvers`-style "ind, then 4-ind"
+   fallback.** `specials.pl:575-596`'s own `getantvers` tries the *swapped* index
+   (`[Ant (4-$ind)]`, office then Commune) before ever falling to the Major Special
+   seasonal default, whenever `$ind > 1` (second Vespers only). This project's engine
+   had no equivalent attempt at all, going straight from `[Ant $ind]` to
+   `[Ant Vespera $ind]` to the Major Special fallback. Confirmed real for 3 November
+   2025: neither `Sancti/11-02` nor its own Commune (`C9`, via `ex C9`) defines
+   `[Ant 3]` (`ind == 3`), but `Commune/C9` *does* define `[Ant 1]` ("Omne quod dat
+   mihi Pater..."), matching the real fixture's own Magnificat antiphon exactly — this
+   project's engine fell through everything to a wrong Major-Special default instead.
+   New test: `allSoulsMagnificatAntiphonUsesTheSwappedIndexFallback`.
+
+3. **All Souls: a missing occurrence-level Saturday-suppression rule.**
+   `horascommon.pl`'s own "Office of All Souls' day ends after None" exclusion removes
+   All Souls from sanctoral candidacy entirely when 2 November falls on a Saturday
+   (`($version !~ /196/ || $dayofweek == 6) && $month == 11 && $srank =~ /Omnium
+   Fidelium defunctorum/i && !$caller`, collapsing to exactly "Saturday, November, this
+   title" for this project's 1960-only, non-chained scope). This project's engine kept
+   All Souls (and its own Special Conclusio) as the day's winner regardless of the
+   date. Confirmed real for 2 November 2030 (a Saturday): the real fixture's own
+   Vespers is the ordinary "Dominica XXI Post Pentecosten... Vespera de sequenti" with
+   a plain ferial Conclusio ending, not All Souls' own "Conclusio specialis" — this
+   was the confirmed cause of the one remaining Conclusio mismatch in the whole sweep.
+   New tests: `allSoulsIsSuppressedWhenNovemberSecondIsASaturday`,
+   `allSoulsStillWinsItsOwnDayOnAnOrdinaryWeekday`.
+
+Full suite (203 Kit + 8 Data + 94 named oracle, six new across the three fixes)
+confirmed clean.
+
+**Also found during the same investigation, not yet fixed**: an off-by-one bug in the
+O-Antiphon date mapping — 20 December 2025 renders 21 December's own O-Antiphon ("O
+Óriens...") instead of 20 December's own ("O clavis David..."), confirmed against the
+real fixture. Unrelated to All Souls; found opportunistically while checking the
+Canticum category broadly. Flagged for the Canticum category pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

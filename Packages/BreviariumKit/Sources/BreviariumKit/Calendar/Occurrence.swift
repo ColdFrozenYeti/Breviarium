@@ -160,6 +160,7 @@ public struct Occurrence {
         for candidate in calendar.candidates(day: day, month: month, year: year) {
             let path = "Sancti/\(candidate)"
             guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { continue }
+            if Self.isAllSoulsSuppressedOnSaturday(title: rank.title, month: month, weekday: weekday) { continue }
             sanctoralPath = path
             sanctoralRank = rank
             sanctoralRule = resolver.resolve(path: path, section: "Rule")
@@ -187,6 +188,27 @@ public struct Occurrence {
             return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
         }
         return OccurrenceResult(sanctoralWins: false, winningPath: temporalPath, winningRank: temporalRank, isSunday: isSunday)
+    }
+
+    /// `horascommon.pl`'s own "Office of All Souls' day ends after None" exclusion
+    /// (within `occurrence()`'s `$hora =~ /Vespera|Completorium/` branch): the real
+    /// condition is `($version !~ /196/ || $dayofweek == 6) && $month == 11 && $srank
+    /// =~ /Omnium Fidelium defunctorum/i && !$caller` — for this project's 1960-only,
+    /// non-chained scope (`$caller` marks a *nested* lookup this project never makes),
+    /// that collapses to exactly: Saturday, November, this specific title. When it
+    /// fires, All Souls is removed from sanctoral candidacy entirely for that day's own
+    /// Vespers — not merely outranked, genuinely absent — letting the ordinary next
+    /// day's Sunday take over completely via the normal first-Vespers mechanism, with
+    /// no trace of All Souls at all (no commemoration, no Special Conclusio).
+    ///
+    /// Confirmed real for 2 November 2030 (a Saturday): the real fixture's own Vespers
+    /// is plain "Dominica XXI Post Pentecosten... Vespera de sequenti" with an ordinary
+    /// ferial Conclusio ending — not All Souls' own "Conclusio specialis" this
+    /// project's engine rendered instead, having kept All Souls as the day's winning
+    /// sanctoral office regardless of the Saturday date.
+    private static func isAllSoulsSuppressedOnSaturday(title: String, month: Int, weekday: Int) -> Bool {
+        guard month == 11, weekday == 6 else { return false }
+        return title.range(of: "Omnium Fidelium Defunctorum", options: .caseInsensitive) != nil
     }
 
     private func decideSanctoralWins(

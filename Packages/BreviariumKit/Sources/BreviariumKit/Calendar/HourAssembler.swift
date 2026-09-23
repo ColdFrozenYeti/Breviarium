@@ -214,18 +214,27 @@ public struct HourAssembler {
                 // `specials.pl:60-81`'s own "Capitulum Versum 2" replacement takes
                 // priority over "Omit" when it fires: the whole Capitulum/Hymnus/Versus
                 // group is replaced by a single `Versus (In loco Capituli)` section
-                // built from the office's own `[Versum 2]` (falling back to Commune's),
-                // whose content is itself an antiphon-formatted line, not a genuine
-                // versicle/response pair. Confirmed real for 20 April 2025 (Easter
-                // Sunday, whose own `Tempora/Pasc0-0.txt` `[Rule]` has a plain,
-                // unqualified "Capitulum Versum 2;" -- contradicting an earlier
-                // assumption here that no Vespers-relevant date has one unqualified;
-                // that assumption held only for Holy Saturday's own "ad Laudes tantum"-
-                // qualified rule, not the whole Easter Octave, which chain-extends
-                // Pasc0-0's Rule via `Rule: ex Pasc0-0` and so shares it for all eight
-                // days): the real fixture's own `[Versum 2]`, "Ant. Hæc dies * quam
-                // fecit Dóminus: exsultémus et lætémur in ea.", replaces the normal
-                // triad entirely.
+                // built from the office's own `[Versum 2]` (falling back to Commune's).
+                // That replacement content isn't *always* an antiphon-formatted line --
+                // confirmed real for 20 April 2025 (Easter Sunday, whose own
+                // `Tempora/Pasc0-0.txt` `[Rule]` has a plain, unqualified "Capitulum
+                // Versum 2;" -- contradicting an earlier assumption here that no
+                // Vespers-relevant date has one unqualified; that assumption held only
+                // for Holy Saturday's own "ad Laudes tantum"-qualified rule, not the
+                // whole Easter Octave, which chain-extends Pasc0-0's Rule via `Rule: ex
+                // Pasc0-0` and so shares it for all eight days): the real fixture's own
+                // `[Versum 2]`, "Ant. Hæc dies * quam fecit Dóminus: exsultémus et
+                // lætémur in ea.", replaces the normal triad entirely as a single
+                // antiphon. But All Souls' own `[Versum 2]` (→ `[Versum 1]` via
+                // Commune/C9's own cross-reference) is a genuine `"V. .../R. ..."` pair
+                // ("Audívi vocem de cælo dicéntem mihi. / Beáti mórtui qui in Dómino
+                // moriúntur.") -- confirmed real for 3 November 2025 (transferred All
+                // Souls). An earlier version of this code always built a single
+                // `.antiphon` unit regardless, so All Souls' own pair rendered as one
+                // prose-like string with a literal "R." embedded, not a real
+                // `.versicleResponse`. Detect which shape it is from the first
+                // non-blank line, the same way `unitsFromLines` itself distinguishes
+                // them, rather than assuming one shape unconditionally.
                 if let cv2Qualifier = Self.capitulumVersum2Qualifier(rule: macroContext.winningRule),
                     cv2Qualifier.range(of: "ad Laudes tantum", options: .caseInsensitive) == nil
                 {
@@ -233,12 +242,25 @@ public struct HourAssembler {
                         office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Versum 2", resolver: resolver,
                         weekName: macroContext.weekName
                     ) {
-                        let text = DOMarkers.stripLineLabel(resolver.resolve(path: versus2.path, section: versus2.section))
-                        let english: String? = englishResolver.flatMap { eng in
-                            eng.sectionExists(path: versus2.path, section: versus2.section)
-                                ? DOMarkers.stripLineLabel(eng.resolve(path: versus2.path, section: versus2.section)) : nil
+                        let rawText = resolver.resolve(path: versus2.path, section: versus2.section)
+                        let firstNonBlank = rawText.split(separator: "\n", omittingEmptySubsequences: false)
+                            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                        if firstNonBlank?.hasPrefix("V.") == true {
+                            let lines = rawText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                            let englishLines: [String]? = englishResolver.flatMap { eng -> [String]? in
+                                guard eng.sectionExists(path: versus2.path, section: versus2.section) else { return nil }
+                                return eng.resolve(path: versus2.path, section: versus2.section)
+                                    .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                            }
+                            sections.append(Section(kind: .versus, units: Self.unitsFromLines(lines, english: englishLines)))
+                        } else {
+                            let text = DOMarkers.stripLineLabel(rawText)
+                            let english: String? = englishResolver.flatMap { eng in
+                                eng.sectionExists(path: versus2.path, section: versus2.section)
+                                    ? DOMarkers.stripLineLabel(eng.resolve(path: versus2.path, section: versus2.section)) : nil
+                            }
+                            sections.append(Section(kind: .versus, units: [.antiphon(text, english: english)]))
                         }
-                        sections.append(Section(kind: .versus, units: [.antiphon(text, english: english)]))
                     }
                     continue
                 }
@@ -1506,11 +1528,27 @@ public struct HourAssembler {
         let plainLocation = resolvedLocation(
             office: office, communeReference: communeReference, section: antSection, resolver: resolver, weekName: macroContext.weekName
         )
+        // `getantvers`'s own next fallback (`specials.pl:575-596`): when `$ind > 1`
+        // (second Vespers only — the real guard is never reached for first Vespers'
+        // own `ind == 1`) and neither the office's own `[Ant $ind]` nor its Commune's
+        // was found, try the *swapped* index, `[Ant (4-$ind)]`, office then Commune
+        // again, before ever falling to the Major Special seasonal default. This
+        // project's engine had no such attempt at all — it went straight from `[Ant
+        // $ind]` to `[Ant Vespera $ind]` to the Major Special fallback. Confirmed real
+        // for 3 November 2025 (transferred All Souls, `ind == 3`): neither
+        // `Sancti/11-02` nor its own Commune (`C9`, via `ex C9`) defines `[Ant 3]`, but
+        // `Commune/C9` *does* define `[Ant 1]` ("Omne quod dat mihi Pater..."), which
+        // the real fixture's own Magnificat antiphon matches exactly — this project's
+        // engine instead fell through everything to a wrong Major-Special default.
+        let swappedIndexLoc: (path: String, section: String)? =
+            ind > 1
+            ? resolvedLocation(office: office, communeReference: communeReference, section: "Ant \(4 - ind)", resolver: resolver, weekName: macroContext.weekName)
+            : nil
         let numberedLocation = resolvedLocation(
             office: office, communeReference: communeReference, section: "Ant Vespera \(ind)", resolver: resolver, weekName: macroContext.weekName
         )
         let majorSpecialLoc = majorSpecialAntLocation(ind: ind, dayOfWeek: macroContext.dayOfWeek, resolver: resolver)
-        if let location = oAntiphonLoc ?? monthdayLoc ?? plainLocation ?? numberedLocation ?? majorSpecialLoc {
+        if let location = oAntiphonLoc ?? monthdayLoc ?? plainLocation ?? swappedIndexLoc ?? numberedLocation ?? majorSpecialLoc {
             let text = resolver.resolve(path: location.path, section: location.section)
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
