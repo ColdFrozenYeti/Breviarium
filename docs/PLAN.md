@@ -2080,6 +2080,37 @@ two new orthography ones) and all 71 named-case oracle tests, plus one new
 change to any other category — the remaining Canticum mismatches (e.g. 2025-11-02's
 Office of the Dead antiphons, 2025-12-17's O-Antiphon) are a different mechanism.
 
+**Continued in the same session**, back on Oratio (still the largest at 152, now that
+Canticum has dropped below it): `commemorationUnits` looked up a commemorated office's
+`Ant`/`Versum`/`Oratio N` fields using the *winning* office's own Vespers index
+(`MacroContext.isFirstVespers`, threaded straight through from `assembleCommemorations`)
+— but a cross-day commemoration needs the *commemorated* office's own natural index
+instead. Traced against the real Perl (`getcommemoratio`'s second argument, `$cvespera`,
+`horascommon.pl`): every branch that sets up a cross-day commemoration sets `$vespera`
+(the *winning* office's index) and `$cvespera` (the *commemorated* office's index) to
+*opposite* values — 3-and-1 or 1-and-3, never the same — and the `@cvesp = (1, 3)`
+same-day-runner-up loop confirms the pattern holds unconditionally: candidates sourced
+from *today's* own date are always processed at index 3 (`@commemoentries`), candidates
+from *tomorrow's* always at index 1 (`@ccommemoentries`), regardless of which of the two
+days actually wins tonight's Vespers. This happened to already coincide with
+`MacroContext`'s own index for `ownVespersCommemorations` (today-sourced, and today's
+own office also happens to be winning at index 3 in that branch) and for
+`winnerRunnersUpCommemorations` (tomorrow-sourced, tomorrow's office winning at index 1)
+— but not for `displacedVespersCommemorations` (today-sourced, needs 3, but tomorrow's
+office is winning at index 1) or `tomorrowsTiedFirstVespersCandidate` (tomorrow-sourced,
+needs 1, but today's office is winning at index 3) — confirmed real for 31 May 2025
+(Beatæ Mariæ Virginis Reginæ, II. classis, winning under the 1960 tie-break at its own
+index 3): the commemorated "Dominica post Ascensionem" needs `Tempora/Pasc6-0.txt`'s own
+`[Ant 1]` ("Cum vénerit Paráclitus...", the real fixture's own text), not `[Ant 3]`
+("Hæc locútus sum vobis...", this project's own wrong rendering before this fix). Added
+a `Commemoration.ind` field, set once (correctly, by source) in `Commemorations.swift`'s
+four construction sites, rather than passed in from `MacroContext` at render time.
+
+Combined effect on the same sweep: Oratio 152→147. Full Kit test suite (199 tests) and
+all 72 named-case oracle tests, plus one new
+(`crossDayCommemorationUsesItsOwnNaturalVespersIndexNotTheWinnersOwn`), still pass. No
+change to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

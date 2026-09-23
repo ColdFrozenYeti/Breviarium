@@ -4,6 +4,24 @@ import Foundation
 public struct Commemoration: Equatable, Sendable {
     public var path: String
     public var rank: OfficeRank
+    /// The commemorated office's own natural Vespers index (1 or 3), for looking up its
+    /// `Ant`/`Versum`/`Oratio N` fields — **not** necessarily the same index as the
+    /// office actually being prayed tonight (`MacroContext.isFirstVespers`). Ports the
+    /// real Perl's own `$cvespera` (`getcommemoratio`'s second argument,
+    /// `horascommon.pl`): every commemoration this project builds comes from either
+    /// *today's* own date (always `3`, its natural second-Vespers occasion —
+    /// `@commemoentries` in the real Perl, always processed at `$cv == 3`) or
+    /// *tomorrow's* (always `1` — `@ccommemoentries`, always processed at `$cv == 1`),
+    /// regardless of which of the two days' offices is the one actually winning
+    /// tonight. Confirmed the two never simply track the winner's own index: 31 May
+    /// 2025 (Beatæ Mariæ Virginis Reginæ, II. classis, winning its own Vespers at
+    /// `ind == 3` under the 1960 "equal rank, the preceding takes precedence" tie-break)
+    /// commemorates tomorrow's own Sunday after Ascension using *that Sunday's own*
+    /// `[Ant 1]` ("Cum vénerit Paráclitus...", confirmed against the real fixture) —
+    /// not `[Ant 3]` ("Hæc locútus sum vobis...", this project's own wrong rendering
+    /// before this field existed, reusing the winning office's own `ind` for every
+    /// commemoration regardless of source).
+    public var ind: Int
 }
 
 /// Decides which offices are commemorated at the Vespers `Concurrence` says is actually
@@ -62,7 +80,7 @@ public struct Commemorations {
             // genuinely too low-ranked to contend. `Concurrence`'s own doc comment at
             // the equivalent check cites the same line and the same scope limit (this
             // one confirmed case, not the full real cascade).
-            let candidates = runnersUp(day: day, month: month, year: year, winnerPath: result.vespersOffice.winningPath)
+            let candidates = runnersUp(day: day, month: month, year: year, winnerPath: result.vespersOffice.winningPath, ind: 3)
             var commemorations = ownVespersCommemorations(candidates: candidates, winnerRank: result.vespersOffice.winningRank)
             // `$commemoratio = $cwinner` is a *guaranteed* single commemoration in the
             // real Perl, not subject to the ranklimit filter `ownVespersCommemorations`
@@ -104,15 +122,15 @@ public struct Commemorations {
             matches(result.vespersOffice.winningRank.title, "Dominica") || matches(tomorrowRule, "Festum Domini")
 
         let displacedCandidates =
-            (tomorrowIsDominicaOrFestumDomini ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank)])
-            + runnersUp(day: day, month: month, year: year, winnerPath: today.winningPath)
+            (tomorrowIsDominicaOrFestumDomini ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)])
+            + runnersUp(day: day, month: month, year: year, winnerPath: today.winningPath, ind: 3)
         let displaced = displacedVespersCommemorations(
             candidates: displacedCandidates, displacedRank: today.winningRank, winnerRank: result.vespersOffice.winningRank
         )
 
         let winnerCandidates = runnersUp(
             day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year,
-            winnerPath: result.vespersOffice.winningPath
+            winnerPath: result.vespersOffice.winningPath, ind: 1
         )
         let winnerRunnersUp = winnerRunnersUpCommemorations(candidates: winnerCandidates, winnerRank: result.vespersOffice.winningRank)
 
@@ -192,7 +210,7 @@ public struct Commemorations {
         let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
         guard tomorrow.winningRank.numericPrecedence >= threshold else { return nil }
 
-        return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank)
+        return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank, ind: 1)
     }
 
     /// `Concurrence`'s own title-based exclusion, duplicated here (that struct's own
@@ -214,14 +232,14 @@ public struct Commemorations {
     /// `@commemoentries` holds after `occurrence()`'s own winner selection
     /// (`Occurrence.swift` ports that selection itself; this reconstructs the losing
     /// side from the same two sources it reads).
-    private func runnersUp(day: Int, month: Int, year: Int, winnerPath: String) -> [Commemoration] {
+    private func runnersUp(day: Int, month: Int, year: Int, winnerPath: String, ind: Int) -> [Commemoration] {
         let resolver = SectionResolver(corpus: corpus, context: context)
         var results: [Commemoration] = []
 
         let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
         if temporalPath != winnerPath, let temporalRank {
-            results.append(Commemoration(path: temporalPath, rank: temporalRank))
+            results.append(Commemoration(path: temporalPath, rank: temporalRank, ind: ind))
         }
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
@@ -238,7 +256,7 @@ public struct Commemorations {
             }
             guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
             else { continue }
-            results.append(Commemoration(path: path, rank: rank))
+            results.append(Commemoration(path: path, rank: rank, ind: ind))
         }
         return results
     }

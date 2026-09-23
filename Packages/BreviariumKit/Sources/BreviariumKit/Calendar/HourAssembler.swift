@@ -507,8 +507,7 @@ public struct HourAssembler {
         let mustReduceToOne = winningRank.numericPrecedence >= 5 || (winnerIsFeriaLike && winningRank.numericPrecedence >= 4)
         let toRender = mustReduceToOne ? Array(commemorations.prefix(1)) : commemorations
 
-        let ind = macroContext.isFirstVespers ? 1 : 3
-        return toRender.flatMap { commemorationUnits(for: $0, ind: ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
+        return toRender.flatMap { commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
     }
 
     /// One commemorated office's own `Ant $ind`/`Versum $ind`/`Oratio $ind` (each
