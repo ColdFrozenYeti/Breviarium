@@ -2638,6 +2638,15 @@ needing the full Branch 1 replication. Not attempted again this session; the Epi
 octave's own remaining mismatches (Hymnus/Capitulum/Versus, `Jan 6`-shaped) are picked
 up again in the category passes below, on their own terms, without this mechanism.
 
+**Accurate post-revert baseline**, a fresh full sweep run after the Epiphany attempt was
+cleanly reverted (confirming the three All Souls fixes' own full effect, not muddied by
+the reverted change): Oratio 51, Canticum 28, Psalmodia 22, Capitulum 13, Versus 11,
+Hymnus 9, Conclusio 0. The All Souls fixes alone brought Canticum 51→28 and Versus
+27→11 in addition to closing Conclusio entirely (15→0 across the whole session) — larger
+wins than their own category names suggested going in. Phase 2 (category-by-category,
+least mismatches to most) starts from this baseline, worked in the *current* true order:
+Conclusio (done) → Hymnus → Versus → Capitulum → Psalmodia → Canticum → Oratio.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
