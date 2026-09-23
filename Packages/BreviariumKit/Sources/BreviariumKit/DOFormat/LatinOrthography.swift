@@ -59,11 +59,43 @@ public enum LatinOrthography {
     /// prose — and some of them (e.g. `&Deus_in_adjutorium`) contain a literal `j`
     /// that must survive unchanged to keep matching the identifier BreviariumKit's
     /// resolution engine looks up.
+    ///
+    /// **An `@file:section:substitution` line's own third (substitution) segment is
+    /// an exception**: unlike `path`/`section`, it isn't an identifier — it's a
+    /// `s/pattern/replacement/flags` regex (or a line-selector) applied, at render
+    /// time, against `section`'s own already-normalised prose (`SectionResolver.
+    /// applySubstitutions`). Leaving a `j`-spelled pattern unnormalised here left it
+    /// silently unable to match the now-I-spelled target text it was meant to
+    /// strip — the whole substitution became an inert no-op. Confirmed real for 7
+    /// August 2025 (`Sancti/08-07.txt`'s own `[Ant 1]`, `@Tempora/Pent14-0:Ant
+    /// 3:s/, allelúja//`, borrowing an ordinary "time after Pentecost" antiphon and
+    /// stripping its trailing seasonal "allelúja" for this non-Paschal feast): the
+    /// real fixture's own Magnificat antiphon ends plainly "...adiciéntur vobis."
+    /// with no alleluia at all, but this project's engine rendered "...vobis,
+    /// allelúia." — the target text's own "allelúja" had already become "allelúia"
+    /// by the time the pattern (still reading "allelúja", never normalised) tried to
+    /// match it.
     public static func normalizeLine(_ line: String) -> String {
+        if line.trimmingCharacters(in: .whitespaces).first == "@" {
+            return normalizeInclusionLine(line)
+        }
         if isReferenceDirectiveLine(line) {
             return line
         }
         return normalizeProse(line)
+    }
+
+    /// Normalises only the substitution segment of an `@file:section:substitution`
+    /// line (see `normalizeLine`'s own doc comment), leaving `@file:section` itself
+    /// untouched. A line with no third segment (`@file:section`, no trailing colon)
+    /// passes through unchanged, same as before this exception existed.
+    private static func normalizeInclusionLine(_ line: String) -> String {
+        guard let atIndex = line.firstIndex(of: "@") else { return line }
+        let body = line[line.index(after: atIndex)...]
+        guard let firstColon = body.firstIndex(of: ":") else { return line }
+        guard let secondColon = body[body.index(after: firstColon)...].firstIndex(of: ":") else { return line }
+        let afterSecondColon = body.index(after: secondColon)
+        return String(line[..<afterSecondColon]) + normalizeProse(String(line[afterSecondColon...]))
     }
 
     /// Applies J -> I normalisation to a multi-line block of Latin text, line by line,

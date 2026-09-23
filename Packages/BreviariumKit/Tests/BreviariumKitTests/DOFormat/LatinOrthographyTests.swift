@@ -35,6 +35,26 @@ import Testing
     #expect(LatinOrthography.normalize(input) == expected)
 }
 
+@Test func jToI_inclusionLineNormalisesOnlyItsOwnSubstitutionSegment() {
+    // `Sancti/08-07.txt`'s own `[Ant 1]`, `@Tempora/Pent14-0:Ant 3:s/, allelúja//` --
+    // the `path:section` identifier must survive untouched (it has to keep matching
+    // the real file/section name), but the substitution's own *pattern* is matched,
+    // at render time, against `section`'s own content, which -- being ordinary prose
+    // -- has already been J-to-I normalised by the time the substitution runs. A
+    // `j`-spelled pattern left unnormalised here can never match, silently turning
+    // the whole substitution into a no-op. Confirmed real for 7 August 2025: the real
+    // fixture's own Magnificat antiphon ends plainly "...adiciéntur vobis." with no
+    // alleluia at all.
+    let input = "@Tempora/Pent14-0:Ant 3:s/, allelúja//"
+    let expected = "@Tempora/Pent14-0:Ant 3:s/, allelúia//"
+    #expect(LatinOrthography.normalize(input) == expected)
+}
+
+@Test func jToI_inclusionLineWithNoSubstitutionSegmentIsUntouched() {
+    let input = "@Sancti/01-18r:Officium"
+    #expect(LatinOrthography.normalize(input) == input)
+}
+
 @Test func eumdemBecomesEundemAfterEr() {
     // `Prayers.txt`'s own `[Per eumdem]` collect-ending macro body -- ports DO's own
     // `spell_var()`'s `s/er eúmdem/er eúndem/g`, confirmed against the real fixture for

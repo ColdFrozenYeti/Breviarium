@@ -2051,6 +2051,35 @@ Combined effect on the same sweep: Oratio 184→152. Full Kit test suite (197 te
 (`pentecostOctaveDayDoesNotWronglyCommemorateTheFollowingOctaveDay`), still pass. No
 change to any other category.
 
+**Continued in the same session**, moving to Canticum (now the largest remaining
+category at 168): `LatinOrthography.normalizeLine` treated a whole
+`@file:section:substitution` line as an opaque reference directive — structurally
+correct for the `path:section` identifier, which must survive unchanged to keep
+matching real file/section names, but wrong for the line's own third segment, an
+`s/pattern/replacement/flags` regex that `SectionResolver.applySubstitutions` matches,
+at render time, against `section`'s own content. That target content is ordinary prose
+and so has *already* been J-to-I normalised by the time the substitution runs — a
+`j`-spelled pattern in the substitution itself could then never match, silently turning
+the whole substitution into a no-op. Confirmed real for 7 August 2025 (S. Cajetani
+Confessoris, III. classis): `Sancti/08-07.txt`'s own `[Ant 1]` is
+`@Tempora/Pent14-0:Ant 3:s/, allelúja//`, borrowing an ordinary "time after Pentecost"
+antiphon and stripping its trailing seasonal "allelúja" for this non-Paschal feast —
+the real fixture's own Magnificat antiphon ends plainly "...adiciéntur vobis." with no
+alleluia at all, but this project's engine rendered "...vobis, allelúia." (the *only*
+alleluia-suppression machinery that ran here, `applyingSeasonalAlleluia`, correctly did
+nothing, since this date genuinely isn't Paschaltide — the bug was upstream of it,
+in the substitution that should have removed the literal annotation before that logic
+ever saw it). Fixed by normalising only the line's own substitution segment
+(`LatinOrthography.normalizeInclusionLine`), leaving `path:section` itself untouched.
+A repo-wide grep found the same `@...:s/...[Jj].../` shape in well over a hundred real
+files, so this wasn't a one-date fix.
+
+Combined effect on the same sweep: Canticum 168→146. Full Kit test suite (199 tests,
+two new orthography ones) and all 71 named-case oracle tests, plus one new
+(`nonPaschalBorrowedAntiphonHasItsAlleluiaStrippedNotJustRespelled`), still pass. No
+change to any other category — the remaining Canticum mismatches (e.g. 2025-11-02's
+Office of the Dead antiphons, 2025-12-17's O-Antiphon) are a different mechanism.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
