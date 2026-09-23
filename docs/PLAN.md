@@ -2024,6 +2024,33 @@ SS. Petri et Pauli case still passes), plus one new
 (`stCatharineIsNotCommemoratedWhenStJosephTheWorkersFirstVespersPreEmptsHer`), still
 pass. No change to any other category.
 
+**Continued in a later session**, on a fresh Oratio example (9 June 2025, Die II infra
+octavam Pentecostes, I. classis, tied in rank with tomorrow's Die III infra octavam
+Pentecostes): `Commemorations.tomorrowsTiedFirstVespersCandidate` (the "equal rank, the
+preceding takes precedence" tie-break, originally built for the Annunciation/St Joseph
+2035 case) wrongly commemorated the *next* day within the same privileged octave,
+because its existing Feria-title exclusion doesn't catch an "infra octavam"-titled
+office. Real DO routes octave-day succession through an entirely different branch —
+`horascommon.pl:965-1072`'s own outer condition — which never produces a cross-day
+commemoration between two ordinary octave days. Two separate real disjuncts there both
+apply: `:984-988` (tomorrow's own title matches `"infra octavam|Vigilia Pent"`, not
+`"Dominica"`, *and* today's own title separately matches `"infra octavam|post Octavam
+Asc|Quat.*Pent|Dominica (Resurrectionis|Pentecostes)"`) and, simpler and the one
+actually confirmed against the real fixture, `:990-991` (today's own *week*, not
+title — `TemporalCycle.weekName`'s `"Pasc0"`/`"Pasc7"` — is within the Easter or
+Pentecost octave specifically, and tomorrow's title isn't `"Dominica"`). Both were
+ported as their own guards in `tomorrowsTiedFirstVespersCandidate`, deliberately kept
+separate from the existing `isExcludedByTitle` (whose own "infra octavam" override
+exists for a different purpose — granting an octave day its own genuine first Vespers
+is correct; this is not that check). Confirmed real for 9 June 2025: the real fixture
+shows no commemoration at all, even though "Die III infra octavam Pentecostes" isn't
+Feria-titled and so wasn't caught by the pre-existing exclusion.
+
+Combined effect on the same sweep: Oratio 184→152. Full Kit test suite (197 tests),
+`BreviariumDataTests` (8 tests), and all 70 named-case oracle tests, plus one new
+(`pentecostOctaveDayDoesNotWronglyCommemorateTheFollowingOctaveDay`), still pass. No
+change to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

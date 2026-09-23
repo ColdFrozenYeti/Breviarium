@@ -143,6 +143,30 @@ public struct Commemorations {
     /// does — the difference is Holy Tuesday's own title, "Feria Tertia Hebdomadæ
     /// Sanctæ", which St Joseph's ("In festo Sancti Ioseph...") never had to contend
     /// with.
+    ///
+    /// Two *separate* exclusions, deliberately **not** routed through `isExcludedByTitle`
+    /// (whose own `"infra octavam"` override exists for a different purpose — granting
+    /// an octave day its own genuine first Vespers is correct; that's not this check):
+    /// consecutive days *within the same privileged octave* never trigger this
+    /// mechanism at all. Reading `horascommon.pl:965-1072`'s own outer condition in
+    /// full turned up *two* independent real disjuncts that both apply here, not one —
+    /// - `:984-988`: tomorrow's own title matches `"infra octavam|Vigilia Pent"` (and
+    ///   not `"Dominica"`), *and* today's own title separately matches `"infra
+    ///   octavam|post Octavam Asc|Quat.*Pent|Dominica (Resurrectionis|Pentecostes)"` —
+    ///   the general "both days belong to some octave" case;
+    /// - `:990-991`, simpler and the one actually confirmed against a real fixture:
+    ///   today's own *week* (`weekName`, not title) is within the Easter or Pentecost
+    ///   octave specifically (`Pasc0`/`Pasc7`), and tomorrow's title isn't `"Dominica"`
+    ///   — no further requirement on today's own title at all.
+    ///
+    /// Both route octave-day succession through an entirely different real branch than
+    /// the "equal rank, preceding wins" tie-break this whole function ports — one this
+    /// project doesn't otherwise model, but which never produces a cross-day
+    /// commemoration for two ordinary octave days either way, so excluding on either is
+    /// safe. Confirmed real for 9 June 2025 (Die II infra octavam Pentecostes, I.
+    /// classis, tied with tomorrow's Die III, `weekName` `"Pasc7-1"`): the real fixture
+    /// shows no commemoration at all, even though "Die III infra octavam Pentecostes"
+    /// isn't `"Feria"`-titled and so wasn't caught by the exclusion above.
     private func tomorrowsTiedFirstVespersCandidate(day: Int, month: Int, year: Int, today: OccurrenceResult) -> Commemoration? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
@@ -150,6 +174,14 @@ public struct Commemorations {
         else { return nil }
         guard tomorrow.winningRank.numericPrecedence <= today.winningRank.numericPrecedence else { return nil }
         guard !isExcludedByTitle(tomorrow.winningRank.title) else { return nil }
+        let tomorrowIsOctaveOrVigiliaPent =
+            matches(tomorrow.winningRank.title, "infra octavam|Vigilia Pent") && !matches(tomorrow.winningRank.title, "Dominica")
+        let todayIsOctaveRelated =
+            matches(today.winningRank.title, "infra octavam|post Octavam Asc|Quat.*Pent|Dominica (Resurrectionis|Pentecostes)")
+        guard !(tomorrowIsOctaveOrVigiliaPent && todayIsOctaveRelated) else { return nil }
+        let todayWeekName = TemporalCycle.weekName(day: day, month: month, year: year)
+        let todayIsEasterOrPentecostOctave = todayWeekName.hasPrefix("Pasc0") || todayWeekName.hasPrefix("Pasc7")
+        guard !(todayIsEasterOrPentecostOctave && !matches(tomorrow.winningRank.title, "Dominica")) else { return nil }
 
         let resolver = SectionResolver(corpus: corpus, context: context)
         let tomorrowRule = resolver.resolve(path: tomorrow.winningPath, section: "Rule")
