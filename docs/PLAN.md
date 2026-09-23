@@ -1960,6 +1960,36 @@ apply for real, and why a commemoration block is threading through the middle of
 substantially more involved than tonight's steady run of narrower, single-mechanism
 fixes, so left for a fresh, focused pass rather than guessed at under fatigue.
 
+**Continued in a later session**, tracing the Holy Wednesday structure bug flagged above
+to its actual root cause — not the elaborate Passiontide "Christus factus est / secret
+Pater Noster / repeated collect" sequence itself (that part turned out to be genuinely
+correct, already-existing behaviour, not a bug), but a wrongly-inserted commemoration
+threading through it: `SectionResolver.resolveRank`'s own Officium-title-fallback (`
+SetupString.pl`'s `if (exists($sections{'Officium'}))` safeguard, which reads an
+already-chain-resolved section hash) used a *literal*, non-chain-aware existence check
+(`corpus.rawSections(path:name:).isEmpty`) instead of `sectionExists`, this project's
+own chain-aware equivalent used everywhere else. A pure `@`-inclusion redirect file
+(real example: `Tempora/Quad6-4r.txt`, Holy Thursday's own redirect target, whose entire
+content is the single line `@Tempora/Quad6-4`) has no `[Officium]` section *directly at
+that path*, so the guard failed and `OfficeRank.title` came back empty for it — even
+though the same file's `[Rank]` field's own numeric/degree parts resolved correctly via
+that same chain. That empty title then slipped past every title-based exclusion check
+downstream (`Concurrence`'s and `Commemorations`' own `isExcludedByTitle`, both matching
+against `.title`, including the Feria-exclusion just added for the Holy Monday case
+above), wrongly commemorating Holy Thursday's own Institution-of-the-Eucharist antiphon
+at Holy Wednesday's Vespers. Fixed by using `sectionExists` in the guard instead.
+
+Combined effect on the same sweep: Oratio 262→230, Canticum 175→168, Versus 59→52,
+Capitulum 49→51 (a real fixture check confirmed this small increase is an *already-known,
+not-yet-fixed* mismatch pattern — a wrong Capitulum reading on "Friday within the week
+after Ascension"-type days — recurring on a different year's occurrence, not a new
+regression from this fix), Hymnus 29→22, Psalmodia 147→146. Full Kit test suite (197
+tests) and all 68 named-case oracle tests, plus two new
+(`resolveRankFillsTheTitleThroughAPureInclusionRedirectFile`,
+`holyWednesdayDoesNotWronglyCommemorateHolyThursday`), still pass. Given the breadth of
+what `resolveRank` feeds (every title-based check in the whole engine), this fix likely
+reaches further than the sweep's own day-counts show on their own.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

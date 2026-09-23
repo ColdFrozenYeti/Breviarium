@@ -103,9 +103,21 @@ public struct SectionResolver {
     /// section: "Rank")`.
     public func resolveRank(path: String) -> String {
         let rank = resolve(path: path, section: "Rank")
-        guard !corpus.rawSections(path: path, name: "Officium").isEmpty,
-            let separator = rank.range(of: ";;")
-        else { return rank }
+        // The real Perl's own `if (exists($sections{'Officium'}))` reads an
+        // already-chain-resolved section hash, so a pure `@`-inclusion redirect file
+        // (real example: `Tempora/Quad6-4r.txt`, Holy Thursday's own redirect target,
+        // whose entire content is the single line `@Tempora/Quad6-4`) counts as having
+        // `[Officium]` there too, inherited from the base file. The literal,
+        // non-chain-aware `corpus.rawSections(path:name:)` this used before missed
+        // exactly that case, leaving such a file's own `OfficeRank.title` empty even
+        // though its `[Rank]` field's numeric/degree parts resolved correctly via the
+        // same chain — `sectionExists` is this project's own chain-aware equivalent,
+        // already used everywhere else for exactly this kind of check. Confirmed real
+        // for 16 April 2025 (Holy Wednesday): an empty-titled commemoration candidate
+        // for `Tempora/Quad6-4r` slipped past `Commemorations`' own title-based
+        // exclusions (which all match against `.title`), wrongly commemorating Holy
+        // Thursday's Institution of the Eucharist at Holy Wednesday's own Vespers.
+        guard sectionExists(path: path, section: "Officium"), let separator = rank.range(of: ";;") else { return rank }
         var officium = resolve(path: path, section: "Officium")
         while let last = officium.last, last.isWhitespace { officium.removeLast() }
         return officium + rank[separator.lowerBound...]
