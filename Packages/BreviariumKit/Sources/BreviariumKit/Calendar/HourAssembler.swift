@@ -37,11 +37,10 @@ import Foundation
 ///   second-Vespers-specific exclusion (a candidate whose own title doesn't name a major
 ///   season is dropped when the winner is high-ranked and this is second Vespers) —
 ///   no real fixture has been checked that would exercise it, so it's left unimplemented
-///   and flagged here rather than guessed at; and the real priority-key sort
+///   and flagged here rather than guessed at. The real priority-key sort
 ///   `orationes.pl:591-594`'s "1960: at most one commemoration on a high-ranked day" rule
-///   uses to pick *which* survivor — `assembleCommemorations` keeps simply the first
-///   candidate `Commemorations.resolve` returns, an approximation only confirmed
-///   correct for the single-candidate case.
+///   uses to pick *which* survivor **is** ported (`highestPriorityCommemoration`,
+///   confirmed against 27 December 2025's Sunday-vs-temporal-runner-up tie).
 public struct HourAssembler {
     public var corpus: OfficeCorpus
     public var context: ConditionalContext
@@ -548,16 +547,52 @@ public struct HourAssembler {
         guard !commemorations.isEmpty else { return [] }
 
         // orationes.pl:585-594: "Under the 1960 rubrics, on II. cl and higher days,
-        // allow at most one commemoration." Real DO picks the survivor via a numeric
-        // priority key (Sunday/octave/etc.) this doesn't reconstruct -- keeping the
-        // first candidate is an approximation, confirmed only for the single-candidate
-        // case (24 February 2026 above never exercises this reduction at all, since it
-        // has just one commemoration to begin with).
+        // allow at most one commemoration." The survivor is picked by a real numeric
+        // priority key (orationes.pl:551-561) -- ported by `highestPriorityCommemoration`
+        // below, not simply the first candidate.
         let winnerIsFeriaLike = winningRank.title.range(of: "Feria|Sabbato|Vigilia", options: [.regularExpression, .caseInsensitive]) != nil
         let mustReduceToOne = winningRank.numericPrecedence >= 5 || (winnerIsFeriaLike && winningRank.numericPrecedence >= 4)
-        let toRender = mustReduceToOne ? Array(commemorations.prefix(1)) : commemorations
+        let toRender = mustReduceToOne ? Self.highestPriorityCommemoration(commemorations).map { [$0] } ?? [] : commemorations
 
         return toRender.flatMap { commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
+    }
+
+    /// `orationes.pl:551-561`'s own priority-key tiers, simplified to what the "at most
+    /// one commemoration" reduction (`orationes.pl:585-594`, wired above) actually needs:
+    /// which single candidate survives. Every 1960-family version string fails
+    /// `$version =~ /trident/i`, so a Sunday-titled candidate's own key is unconditionally
+    /// `7000` before the reversal (`$key = 10000 - $key + $ccind`) -- fixed and *higher*
+    /// than any non-Sunday candidate's `$cr[2] * 1000` (at most `6000`, for I. classis) --
+    /// so a Sunday-titled candidate always outranks every non-Sunday one, regardless of
+    /// its own numeric precedence. (The reversal makes the *smallest* post-reversal key
+    /// win, since DO picks `sort(keys(%cc))[0]`; smaller pre-reversal-key-subtracted-from-
+    /// 10000 means *larger* original key wins, i.e. `7000` beats `6000`.) Within the same
+    /// tier (two Sundays, or two same-rank non-Sundays), the reversal's own `+ $ccind` term
+    /// means the *earliest*-inserted candidate wins the tie -- this project keeps
+    /// `commemorations`'s own existing array order as that same tie-break (first
+    /// encountered, kept on ties below), an approximation not separately confirmed against
+    /// a real multi-Sunday-tied fixture.
+    ///
+    /// Confirmed real for 27 December 2025 (S. Ioannis Apostoli, II. classis, rank 5,
+    /// winning outright): the candidate pool has two entries -- today's own runner-up
+    /// (`Tempora/Nat27`, "Dies III infra Octavam Nativitatis", rank 5, `(rubrica 196)`)
+    /// and the tied-tomorrow Sunday (`tomorrowsTiedFirstVespersCandidate`,
+    /// "Dominica Infra Octavam Nativitatis") -- and the real fixture commemorates the
+    /// Sunday, not the higher-array-order temporal runner-up this project rendered before
+    /// this fix (simply keeping the first candidate).
+    private static func highestPriorityCommemoration(_ candidates: [Commemoration]) -> Commemoration? {
+        var best: Commemoration?
+        for candidate in candidates {
+            guard let current = best else { best = candidate; continue }
+            let candidateIsSunday = candidate.rank.title.range(of: "Dominica", options: [.regularExpression, .caseInsensitive]) != nil
+            let currentIsSunday = current.rank.title.range(of: "Dominica", options: [.regularExpression, .caseInsensitive]) != nil
+            if candidateIsSunday, !currentIsSunday {
+                best = candidate
+            } else if candidateIsSunday == currentIsSunday, candidate.rank.numericPrecedence > current.rank.numericPrecedence {
+                best = candidate
+            }
+        }
+        return best
     }
 
     /// One commemorated office's own `Ant $ind`/`Versum $ind`/`Oratio $ind` (each
@@ -904,13 +939,8 @@ public struct HourAssembler {
         // and its own `[Rule]` has `"Psalm5 Vespera3=113"` (a *different* value from
         // its `"Psalm5 Vespera=116"`, for first Vespers), so the real fifth psalm is
         // 113, not the antiphon's own literal tag.
-        if pairs.count == 5 {
-            let antiphonSourcePath = usedWeekdaySchedule ? "Psalterium/Psalmi/Psalmi major" : (winningLocation?.path ?? office)
-            if let override = festalFifthPsalmNumber(
-                office: office, antiphonSourcePath: antiphonSourcePath, resolver: resolver, isFirstVespers: macroContext.isFirstVespers
-            ) {
-                pairs[4].psalmNumber = override
-            }
+        if pairs.count == 5, let override = festalFifthPsalmNumber(office: office, resolver: resolver, isFirstVespers: macroContext.isFirstVespers) {
+            pairs[4].psalmNumber = override
         }
 
         // English antiphon *text* only (never the psalm numbers, which are Latin's own
@@ -1236,35 +1266,35 @@ public struct HourAssembler {
     /// preferred) or `"Psalm5 Vespera=NNN"` (fallback, presumably first Vespers) entry —
     /// see `assemblePsalmodia`'s doc comment for the confirmed real example.
     ///
-    /// Checks the office's own `[Rule]` first, unconditionally, then — separately —
-    /// `antiphonSourcePath`'s own `[Rule]` (`psalmi.pl:577-580`'s own `$rule =~
-    /// /Psalm5.../ || ($commune{Rule} =~ /Psalm5.../ && $c eq 4)`: the Commune's own
-    /// tag is only consulted when the *antiphons themselves* came from that Commune,
-    /// i.e. exactly when `antiphonSourcePath != office`). A single all-or-nothing
-    /// office-then-Commune fallback (this function's own earlier version) missed this:
-    /// the office's own `[Rule]` existing at all (even without a `Psalm5` tag of its
-    /// own) short-circuited the Commune check entirely. Confirmed real for 13 January
-    /// 2025 (`Sancti/01-13`, "Commemoratio Baptismatis Domini", `"ex Sancti/01-06"` —
-    /// Epiphany): `Sancti/01-13`'s own `[Rule]` has no `Psalm5` tag at all, but its
-    /// antiphons come from Epiphany's own `[Ant Laudes]` (via the Commune chain, no
-    /// `;;psalmNumber` tags of their own), and Epiphany's own `[Rule]` has `"Psalm5
-    /// Vespera3=113"` — the real fixture's own fifth psalm for that date's second
-    /// Vespers is exactly Psalm 113.
-    private func festalFifthPsalmNumber(
-        office: String, antiphonSourcePath: String, resolver: SectionResolver, isFirstVespers: Bool
-    ) -> String? {
+    /// **Only the office's own `[Rule]` is ever consulted — never the Commune's.**
+    /// `psalmi.pl:577-580`'s own real condition does have a second, Commune-Rule-gated
+    /// alternative (`($commune{Rule} =~ /Psalm5.../ && $c eq 4)`), but `$c` there is a
+    /// bare, undeclared Perl global (`specials/psalmi.pl` has `# use strict;`
+    /// commented out) — not the antiphon-lookup's own same-named `my $c` a few dozen
+    /// lines above, despite the identical name and nearby textual location. Confirmed
+    /// empirically by instrumenting the real Perl (`specials/psalmi.pl`, temporarily, in
+    /// the pinned Docker container) to print `$c`'s actual value at this exact check,
+    /// for two dates whose antiphons *do* come from a Commune with a real `Psalm5
+    /// Vespera(3)=` tag of its own (16 August 2025, S. Ioachim from `Commune/C5`'s own
+    /// `"Psalm5 Vespera=116"`; 13 January 2025, `Sancti/01-13` from Epiphany's own
+    /// `"Psalm5 Vespera3=113"` via its Commune chain): `$c` is empty/undef at the
+    /// check in *both* cases, so the Commune-gated alternative never actually fires in
+    /// real DO — only the office's own direct `[Rule]` tag (untouched by this bug) ever
+    /// does. An earlier version of this port added a Commune-Rule fallback specifically
+    /// to match the 13 January case, keyed on "did the antiphons come from a different
+    /// path than the office" as an approximation of `$c eq 4` — which happened to give
+    /// the right answer there (113 is *also* the ordinary festal default the caller
+    /// falls back to with no override at all), but wrongly fired for 16 August 2025
+    /// (rendering Commune/C5's own 116 instead of the real 113), since real DO's own
+    /// `$c` check never actually passes. Removed rather than reconciled: there's no
+    /// principled, safely-portable version of "was `$c` left at 4 by some earlier,
+    /// unrelated `getproprium` call" to reconstruct.
+    private func festalFifthPsalmNumber(office: String, resolver: SectionResolver, isFirstVespers: Bool) -> String? {
+        guard resolver.sectionExists(path: office, section: "Rule") else { return nil }
+        let ruleText = resolver.resolve(path: office, section: "Rule")
         let preferredKey = isFirstVespers ? "Psalm5 Vespera=" : "Psalm5 Vespera3="
         let fallbackKey = isFirstVespers ? "Psalm5 Vespera3=" : "Psalm5 Vespera="
-
-        func tag(at path: String) -> String? {
-            guard resolver.sectionExists(path: path, section: "Rule") else { return nil }
-            let ruleText = resolver.resolve(path: path, section: "Rule")
-            return Self.value(forRuleKey: preferredKey, in: ruleText) ?? Self.value(forRuleKey: fallbackKey, in: ruleText)
-        }
-
-        if let ownTag = tag(at: office) { return ownTag }
-        guard antiphonSourcePath != office else { return nil }
-        return tag(at: antiphonSourcePath)
+        return Self.value(forRuleKey: preferredKey, in: ruleText) ?? Self.value(forRuleKey: fallbackKey, in: ruleText)
     }
 
     /// **Case-insensitive**, matching the real Perl's own extraction regex exactly

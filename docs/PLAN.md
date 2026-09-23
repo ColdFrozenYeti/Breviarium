@@ -2354,6 +2354,71 @@ tests), and all 82 named-case oracle tests, plus one new
 (`allSoulsUsesItsOwnConclusioNotTheOrdinarySkeletonOne`), still pass. No regression to
 any other category.
 
+**Continued in the same session**, a seventh fix: `orationes.pl:585-594`'s "1960: at
+most one commemoration on a high-ranked day" rule was reducing to the first candidate
+`Commemorations.resolve` returned (insertion order), a known-approximate placeholder
+already flagged in `HourAssembler`'s own doc comment. The real survivor is picked by a
+numeric priority key (`orationes.pl:551-561`): a Sunday-titled candidate's own key is
+unconditionally `7000` (every 1960-family version string fails `$version =~
+/trident/i`), fixed and higher than any non-Sunday candidate's `$cr[2] * 1000` (at most
+`6000`, for I. classis) — so a Sunday-titled candidate always outranks every non-Sunday
+one regardless of its own rank. Ported as `highestPriorityCommemoration`. Confirmed real
+for 27 December 2025 (S. Ioannis Apostoli, II. classis, rank 5, winning outright): the
+candidate pool has two entries — today's own runner-up (`Tempora/Nat27`, "Dies III infra
+Octavam Nativitatis", rank 5) and the tied-tomorrow Sunday ("Dominica Infra Octavam
+Nativitatis") — and the real fixture commemorates the Sunday, not the temporal
+runner-up this project rendered before this fix. New test:
+`sundayCommemorationOutranksSameDayTemporalRunnerUp`.
+
+**Continued in the same session**, an eighth fix, resolving the Aug-16-vs-Jan-13
+Psalm5-Commune contradiction flagged as an open, self-acknowledged gap at the end of the
+previous session: `festalFifthPsalmNumber` no longer ever consults the Commune's own
+`[Rule]` for a `"Psalm5 Vespera(3)="` tag — only the winning office's own `[Rule]`.
+`psalmi.pl:577-580`'s real condition does have a second, Commune-Rule-gated alternative
+(`($commune{Rule} =~ /Psalm5.../ && $c eq 4)`), but direct instrumentation of the real
+Perl in the pinned Docker container (a temporary `warn` inserted at the check, run
+against the live engine, then reverted) showed `$c` is empty/undef at that exact point
+for *every* case traced — including 13 January 2025, the very case the old Commune
+fallback was built to match. The `$c` at that check turns out to be a bare, undeclared
+Perl global (`specials/psalmi.pl` has `# use strict;` commented out), not the
+antiphon-lookup's own same-named `my $c` a few dozen lines above despite the identical
+name and nearby textual location — real DO's own Commune-gated alternative essentially
+never fires. The previous session's Commune fallback (keyed on "did the antiphons come
+from a different path than the office," an approximation of `$c eq 4`) happened to give
+the right answer for 13 January 2025 only because Psalm 113 is *also* the ordinary
+festal default with no override at all — but it wrongly fired for 16 August 2025 (S.
+Ioachim, `Commune/C5`'s own `"Psalm5 Vespera=116"`, no `Vespera3=` counterpart),
+rendering 116 instead of the real fixture's 113. Removed rather than reconciled: there's
+no principled, safely-portable version of "was `$c` left at 4 by some earlier, unrelated
+`getproprium` call" to reconstruct. New test:
+`festalFifthPsalmIgnoresTheCommunesOwnTagWhenTheOfficeHasNoneOfItsOwn`; the two
+pre-existing tests in the same file (13 January 2025, 28 May 2025) still pass unchanged,
+since neither actually depends on the Commune fallback once traced through (13 January's
+113 comes from the ordinary default; 28 May's 116 comes from the office's own `[Rule]`
+directly, term A/C, never gated by `$c`).
+
+Combined effect on the same sweep (measured against targeted, single-test runs — see
+note below on the full-suite run): the priority-key fix and the Psalm5 fix both target
+categories (Oratio, Psalmodia) with known remaining mismatches from the prior session's
+close (Oratio 93, Psalmodia 95); exact before/after counts from a full 2025-2040 sweep
+are **not yet confirmed** as of this writing (see below).
+
+**Full-suite validation note (this session):** this machine suffered severe, sustained,
+oscillating CPU contention for several hours (independently confirmed via `Get-Process`
+CPU-time deltas showing genuine but very slow progress, never a hard stall — other
+processes on the shared machine, not a code issue) that prevented a full `swift test`
+run from completing in reasonable time. Both new fixes' own dedicated oracle tests
+(`sundayCommemorationOutranksSameDayTemporalRunnerUp`,
+`festalFifthPsalmIgnoresTheCommunesOwnTagWhenTheOfficeHasNoneOfItsOwn`, plus the two
+pre-existing `FestalFifthPsalmOracleTests`) were run individually and passed cleanly
+*before* the contention worsened. Given both changes are narrow, well-cited
+simplifications/corrections (removing an over-firing fallback; replacing a naive
+first-candidate pick with a real priority sort) rather than novel untested mechanisms —
+a materially lower risk profile than the earlier-reverted Festum Domini attempt — this
+was judged sufficient to commit on, with a full-suite confirmation run left going in the
+background to catch anything missed. **If that run surfaces a regression, it will be
+fixed in an immediate follow-up commit, not silently absorbed.**
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

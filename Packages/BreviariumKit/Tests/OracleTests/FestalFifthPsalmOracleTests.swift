@@ -2,13 +2,16 @@ import Testing
 @testable import BreviariumKit
 @testable import BreviariumDataCore
 
-// Found via a full 2025-2040 content audit: an office whose own antiphons come from a
-// Commune (unnumbered, no ";;psalmNumber" tags of their own) needs a "Psalm5" rule to
-// pick its fifth psalm's number for the festal set (109/110/111/112/fifth) --
-// `psalmi.pl:577-580`'s own `$rule =~ /Psalm5.../ || ($commune{Rule} =~ /Psalm5.../ &&
-// $c eq 4)`. This project's engine only ever checked the winning office's own [Rule]:
-// when that office had a [Rule] section at all (even without a Psalm5 tag of its own),
-// it never consulted the Commune's own tag.
+// Found via a full 2025-2040 content audit: `HourAssembler.festalFifthPsalmNumber` only
+// ever consults the winning office's own [Rule] for a "Psalm5 Vespera(3)=" tag -- never
+// the Commune's, even when the office's own antiphons came from that Commune. This is
+// deliberate: `psalmi.pl:577-580`'s own condition does have a second, Commune-Rule-gated
+// alternative, but it's guarded by a bare, undeclared Perl global `$c` that -- confirmed
+// by instrumenting the real Perl in the pinned Docker container -- is empty/undef at
+// this exact check in every real case traced so far, so that alternative never actually
+// fires in real DO. See `festalFifthPsalmNumber`'s own doc comment for the full story,
+// including the earlier (reverted) version of this port that added a Commune fallback
+// and the 16 August 2025 case that exposed it as wrong.
 
 @Test func festalFifthPsalmInheritsFromTheCommuneWhenTheOfficeHasNoTagOfItsOwn() async throws {
     // 13 January 2025: Commemoratio Baptismatis Domini (Sancti/01-13), "ex Sancti/01-06"
@@ -34,6 +37,35 @@ import Testing
     let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-01-13"))
     #expect(fixture.contains("Psalmus 113"))
     #expect(!fixture.contains("Díligo Dóminum"))    // the wrong (ferial Psalm 114) antiphon this bug used to render
+}
+
+@Test func festalFifthPsalmIgnoresTheCommunesOwnTagWhenTheOfficeHasNoneOfItsOwn() async throws {
+    // 16 August 2025: S. Ioachim (Sancti/08-16, "ex C5"). Its own [Rule] has no Psalm5
+    // tag at all, and its antiphons come entirely from Commune/C5's own [Ant Vespera]
+    // (unnumbered) -- whose own [Rule] has "Psalm5 Vespera=116", with no "Vespera3="
+    // counterpart. An earlier version of this port consulted that Commune tag (matching
+    // 13 January 2025 above, by coincidence) and wrongly rendered 116; the real fixture's
+    // own fifth psalm is 113, the ordinary festal default with no override at all --
+    // confirmed by instrumenting the real Perl directly (`festalFifthPsalmNumber`'s own
+    // doc comment has the full trace).
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let context = ConditionalContextBuilder.build(
+        day: 16, month: 8, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 16, month: 8, year: 2025, priest: false))
+
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    let titles = psalmodia.units.compactMap { unit -> String? in
+        if case .psalmTitle(let text) = unit { return text } else { return nil }
+    }
+    #expect(titles.last == "Psalmus 113 [5]")
+
+    let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-08-16"))
+    #expect(fixture.contains("Psalmus 113"))
+    #expect(!fixture.contains("Psalmus 116"))
 }
 
 // `value(forRuleKey:)`'s own case-sensitive `hasPrefix` match missed a real, lowercase
