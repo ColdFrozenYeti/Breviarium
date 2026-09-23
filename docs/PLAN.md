@@ -2696,6 +2696,10 @@ every year in the sweep range (any 25 April within Paschaltide), so it's likely 
 single largest remaining contributor to Psalmodia's own count. Full suite (203 Kit + 8
 Data + 95 named oracle) confirmed clean.
 
+Confirmed on a fresh sweep: Psalmodia 22→11, exactly as predicted — the Paschal-Commune
+fix alone closed half its remaining count. Capitulum/Versus/Hymnus unchanged (13/11/9,
+as expected — none of them share this specific antiphon-lookup path).
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
