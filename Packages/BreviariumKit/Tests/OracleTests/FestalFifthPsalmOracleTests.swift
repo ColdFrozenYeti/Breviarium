@@ -35,3 +35,35 @@ import Testing
     #expect(fixture.contains("Psalmus 113"))
     #expect(!fixture.contains("Díligo Dóminum"))    // the wrong (ferial Psalm 114) antiphon this bug used to render
 }
+
+// `value(forRuleKey:)`'s own case-sensitive `hasPrefix` match missed a real, lowercase
+// "vespera=" tag entirely -- the real Perl's own extraction regex is unconditionally
+// case-insensitive (`psalmi.pl:577-580`, every alternative carrying `/i`).
+
+@Test func festalFifthPsalmTagMatchesRegardlessOfCase() async throws {
+    // 28 May 2025: Ascension's own first Vespers (Tempora/Pasc5-4). Its own [Rule] has
+    // "Psalm5 vespera=116" -- lowercase "vespera", unlike every other real file this
+    // project's own oracle sweep has found -- and its own [Ant Vespera] is five plain,
+    // unnumbered antiphons, so the fifth psalm comes entirely from this tag. The real
+    // fixture's own fifth psalm is "116 -- Hymnus laudis et gratiarum actionis", not
+    // the ordinary festal default (113, "In exitu Israël") this project's engine fell
+    // back to before this fix, having silently failed to find the lowercase tag.
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let context = ConditionalContextBuilder.build(
+        day: 28, month: 5, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+    let hour = try #require(assembler.assembleVespers(day: 28, month: 5, year: 2025, priest: false))
+
+    let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
+    let titles = psalmodia.units.compactMap { unit -> String? in
+        if case .psalmTitle(let text) = unit { return text } else { return nil }
+    }
+    #expect(titles == ["Psalmus 109 [1]", "Psalmus 110 [2]", "Psalmus 111 [3]", "Psalmus 112 [4]", "Psalmus 116 [5]"])
+
+    let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-05-28"))
+    #expect(fixture.contains("Psalmus 116"))
+    #expect(!fixture.contains("Cum exíret Israël"))    // Psalm 113's own opening line, the wrong default before this fix
+}

@@ -1196,8 +1196,18 @@ public struct HourAssembler {
         return tag(at: antiphonSourcePath)
     }
 
+    /// **Case-insensitive**, matching the real Perl's own extraction regex exactly
+    /// (`psalmi.pl:577-580`'s `/Psalm5 (Vespera3?)=([0-9]+)/i`, every one of its four
+    /// alternatives carrying the `/i` flag) — not a simplification. Confirmed real for
+    /// Ascension (`Tempora/Pasc5-4.txt`'s own `[Rule]`, `"Psalm5 vespera=116"`,
+    /// lowercase "vespera"): a case-sensitive `hasPrefix` match against the usual
+    /// capitalised `"Psalm5 Vespera="` silently missed this one real file, falling back
+    /// to the ordinary festal default (Psalm 113) instead of the real fifth psalm
+    /// (116) — confirmed against the real fixture for 28 May 2025 (Ascension's own
+    /// first Vespers), whose own fifth psalm is "116 — Hymnus laudis et gratiarum
+    /// actionis", not "113 — In exitu Israël".
     private static func value(forRuleKey key: String, in ruleText: String) -> String? {
-        for line in ruleText.split(separator: "\n") where line.hasPrefix(key) {
+        for line in ruleText.split(separator: "\n") where line.range(of: key, options: [.anchored, .caseInsensitive]) != nil {
             return String(line.dropFirst(key.count)).trimmingCharacters(in: .whitespaces)
         }
         return nil

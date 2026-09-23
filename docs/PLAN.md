@@ -2111,6 +2111,24 @@ all 72 named-case oracle tests, plus one new
 (`crossDayCommemorationUsesItsOwnNaturalVespersIndexNotTheWinnersOwn`), still pass. No
 change to any other category.
 
+**Continued in the same session**, on Psalmodia (unchanged at 146 across the three prior
+fixes this session, so a distinct mechanism): `festalFifthPsalmNumber`'s own
+`value(forRuleKey:)` matched a `[Rule]` line's `"Psalm5 Vespera="` tag with a
+case-sensitive `hasPrefix`, but the real Perl's own extraction regex
+(`psalmi.pl:577-580`, `/Psalm5 (Vespera3?)=([0-9]+)/i`) carries `/i` on all four of its
+alternatives — genuinely case-insensitive, not a simplification. Confirmed real for 28
+May 2025 (Ascension's own first Vespers, `Tempora/Pasc5-4.txt`): its own `[Rule]` reads
+`"Psalm5 vespera=116"`, lowercase "vespera" — the only file in the whole corpus spelled
+this way (59 others use the capitalised `"Psalm5 Vespera="`) — so the case-sensitive
+match silently missed it, falling back to the ordinary festal default (Psalm 113, "In
+exitu Israël") instead of the real fifth psalm (116, "Laudáte Dóminum, omnes gentes").
+
+Combined effect on the same sweep: Psalmodia 146→114 (Ascension recurs every year,
+each occurrence contributing several mismatched verses). Full Kit test suite (199
+tests) and all 73 named-case oracle tests, plus one new
+(`festalFifthPsalmTagMatchesRegardlessOfCase`), still pass. No change to any other
+category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
