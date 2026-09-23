@@ -2598,6 +2598,46 @@ O-Antiphon date mapping — 20 December 2025 renders 21 December's own O-Antipho
 real fixture. Unrelated to All Souls; found opportunistically while checking the
 Canticum category broadly. Flagged for the Canticum category pass.
 
+**Epiphany cluster: attempted, regressed again, reverted — with a more precise
+diagnosis than the first attempt.** Deep investigation (live Perl instrumentation of
+`concurrence()`'s own decision variables, no code changes) confirmed the real mechanism
+precisely for 6-7 January 2029 (Epiphany, I. classis rank 6.5, own `[Rule]` tagged
+"Festum Domini", vs. Holy Family Sunday, II. classis rank 5, that year's own `[Rule]`
+*also* tagged "Festum Domini"): Holy Family wins Epiphany's own second Vespers outright
+("nihil de præcedenti"), via `horascommon.pl:1156-1163`'s own second real `elsif`
+disjunct — reached, in the real cascade, only once an earlier sibling `if` (call it
+Branch 1, `horascommon.pl:965-1003`) is false. Re-traced the previously-regressed date
+(12 January 2025) and found the debug print never fires there at all — that date is
+resolved entirely within Branch 1, before the target disjunct is ever reached.
+
+This time, the disjunct was ported gated behind `clearsFloor` (`tomorrow.rank >=
+threshold`, the project's own existing rank-threshold check) on the theory that this
+replicates "Branch 1 is false" closely enough to be safe. **It doesn't.** A fresh full
+sweep after landing it showed Conclusio hit 0 (confirming the All Souls Saturday fix)
+and Canticum/Versus improved (51→35, 27→18, from the All Souls fixes), but Oratio
+(52→58), Psalmodia (23→29), Capitulum (13→20), and Hymnus (9→16) all got *worse* — new
+mismatches on dates with nothing to do with Epiphany or Holy Family at all (e.g. 1 July
+2028). Root cause of *this* over-firing, now understood precisely: `clearsFloor` only
+replicates Branch 1's own rank-threshold sub-condition — one of *seven* total disjuncts
+in Branch 1's own `||` chain (the other six: 1955-specific, Barroux-specific, a
+Feria/Sabbato/Vigilia/Quatuor title exclusion, an infra-octavam/Vigilia-Pentecost
+exclusion, a Paschal/Pentecost-octave-week exclusion, and a `01-01`/Nat1-adjacent
+exclusion). `clearsFloor` failing is *sufficient* to know Branch 1 is false (matching
+the 12 January 2025 case correctly), but `clearsFloor` passing does *not* mean Branch 1
+is false — any of the other six disjuncts can independently make Branch 1 true (meaning
+today keeps its own second Vespers) even when the rank threshold alone would have let
+tomorrow through. The target disjunct was being evaluated on dates the real cascade
+would never even let it reach.
+
+Reverted cleanly (`git checkout --` on `Concurrence.swift`, deleted the new test file,
+confirmed with a clean build). **This is now a well-scoped problem for a future
+attempt**: porting the target disjunct safely needs Branch 1's *other* six exclusions
+gated too, not just the rank threshold — or, more surgically, a narrower condition
+confirmed to only ever match the genuine Epiphany/Holy-Family-shaped case without
+needing the full Branch 1 replication. Not attempted again this session; the Epiphany
+octave's own remaining mismatches (Hymnus/Capitulum/Versus, `Jan 6`-shaped) are picked
+up again in the category passes below, on their own terms, without this mechanism.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
