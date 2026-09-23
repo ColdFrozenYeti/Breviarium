@@ -401,23 +401,27 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     // The mechanism this exercises (no ";;number" on the antiphons, but a "Psalm5
     // Vespera3=NNN" Rule entry -- Vespers' first four psalms are always the Sunday set
     // 109-112, only the fifth is proper) is confirmed real for S. Agatha (5 February
-    // 2026): psalms 109, 110, 111, 112, 147 exactly match the real oracle fixture. But
-    // her own antiphons and Rule entry live directly on Sancti/02-05.txt itself, not on
-    // Commune/C6 -- an earlier version of this test/comment believed otherwise. This
-    // fixture still puts them on a Commune (reached via "ex", not "vide" -- psalm-
-    // antiphon Commune fallback is gated to "ex" only) purely to additionally exercise
-    // that the mechanism also works when reached through a Commune fallback, which
-    // isn't independently confirmed against a real "ex"-type fixture.
+    // 2026): psalms 109, 110, 111, 112, 147 exactly match the real oracle fixture. Her
+    // own antiphons and Rule entry live directly on Sancti/02-05.txt itself, not on
+    // Commune/C6 -- this fixture matches that shape (Rule directly on the office).
+    // `festalFifthPsalmNumber` only ever consults the *office's own* [Rule], never the
+    // Commune's, even when the antiphons themselves come from that Commune -- an
+    // earlier version of this test/mechanism believed the Commune's own tag was also
+    // consulted (gated by a `$c eq 4` check this project's port approximated), but
+    // direct instrumentation of the real Perl engine showed that gate never actually
+    // passes in real DO (see `festalFifthPsalmNumber`'s own doc comment for the full
+    // trace) -- so the Rule must live on the office to have any effect, matching what's
+    // exercised here.
     let feast = RawOfficeFile(path: "Sancti/01-19", sections: [
         RawSection(name: "Officium", condition: "", body: ["S. Aliquis Virgo"]),
         RawSection(name: "Rank", condition: "", body: [";;Duplex;;3.0;;ex C99"]),
         RawSection(name: "Oratio", condition: "", body: ["Oratio propria."]),
+        RawSection(name: "Rule", condition: "", body: ["Psalm5 Vespera=999", "Psalm5 Vespera3=200"]),
     ])
     let commune = RawOfficeFile(path: "Commune/C99", sections: [
         RawSection(name: "Ant Vespera", condition: "", body: [
             "Ant unus * primi.", "Ant duo * secundi.", "Ant tres * tertii.", "Ant quattuor * quarti.", "Ant quinque * quinti.",
         ]),
-        RawSection(name: "Rule", condition: "", body: ["Psalm5 Vespera=999", "Psalm5 Vespera3=200"]),
     ])
     let corpus = InMemoryOfficeCorpus(
         files: [skeleton, prayersFile, psalm114, psalm232, weekdaySchedule, feriaTemporal, feast, commune, festalFifthPsalm] + festalPsalms109to112

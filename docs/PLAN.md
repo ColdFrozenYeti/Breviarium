@@ -2408,16 +2408,23 @@ oscillating CPU contention for several hours (independently confirmed via `Get-P
 CPU-time deltas showing genuine but very slow progress, never a hard stall — other
 processes on the shared machine, not a code issue) that prevented a full `swift test`
 run from completing in reasonable time. Both new fixes' own dedicated oracle tests
-(`sundayCommemorationOutranksSameDayTemporalRunnerUp`,
-`festalFifthPsalmIgnoresTheCommunesOwnTagWhenTheOfficeHasNoneOfItsOwn`, plus the two
-pre-existing `FestalFifthPsalmOracleTests`) were run individually and passed cleanly
-*before* the contention worsened. Given both changes are narrow, well-cited
-simplifications/corrections (removing an over-firing fallback; replacing a naive
-first-candidate pick with a real priority sort) rather than novel untested mechanisms —
-a materially lower risk profile than the earlier-reverted Festum Domini attempt — this
-was judged sufficient to commit on, with a full-suite confirmation run left going in the
-background to catch anything missed. **If that run surfaces a regression, it will be
-fixed in an immediate follow-up commit, not silently absorbed.**
+were run individually and passed cleanly *before* the contention worsened; the fixes
+were committed on that partial validation, with a full-suite confirmation run left going
+in the background to catch anything missed.
+
+**That confirmation run has now finished — one failure, not a regression in the two new
+fixes.** All 84 named oracle tests passed (including both new ones), all 8
+`BreviariumDataTests` passed, and exactly one of the 203 `BreviariumKitTests` failed:
+`festalUnnumberedAntiphonsPairWithTheSundayPsalmsAndARuleGivenFifth`, a *synthetic* unit
+test whose own doc comment already flagged the risk — it asserted the Commune-Rule
+fallback this session's Psalm5 fix removed, on a fixture it had explicitly built to
+"additionally exercise that the mechanism also works when reached through a Commune
+fallback, which isn't independently confirmed against a real fixture." That caveat
+turned out to be exactly right: the live Perl instrumentation proved the Commune
+fallback isn't real DO behaviour at all. Fixed the test to match the confirmed real
+shape instead (the `[Rule]` tag lives directly on the office, like the real S. Agatha
+case its own comment already cites, not on the Commune) rather than the disproven one.
+Full suite (203 Kit + 8 Data + 84 named oracle) now passes clean.
 
 ### M5 — User interface
 
