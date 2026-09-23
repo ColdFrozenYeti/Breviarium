@@ -919,7 +919,23 @@ public struct HourAssembler {
 
         func location(section: String, allowCommune: Bool) -> (path: String, section: String)? {
             if resolver.sectionExists(path: office, section: section) { return (office, section) }
-            guard allowCommune, let fallbackPath = Self.communeFallbackPath(communeReference), resolver.sectionExists(path: fallbackPath, section: section)
+            // `paschalCommuneFallbackPath`, not the plain `communeFallbackPath` --
+            // `extract_common()`'s own Paschaltide branch (`horascommon.pl:1501-1509`)
+            // swaps in a Commune's own "p"-suffixed variant during Paschaltide when one
+            // exists, already ported and used by every sibling lookup in this file
+            // (Capitulum/Hymnus/Versus/Oratio/Magnificat-antiphon), but this specific
+            // Psalmodia antiphon lookup had never been switched over to it, plainly
+            // reaching the ordinary (non-Paschal) Commune file instead. Confirmed real
+            // for 25 April 2026 (S. Marci Evangelistæ, II. classis, "ex C1a"):
+            // `Commune/C1a.txt` has no `[Ant Vespera]` of its own at all, chaining
+            // further to `Commune/C1p.txt`'s own real content -- but only via the
+            // Paschal variant `Commune/C1ap.txt`'s own `@Commune/C1p` inclusion, which
+            // the *plain* `communeFallbackPath` route never reaches at all, since it
+            // only ever tries `Commune/C1a` directly. The Paschal-aware route reaches
+            // `Commune/C1p.txt`'s own `[Ant Vespera]` ("Sancti tui, Dómine, florébunt
+            // sicut lílium, allelúia...") -- exactly the real fixture's own antiphon.
+            guard allowCommune, let fallbackPath = Self.paschalCommuneFallbackPath(communeReference, weekName: macroContext.weekName, resolver: resolver),
+                resolver.sectionExists(path: fallbackPath, section: section)
             else { return nil }
             return (fallbackPath, section)
         }

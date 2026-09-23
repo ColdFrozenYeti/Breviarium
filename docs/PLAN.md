@@ -2647,6 +2647,55 @@ wins than their own category names suggested going in. Phase 2 (category-by-cate
 least mismatches to most) starts from this baseline, worked in the *current* true order:
 Conclusio (done) → Hymnus → Versus → Capitulum → Psalmodia → Canticum → Oratio.
 
+**Hymnus category pass.** Got the full per-category mismatch date list (a temporary,
+uncommitted tweak to `OracleTests.swift`'s own `report()` — printing the whole sorted
+`Set<String>` instead of five capped examples — run once, reverted immediately after)
+and traced all 9 remaining Hymnus dates. Two distinct, both concurrence-level, both
+deferred rather than risked a third regression this session:
+
+- **8 of 9** (`2029-01-06`, `2030-01-12`, `2030-01-13`, `2032-01-04`, `2035-01-06`,
+  `2036-01-02`, `2036-01-12`, `2036-01-13`) are the *same* already-deferred
+  Epiphany/Holy-Family concurrence cluster — including a variant not previously
+  traced: when Epiphany itself falls on a *Sunday* (2030, 2036), Holy Family gets
+  pushed to the *following* Sunday instead, and still pre-empts the intervening
+  Saturday's own Vespers completely ("nihil de præcedenti") — same real mechanism,
+  same real disjunct, just triggered by a different day-of-week alignment. Confirmed
+  real for 12 January 2030 (a Saturday): the real fixture's title is already "Sanctæ
+  Familiæ..." with "Vespera de sequenti; nihil de præcedenti", Holy Family's own hymn.
+- **1 of 9** (`2038-07-01`) is a *different* concurrence-level gap: the real fixture
+  shows the Feast of the Sacred Heart (movable, Friday after the Corpus Christi
+  octave) pre-empting 1 July's own Vespers (the fixed Feast of the Most Precious
+  Blood) completely. `horascommon.pl` has a specific named real disjunct for the
+  adjacent commemoration question ("no commemoration of Precious Blood on the Feast
+  of the Sacred Heart: Github #4586", `$winner =~ /Pent02-5/ && $cwinner =~
+  /07-01\./`), but the pre-emption itself (which office wins Vespers outright) is a
+  separate question this project's `Concurrence.swift` doesn't yet handle correctly
+  for this date either — not investigated further tonight, flagged alongside the
+  Epiphany cluster as a second, distinct concurrence gap needing its own careful,
+  well-scoped attempt later.
+
+No further Hymnus-specific work is safely available without touching `Concurrence.swift`
+again — deferred, not fixed, for this pass.
+
+**Psalmodia category pass**, one real fix: `assemblePsalmodia`'s own antiphon lookup
+used the plain `communeFallbackPath`, never switched over to `paschalCommuneFallbackPath`
+the way every sibling lookup in this file (Capitulum/Hymnus/Versus/Oratio/
+Magnificat-antiphon) already had been. `extract_common()`'s own Paschaltide branch
+(`horascommon.pl:1501-1509`) swaps in a Commune's own `"p"`-suffixed variant during
+Paschaltide when one exists — this one lookup never made that swap, so any Paschaltide
+office whose plain Commune has no `[Ant Vespera]` of its own (common: the ordinary
+antiphons live only on the Paschal variant's own base chain) silently fell through to a
+wrong default. Confirmed real for 25 April 2026 (S. Marci Evangelistæ, II. classis, `"ex
+C1a"`): `Commune/C1a.txt` has no `[Ant Vespera]` at all; the real antiphons come from
+`Commune/C1p.txt`, reached only via the Paschal variant `Commune/C1ap.txt`'s own
+`@Commune/C1p` base inclusion — this project's engine reached plain `Commune/C1a`
+directly, found nothing, and fell through to a wrong default (a psalm-verse-shaped
+fragment with a stray "allelúia" appended, not a real antiphon at all). New test:
+`paschaltideEvangelistUsesTheCommunesOwnPaschalAntiphons`. This pattern recurs almost
+every year in the sweep range (any 25 April within Paschaltide), so it's likely the
+single largest remaining contributor to Psalmodia's own count. Full suite (203 Kit + 8
+Data + 95 named oracle) confirmed clean.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
