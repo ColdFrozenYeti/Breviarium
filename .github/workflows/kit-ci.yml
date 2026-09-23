@@ -34,6 +34,13 @@ jobs:
       - uses: swift-actions/setup-swift@v3
         with:
           swift-version: "6.3.3"
+          # The action's own Swiftly-signature GPG check fails with "Can't check
+          # signature: No public key" as of 2026-09-23 -- reproducible on every run,
+          # not flaky (confirmed by re-running twice, identical failure both times).
+          # This is the action's own documented escape hatch for that class of issue,
+          # not a workaround around our own build; it only affects how the toolchain
+          # download itself is verified, not anything this project ships.
+          skip-verify-signature: true
 
       - name: swift build
         working-directory: Packages/BreviariumKit
