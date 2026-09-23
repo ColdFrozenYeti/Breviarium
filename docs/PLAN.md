@@ -2299,6 +2299,33 @@ and all 80 named-case oracle tests, plus one new
 (`explicitlyNumberedFifthAntiphonStillGetsOverriddenByItsOwnRuleTag`), still pass. No
 change to any other category, and no regression this time.
 
+**Continued in the same session**, a fifth fix: `&Dominus_vobiscum2`
+(`horasscripts.pl:136-140`, the Office-of-the-Dead-specific wrapper around
+`&Dominus_vobiscum`) was never implemented at all, so `Prayers.txt`'s own `[A porta
+inferi]` section — part of All Souls' own Oratio chain (`Sancti/11-02`'s `[Oratio
+mortuorum2]` → `Commune/C9`'s `[Oratio_a_porta]` → `$A porta inferi` → `[A porta
+inferi]`) — rendered the literal, unresolved macro name as text. Ported: identical to
+plain `&Dominus_vobiscum` for a priest, but for a non-priest it forces `$precesferiales`
+first, selecting `[Dominus]`'s own 5th line — a small-font `/:...:/ ` annotation
+("secunda «Domine, exaudi» omittitur") the real fixture *does* show, but which this
+project deliberately omits entirely (`CLAUDE.md`'s "no explanatory text in the office"
+rule, the same precedent `majorSpecialAntLocation`'s own `/:ut in Proprio de
+Tempore:/` placeholder already follows) rather than reproduce DO's own literal
+small-font UI element. Confirmed real for 3 November 2025 (All Souls' Day proper,
+transferred here since 2 November is a Sunday that year): every other line of the real
+fixture's own Oratio now matches exactly.
+
+**Not addressed by this fix, and left open**: the same date's own Conclusio still
+mismatches — All Souls' Day sets `"Special Conclusio"` in its own `[Rule]`
+(`specials.pl:378-383`), a real mechanism this project doesn't implement at all yet
+(the winning office's own `[Conclusio]` section should replace the ordinary skeleton's
+generic one entirely). Flagged here rather than silently left unexplained.
+
+Combined effect on the same sweep: Oratio 108→93. Full Kit test suite (203 tests) and
+all 81 named-case oracle tests, plus one new
+(`dominusVobiscum2ResolvesInsteadOfLeakingTheLiteralMacroName`), still pass. No change
+to any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

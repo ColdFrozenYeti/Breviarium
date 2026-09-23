@@ -58,6 +58,7 @@ public enum ScriptMacros {
         case "Alleluia": return alleluia(context: context, resolver: resolver)
         case "Gloria": return gloria(context: context, resolver: resolver)
         case "Dominus_vobiscum": return dominusVobiscum(context: context, resolver: resolver)
+        case "Dominus_vobiscum2": return dominusVobiscum2(context: context, resolver: resolver)
         case "Benedicamus_Domino": return benedicamusDomino(context: context, resolver: resolver)
         default: return nil
         }
@@ -123,15 +124,37 @@ public enum ScriptMacros {
             && context.isFirstVespers == false
     }
 
-    /// `horasscripts.pl:112-129`. Vespers calls plain `&Dominus_vobiscum` (not the
-    /// `_1`/`_2` wrappers, which are Prime/Office-of-the-Dead-specific and always leave
-    /// `$precesferiales` at its default 0 for us) — so this always takes the plain
-    /// priest/non-priest branch `CLAUDE.md`'s toggle describes directly.
+    /// `horasscripts.pl:112-129`. Vespers's own skeleton calls plain `&Dominus_vobiscum`
+    /// (not the `_1`/`_2` wrappers directly) — but a *prayer* this project's own
+    /// Office-of-the-Dead chain reaches (`Prayers.txt`'s own `[A porta inferi]`, part of
+    /// `Commune/C9`'s `[Oratio_a_porta]`, itself part of All Souls' own `Sancti/11-02`
+    /// `[Oratio mortuorum2]`) calls `&Dominus_vobiscum2` directly, so both still need
+    /// implementing, not just the plain one.
     private static func dominusVobiscum(context: MacroContext, resolver: SectionResolver) -> String {
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Dominus")
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         guard lines.count >= 4 else { return text }
         return context.priest ? "\(lines[0])\n\(lines[1])" : "\(lines[2])\n\(lines[3])"
+    }
+
+    /// `horasscripts.pl:136-140`'s own `#* officium defunctorum` wrapper: identical to
+    /// plain `&Dominus_vobiscum` for a priest, but for a non-priest it unconditionally
+    /// forces `$precesferiales = 1` first, which changes the same `[Dominus]` prayer's
+    /// own line selection to its 5th line (`Prayers.txt`'s own `[Dominus]` section:
+    /// `Dóminus vobíscum` / `Domine, exaudi` V/R pairs, then a 5th, small-font-wrapped
+    /// line, `"/:secunda «Domine, exaudi» omittitur:/"`) instead of the ordinary
+    /// non-priest V/R pair (lines 3-4). Unlike `stripSmallFontMarkers`'s own general
+    /// case (most `/:...:/ ` content is genuine text the real page shows plainly), this
+    /// one is DO's own explanatory annotation about *why* nothing appears here — never
+    /// genuine liturgical text — so it's treated the same way `majorSpecialAntLocation`
+    /// already treats a `/:...:/ `-prefixed placeholder result: absent, not rendered,
+    /// per `CLAUDE.md`'s "no explanatory text in the office" rule.
+    private static func dominusVobiscum2(context: MacroContext, resolver: SectionResolver) -> String {
+        guard !context.priest else { return dominusVobiscum(context: context, resolver: resolver) }
+        let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Dominus")
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.count >= 5, !lines[4].hasPrefix("/:") else { return "" }
+        return lines[4]
     }
 
     /// `horasscripts.pl:160-186`. Adds the farewell "..., allelúia, allelúia." to both
