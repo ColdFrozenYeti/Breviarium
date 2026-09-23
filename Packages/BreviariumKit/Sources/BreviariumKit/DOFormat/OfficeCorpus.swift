@@ -11,8 +11,9 @@ public protocol OfficeCorpus: Sendable {
     /// any — `nil` if the file has none, or doesn't exist. Real example:
     /// `Commune/C7a.txt`'s own leading `@Commune/C7` line, needed because `C7a` defines
     /// only its own Mass-proper overrides and has no `[Ant Vespera]`/`[Hymnus Vespera]`
-    /// of its own at all.
-    func baseFile(path: String) -> String?
+    /// of its own at all. Carries its own raw, unevaluated condition (see
+    /// `BaseFileReference`) when the inclusion line is itself conditionally gated.
+    func baseFile(path: String) -> BaseFileReference?
 }
 
 /// A simple in-memory `OfficeCorpus`, backing both `BreviariumKit`'s loaded bundle and
@@ -28,7 +29,7 @@ public struct InMemoryOfficeCorpus: OfficeCorpus {
         filesByPath[Self.normalize(path)]?.sections.filter { $0.name == name } ?? []
     }
 
-    public func baseFile(path: String) -> String? {
+    public func baseFile(path: String) -> BaseFileReference? {
         filesByPath[Self.normalize(path)]?.baseFile
     }
 

@@ -2186,6 +2186,39 @@ pair). Full Kit test suite (200 tests) and all 76 named-case oracle tests, plus 
 `oAntiphonOverridesTheOrdinaryMagnificatAntiphonSeventeenToTwentyThirdDecember`), still
 pass.
 
+**Continued in the same session**, a genuinely structural fix this time, not a narrow
+data quirk: `RawSectionParser` captured a preamble's whole-file inclusion (`do-format.md`)
+unconditionally, even when the very next line is itself a `(sed ... omittitur)`
+conditional gating it. `Tempora/Pasc6-5.txt` and `Pasc6-6.txt` (the Friday/Saturday
+within the week after Ascension) are the only two real files in the whole corpus shaped
+this way: `@Tempora/Pasc6-0` (Sunday after Ascension's own file) immediately followed by
+`(sed rubrica 196 aut rubrica cisterciensis omittitur)` — under 1960 rubrics that
+condition holds, so the real engine omits the inclusion entirely and falls through to
+each section's own ordinary Commune-reference chain instead (`Pasc6-5`'s own `[Rank]`
+names `"ex Tempora/Pasc5-4"`, Ascension's own file). This project's engine always
+followed the base file regardless, wrongly rendering the Sunday-after-Ascension's own
+Capitulum/Hymnus/Versus on both dates every year instead of Ascension's own — confirmed
+real for 22 May 2026 (Friday after Ascension): the real fixture's own Capitulum is
+"Act. 1:1-2" and its own Hymnus is Ascension's "Salútis humánæ Sator", not the ordinary
+ferial default this project's engine fell back to via the wrong base chain.
+
+Respecting the project's own explicit architectural rule (`docs/PLAN.md`'s 2026-09-16
+data-pipeline amendment: `BreviariumData` never evaluates conditionals, only
+`BreviariumKit`'s single render-time engine does — even for a condition, like this one,
+that happens to only ever test `rubrica`, which is fixed for this whole app), the fix
+doesn't evaluate anything at parse time. `RawOfficeFile.baseFile` becomes a small
+`BaseFileReference(file:condition:)` — the trailing conditional line preserved raw,
+exactly like `RawSection.condition` already is — and `SectionResolver.
+resolvingBaseChain` evaluates it at render time by running the two-line preamble
+snippet through the exact same `ConditionalLineProcessor` every section body already
+uses, rather than re-deriving what an "omittitur" scope phrase means as new logic.
+
+Combined effect on the same sweep: Oratio 120→111, Capitulum 22→13, Versus 39→30,
+Canticum 63→54 (all four move together — two dates recurring across the full 16-year
+range). Full Kit test suite (202 tests, two new) and all 77 named-case oracle tests,
+plus one new (`fridayAfterAscensionUsesAscensionsOwnCapitulumNotSundayAfterAscensions`),
+still pass.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -95,7 +95,7 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
         return []
     }
 
-    public func baseFile(path: String) -> String? {
+    public func baseFile(path: String) -> BaseFileReference? {
         for layer in layers {
             if let baseFile = layer.baseFile(path: path) { return baseFile }
         }

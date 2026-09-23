@@ -26,7 +26,7 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
         RawOfficeFile(
             path: "Commune/C7a.txt",
             sections: [RawSection(name: "Oratio", condition: "", body: ["Exáudi nos, Deus."])],
-            baseFile: "Commune/C7"
+            baseFile: BaseFileReference(file: "Commune/C7")
         ),
         RawOfficeFile(path: "Commune/C7.txt", sections: [
             RawSection(name: "Ant Vespera", condition: "", body: ["Dum esset Rex * in accúbitu suo.;;109"]),
@@ -39,6 +39,30 @@ private func vesperaContext(rubrica: String = "Rubrics 1960 - 1960") -> Conditio
     #expect(resolver.resolve(path: "Commune/C7a", section: "Ant Vespera") == "Dum esset Rex * in accúbitu suo.;;109")
     // The file's own section still wins over the base when both define it.
     #expect(resolver.resolve(path: "Commune/C7a", section: "Oratio") == "Exáudi nos, Deus.")
+}
+
+@Test func aConditionallyOmittedBaseFileIsSkippedWhenItsConditionHolds() {
+    // Real example: `Tempora/Pasc6-5.txt`'s own preamble, `@Tempora/Pasc6-0` gated by
+    // `(sed rubrica 196 aut rubrica cisterciensis omittitur)` -- under 1960 rubrics
+    // that condition holds, so the base inclusion is omitted, and a section neither
+    // file defines directly should resolve to neither, not silently fall through to
+    // the base anyway.
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(
+            path: "Tempora/Pasc6-5.txt",
+            sections: [],
+            baseFile: BaseFileReference(file: "Tempora/Pasc6-0", condition: "(sed rubrica 196 aut rubrica cisterciensis omittitur)")
+        ),
+        RawOfficeFile(path: "Tempora/Pasc6-0.txt", sections: [
+            RawSection(name: "Capitulum Laudes", condition: "", body: ["This should never be reached under 1960 rubrics."])
+        ]),
+    ])
+    let resolver1960 = SectionResolver(corpus: corpus, context: vesperaContext(rubrica: "Rubrics 1960 - 1960"))
+    #expect(!resolver1960.sectionExists(path: "Tempora/Pasc6-5", section: "Capitulum Laudes"))
+
+    // A rubrics version the condition doesn't match keeps following the base normally.
+    let resolver1954 = SectionResolver(corpus: corpus, context: vesperaContext(rubrica: "Rubrics 1954"))
+    #expect(resolver1954.sectionExists(path: "Tempora/Pasc6-5", section: "Capitulum Laudes"))
 }
 
 @Test func resolvePsalmTextDoesNotLoseTheFirstVerseAfterALeadingTitleComment() {

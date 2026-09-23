@@ -82,8 +82,25 @@ import Testing
         """
     let file = RawSectionParser.parse(fileText: text, path: "Commune/C7a.txt")
 
-    #expect(file.baseFile == "Commune/C7")
+    #expect(file.baseFile == BaseFileReference(file: "Commune/C7"))
     #expect(file.sections.map(\.name) == ["Officium", "Oratio"])
+}
+
+@Test func capturesAConditionOnTheLineImmediatelyAfterAPreambleInclusion() {
+    // Real example: `Tempora/Pasc6-5.txt`'s own preamble, `@Tempora/Pasc6-0` followed
+    // by `(sed rubrica 196 aut rubrica cisterciensis omittitur)` -- preserved raw here,
+    // same as any section header's own condition; `SectionResolver` evaluates it at
+    // render time, this parser never does.
+    let text = """
+        @Tempora/Pasc6-0
+        (sed rubrica 196 aut rubrica cisterciensis omittitur)
+
+        [Officium]
+        Feria VI infra Hebdomadam post Ascensionem
+        """
+    let file = RawSectionParser.parse(fileText: text, path: "Tempora/Pasc6-5.txt")
+
+    #expect(file.baseFile == BaseFileReference(file: "Tempora/Pasc6-0", condition: "(sed rubrica 196 aut rubrica cisterciensis omittitur)"))
 }
 
 @Test func qualifiesBareSelfReferences() {

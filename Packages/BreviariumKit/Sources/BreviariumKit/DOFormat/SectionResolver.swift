@@ -83,11 +83,35 @@ public struct SectionResolver {
     /// `@Commune/C7` reference for those — confirmed as a real, previously-missing gap
     /// via S. Elisabeth Viduæ's real Vespers (19 November), whose `[Rank]` names
     /// exactly this Commune (`"vide C7a"`).
+    ///
+    /// **A conditionally-gated preamble inclusion is skipped when its condition holds**
+    /// (`BaseFileReference.condition`, evaluated here — the one place this project ever
+    /// evaluates a "preamble" condition, since `RawSectionParser` deliberately never
+    /// does). Confirmed real for `Tempora/Pasc6-5.txt`/`Pasc6-6.txt` (the Friday/Saturday
+    /// within the week after Ascension): their own preamble is `@Tempora/Pasc6-0`
+    /// immediately followed by `(sed rubrica 196 aut rubrica cisterciensis omittitur)`
+    /// — under 1960 rubrics that condition holds, so the base inclusion is *omitted*,
+    /// and resolution should instead fall through to each section's own ordinary
+    /// Commune-reference chain (`Pasc6-5`'s own `[Rank]` names `"ex Tempora/Pasc5-4"`,
+    /// Ascension's own file). Evaluated by running the two-line preamble snippet
+    /// through the exact same `ConditionalLineProcessor` every section body already
+    /// uses, rather than re-deriving "what does an omittitur scope phrase mean" as new
+    /// logic here — a real fixture confirmed this project's own engine was instead
+    /// always following the unconditioned base file, wrongly rendering Sunday-after-
+    /// Ascension's own Capitulum/Versum ("1 Petri 4:7-8" / "Dóminus in cælo...") on both
+    /// of these dates every year instead of Ascension's own ("Act. 1:1-2" / "Ascéndit
+    /// Deus in iubilatióne..." — confirmed against the real fixture for 22 May 2026).
     private func resolvingBaseChain(from path: String, section: String, depth: Int = 0) -> String {
         guard depth < Self.maxInclusionDepth else { return path }
         if !corpus.rawSections(path: path, name: section).isEmpty { return path }
-        guard let base = corpus.baseFile(path: path) else { return path }
-        return resolvingBaseChain(from: base, section: section, depth: depth + 1)
+        guard let base = corpus.baseFile(path: path), Self.baseFileApplies(base, context: context) else { return path }
+        return resolvingBaseChain(from: base.file, section: section, depth: depth + 1)
+    }
+
+    private static func baseFileApplies(_ base: BaseFileReference, context: ConditionalContext) -> Bool {
+        guard !base.condition.isEmpty else { return true }
+        let resolved = ConditionalLineProcessor.resolve(lines: ["@\(base.file)", base.condition], context: context)
+        return resolved.contains { $0.hasPrefix("@") }
     }
 
     /// The `[Rank]` field with its title auto-filled from `[Officium]`'s resolved text --

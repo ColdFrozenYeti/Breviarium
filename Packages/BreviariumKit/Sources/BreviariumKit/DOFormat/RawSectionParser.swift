@@ -24,6 +24,26 @@ public struct RawSection: Codable, Equatable, Sendable {
 /// time by evaluating each condition against the current context and keeping the last
 /// one that holds; `BreviariumData` preserves every variant instead, since it never has
 /// a context to evaluate against (see `docs/PLAN.md`'s 2026-09-16 amendment).
+/// A whole-file inclusion from a file's own preamble (`do-format.md`), plus its own
+/// raw, **unevaluated** condition — e.g. `Tempora/Pasc6-5.txt`'s own leading
+/// `@Tempora/Pasc6-0` line, immediately followed by `(sed rubrica 196 aut rubrica
+/// cisterciensis omittitur)`. Preserved exactly like `RawSection.condition`, never
+/// evaluated here: `docs/PLAN.md`'s 2026-09-16 data-pipeline amendment is explicit that
+/// no conditional evaluation happens outside `BreviariumKit`'s single render-time
+/// engine, even for a condition (like this one) that only ever tests `rubrica` — two
+/// separate ports of the same evaluator would be a correctness risk in itself.
+/// `condition` is empty for the overwhelming majority of real preamble inclusions,
+/// which carry no trailing conditional at all.
+public struct BaseFileReference: Codable, Equatable, Sendable {
+    public var file: String
+    public var condition: String
+
+    public init(file: String, condition: String = "") {
+        self.file = file
+        self.condition = condition
+    }
+}
+
 public struct RawOfficeFile: Codable, Equatable, Sendable {
     /// Path relative to the DO `Latin`/`Latin-Bea`/`English` root, e.g.
     /// `"Sancti/01-18r.txt"`.
@@ -32,9 +52,9 @@ public struct RawOfficeFile: Codable, Equatable, Sendable {
     /// A whole-file inclusion from this file's own preamble (`do-format.md`) — e.g.
     /// `Commune/C7a.txt`'s own leading `@Commune/C7` line. `nil` for the overwhelming
     /// majority of files, which have no preamble reference at all.
-    public var baseFile: String?
+    public var baseFile: BaseFileReference?
 
-    public init(path: String, sections: [RawSection], baseFile: String? = nil) {
+    public init(path: String, sections: [RawSection], baseFile: BaseFileReference? = nil) {
         self.path = path
         self.sections = sections
         self.baseFile = baseFile
@@ -72,6 +92,8 @@ public enum RawSectionParser {
         var sections: [RawSection] = []
         var wholeFileBody: [String] = []
         var baseFile: String?
+        var baseFileCondition = ""
+        var awaitingBaseFileCondition = false
 
         var currentName = "__preamble"
         var currentBody: [String] = []
@@ -93,6 +115,20 @@ public enum RawSectionParser {
         for rawLine in normalizedFileText.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = String(rawLine)
 
+            // The line immediately after a captured preamble "@File" -- still in the
+            // preamble -- can itself be a `(sed ... omittitur)`-style conditional
+            // clause gating that inclusion (real example: `Tempora/Pasc6-5.txt`'s own
+            // `@Tempora/Pasc6-0` followed by `(sed rubrica 196 aut rubrica cisterciensis
+            // omittitur)`). Captured raw, same as any section header's own condition --
+            // `SectionResolver` evaluates it at render time, this parser never does.
+            if inPreamble, awaitingBaseFileCondition {
+                awaitingBaseFileCondition = false
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("(") {
+                    baseFileCondition = trimmed
+                }
+            }
+
             if line.first == "[", let header = matchSectionHeader(line) {
                 flush()
                 currentName = header.name
@@ -110,6 +146,7 @@ public enum RawSectionParser {
                 let file = match.output[1].substring, !file.isEmpty
             {
                 baseFile = String(file)
+                awaitingBaseFileCondition = true
             }
 
             wholeFileBody.append(qualifySelfReferences(line, fileName: fileNameWithoutExtension, currentSection: currentName))
@@ -123,7 +160,9 @@ public enum RawSectionParser {
             sections.append(RawSection(name: wholeFileSectionName, condition: "", body: wholeFileBody))
         }
 
-        return RawOfficeFile(path: path, sections: sections, baseFile: baseFile)
+        return RawOfficeFile(
+            path: path, sections: sections, baseFile: baseFile.map { BaseFileReference(file: $0, condition: baseFileCondition) }
+        )
     }
 
     // MARK: - Section header matching
