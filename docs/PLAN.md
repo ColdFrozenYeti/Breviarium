@@ -2129,6 +2129,62 @@ tests) and all 73 named-case oracle tests, plus one new
 (`festalFifthPsalmTagMatchesRegardlessOfCase`), still pass. No change to any other
 category.
 
+**Continued in the same session**, closing a gap `Occurrence`'s own type doc had
+already flagged explicitly ("Ember days" among the cases "not covered by this pass"):
+`Occurrence.temporalPath` never consulted DO's own "monthday" merge (`Computus.
+monthday`, already ported for the Magnificat antiphon in `HourAssembler`) when deciding
+the temporal office's own rank. A full-corpus grep found this only actually matters for
+three files in the whole corpus — the September Ember days (`093-3`/`093-5`/`093-6`,
+Wednesday/Friday/Saturday), the only monthday files that define their own `[Officium]`/
+`[Rank]` at all (every other monthday file only ever supplies `[Ant 1]`/lessons, already
+merged in separately). Confirmed real for 23 September 2026 (Ember Wednesday): the
+ordinary week-based path's own unmerged rank is just 1 (an ordinary feria), so even a
+low-grade Semiduplex saint (S. Linus, rank 2.2) numerically outranked it and wrongly won
+the day outright — the real fixture's own title is "Feria Quarta Quattuor Temporum
+Septembris ~ II. classis". Added a new `Occurrence.temporalPath(...corpus:context:)`
+overload that checks for a monthday file defining its own `[Officium]` and, if found,
+uses it as the winning path outright — confirmed via a full-corpus grep that none of the
+140 monthday files ever define `[Ant Vespera]`/`[Capitulum Vespera]`/`[Hymnus Vespera]`,
+so Capitulum/Hymnus/Versus/Ant Vespera correctly keep falling through to the ordinary
+temporal path's own Commune/Major Special fallback exactly as they already do for any
+other low-rank feria — this single fix was never expected to need any further
+special-casing beyond the winner decision itself, and the sweep confirms it.
+
+Combined effect on the same sweep — the single highest-leverage fix this whole
+session, touching five categories at once from one root cause: Oratio 147→120,
+Canticum 146→133, Versus 52→39, Capitulum 51→38, Hymnus 22→9 (79 mismatched lines
+resolved in total). Full Kit test suite (200 tests, one new) and all 75 named-case
+oracle tests, plus one new (`emberWednesdayWinsItsOwnVespersInsteadOfALowRankedSanctoralCandidate`),
+still pass.
+
+**Continued in the same session**, two further fixes found while investigating nearby
+December dates in the same sweep:
+
+- **Christmas Eve's own Capitulum.** `capitulis.pl`'s own `capitulum_major` is a
+  hardcoded, narrow two-way special case, not a general "prefer the indexed key" rule:
+  `$name = 'Capitulum Vespera 1' if $winner =~ /12-25/ && $vespera == 1;` (the other
+  branch, `C12`'s votive office, is out of this project's current scope). Confirmed
+  real for 24 December 2025 (first Vespers of Christmas): `Sancti/12-25.txt`'s own
+  `[Capitulum Vespera 1]` is "Titus 3:4-5" ("Appáruit benígnitas..."), the real
+  fixture's own text — trying `"Capitulum Laudes"` first (this project's own earlier,
+  un-special-cased version) found the same file's own `[Capitulum Laudes]` instead
+  ("Heb 1:1-2", the *second* Vespers/Lauds text).
+- **The seven "O Antiphons" (17-23 December).** Ports `ant123_special`
+  (`horas.pl:471-500`), called *unconditionally first* in the real `canticum()`, ahead
+  of every other antiphon lookup — not a fallback tier at the bottom of the chain like
+  `monthdayLocation`/`majorSpecialAntLocation`, but an override that wins outright
+  whenever `$month == 12 && $day > 16 && $day < 24 && $winner =~ /tempora/i`, before the
+  office's own `[Ant $ind]` is ever consulted. Confirmed real for 17 December 2025
+  (Ember Wednesday in Advent, `Tempora/`-won): the real fixture's own Magnificat
+  antiphon is exactly `Major Special.txt`'s own `[Adv Ant 17]`, "O Sapiéntia, * quæ ex
+  ore Altíssimi prodiísti...".
+
+Combined effect on the same sweep: Capitulum 38→(pending re-measurement), Canticum
+133→(pending re-measurement). Full Kit test suite and all named-case oracle tests, plus
+two new (`christmasEveUsesChristmasDaysOwnFirstVespersCapitulumNotItsSecond`,
+`oAntiphonOverridesTheOrdinaryMagnificatAntiphonSeventeenToTwentyThirdDecember`), still
+pass — full sweep re-run pending.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

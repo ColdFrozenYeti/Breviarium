@@ -233,3 +233,40 @@ private func makeFixture(
     #expect(result?.sanctoralWins == true)
     #expect(result?.winningPath == "Sancti/12-25")
 }
+
+@Test func emberDaysMonthdayFileOverridesTheOrdinaryWeekBasedRank() {
+    // 23 September 2026 (a September Ember Wednesday): the ordinary week-based path
+    // (Tempora/Pent17-3) is just an unremarkable Feria (rank 1) -- but the real DO
+    // monthday merge (`Computus.monthday`) overrides it with Tempora/093-3's own
+    // named title and much higher rank (Feria major, 4.9 under 1960). Without
+    // consulting the monthday file at all, even a low-grade Semiduplex saint (rank
+    // 2.2, well below 4.9) would numerically outrank the unmerged ordinary path and
+    // wrongly win the day outright -- confirmed real for this exact date (St Linus,
+    // rank 2.2, wrongly won before this fix; the real fixture's own title is "Feria
+    // Quarta Quattuor Temporum Septembris").
+    let ordinaryPath = Occurrence.temporalPath(day: 23, month: 9, year: 2026, calendar: SanctoralCalendar(entries: [:]))
+    #expect(ordinaryPath == "Tempora/Pent17-3")
+    let monthdayKey = Computus.monthday(day: 23, month: 9, year: 2026, tomorrow: false)
+    #expect(monthdayKey == "093-3")
+
+    let corpus = InMemoryOfficeCorpus(files: [
+        RawOfficeFile(path: ordinaryPath, sections: [
+            RawSection(name: "Rank", condition: "", body: [";;Feria;;1"])
+        ]),
+        RawOfficeFile(path: "Tempora/\(monthdayKey!)", sections: [
+            RawSection(name: "Officium", condition: "", body: ["Feria Quarta Quattuor Temporum Septembris"]),
+            RawSection(name: "Rank", condition: "", body: [";;Feria major;;4.9"]),
+        ]),
+        RawOfficeFile(path: "Sancti/09-23", sections: [
+            RawSection(name: "Rank", condition: "", body: ["S. Lini Papæ et Martyris;;Semiduplex;;2.2"]),
+            RawSection(name: "Rule", condition: "", body: [""]),
+        ]),
+    ])
+    let occurrence = Occurrence(
+        corpus: corpus, context: context1960, calendar: SanctoralCalendar(entries: ["09-23": "09-23"])
+    )
+    let result = occurrence.resolve(day: 23, month: 9, year: 2026)
+    #expect(result?.sanctoralWins == false)
+    #expect(result?.winningPath == "Tempora/\(monthdayKey!)")
+    #expect(result?.winningRank.numericPrecedence == 4.9)
+}

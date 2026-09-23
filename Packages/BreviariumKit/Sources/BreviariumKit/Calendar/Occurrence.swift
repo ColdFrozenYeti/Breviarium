@@ -107,12 +107,47 @@ public struct Occurrence {
         return calendar.redirectedTemporalPath(path)
     }
 
+    /// Ember Wednesday/Friday/Saturday's own further exception: DO's `monthday()` merge
+    /// (`SetupString.pl:723-780`, ported to `Computus.monthday`) overwrites the ordinary
+    /// week-based file's own `[Officium]`/`[Rank]` whenever the monthday file defines
+    /// them itself — true for exactly three files in the whole corpus (confirmed by a
+    /// full-corpus grep for `[Officium]` across every `08N-D`/`09N-D`/`10N-D`/`11N-D`
+    /// monthday file): the September Ember days (`093-3`/`093-5`/`093-6`), each with its
+    /// own named title and a `Feria major` rank (4.9 under 1960) well above the
+    /// ordinary low-rank feria the plain week-based path alone would find. Every other
+    /// monthday file only ever supplies `[Ant 1]`/lessons — `HourAssembler`'s own
+    /// `monthdayLocation` already merges those in separately, for the Magnificat
+    /// antiphon specifically — and grepping the whole corpus confirms none of the 140
+    /// monthday files ever define `[Ant Vespera]`/`[Capitulum Vespera]`/
+    /// `[Hymnus Vespera]`, so this override never needs to touch anything beyond
+    /// occurrence's own winner decision: Capitulum/Hymnus/Versus/Ant Vespera correctly
+    /// keep falling through to the ordinary temporal path's own Commune/Major Special
+    /// fallback exactly as they already do for any other low-rank feria.
+    ///
+    /// Found via a full 2025-2040 content audit: without this, a September Ember day's
+    /// own (low, rank-1) ordinary week-based rank let even a Semiduplex
+    /// commemoration-grade saint (rank 2.2) numerically outrank it, wrongly winning the
+    /// whole day outright. Confirmed real for 23 September 2026 (Ember Wednesday): the
+    /// real fixture's own title is "Feria Quarta Quattuor Temporum Septembris ~ II.
+    /// classis", not "S. Lini Papæ et Martyris" — this project's engine wrongly let St
+    /// Linus (rank 2.2) win, since the plain week-based path's own unmerged rank is
+    /// only 1 (an ordinary feria), which 2.2 numerically outranks.
+    public static func temporalPath(
+        day: Int, month: Int, year: Int, calendar: SanctoralCalendar, corpus: OfficeCorpus, context: ConditionalContext
+    ) -> String {
+        let ordinary = temporalPath(day: day, month: month, year: year, calendar: calendar)
+        guard let monthdayKey = Computus.monthday(day: day, month: month, year: year, tomorrow: false) else { return ordinary }
+        let monthdayPath = "Tempora/\(monthdayKey)"
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        return resolver.sectionExists(path: monthdayPath, section: "Officium") ? monthdayPath : ordinary
+    }
+
     public func resolve(day: Int, month: Int, year: Int) -> OccurrenceResult? {
         let resolver = SectionResolver(corpus: corpus, context: context)
         let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
         let isSunday = weekday == 0
 
-        let temporalPath = Self.temporalPath(day: day, month: month, year: year, calendar: calendar)
+        let temporalPath = Self.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
 
         // The first sanctoral candidate with a real [Rank] is the one occurrence()
