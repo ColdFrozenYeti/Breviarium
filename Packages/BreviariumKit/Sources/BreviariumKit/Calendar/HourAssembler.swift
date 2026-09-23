@@ -180,6 +180,35 @@ public struct HourAssembler {
                     sections.append(Section(kind: .oratio, units: oratioUnits))
                 }
             case "Conclusio":
+                // `specials.pl:378-383`'s own "Special conclusions, e.g. on All Souls'
+                // day": when the winning office's own `[Rule]` says `"Special
+                // Conclusio"`, the whole group's content is the winning office's own
+                // `[Conclusio]` section verbatim, replacing the ordinary skeleton's
+                // generic one entirely (not merely appended, and not subject to the
+                // ordinary "Omit Conclusio" check below, which this project's alpha
+                // scope never sees co-occurring with this flag on any real date).
+                // Confirmed real for 2/3 November (All Souls' Day, whichever date wins
+                // it that year): `Sancti/11-02`'s own `[Conclusio]` is "Conclusio
+                // specialis" / "&Gloria" / "V. Requiéscant in pace. R. Amen.", not the
+                // ordinary "Dómine, exáudi... Benedicámus Dómino..." skeleton text.
+                if macroContext.winningRule.range(of: "Special Conclusio", options: .caseInsensitive) != nil {
+                    // `unitsFromLines`, not `unitsFromResolvedText`: the latter strips
+                    // a line's own `V.`/`R.` label unconditionally while building plain
+                    // `.prose` units, with no versicle/response pairing at all (every
+                    // existing caller's own raw text already had its V./R. intro
+                    // supplied separately by the skeleton) — the office's own
+                    // `[Conclusio]` section here is the first caller that actually
+                    // needs a resolved section's own `V.`/`R.` lines paired.
+                    let ownConclusio = resolver.resolve(path: winner.winningPath, section: "Conclusio")
+                        .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                    let englishOwnConclusio = englishResolver.flatMap { eng -> [String]? in
+                        guard eng.sectionExists(path: winner.winningPath, section: "Conclusio") else { return nil }
+                        return eng.resolve(path: winner.winningPath, section: "Conclusio")
+                            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                    }
+                    sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(ownConclusio, english: englishOwnConclusio)))
+                    continue
+                }
                 guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Conclusio") else { continue }
                 sections.append(Section(kind: .conclusio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Capitulum Hymnus Versus":

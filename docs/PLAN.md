@@ -2326,6 +2326,34 @@ all 81 named-case oracle tests, plus one new
 (`dominusVobiscum2ResolvesInsteadOfLeakingTheLiteralMacroName`), still pass. No change
 to any other category.
 
+**Continued in the same session**, a sixth fix, closing the Conclusio gap flagged
+immediately above: `specials.pl:378-383`'s own "Special conclusions, e.g. on All
+Souls' day" — when the winning office's own `[Rule]` contains `"Special Conclusio"`,
+the whole Conclusio group's content is the winning office's own `[Conclusio]` section
+verbatim, replacing the ordinary skeleton's generic one entirely. Not implemented at
+all before this fix, so the ordinary "Dómine, exáudi... Benedicámus Dómino..."
+skeleton always rendered instead. Confirmed real for 3 November 2025 (All Souls' Day
+proper, transferred here since 2 November is a Sunday that year): `Sancti/11-02`'s own
+`[Conclusio]` is "Conclusio specialis" / `&Gloria` / "V. Requiéscant in pace. R.
+Amen." — not the ordinary skeleton text the group would otherwise assemble.
+
+Along the way, found and fixed a real bug in the assembler's own text-splitting: the
+first implementation attempt resolved the office's own `[Conclusio]` section with
+`unitsFromResolvedText`, which strips a line's own V./R. label unconditionally while
+building only `.prose`/`.rubric` units — it has no versicle/response pairing at all,
+because every prior caller's own raw resolved text already had its V./R. intro
+supplied separately by the skeleton. That produced two unpaired `.prose` units
+("Requiéscant in pace." / "Amen.") instead of one `.versicleResponse`. Fixed by
+switching to `unitsFromLines` (pre-splitting the resolved text into `[String]`
+first), which already has correct V./R.-pairing logic and is exactly what every
+other skeleton-driven group already uses.
+
+Effect on the same sweep: Conclusio 15→1 (the one remaining day, 2030-11-02, is a
+distinct, not yet traced case). Full Kit test suite (203 tests), Data test suite (8
+tests), and all 82 named-case oracle tests, plus one new
+(`allSoulsUsesItsOwnConclusioNotTheOrdinarySkeletonOne`), still pass. No regression to
+any other category.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
