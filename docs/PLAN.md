@@ -2517,8 +2517,10 @@ real-number entries) and a `"Psalmi Dominica"` tag on the synthetic test's own
 "Psalmi Dominica" comes from her Commune, C6, not her own office file either). Full
 suite (203 Kit + 8 Data + 89 named oracle, four new) confirmed clean after this fix.
 
-Combined effect on a fresh full sweep: not yet measured as of this writing -- the
-immediate next step.
+Combined effect on a fresh full sweep: Oratio 86→52, Psalmodia 81→23 — both large wins.
+Canticum (51), Versus (27), Capitulum (13), Hymnus (9), and Conclusio (1) unchanged, as
+expected (none of these four fixes touch those categories). Total mismatches across the
+whole sweep for the session: 268→176.
 
 **Still open, traced but not resolved**: a distinct Oratio-commemoration-versicle bug
 found in the same sweep, 24/25 March-adjacent (Annunciation displacing a Passiontide
