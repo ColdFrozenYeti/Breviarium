@@ -1,6 +1,17 @@
 import XCTest
 
 final class BreviariumUITests: XCTestCase {
+    /// Scrolls the Settings form until `element` is loaded: its lower rows (text size,
+    /// About) exist only once scrolled into view, and the form outgrew the screen when
+    /// Psalterium was added.
+    private func scrollSettings(to element: XCUIElement, in app: XCUIApplication) {
+        var swipes = 0
+        while !element.exists, swipes < 5 {
+            app.collectionViews.firstMatch.swipeUp()
+            swipes += 1
+        }
+    }
+
     /// Launches on a fixed date with an explicit reading mode and the default text size,
     /// passed through the `UserDefaults` argument domain (`-key value`) so no test inherits
     /// another's Settings choice from the same simulator (a snapshot once came out at XXL
@@ -11,6 +22,10 @@ final class BreviariumUITests: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate"
     ) -> XCUIApplication {
+        // Every launch starts in portrait: a failed step ends a test at once, so a rotation
+        // undone at the end of a test could leak into the next ones (it did, B1-M5: a
+        // landscape capture failed and every later Settings tap missed).
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
         if let section { app.launchEnvironment["BREVIARIUM_SNAPSHOT_SECTION"] = section }
@@ -199,6 +214,7 @@ final class BreviariumUITests: XCTestCase {
 
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        scrollSettings(to: app.staticTexts["About"], in: app)
         app.staticTexts["About"].tap()
         XCTAssertTrue(app.navigationBars["About"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Breviarium"].exists)
@@ -218,6 +234,7 @@ final class BreviariumUITests: XCTestCase {
     private func setTextSize(_ sizeLabel: String, in app: XCUIApplication) {
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        scrollSettings(to: app.buttons[sizeLabel], in: app)
         app.buttons[sizeLabel].tap()
         app.buttons["Done"].tap()
     }
@@ -231,11 +248,10 @@ final class BreviariumUITests: XCTestCase {
         psalter: String = "vulgate", landscape: Bool = false
     ) {
         let app = launchApp(date: dateString, english: english, psalter: psalter)
-        XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
-        defer { XCUIDevice.shared.orientation = .portrait }
-
+        // The text size is set in portrait, where Settings has room; then the phone turns.
         setTextSize(sizeLabel, in: app)
-        Thread.sleep(forTimeInterval: 0.4)
+        if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
+        Thread.sleep(forTimeInterval: landscape ? 1.0 : 0.4)
 
         let page1 = XCTAttachment(screenshot: app.screenshot())
         page1.name = "\(namePrefix)-\(sizeName)-page1"
