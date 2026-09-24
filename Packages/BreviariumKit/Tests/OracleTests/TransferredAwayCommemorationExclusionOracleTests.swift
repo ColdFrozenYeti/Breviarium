@@ -19,7 +19,7 @@ import Testing
     // the ordinary same-day-loser commemoration path -- the real fixture shows no
     // commemoration at all, just the plain ferial Oratio straight into the Conclusio.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 3, year: 2035, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -49,7 +49,7 @@ import Testing
     // via the ordinary same-day-loser path, not excluded entirely). Confirms the new
     // isTransferredAwayThisYear exclusion doesn't wrongly suppress this case.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 3, year: 2028, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

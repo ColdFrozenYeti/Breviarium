@@ -9,6 +9,13 @@
 /// same reasoning applies to compression. Measuring comes first — see `BreviariumData`'s
 /// size report — and compression is a candidate follow-up only if the plain-JSON number
 /// turns out to matter, not a default.
+/// Which Latin psalter the office uses (`CLAUDE.md`, Liturgical scope): the Vulgate by
+/// default, the Pius XII (Bea) psalter as an option.
+public enum Psalter: String, CaseIterable, Codable, Sendable {
+    case vulgate
+    case pius12
+}
+
 public struct DataBundle: Codable, Sendable {
     public var formatVersion: Int
     /// The plain Latin corpus (`Tempora`, `Sancti`, `Commune`, `Psalterium`) — every `@`
@@ -63,11 +70,22 @@ public struct DataBundle: Codable, Sendable {
         self.temporaRedirect = temporaRedirect
     }
 
-    /// The Latin corpus `SectionResolver` should read from: the Bea psalter layered on
-    /// top of plain Latin, matching DO's own `Latin-Bea` dash-fallback behaviour
-    /// (`do-format.md`).
-    public func makeLatinCorpus() -> OfficeCorpus {
-        LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
+    /// The Latin corpus `SectionResolver` should read from, for one psalter
+    /// (`docs/psalters-and-english.md` section 1):
+    /// - `.vulgate`: plain `Latin/` alone, as DO renders with its "Pius XII Psalter"
+    ///   option off (its default, `horas.setup`'s `$psalmvar='0'`);
+    /// - `.pius12`: the Bea psalter layered on top of plain Latin, matching DO's own
+    ///   `Latin-Bea` dash fallback (`SetupString.pl:794-797`, `do-format.md`).
+    ///
+    /// The psalter changes only `Psalterium/Psalmorum/` at Vespers; every other file
+    /// resolves the same way in both.
+    public func makeLatinCorpus(psalter: Psalter) -> OfficeCorpus {
+        switch psalter {
+        case .vulgate:
+            return InMemoryOfficeCorpus(files: latin)
+        case .pius12:
+            return LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
+        }
     }
 
     /// The sanctoral calendar with *all three* of this bundle's calendar tables. Every

@@ -28,7 +28,7 @@ import Testing
     // Annunciation's own pre-empting first Vespers). Real fixture's commemoration
     // versicle: "Éripe me, Dómine, ab hómine malo. / A viro iníquo éripe me."
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 3, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -53,7 +53,7 @@ import Testing
     // commemoration versicle is still "Ángelis suis Deus mandávit de te. / Ut custódiant
     // te in ómnibus viis tuis."
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 2, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

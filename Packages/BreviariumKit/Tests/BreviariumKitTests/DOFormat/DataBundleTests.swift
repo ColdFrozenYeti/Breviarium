@@ -32,7 +32,7 @@ import Testing
         calendar: [:]
     )
     let resolver = SectionResolver(
-        corpus: bundle.makeLatinCorpus(),
+        corpus: bundle.makeLatinCorpus(psalter: .pius12),
         context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 1, ad: "vesperas", mense: 9)
     )
     #expect(resolver.resolve(path: "Psalterium/Dom1/Matutinum", section: "Ps 1") == "Bea text.")

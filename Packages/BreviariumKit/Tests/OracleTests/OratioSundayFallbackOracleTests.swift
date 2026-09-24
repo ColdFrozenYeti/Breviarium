@@ -16,7 +16,7 @@ import Testing
     // -- no Commune reference, no [Oratio] anywhere in the file. The real fixture's
     // own Oratio is Tempora/Pent02-0's own [Oratio] ("Sancti nóminis tui, Dómine...").
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 8, month: 6, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

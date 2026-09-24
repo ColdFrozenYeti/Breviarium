@@ -20,7 +20,7 @@ import Testing
 private func realBundle() -> DataBundle? { RealCorpus.bundle }
 
 private func occurrenceWinner(_ bundle: DataBundle, day: Int, month: Int, year: Int) -> OccurrenceResult? {
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -69,7 +69,7 @@ private func occurrenceWinner(_ bundle: DataBundle, day: Int, month: Int, year: 
 
 @Test func annunciationTransfersToTheMondayAfterLowSunday2027() async throws {
     guard let bundle = realBundle() else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 5, month: 4, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -143,7 +143,7 @@ private func occurrenceWinner(_ bundle: DataBundle, day: Int, month: Int, year: 
     // $cwinner`) precisely for this tie case, separate from the ordinary
     // (version-1960-suppressed) runner-up mechanism.
     guard let bundle = realBundle() else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 2, month: 4, year: 2035, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -169,7 +169,7 @@ private func occurrenceWinner(_ bundle: DataBundle, day: Int, month: Int, year: 
     // it came from. Confirms the existing commemoration-filtering logic needed no
     // transfer-specific special case.
     guard let bundle = realBundle() else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let commemorations = Commemorations(corpus: corpus, context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "", feria: 3, ad: "vesperas", mense: 4), calendar: calendar)
     let result = commemorations.resolve(day: 5, month: 4, year: 2027)

@@ -20,7 +20,7 @@ import Testing
 
 @Test func resolveRankFillsTheTitleThroughAPureInclusionRedirectFile() throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let resolver = SectionResolver(corpus: corpus, context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Passionis", feria: 4, ad: "vesperas", mense: 4))
     let rank = try #require(OfficeRank(rankFieldValue: resolver.resolveRank(path: "Tempora/Quad6-4r")))
     #expect(rank.title == "Feria Quinta in Cena Domini")
@@ -28,7 +28,7 @@ import Testing
 
 @Test func holyWednesdayDoesNotWronglyCommemorateHolyThursday() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 4, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

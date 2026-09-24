@@ -18,7 +18,7 @@ import Testing
 
 private func feastOfTheLordConcurrence(day: Int, month: Int, year: Int) throws -> (ConcurrenceResult, [Commemoration]) {
     let bundle = try #require(RealCorpus.bundle)
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

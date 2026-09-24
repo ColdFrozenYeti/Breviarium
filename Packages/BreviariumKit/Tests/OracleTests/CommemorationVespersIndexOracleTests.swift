@@ -20,7 +20,7 @@ import Testing
     // different Gospel verse this project's engine wrongly rendered before this fix,
     // reusing the winning office's own `ind == 3` for the commemoration too.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 31, month: 5, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

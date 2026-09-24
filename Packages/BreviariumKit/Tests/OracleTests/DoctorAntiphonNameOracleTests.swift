@@ -17,7 +17,7 @@ import Testing
     // Ant=Hilári" -- the Magnificat antiphon (from Commune/C4a's own "O Doctor
     // óptime... beáte N.,...") needs the vocative "Hilári", not the plain "Hilárium".
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 14, month: 1, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

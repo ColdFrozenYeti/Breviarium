@@ -30,7 +30,7 @@ import Testing
     // `Tempora/Nat2-0`, not the plain `Tempora/Nat04` this project's engine previously
     // resolved to (which has no Holy Name content at all).
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 4, month: 1, year: 2032, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -60,7 +60,7 @@ import Testing
     // beyond the single 2032 date, with a different computed primary letter for its own
     // Easter, still needing the same leap-year extension.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 2, month: 1, year: 2036, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

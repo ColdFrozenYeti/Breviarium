@@ -69,7 +69,7 @@ final class OfficeDataStore {
         }
         do {
             let bundle = try JSONDecoder().decode(DataBundle.self, from: data)
-            latinCorpus = bundle.makeLatinCorpus()
+            latinCorpus = bundle.makeLatinCorpus(psalter: .pius12)
             englishCorpus = bundle.makeEnglishCorpus()
             sanctoralCalendar = bundle.makeSanctoralCalendar()
         } catch {

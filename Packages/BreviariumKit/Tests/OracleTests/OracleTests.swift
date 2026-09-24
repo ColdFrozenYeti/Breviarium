@@ -98,7 +98,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 ///   extension for a second-Vespers `[Ant Vespera 3]`).
 @Test func martyrsFeastMatchesTheRealOracleFor16September2026() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
@@ -118,7 +118,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func plainFeriaMatchesTheRealOracleFor19January2026() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 2, ad: "vesperas", mense: 1)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
@@ -134,7 +134,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func agathaMatchesTheRealOracleIncludingTheNameSubstitutedCollect() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 5, ad: "vesperas", mense: 2)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 5, month: 2, year: 2026, priest: false))
@@ -151,7 +151,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func ashWednesdayShowsTheRealPrecesFerialesText() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Quadragesima", feria: 4, ad: "vesperas", mense: 2)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 18, month: 2, year: 2026, priest: false))
@@ -175,7 +175,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // exercises that the Sunday's *real* rank -- not some other file's -- is what the
     // occurrence comparison actually sees.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Nativitas", feria: 1, ad: "vesperas", mense: 12)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 28, month: 12, year: 2025, priest: false))
@@ -198,7 +198,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // as alleluia_ant()'s "Allelúia, * allelúia, allelúia." rather than the plain
     // ferial schedule's own text.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 2, ad: "vesperas", mense: 4)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
@@ -221,7 +221,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // "Never touch English"), so running it over this bilingual fixture as a whole
     // would risk corrupting real English words containing "j" (e.g. "rejoice").
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar(), englishCorpus: bundle.makeEnglishCorpus())
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
@@ -312,7 +312,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 1, ad: "vesperas", mense: 4)
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 5, month: 4, year: 2026, priest: true))
@@ -333,7 +333,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 // lines).
 @Test func contextBuilderMatchesTheRealSeasonAndFeriaFor16September2026() throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -345,7 +345,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func contextBuilderMatchesTheRealSeasonAndFeriaFor19January2026() throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -361,7 +361,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
 
 @Test func contextBuilderNamesChristmasAndEpiphanyAndAllSoulsForTheDieField() throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     func die(_ day: Int, _ month: Int, _ year: Int) -> String {
         ConditionalContextBuilder.build(
@@ -403,7 +403,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // in that case is a separate, deeper question `assembleCapitulumHymnusVersus`'s own
     // doc comment already flags as untraced -- not guessed at here.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -450,7 +450,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // rendered text, quoted directly: "Ant. Ecce quam bonum * et quam iucúndum
     // habitáre fratres in unum. ‡" / "132:2 ‡ Sicut óleum óptimum in cápite...".
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -497,7 +497,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // same range on a different split psalm (143(1-8)/143(9-15), First Vespers of
     // Advent I) and prompting a direct recheck of this date too.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 9, month: 4, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -540,7 +540,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // ℟. Ut custódiant te in ómnibus viis tuis. / Orémus. Ascéndant ad te, Dómine,
     // preces nostræ...".
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 2, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -581,7 +581,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     // one here despite Commemorations.resolve almost certainly returning a non-empty
     // candidate list for this date (Ss. Euphemiae et al.).
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -626,7 +626,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
 /// not those separate axes.
 @Test func vespersAssemblesWithoutPlaceholderTextAcrossTheFullOracleRange() {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
 
     var failures: [String] = []
@@ -694,9 +694,9 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
 /// one at a time (a real bug gets fixed; a confirmed, cited DO limitation gets carved out
 /// of scope explicitly, the same way the named tests above already do for psalm-antiphon
 /// selection) — never by editing a fixture, per `CLAUDE.md`.
-@Test func vespersFullRangeContentAudit() async throws {
+@Test(arguments: Psalter.allCases) func vespersFullRangeContentAudit(psalter: Psalter) async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: psalter)
     let calendar = bundle.makeSanctoralCalendar()
 
     struct Problem {
@@ -730,7 +730,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
         let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
 
         if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false),
-            let fixtureText = try await OracleFixture.shared.main(year: year, date: dateLabel)
+            let fixtureText = try await OracleFixture.shared.range(psalter: psalter, year: year, date: dateLabel)
         {
             let present = Set(hour.sections.filter { !$0.units.isEmpty }.map(\.kind))
             for kind in alwaysPresent where !present.contains(kind) {
@@ -811,9 +811,9 @@ func renderedCommemorationRubrics(_ hour: Hour) -> [String] {
 /// December, dropped whole because the feria has no collect of its own). This one
 /// compares, per date, the *number* of commemoration blocks each side renders, and
 /// checks each of ours opens a block of the same title in the fixture's Oratio section.
-@Test func vespersFullRangeCommemorationAudit() async throws {
+@Test(arguments: Psalter.allCases) func vespersFullRangeCommemorationAudit(psalter: Psalter) async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: psalter)
     let calendar = bundle.makeSanctoralCalendar()
 
     var problems: [String] = []
@@ -826,7 +826,7 @@ func renderedCommemorationRubrics(_ hour: Hour) -> [String] {
         )
         let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
         if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false),
-            let fixtureText = try await OracleFixture.shared.main(year: year, date: dateLabel)
+            let fixtureText = try await OracleFixture.shared.range(psalter: psalter, year: year, date: dateLabel)
         {
             daysChecked += 1
             let section = fixtureOratioSection(fixtureText) ?? ""
@@ -857,7 +857,7 @@ func renderedCommemorationRubrics(_ hour: Hour) -> [String] {
     #expect(!bundle.temporaRedirect.isEmpty)
     #expect(calendar.temporaRedirect == bundle.temporaRedirect)
 
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let context = ConditionalContextBuilder.build(
         day: 19, month: 4, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )

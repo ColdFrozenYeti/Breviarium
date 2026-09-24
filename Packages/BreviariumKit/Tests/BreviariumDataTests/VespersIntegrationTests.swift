@@ -29,7 +29,7 @@ import Testing
     }
 
     let bundle = try BreviariumDataPipeline.build(checkoutRoot: checkoutRoot)
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     // "Rubrics 1960 - 1960", 16 September 2026 -- CLAUDE.md's own worked example
     // (Ss. Cornelii Papæ et Cypriani, III. classis, a Wednesday).
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
