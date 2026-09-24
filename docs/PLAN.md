@@ -3051,6 +3051,84 @@ and continue in a cloud session — every fix so far has been validated against 
 2025-2040 sweep and the full Kit/Data/Oracle suite before committing, with no known
 regressions.
 
+**Phase 4 (cloud session, 2026-09-24): the five remaining oracle bugs.** Environment
+note first, since the next cloud session will hit the same thing: this container had no
+Swift toolchain and `download.swift.org` is blocked by the network policy. What worked:
+start `dockerd`, pull `mirror.gcr.io/library/swift:6.1-noble` (Docker Hub itself
+returned 429, and the ECR public mirror's CloudFront blob host is blocked), then run
+`swift build`/`swift test` inside that container with the repo bind-mounted. The DO
+submodule also needed `git submodule update --init`. Baseline re-measured on a clean
+`HEAD` worktree before touching anything: Oratio 14, Canticum 9, Psalmodia 7, Capitulum
+9, Versus 9, Hymnus 7, Conclusio 0 (unchanged from the Phase 3 total).
+
+**Bug 8 of 11 (the "Hoc est testimonium" Advent commemoration): O Antiphon override for a
+commemorated temporal office.** `getcommemoratio` (`specials/orationes.pl:772-785`)
+overrides a commemorated office's antiphon *after* the ordinary `Ant $ind` lookup:
+`if ($wday =~ /tempora/i) { if ($month == 12 && ($hora eq 'Vespera' && $day >= 17 && $day
+<= 23 ...)) { $a = $v{"Adv Ant $day"} } }`. In 2029/2035/2040, 21 December is the Advent
+Ember Friday, and `Tempora/Adv3-5.txt` has its own `[Ant 3]` ("Hoc est testimónium..."),
+which this project rendered; the real fixtures show "O Óriens splendor lucis ætérnæ...".
+Ported by reusing `oAntiphonLocation` (same window, same never-advanced request date) at
+the top of `commemorationUnits`' antiphon chain.
+
+Writing the *control* test (21 December 2026, an ordinary Advent feria) surfaced a
+second bug the sweep cannot see: the commemoration was silently **dropped**, not wrong.
+`Tempora/Adv4-1` has no `[Ant N]` and no `[Oratio]` of its own (its `[Rule]` is just
+"Oratio Dominica"), so `commemorationUnits` returned `nil`. The O Antiphon override
+supplies the antiphon; the collect needed `getcommemoratio`'s own "Oratio Dominica"
+redirect (`orationes.pl:704-711`: `$wday =~ s/\-[0-9]/-0/; $wday =~ s/Epi1\-0/Epi1\-0a/;`,
+then that file's `OratioW // Oratio`), ported as
+`HourAssembler.commemoratedOratioDominicaLocation`. The real 2026 fixture's commemoration
+("Ant. O Óriens... ℣. Roráte, cæli... Orémus. Excita, quǽsumus, Dómine, poténtiam tuam, et
+veni: et magna nobis virtúte succúrre...") now matches word for word. **Methodology
+note:** `vespersFullRangeContentAudit` only checks that rendered text appears in the
+fixture, so an omitted commemoration is invisible to it. A commemoration-count check
+against the fixture would close that blind spot. New tests:
+`emberFridayCommemorationTakesTheOAntiphon`,
+`ordinaryAdventFeriaCommemorationIsRenderedWithItsSundayCollect`
+(`CommemorationOAntiphonOracleTests.swift`).
+
+**Bug 4 of 11 (wrong commemoration at a Lenten Sunday's first Vespers).** 19 March 2033
+(St Joseph, Saturday) should commemorate St Joseph; 24 February 2035 (St Matthias,
+Saturday) should commemorate nothing. This project commemorated the Lenten Saturday on
+both. Read from `concurrence()` directly (`horascommon.pl:842-1472`, static reading was
+enough; no instrumentation needed). The fix has three pieces:
+
+1. `:937-964` ("if tomorrow is a Sunday, get rid of today's tempora completely"): when
+   tomorrow's *temporal* office (`$ctrank[0]`) is titled `(?<!De )Dominica|Trinitatis`
+   (not "Dominica Resurrectionis" under 1955/1960) and a saint wins today, today's
+   temporal runner-up, which `occurrence()` always `unshift`s to the front of
+   `@commemoentries`, is dropped. Ported as `Commemorations.droppingTemporaBeforeSunday`.
+   Only the saint-wins branch is ported; the temporal-wins `else` branch clears `$winner`
+   and feeds the wider cascade. **Pitfall:** Swift's `Regex` has no lookbehind, and the
+   file's `matches` helper treats a pattern that fails to compile as "no match". The
+   first build silently did nothing until the `(?<!De )` was spelled out by hand.
+2. `:1166-1170`: the "nothing of the preceding office" exclusion before a Sunday or Feast
+   of the Lord is rank-gated (`$rank < ($crank >= 6 ? 6 : 5) || $wrank[0] =~ /Dominica/i
+   || $winner{Rule} =~ /Festum Domini/i`). This project had excluded the preceding office
+   before *any* Sunday. St Joseph (6) before a 6.9 Sunday escapes the gate and is
+   commemorated by `:1296`'s `$crank > $rank` branch; St Matthias (5) does not.
+3. `:1063-1081` ("two concurrent Tempora"). **Found by the sweep, not by reading:**
+   pieces 1 and 2 alone moved Oratio 14 → 30. The 5 target dates were fixed, but every
+   Pentecost Vigil and several 29/30 December dates were newly wrong. The old blanket
+   exclusion had been masking this branch: when both days' winners are temporal and
+   tomorrow wins, today's temporal winner is never `$commemoratio`, and unless `$crank <
+   7 && $crank != 6.5 && $crank != 6 && $comrank > 2 && $cwinner{Rule} !~ /no
+   commemoratio/i`, `@commemoentries` is emptied too (the title's plain "Vespera de
+   sequenti."). Confirmed real for 7 June 2025 and 30 December 2028.
+
+New tests: `firstClassFeastBeforeFirstClassSundayIsCommemorated`,
+`secondClassFeastAndLentenSaturdayBeforeSundayAreNotCommemorated`,
+`pentecostVigilIsNotCommemoratedAtPentecostsFirstVespers`,
+`christmasOctaveDayIsNotCommemoratedAtTheOctaveSundaysFirstVespers`
+(`SundayFirstVespersPrecedingOfficeOracleTests.swift`).
+
+Full suite: 322 tests passed (the 6 new named tests included). Fresh sweep with both
+fixes, measured against the re-confirmed baseline: **Oratio 14 → 9**, every other category
+unchanged (Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7, Conclusio 0). No new
+mismatch date in any category. Fixed dates: 2029-12-21, 2035-12-21, 2040-12-21 (Bug 8)
+and 2033-03-19, 2035-02-24 (Bug 4).
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
