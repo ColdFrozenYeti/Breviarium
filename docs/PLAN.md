@@ -2996,6 +2996,61 @@ Conclusio 0): **Oratio 27 → 23**, every other category unchanged — a bigger 
 dates) than the single confirmed date alone, meaning this same general mechanism also
 silently fixed other transferred-office commemoration dates elsewhere in the range.
 
+**Bug 2/6/7: the "No Commemoratio" rule directive was never ported.** `getcommemoratio`'s
+own check (`orationes.pl:655-660`): `if ($rule =~ /no\s+(\w+)?\s*commemoratio/i && (!$1
+|| $wday =~ /$1/i) && !($hora eq 'Vespera' && $vespera == 3 && $ind == 1)) { return ''; }`
+— `$rule` there is the *winning* office's own `[Rule]` text (not the commemorated
+office's). Several very high-rank proper offices carry a bare "No Commemoratio"
+directive that suppresses any commemoration outright, regardless of how eligible the
+candidate would otherwise be — confirmed present verbatim in `Tempora/Pent01-4.txt`
+(Corpus Christi), `Sancti/12-25.txt` (Christmas), and `Sancti/01-01.txt` (Circumcision).
+This project's engine had no equivalent check at all, so any date where one of these
+offices wins and something is nominally commemorated (per the title line DO still
+generates even when the body suppresses it) wrongly rendered that commemoration's
+content anyway. Ported as `HourAssembler.isCommemorationSuppressedByRule`, filtering
+`Commemorations.resolve`'s own output before the "reduce to one" step.
+
+**A first attempt also ported the real exception clause and regressed on the very next
+test run.** The exception (`!($hora eq 'Vespera' && $vespera == 3 && $ind == 1)`) was
+read as carving out the "equal rank, the preceding takes precedence" tie-break case
+(`!isFirstVespers && ind == 1`) — reasonable on paper, since that's the exact shape
+`tomorrowsTiedFirstVespersCandidate` already handles correctly elsewhere in this file.
+But three of the four real-fixture cases confirmed for this same fix (Corpus Christi/St
+John Baptist, Christmas, and Circumcision) *all* reach their own commemoration candidate
+via that identical `ind == 1` tie-break path (each commemorated office having itself been
+transferred to the very next day — St John Baptist's own Nativity is transferred forward
+by `Transfer/425.txt`'s own `"06-25=06-24~06-25"` in 2038, confirmed via the same live
+Perl instrumentation technique as Bug 1), and the real fixtures show every one of them
+suppressed regardless. Whatever `$vespera` actually tracks in the real Perl evidently
+isn't equivalent to this project's own `isFirstVespers`/`ind` pairing the way the first
+attempt assumed. Caught immediately by the targeted tests (not even reaching the sweep)
+— reverted to the safe, conservative reading: a bare "No Commemoratio" match always
+suppresses, no exception, until a real fixture is found that genuinely needs one. New
+tests: `corpusChristiSuppressesStJohnBaptistsCommemoration`,
+`christmasSuppressesTheNativityOctaveSundayCommemoration`,
+`circumcisionSuppressesTheHolyNameCommemoration`,
+`stJosephStillCommemoratesInAnOrdinaryTransferYearRegardlessOfThisRule`
+(`NoCommemoratioRuleOracleTests.swift`) — the last confirming the suppression doesn't
+wrongly catch an ordinary commemoration whose winning office carries no such directive.
+
+Full suite (203 Kit + 8 Data + 109 named oracle) confirmed clean. Fresh sweep against the
+prior baseline (Oratio 23, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7,
+Conclusio 0): **Oratio 23 → 14**, every other category unchanged — this one general rule
+resolved 9 dates at once (the Corpus Christi/St John Baptist, Christmas, and Circumcision
+clusters together), confirming the mechanism generalizes well beyond the three dates it
+was directly traced against.
+
+**Running total this session (2026-09-24, Phase 3 exhaustive bug hunt): 3 of 11
+originally-identified bugs fixed and pushed (Bug 1 directly resolved Bugs 3 and 5 as a
+side effect; Bug 2's fix directly resolved Bugs 6 and 7 too), 8 remaining**: Bug 4
+(Sabbato infra Hebdomadam II in Quadragesima / wrong commemoration selected, not yet
+traced), Bug 8 ("Hoc est testimonium" Advent commemoration, not yet traced), and the
+three original concurrence clusters (Epiphany/Holy-Family, Dec-29 Christmas-Octave-
+Sunday, Sacred-Heart/Precious-Blood). Paused here at the user's request to switch models
+and continue in a cloud session — every fix so far has been validated against the full
+2025-2040 sweep and the full Kit/Data/Oracle suite before committing, with no known
+regressions.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

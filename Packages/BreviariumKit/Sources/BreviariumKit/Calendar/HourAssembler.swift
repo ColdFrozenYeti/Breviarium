@@ -566,6 +566,7 @@ public struct HourAssembler {
         day: Int, month: Int, year: Int, winningRank: OfficeRank, resolver: SectionResolver, macroContext: MacroContext
     ) -> [Unit] {
         let commemorations = Commemorations(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
+            .filter { !Self.isCommemorationSuppressedByRule(winningRule: macroContext.winningRule, commemorationPath: $0.path) }
         guard !commemorations.isEmpty else { return [] }
 
         // orationes.pl:585-594: "Under the 1960 rubrics, on II. cl and higher days,
@@ -578,6 +579,56 @@ public struct HourAssembler {
 
         return toRender.flatMap { commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
     }
+
+    /// Ports `getcommemoratio`'s own "No Commemoratio" rule check (`orationes.pl:
+    /// 655-660`): `if ($rule =~ /no\s+(\w+)?\s*commemoratio/i && (!$1 || $wday =~
+    /// /$1/i) && !($hora eq 'Vespera' && $vespera == 3 && $ind == 1)) { return ''; }` —
+    /// `$rule` there is the *winning* office's own `[Rule]` text (not the commemorated
+    /// office's), checked once per candidate commemoration since the directive can
+    /// optionally name a specific kind of commemoration to exclude rather than every
+    /// one (confirmed real: `Tempora/Epi1-0.txt`'s own "No Sunday Commemoratio" — not
+    /// exercised by any of this project's own named tests, so only the bare, unnamed
+    /// form below is trusted; a captured word that doesn't obviously match the
+    /// commemorated office's own path is treated conservatively as *not* suppressing,
+    /// rather than guessed at).
+    ///
+    /// **The real exception clause (`!($hora eq 'Vespera' && $vespera == 3 && $ind ==
+    /// 1))`) is deliberately not ported.** An earlier attempt carved out exactly the
+    /// `!isFirstVespers && ind == 1` case, reasoning it should mirror the "equal rank,
+    /// the preceding takes precedence" tie-break (`tomorrowsTiedFirstVespersCandidate`).
+    /// That regressed immediately: three of four real-fixture cases confirmed for this
+    /// same fix (Christmas, Circumcision, and Corpus Christi/St John Baptist below) *all*
+    /// reach their own commemoration candidate via that same `ind == 1` tie-break path
+    /// (their commemorated office having itself been transferred to the very next day),
+    /// and the real fixtures show every one of them suppressed regardless — so whatever
+    /// `$vespera` actually tracks in the real Perl isn't equivalent to this project's own
+    /// `isFirstVespers`/`ind` pairing the way the first attempt assumed. Always
+    /// suppressing on a bare "No Commemoratio" match is the safe, conservative reading
+    /// until a real fixture is found that genuinely needs an exception.
+    ///
+    /// Confirmed real for 24 June 2038 (Corpus Christi's own first Vespers,
+    /// commemorating St John Baptist's Nativity "de sequenti"): `Tempora/Pent01-4.txt`'s
+    /// own `[Rule]` includes bare "No Commemoratio" (no captured word), and the real
+    /// fixture shows no commemoration at all — despite the title's own header line still
+    /// naming it ("Commemoratio: In Nativitate S. Joannis Baptistæ"), since DO's title
+    /// generation and body rendering are separate code paths and only the latter applies
+    /// this check. The same directive, confirmed present verbatim in `Sancti/12-25.txt`
+    /// (Christmas) and `Sancti/01-01.txt` (Circumcision)'s own `[Rule]`s, accounts for
+    /// several more previously-unexplained dates at once (the Nativity-Octave-Sunday-
+    /// commemorated-at-Christmas pattern, and Holy Name commemorated at Circumcision).
+    private static func isCommemorationSuppressedByRule(winningRule: String, commemorationPath: String) -> Bool {
+        guard let match = try? Self.noCommemoratioRegex.firstMatch(in: winningRule) else { return false }
+        if let word = match.output[1].substring.map(String.init), !word.isEmpty,
+            commemorationPath.range(of: word, options: .caseInsensitive) == nil
+        {
+            return false
+        }
+        return true
+    }
+
+    private nonisolated(unsafe) static let noCommemoratioRegex: Regex<AnyRegexOutput> =
+        // swiftlint:disable:next force_try
+        try! Regex(#"(?i)no\s+(\w+)?\s*commemoratio"#)
 
     /// `orationes.pl:551-561`'s own priority-key tiers, simplified to what the "at most
     /// one commemoration" reduction (`orationes.pl:585-594`, wired above) actually needs:
