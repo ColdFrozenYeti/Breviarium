@@ -114,7 +114,15 @@ public struct Concurrence {
 
         let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
         let tomorrowIsFestumDomini = tomorrowRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
-        let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
+        // `horascommon.pl:976-977` keys the lower threshold off tomorrow's *title*
+        // (`$cwrank[0] =~ /Dominica/i`), not its weekday. The two differ when Christmas
+        // falls on a Sunday: "Dominica Infra Octavam Nativitatis" is then kept on Friday
+        // 30 December (`Tabulae/Transfer/b.txt`/`g.txt`, `12-30=Tempora/Nat1-0`), and
+        // its rank of 5.4 clears only the Sunday threshold. Confirmed real for 29
+        // December 2033 and 2039: "Dominica Infra Octavam Nativitatis ~ II. classis
+        // Vespera de sequenti.", where this project kept 29 December's own Vespers.
+        let tomorrowIsDominica = tomorrow.winningRank.title.range(of: "Dominica", options: .caseInsensitive) != nil
+        let threshold: Double = (tomorrowIsDominica || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
 
         // "In 1960, in concurrence of days of equal rank, the preceding takes
         // precedence" (`horascommon.pl:1241-1242`'s own comment, `$rank >= $crank`,

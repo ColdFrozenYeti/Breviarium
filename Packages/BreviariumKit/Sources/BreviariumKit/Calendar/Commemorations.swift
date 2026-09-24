@@ -274,7 +274,9 @@ public struct Commemorations {
 
         let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
         let tomorrowIsFestumDomini = matches(tomorrowRule, "Festum Domini")
-        let threshold: Double = (tomorrow.isSunday || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
+        // Keyed off tomorrow's title, as in `Concurrence.resolve` (`horascommon.pl:977`).
+        let tomorrowIsDominica = matches(tomorrow.winningRank.title, "Dominica")
+        let threshold: Double = (tomorrowIsDominica || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
         guard tomorrow.winningRank.numericPrecedence >= threshold else { return nil }
 
         return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank, ind: 1)

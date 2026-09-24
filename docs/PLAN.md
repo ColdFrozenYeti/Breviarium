@@ -3129,6 +3129,25 @@ unchanged (Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7, Conclusio 0
 mismatch date in any category. Fixed dates: 2029-12-21, 2035-12-21, 2040-12-21 (Bug 8)
 and 2033-03-19, 2035-02-24 (Bug 4).
 
+**Dec-29 Christmas-Octave-Sunday concurrence (the third deferred cluster).** In 2033 and
+2039 Christmas is a Sunday, so no Sunday falls between 26 and 31 December and
+"Dominica Infra Octavam Nativitatis" is kept on Friday 30 December (`Transfer/b.txt`/
+`g.txt`, `12-30=Tempora/Nat1-0`, which `SanctoralCalendar` already applied). The real
+fixtures for 29 December show its first Vespers ("Vespera de sequenti."). The mechanism is
+a one-word gap: `concurrence()`'s first-Vespers threshold (`horascommon.pl:974-977`) is
+`$cwrank[2] < (($cwrank[0] =~ /Dominica/i || (Festum Domini && $dayofweek == 6)) ? 5 : 6)`,
+keyed off tomorrow's **title**, and this project used `tomorrow.isSunday`. The
+Friday-kept Sunday (5.4) therefore faced the I. classis threshold of 6. Fixed in
+`Concurrence.resolve` and in the duplicate threshold in
+`Commemorations.tomorrowsTiedFirstVespersCandidate`. Past the threshold, the ordinary
+`crank > rank` check (5.4 > `Nat29`'s 5) does the rest. The real branch taken is `:1063`'s
+"two concurrent Tempora", whose commemoration side was ported just above. Sweep against
+the post-Bug-4 baseline: **Canticum 9 → 7, Capitulum 9 → 7, Oratio 9 → 7, Versus 9 → 7**,
+Hymnus 7 and Psalmodia 7 unchanged, no new mismatch date. Full suite: 328 passed. New
+tests: `christmasOctaveSundayKeptOnFridayHasFirstVespers`,
+`twentyNinthDecemberKeepsItsOwnVespersWhenTheOctaveSundayIsOnSunday`
+(`ChristmasOctaveSundayOnFridayOracleTests.swift`).
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
