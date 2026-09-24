@@ -3499,8 +3499,30 @@ covers any multi-line unit, and hymn stanzas are the only one today. The string 
 unchanged, so the table of contents' offsets are unaffected. Also added a
 `BREVIARIUM_SNAPSHOT_SECTION` launch hook (open at a section, like the table of
 contents) and `testHymnStanzasSnapshots` (19 November 2026 at the hymn, horizontal and
-vertical, M and XXL). Expected after the fix: 23.0 pt within a stanza, 34.3 pt between
-stanzas.
+vertical, M and XXL).
+
+**After the fix** (App CI on `b8684b6`, `hymn-*` snapshots, `measure-snapshot.py --pitch`):
+
+| Snapshot | Within a stanza | Between stanzas |
+|---|---|---|
+| vertical, M | 23.0 (±0.3) | 34.3–35.0 |
+| vertical, XXL | 34.3 (±0.4) | 51.7–52.7 |
+| horizontal, M | — (see below) | — |
+| horizontal, XXL | 34.3 | — (one stanza on the page) |
+
+Within a stanza the pitch is now the plain line pitch. The stanza gap appears once per
+stanza, 11.4 pt at M and about 17.5 pt at XXL, which is 0.6 × body at both sizes. The
+doxology's *Amen.* stays inside its stanza. The ferial psalmody page still measures 23.0 pt
+body pitch, so nothing else moved.
+
+**Second bug, found by these snapshots: table-of-contents jumps in horizontal mode could
+land one page early.** A section's offset is its separator rule, a paragraph of its own. At
+M on 19 November 2026 the rule before *Hymnus* is the last line of page 7, and the heading
+starts page 8. So the jump showed page 7 (the end of the *Capitulum*), and the M hymn
+snapshot shows no hymn. `PagedOfficeReader` now jumps to the page of the paragraph after
+the rule, which is the heading. When the rule and the heading share a page, which is the
+usual case, nothing changes. The vertical reader still scrolls to the rule, which it
+always shows above the heading.
 
 **`CLAUDE.md` updated** as approved with the B1-M0 plan:
 - the Vulgate psalter becomes the default, with Pius XII as an option;
