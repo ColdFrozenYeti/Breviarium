@@ -79,6 +79,41 @@ public struct SanctoralCalendar: Sendable {
     /// `transferredTemporalPath` — letter file first, then the exact Easter-`MMDD`
     /// numeric file overriding it for the same key, matching `Directorium.pm`'s own
     /// `load_transfers` push order (a later push wins the hash).
+    ///
+    /// **Leap years split the letter file in two by date range**, a distinction this
+    /// project's `transferSource` had missed entirely (see the reverted first attempt
+    /// below). `load_transfers` (`Directorium.pm:141-162`) always loads the *primary*
+    /// letter file through `load_transfer_file`'s own `$filter` parameter
+    /// (`Directorium.pm:55-73`): `$isleap` itself is that filter, and `load_transfer_file`
+    /// treats `1` as "Feb 24 - Dec" (excluding every January/early-February line via its
+    /// own regex) and `0` as "whole year" (no filtering at all). So in an ordinary year
+    /// (`$isleap == 0`) the primary file supplies every date as before; in a leap year
+    /// (`$isleap == 1`) its own January/Feb-1-23 entries are silently dropped. Only then,
+    /// inside `load_transfers`'s own `if ($isleap)` branch, a *second* letter file is
+    /// loaded to fill exactly that gap: `push(@lines, load_transfer_file($letters[$letter
+    /// - 6], 2, ...))` — Perl's negative array index wraps from the end, so `$letters[
+    /// $letter - 6]` is really `$letters[$letter + 1]` (mod 7) — with filter `2`,
+    /// `load_transfer_file`'s own "Jan + Feb 23" branch (the mirror image of `1`).
+    ///
+    /// A first attempt at this fix loaded the extra letter file unconditionally for
+    /// *every* key in a leap year, not just January/Feb-23 ones — regressing 30 October
+    /// 2028 (Christ the King) and 30 December 2028 (Holy Family) on the very next full
+    /// sweep, both wrongly picking up the *other* letter's own October/December entries.
+    /// Reverted in the same session before landing; this version instead mirrors
+    /// `load_transfer_file`'s own regex exactly (`isJanuaryOrEarlyFebruaryTransferKey`),
+    /// so the two files stay mutually exclusive by date range, matching the real script.
+    ///
+    /// Confirmed real for 4 January 2032 and 2 January 2036 (both leap years): the real
+    /// fixture's title is "Sanctissimi Nominis Jesu ~ II. classis" — the primary letter
+    /// computed for both years is `"c"` (whose own `01-03` entry is dropped that year by
+    /// the leap-year filter regardless), while `Transfer/d.txt`'s own
+    /// `"01-04=Tempora/Nat2-0"` (reached only via the extra file) is what actually
+    /// applies. The corresponding *extra numeric* file `load_transfers` also loads in the
+    /// same branch (`$easter++` first, wrapping `332` to `401`) is deliberately not
+    /// ported here — every numeric transfer file this corpus bundles (`Transfer/322.txt`
+    /// ... `426.txt`) only ever carries March/April Annunciation-adjacent keys, never a
+    /// January/February one, so it can't affect this gap either way; left for a future
+    /// pass if a real fixture ever needs it.
     private func transferSource(targetKey: String, year: Int) -> String? {
         guard !transferTable.isEmpty else { return nil }
 
@@ -88,11 +123,34 @@ public struct SanctoralCalendar: Sendable {
         let letters = ["a", "b", "c", "d", "e", "f", "g"]
         let letterIndex = (easterNumber - 319 + (easter.month == 4 ? 1 : 0)) % 7
         let letterKey = letters[letterIndex]
+        let isLeap = Computus.isLeapYear(year)
+        let isJanOrEarlyFeb = Self.isJanuaryOrEarlyFebruaryTransferKey(targetKey)
 
         var source: String?
-        if let letterFile = transferTable[letterKey], let value = letterFile[targetKey] { source = value }
+        if !(isLeap && isJanOrEarlyFeb) {
+            if let letterFile = transferTable[letterKey], let value = letterFile[targetKey] { source = value }
+        }
         if let numericFile = transferTable[numericKey], let value = numericFile[targetKey] { source = value }
+        if isLeap, isJanOrEarlyFeb {
+            let extraLetterKey = letters[(letterIndex + 1) % 7]
+            if let extraLetterFile = transferTable[extraLetterKey], let value = extraLetterFile[targetKey] { source = value }
+        }
         return source?.isEmpty == false ? source : nil
+    }
+
+    /// Mirrors `load_transfer_file`'s own regex exactly (`Directorium.pm:63`):
+    /// `^(?:Hy|seant)?(?:01|02-[01]|02-2[01239]|dirge1)` — this project's transfer-table
+    /// keys are always plain `MM-DD` dates (`Computus.sanctoralKey`), so only the date
+    /// portion of that alternation is relevant: any `01-*` key, or `02-0*`/`02-1*`
+    /// (1-19 February), or `02-2` followed by `0`/`1`/`2`/`3`/`9` (20-23 and 29
+    /// February — the regex's own character class `[01239]` really does skip 24-28).
+    private static func isJanuaryOrEarlyFebruaryTransferKey(_ key: String) -> Bool {
+        if key.hasPrefix("01") { return true }
+        if key.hasPrefix("02-0") || key.hasPrefix("02-1") { return true }
+        if key.hasPrefix("02-2"), let lastDigit = key.dropFirst(4).first {
+            return "01239".contains(lastDigit)
+        }
+        return false
     }
 
     private static func isSanctiStyleTransferSource(_ reference: String) -> Bool {

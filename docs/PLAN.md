@@ -2767,6 +2767,61 @@ understanding its own real mechanism. Capitulum's remaining count otherwise matc
 already-known Epiphany/Holy-Family cluster dates (`2029-01-06`, `2030-01-12`,
 `2030-01-13`, `2032-01-04`), deferred with Hymnus above.
 
+**Versus category pass**, one real fix, found by tracing two of the 11 remaining dates
+(`2032-01-04`, `2036-01-02`) that weren't part of any already-known cluster: both real
+fixtures read "Sanctissimi Nominis Jesu ~ II. classis" (the Feast of the Holy Name of
+Jesus, kept on the Sunday between 1 January and Epiphany) — not a concurrence question at
+all (no "Vespera de sequenti"), so lower-risk than another `Concurrence.swift` change.
+
+The real mechanism is `Directorium.pm`'s own `load_transfers` (lines 141-162) plus
+`load_transfer_file` (lines 55-73): under 1960 rubrics, Holy Name has no fixed Sancti
+file of its own any more (`Sancti/01-02` is actually "In Octava S. Stephani"); instead a
+`Tabulae/Transfer/<letter>.txt` entry like `Transfer/d.txt`'s own
+`"01-04=Tempora/Nat2-0"` redirects whichever January date is the right Sunday that year
+onto the week-numbered temporal file, which itself carries Holy Name's proper texts. This
+project's `SanctoralCalendar.transferSource` already had this whole mechanism (confirmed
+working for `01-05` in an ordinary year), but **in leap years it was silently wrong**:
+`load_transfers` always loads its primary letter file through `load_transfer_file`'s own
+`$filter` parameter set to `$isleap` — `1` means "Feb 24 - Dec", silently dropping every
+January/early-February line from that file in a leap year — and only then, inside its own
+`if ($isleap)` branch, loads a *second* letter file (`$letters[$letter - 6]`; Perl's
+negative array index wraps from the end, so really `$letters[$letter + 1]` mod 7) filtered
+to `2`, "Jan + Feb 23" only, supplying exactly the entries the primary file just dropped.
+This project's `transferSource` never consulted that second file at all. Confirmed real
+for 4 January 2032 and 2 January 2036 (both leap years): the primary letter computed for
+both is `"c"`, but `Transfer/c.txt`'s own January entries don't apply in a leap year
+regardless, and `Transfer/d.txt`'s `"01-04=Tempora/Nat2-0"` (reached only via the second
+file) is what actually governs.
+
+**A first attempt at this fix regressed on the very next full sweep.** It loaded the
+extra letter file's entries unconditionally for *every* key in a leap year, not just
+January/Feb-23 ones — new mismatches immediately appeared on 30 October 2028 (Christ the
+King) and 30 December 2028 (Holy Family), both wrongly picking up the *other* letter
+file's own October/December entries instead of the correct primary file's. Caught before
+committing (the sweep is always run before trusting a fix); root cause found by reading
+`load_transfer_file` itself, which showed the `$filter` parameter — not a blind letter
+swap — is what actually keeps the two files' January/Feb-23 and Feb-24/December halves
+mutually exclusive. Fixed properly by mirroring that same regex-driven split
+(`isJanuaryOrEarlyFebruaryTransferKey`), so the extra file is only ever consulted for a
+January/Feb-1-23 target key, and the primary file is skipped for exactly those same keys
+in a leap year — never touching either file's other half. New tests:
+`holyNameOfJesusWinsOnTheSundayInALeapYear`, `holyNameOfJesusWinsOnTheSundayInASecondLeapYear`
+(`HolyNameJesusLeapYearTransferOracleTests.swift`).
+
+Full suite (203 Kit + 8 Data + 99 named oracle) confirmed clean after the corrected fix.
+Fresh sweep against the prior baseline (Oratio 49, Canticum 12, Psalmodia 9, Capitulum 11,
+Versus 11, Hymnus 9, Conclusio 0):
+
+Oratio 47, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7, Conclusio 0.
+
+Every category improved, none regressed — critically, 30 October 2028, 30 December 2028,
+and 2032-10-24 do **not** reappear, confirming the corrected, date-range-scoped fix. The
+remaining Versus/Capitulum/Hymnus/Psalmodia/Canticum counts are now fully accounted for by
+the three already-deferred concurrence clusters (Epiphany/Holy-Family, Sacred-Heart/
+Precious-Blood, Dec-29 Christmas-Octave-Sunday) — no further category-specific work is
+safely available without attempting one of those three, each already flagged for a future,
+carefully-scoped session rather than risked here.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
