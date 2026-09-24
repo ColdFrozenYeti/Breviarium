@@ -3621,3 +3621,69 @@ psalms, 634 dates, both psalters).
 - *Named test:* `dividedPsalmTitlesMatchDivinumOfficium`.
 
 **After both fixes:** psalmody audit 0 dates in both psalters.
+
+### B1-M4 — English in the engine
+
+**English corpus.** `DataBundle.makeEnglishCorpus()` is `English/` layered over the
+Vulgate `Latin/`, as DO builds its second column (`SetupString.pl:589-639`): a section
+missing in English falls back to the Latin. `LayeredOfficeCorpus` now returns every
+layer's variants, lower layers first, so the last applicable one wins across layers too.
+For example, English `[Feria Versum 3] (feria 7)` beats the Latin `@:Dominica Versum 3`.
+`HourAssembler` resolves every unit a second time against it, per language: antiphons,
+verses, versicles, hymn stanzas, chapter, collect, commemorations and rubrics. With the
+Pius XII psalter, a psalm whose verses don't line up with the English gets one
+`.englishPsalm` block, paired whole (`psalters-and-english.md`).
+
+**New audit, `vespersFullRangeEnglishAudit`** (`EnglishAuditOracleTests.swift`), against
+the bilingual fixtures (Vulgate plus English, one DO table row per line). It makes four
+checks:
+- **content:** every English piece we render is in DO's English column;
+- **coverage, English:** nothing but chrome is left in DO's English column once ours is
+  removed;
+- **coverage, Latin:** the same for DO's Latin column, which the Latin content audit
+  can't see;
+- **pairing:** a unit's Latin and English sit in the same DO row.
+
+The 2044 hold-out runs it too, with the priest on and off.
+
+**Baseline** (engine with no English yet):
+- 944 distinct uncovered English texts, on 5,844 dates;
+- one mispairing, on 591 dates;
+- no English at all for any hymn, psalm, canticle, chapter, collect or versicle.
+
+**Fixes found by the audit**, each checked against DO's Perl:
+- `†` is removed and `‡` becomes the half-verse break, in both languages
+  (`horasscripts.pl:397-419`).
+- The Oratio preamble. The V/R is replaced by the line-5 rubric of `[Dominus]` when there
+  is no priest and the preces were said (`$precesferiales`). *Orémus* is added, and the
+  whole preamble is gated on `Limit…Oratio` (`orationes.pl:152-213`). *Orémus* also goes
+  before each commemoration's collect (`orationes.pl:820`).
+- A closing antiphon's first `*` is removed (`psalmi.pl:688`, `orationes.pl:818`, no
+  `/g`).
+- The seasonal alleluia in English is the lower-case `alleluia`
+  (`LanguageTextTools.pm` `ensure_single_alleluia`).
+- `$`/`&` macro names are trimmed, e.g. the English `$Per Dominum ` in `Sancti/02-24`
+  (`webdia.pl` expand).
+- `;` counts as punctuation when matching an antiphon's opening (`horas.pl` `depunct`),
+  which fixes Psalm 111 on 531 dates.
+- The commemoration rubric names the office from the English `[Rank]`
+  (`SetupString.pl`'s naming), e.g. "Commemoration of Annunciation of the Blessed Virgin
+  Mary".
+- The Ascension/Paschaltide "major special" rule applies only when the office isn't a
+  Sunday's (`horascommon.pl:2296`). This fixes the missing hymn on the Saturdays before
+  the Sundays after Easter.
+- Holy Thursday's and Good Friday's `[Prelude Vespera]` rubric (`specials.pl:123-125`) is
+  now `Hour.prelude`, shown as header item 6.
+- A commemoration's antiphon loses its first `*`, as the closing antiphons do. This fixes
+  the double asterisk in the Lenten feria commemorated on 24 February 2026.
+- The Magnificat antiphon's location is looked up separately in each language. On Tuesday
+  of the third week after Easter the English has its own `[Ant 3]` where the Latin falls
+  back.
+
+**After the fixes:** every check is 0 over 2025-2040. The Latin content, commemoration
+and psalmody audits stay 0 in both psalters, and the 2044 hold-out passes in both
+psalters with English.
+
+**CI split.** The full-range audits took Kit CI to over 20 minutes, so they moved to
+their own workflow, `oracle-audits.yml` (`--filter vespersFullRange`), which runs in
+parallel. Kit CI runs `swift test --skip vespersFullRange`.
