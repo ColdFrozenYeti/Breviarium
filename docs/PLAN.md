@@ -3530,3 +3530,15 @@ always shows above the heading.
 - the oracle scope covers both psalters;
 - the options mapping notes that the psalter option off means the Vulgate;
 - the reference screenshot is named correctly (`Format.png`).
+
+### B1-M1 — The psalters and the English (document)
+
+Written as [`psalters-and-english.md`](psalters-and-english.md), for review; no code.
+Headline findings:
+- the psalter switch changes only `Psalterium/Psalmorum/`;
+- the Vulgate and the English match line for line, while Bea does not;
+- DO's English is complete for Vespers (92 sampled evenings);
+- DO's psalter is Challoner Douay-Rheims (0.6% word variants against DRBO), but about a
+  dozen of its 83 chapters use King James or modern wording.
+
+Five questions are waiting for the user, including Bea pairing and DRBO against DO.
