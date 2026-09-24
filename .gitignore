@@ -32,3 +32,4 @@ App/Breviarium/breviarium-data.json
 # scripts/generate-oracle-fixtures.sh's uncommitted staging area -- only the compressed
 # archives it packs from this (data/oracle-fixtures/*.tar.gz, main/*.tar.gz) are committed.
 data/oracle-fixtures/raw/
+data/oracle-fixtures/raw-holdout/

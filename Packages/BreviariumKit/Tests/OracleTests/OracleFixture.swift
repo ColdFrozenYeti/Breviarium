@@ -20,6 +20,7 @@ actor OracleFixture {
         .deletingLastPathComponent().deletingLastPathComponent()
 
     private var mainYearCache: [Int: [String: String]] = [:]
+    private var holdoutYearCache: [Int: [String: String]] = [:]
     private var spotCheckCache: [String: String]?
 
     /// The main sweep's fixture text for one date (priest off, Latin/Bea only — the
@@ -32,6 +33,18 @@ actor OracleFixture {
             )
         }
         return mainYearCache[year]?["\(year)/\(date)_priestN_latin.txt"]
+    }
+
+    /// A hold-out year's fixture text for one date (`scripts/generate-holdout-fixtures.sh`,
+    /// `data/oracle-fixtures/holdout/<year>.tar.gz`): Latin/Bea, with priest off and on
+    /// both rendered. `nil` if that year hasn't been generated.
+    func holdout(year: Int, date: String, priest: Bool) throws -> String? {
+        if holdoutYearCache[year] == nil {
+            let archive = Self.repoRoot.appendingPathComponent("data/oracle-fixtures/holdout/\(year).tar.gz")
+            guard FileManager.default.fileExists(atPath: archive.path) else { return nil }
+            holdoutYearCache[year] = try Self.extractAndRead(archive: archive)
+        }
+        return holdoutYearCache[year]?["\(year)/\(date)_priest\(priest ? "Y" : "N")_latin.txt"]
     }
 
     /// The spot-check fixture text for one filename (as `scripts/oracle-date-list.pl`

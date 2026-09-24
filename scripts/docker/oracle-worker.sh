@@ -13,7 +13,13 @@ set -euo pipefail
 
 IFS=$'\t' read -r date_param priest lang2 outfile <<< "$1"
 
-out_path="/oracle-raw/${outfile}"
+# Both paths default to the container layout (docker-compose.yml). Override them to run
+# against a host checkout instead: DO_ROOT=<repo>/data/divinum-officium ORACLE_RAW=<dir>.
+# The host needs only Perl with CGI.pm for this CLI path (no Plack/Starman).
+do_root="${DO_ROOT:-/var/www}"
+oracle_raw="${ORACLE_RAW:-/oracle-raw}"
+
+out_path="${oracle_raw}/${outfile}"
 mkdir -p "$(dirname "$out_path")"
 
 # lang1 is always Latin-Bea (CLAUDE.md fixes the Pius XII/Bea psalter permanently). For
@@ -26,7 +32,7 @@ if [ "$priest" = "1" ]; then
   args+=(priest=1)
 fi
 
-perl /var/www/web/cgi-bin/horas/officium.pl "${args[@]}" 2>/dev/null \
+perl "${do_root}/web/cgi-bin/horas/officium.pl" "${args[@]}" 2>/dev/null \
   | perl -CSD -0777 -pe '
       s/\A.*?\n\r?\n//s;
       s/<[^>]+>//g;

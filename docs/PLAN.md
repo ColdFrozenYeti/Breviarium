@@ -3238,6 +3238,26 @@ included a temporary debug-dump test, `ZZDebugTmp.swift`, removed in the next co
 **Still unaudited:** the *main office's* own title with the monthday suffix (the
 day-title block), which neither audit compares.
 
+**Hold-out year 2044, priest off and on.** The main fixtures stop at 2040 and cover
+the priest form only on ~128 spot-check dates, so every fix above was traced and measured
+in-sample. To get an out-of-sample check, 2044 (a leap year, Easter 17 April) was
+rendered in full with both priest settings. The DO image couldn't be rebuilt here: CPAN
+and deb.debian.org are blocked. `officium.pl`'s CLI path needs only Perl with CGI.pm,
+installed from Ubuntu's `libcgi-pm-perl`. `oracle-worker.sh` gained `DO_ROOT`/
+`ORACLE_RAW` overrides (container defaults unchanged). Host rendering was first verified
+**byte-identical** to the committed container fixtures: all 365 dates of 2026 priest off
+and all 128 priest-on spot-check files, 0 differences. New:
+`scripts/generate-holdout-fixtures.sh`, `data/oracle-fixtures/holdout/2044.tar.gz` (732
+renders, 1.2 MB, deterministic across two runs), `OracleFixture.holdout(year:date:priest:)`,
+and `holdout2044VespersMatchesDivinumOfficium(date:priest:)`, a parameterized Swift
+Testing test with one case per date and priest setting (732 cases). Each case asserts
+the Psalmodia/Canticum/Oratio sections are present, runs the content check (every
+rendered piece in the fixture) and the commemoration check (count and titles). A
+negative control confirmed the check discriminates: a priest-on render against the
+priest-off fixture is flagged ("Dóminus vobíscum." / "Et cum spíritu tuo."), 0 against the
+right one. **Result: all 732 cases pass on the first run, with no engine change.**
+Full suite: 340 passed.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

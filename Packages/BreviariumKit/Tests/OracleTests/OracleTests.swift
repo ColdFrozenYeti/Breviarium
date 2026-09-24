@@ -70,7 +70,7 @@ private func collapsedWhitespace(_ text: String) -> String {
 /// empty means a clean diff. `fixtureText` gets `LatinOrthography` applied here (the
 /// fixtures are deliberately stored pre-normalisation — `data/SOURCE.md` — precisely so
 /// this comparison is the one place that needs to run it).
-private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>? = nil) -> [String] {
+func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>? = nil) -> [String] {
     let normalizedFixture = collapsedWhitespace(LatinOrthography.normalize(fixtureText))
     var mismatches: [String] = []
     for section in hour.sections where sectionKinds?.contains(section.kind) ?? true {
