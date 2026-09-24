@@ -2,43 +2,55 @@
 
 A personal iPhone app for the traditional Divine Office, modelled on Universalis's night
 mode but giving the pre-conciliar office: the *Breviarium Romanum* under the **1960
-rubrics**, with the Universal Calendar and the Pius XII (Bea) psalter. The app computes
-the office itself for any date. It is fully offline, night mode only, and for private
+rubrics**, with the Universal Calendar, the Vulgate psalter (the Pius XII psalter is an
+option), and an optional parallel English translation. The app computes the office
+itself for any date. It is fully offline, night mode only, and for private
 use. It is installed by sideloading with a free Apple ID.
 
-## Status: alpha
+## Status: Beta 1
 
-The alpha is **Roman Vespers**, in Latin.
+Beta 1 is **Roman Vespers**, in Latin with an optional English translation, in either
+psalter.
 
 - **The office is right.** For every evening from 2025 to 2040, the engine's Vespers is
   checked against [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium)'s
-  own output, and every section matches. That covers psalms, chapter, hymn, versicle,
-  Magnificat, collect and conclusion, and every commemoration, including those DO shows
-  that the engine might have left out. All of 2044 is checked too, with the priest form
-  on and off, as an out-of-sample year the engine was never tuned against.
+  own output, in both psalters, and every section matches:
+  - psalms, chapter, hymn, versicle, Magnificat, collect and conclusion, and every
+    commemoration, including those DO shows that the engine might have left out;
+  - each psalm's title and verse list;
+  - the day title, including evenings that already belong to the next day's office;
+  - the English, column by column against DO's bilingual page.
+
+  All of 2044 is checked too, with the priest form on and off, as an out-of-sample year
+  the engine was never tuned against.
 - **The app** shows Vespers for any date:
   - The office reads like a book: pages turn sideways (a slide or a page curl) and the
     text flows line by line from one page to the next. A continuous vertical scroll is
     available instead.
+  - With English on, Latin and English run side by side, with the chapter and collect
+    stacked in portrait. With the Pius XII psalter, each psalm's English is shown whole
+    beside it.
   - The layout follows `design/reference/`: the date line, day title, table of contents,
     section headings, and a *Page N of M* footer.
 - **Settings:**
   - *Sacerdos vel diaconus adest* (*Dominus vobiscum* or *Domine, exaudi*)
   - *Rubricæ* (show or hide rubrics)
+  - English translation (on or off)
+  - *Psalterium* (Vulgata or Pii XII)
   - Text size
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
   - About, with the Divinum Officium licence
-- **Next, the betas** ([`docs/Beta_1_plan.md`](docs/Beta_1_plan.md) for the first):
-  1. the Vulgate psalter as the default, with Bea kept as an option, and the English
-     translation;
-  2. all the day hours;
-  3. the Ambrosian and Dominican rites;
-  4. Matins.
+- **Next, the later betas:**
+  1. all the day hours;
+  2. the Ambrosian and Dominican rites;
+  3. Matins.
 
 The build log, with every decision and every bug traced to the Divinum Officium source
-it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong in the alpha, and what
-to carry into the betas, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md).
+it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong,
+and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md)
+and [`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md). Beta 1's plan is
+[`docs/Beta_1_plan.md`](docs/Beta_1_plan.md).
 
 ## Installing on the iPhone
 
@@ -60,7 +72,7 @@ weekly re-sign routine, and a short checklist to run on the phone after each ins
 | `Packages/BreviariumKit/` | The engine: calendar, occurrence and concurrence, commemorations, hour assembly, text model. Pure Swift and Foundation, so it builds on Linux and Windows. Also contains `BreviariumData`, the build-time tool that turns the Divinum Officium texts into the app's bundled data file. |
 | `App/` | The SwiftUI app (XcodeGen `project.yml`) and its UI snapshot tests. Built only on CI. |
 | `data/divinum-officium/` | Divinum Officium, as a git submodule pinned to one commit (see `data/SOURCE.md`). |
-| `data/oracle-fixtures/` | Divinum Officium's own rendered Vespers, used as the tests' reference: every day 2025–2040, a spot-check set with the other option combinations, and the 2044 hold-out year. |
+| `data/oracle-fixtures/` | Divinum Officium's own rendered Vespers, used as the tests' reference: every day 2025–2040 in each psalter and in Latin with English, a spot-check set with the other option combinations, and the 2044 hold-out year. |
 | `docs/` | The plan and build log, the 1960 Vespers rubrics reference, the Divinum Officium file format, and setup and install guides. |
 | `design/reference/` | Universalis night-mode screenshots, the visual reference. |
 | `scripts/` | Test runners, fixture generators, and the Windows `.ipa` fetcher. |
@@ -92,11 +104,11 @@ What the tests check:
   named tests for specific dates, each citing the Divinum Officium source it was checked
   against. Full-range audits cover every day 2025–2040 in both directions (what we show
   is in DO's page, and what DO's page shows is in ours): content, commemorations and
-  psalmody in both psalters, and the English, column by column. The 2044 hold-out has
-  one test case per day and priest setting, in both psalters and in English.
+  psalmody in both psalters, the day title, and the English, column by column. The 2044
+  hold-out has one test case per day and priest setting, in both psalters and in English.
 - **Fixtures** are regenerated from the pinned checkout by
-  `scripts/generate-oracle-fixtures.sh` (in Docker) and
-  `scripts/generate-holdout-fixtures.sh <year>`.
+  `scripts/generate-oracle-fixtures.sh` (in Docker), `scripts/generate-holdout-fixtures.sh
+  <year>`, and, for the Vulgate and bilingual sets, `scripts/generate-fixture-set.sh`.
 - **Never "fix" a failing oracle test by editing a fixture.**
 
 **The app** is built only on GitHub Actions macOS runners:
