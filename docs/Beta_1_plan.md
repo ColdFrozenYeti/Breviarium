@@ -126,6 +126,8 @@ are not optional.
     is ever cut mid-line. This is the hardest UI problem of the beta: B1-M5 starts with a
     prototype and a measured decision (see Risks).
 - **Alpha carry-overs:**
+  - **fix hymn stanzas** (a bug introduced by the TextKit port, see B1-M0): hymns
+    currently show as evenly spaced single lines, with no visible stanza grouping;
   - keep a psalm title with its first verse (no title alone at a page bottom);
   - the main day title gets its monthday suffix ("…III. Augusti") and is audited like the
     commemoration titles.
@@ -159,15 +161,35 @@ Goal: start the beta from a clean, measured baseline.
    so stacked pushes stop wasting macOS minutes.
 3. **CI budget:** move the long full-range audits into a separate Linux workflow run on
    demand and on `main`, if Kit CI grows past about 10 minutes with the new fixture sets.
-4. **`CLAUDE.md` corrections:**
+4. **Bugfix: hymns show as single lines, not stanzas.**
+   - **Symptom.** In the M5 snapshots (for example 19 November 2026, "Fortem virili
+     pectore") every line of the hymn is spaced like a stanza of its own (about 26 pt
+     pitch), so the stanzas can't be told apart. Only the final doxology, the last unit,
+     is set tight at the normal 23 pt.
+   - **Cause.** The engine is correct: `HourAssembler.hymnStanzas` splits at DO's `_`
+     lines and emits one `.prose` unit per stanza, its lines joined with `\n`. But
+     `OfficeTypesetter` appends each unit as one paragraph with the stanza gap as
+     `paragraphSpacing`, and in TextKit every `\n` inside it starts a new paragraph. So
+     the gap lands after every line instead of after the stanza. The old SwiftUI
+     renderer drew a stanza as one `Text` block, which is why the alpha's earlier
+     snapshots were right; the regression came in with the TextKit port (`2ef9957`).
+   - **Fix.** Typesetter only: break the lines inside a stanza with the Unicode line
+     separator (U+2028), or give only a stanza's last line the gap. Lines within a
+     stanza keep the 23 pt pitch, with the stanza gap only between stanzas. Check the
+     same pattern in any other multi-line unit (prose with internal line breaks).
+   - **Verify.** Measure a hymn page with the pixel script: 23 pt pitch within a stanza
+     and a clear gap between stanzas, at default and XXL, in both reading modes. Add a
+     hymn page to the snapshot matrix so this can't regress silently. The English
+     layout in B1-M5 pairs hymns stanza by stanza, so it depends on this.
+5. **`CLAUDE.md` corrections:**
    - the reference-screenshot file name (`Format.png`, not
      `universalis-compline-night.png`);
    - the psalter default (Vulgate, with Bea as an option);
    - the oracle fixture scope for Beta 1.
 
    These edits are listed for approval before they are made.
-5. **Exit criterion:** baseline recorded in `PLAN.md`; CI changes green; `CLAUDE.md`
-   edits approved.
+6. **Exit criterion:** baseline recorded in `PLAN.md`; CI changes green; hymn stanzas
+   measured correct in the snapshots; `CLAUDE.md` edits approved.
 
 ### B1-M1 — Understand the psalters and the English (no code)
 
@@ -236,6 +258,8 @@ the pinned DO commit:
 3. Build the parallel layout into `OfficeTypesetter` and both readers (horizontal pages,
    with slide and curl, and vertical scroll).
 4. Carry-overs: psalm title kept with its first verse; main day-title monthday suffix.
+   Hymns are set as stanzas already (fixed in B1-M0); the English hymn column pairs
+   stanza by stanza.
 5. The full snapshot matrix from `CLAUDE.md`: ferial day, commemoration day, I class
    feast and Holy Week day; page 1 and a psalmody page; English off and on; portrait,
    plus landscape with English on; default and largest text size. In both psalters for at
