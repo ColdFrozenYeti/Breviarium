@@ -670,16 +670,35 @@ public struct HourAssembler {
         return units
     }
 
-    /// `Major Special.txt`'s own season-prefixed generic versicle (`[Quad Versum 3]`,
-    /// `[Adv Versum 2]`, etc.) -- `weekName` minus its trailing week number gives the
-    /// prefix (`"Quad1"` -> `"Quad"`), matching `TemporalCycle.weekName`'s own naming.
+    /// `Major Special.txt`'s own commemoration-versicle fallback, tried in the same
+    /// specific-then-generic order the real file itself encodes. Some individual weeks
+    /// carry their *own* override, headed by the full week name (e.g. `[Quad5 Versum
+    /// 3]`, Passion week) — confirmed real for 24 March 2026 (a Tuesday within Passion
+    /// week, commemorated at the Annunciation's own pre-empting first Vespers): the real
+    /// versicle is "Éripe me, Dómine, ab hómine malo. / A viro iníquo éripe me.", not the
+    /// week-agnostic generic Lenten one. This project's engine previously always
+    /// stripped the week number outright (`"Quad5"` -> `"Quad"`), so it never even tried
+    /// the week-specific key, silently falling through to the generic one on *every*
+    /// week, not just the ones (like `Quad1`) that genuinely have no override of their
+    /// own. `[Quad5 Versum 3]`'s own body is itself just a same-file cross-reference
+    /// (`@:Quad5 Versum 3_`, the underscore-suffixed section actually holding the text —
+    /// confirmed by reading `Major Special.txt` directly; the underscore is purely a
+    /// same-file naming convention DO uses to give two section headers with otherwise
+    /// colliding names, not a special lookup key of its own), which `SectionResolver`
+    /// already follows like any other `@`-inclusion once the *header* `[Quad5 Versum 3]`
+    /// itself is found — no separate handling needed here beyond looking it up by its
+    /// own plain name. Only when no week-specific override exists (confirmed still true
+    /// for `Quad1`, matching the generic `[Quad Versum 3]`, "Ángelis suis Deus
+    /// mandávit...", against 24 February 2026) does the week-agnostic, digit-stripped
+    /// prefix (`"Quad1"` -> `"Quad"`) apply, exactly as before.
     private static func seasonalVersumLocation(weekName: String, ind: Int, resolver: SectionResolver) -> (path: String, section: String)? {
-        let prefix = String(weekName.reversed().drop(while: \.isNumber).reversed())
-        guard !prefix.isEmpty else { return nil }
+        let bareprefix = String(weekName.reversed().drop(while: \.isNumber).reversed())
         let path = "Psalterium/Special/Major Special"
-        for candidateInd in [ind, 4 - ind] {
-            let section = "\(prefix) Versum \(candidateInd)"
-            if resolver.sectionExists(path: path, section: section) { return (path, section) }
+        for prefix in [weekName, bareprefix] where !prefix.isEmpty {
+            for candidateInd in [ind, 4 - ind] {
+                let section = "\(prefix) Versum \(candidateInd)"
+                if resolver.sectionExists(path: path, section: section) { return (path, section) }
+            }
         }
         return nil
     }

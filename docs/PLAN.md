@@ -2831,6 +2831,48 @@ Holy-Family), `2038-07-01` (Sacred-Heart/Precious-Blood), `2033-12-29`/`2039-12-
 (Dec-29 Christmas-Octave-Sunday). Nothing to fix here without attempting one of those
 three concurrence gaps directly.
 
+**Oratio category pass**, the largest and most varied remaining category (47 dates,
+spanning many distinct real liturgical days — Annunciation, St Joseph, Circumcision/Holy
+Name, the Nativity Octave Sunday, St John Baptist's Nativity, assorted Lenten ferias —
+not explainable by the three deferred concurrence clusters alone). First fix, the largest
+single sub-pattern (7 of the 47 dates): a Passiontide commemoration's own versicle always
+fell through to the week-agnostic generic Lenten one.
+
+`orationes.pl`'s own `getcommemoratio` (traced via live Perl instrumentation this
+session, after an earlier session's attempt at the same function hit a dead end) ends its
+own Versum fallback chain with `getfrompsalterium('Versum', $ind, $lang)`
+(`specials.pl:639-652`), which builds its lookup key as `gettempora('getfrompsalterium
+major') . " Versum $ind"` — confirmed by instrumenting `getfrompsalterium` itself (`GFP
+name=[Quad5 Versum] ... GFP return=[Éripe me, Dómine, ab hómine malo...]` for 24 March
+2026) to return the *full* week name (`"Quad5"`, not the digit-stripped `"Quad"`) when a
+week has its own override. `Major Special.txt`'s own `[Quad5 Versum 3]` section exists,
+but its body is itself just a same-file cross-reference (`@:Quad5 Versum 3_`) to the
+underscore-suffixed section that actually holds the text — DO's own convention for giving
+two section headers non-colliding names within one file, not a special lookup key on its
+own; `SectionResolver` already follows it like any other `@`-inclusion once the plain
+header `[Quad5 Versum 3]` is found. This project's `HourAssembler.seasonalVersumLocation`
+had always stripped the week number outright (`"Quad5"` → `"Quad"`) before ever looking
+anything up, so it never even *tried* a week-specific override on any week — not just the
+ones (`Quad1`, confirmed against 24 February 2026) that genuinely lack one. Fixed by
+trying the full week name first, falling back to the digit-stripped generic prefix only
+when no week-specific override exists. Confirmed real for 24 March 2026 (a Tuesday within
+Passion week, commemorated at the Annunciation's own pre-empting first Vespers): real
+versicle "Éripe me, Dómine, ab hómine malo. / A viro iníquo éripe me.", not the generic
+"Ángelis suis Deus mandávit de te." this project's engine had been rendering. New tests:
+`passionWeekCommemorationUsesItsOwnMoreSpecificVersum`,
+`ordinaryLentenWeekCommemorationStillUsesTheGenericVersum`
+(`PassionWeekCommemorationVersumOracleTests.swift`).
+
+Full suite (203 Kit + 8 Data + 101 named oracle) confirmed clean. Fresh sweep against the
+prior baseline (Oratio 47, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7,
+Conclusio 0): **Oratio 47 → 37**, every other category unchanged — a bigger drop than the
+7 directly-traced dates alone would suggest, meaning several of those dates had more than
+one mismatched line each (the versicle and its response counted separately). Oratio's own
+remaining 37 dates are still under investigation — distinct sub-patterns spotted so far
+include Annunciation-adjacent Ave Maria versicles, Nativity-octave/Circumcision
+commemoration collects, and St Joseph/St John Baptist collects, each needing its own
+real-Perl trace before any fix is attempted, following the same discipline as this one.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
