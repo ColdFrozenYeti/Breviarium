@@ -157,6 +157,64 @@ public struct SanctoralCalendar: Sendable {
         !reference.contains("/") && !reference.contains("Tempora") && reference != "X-X"
     }
 
+    /// Mirrors `Directorium.pm`'s own `transfered()` (`Directorium.pm:235-269`): a
+    /// *reverse* lookup across the same year's merged transfer table (the same letter/
+    /// leap-extra-letter/numeric files `transferSource` already assembles forward),
+    /// checking whether `candidateKey` (e.g. `"03-19"`) appears as the *value* of any
+    /// entry — meaning this office has itself been transferred away to some other date
+    /// this year, and so should never compete for a commemoration on its own natural
+    /// date at all, regardless of the ordinary rank comparison.
+    ///
+    /// `occurrence()` calls the real `transfered()` immediately after fetching the
+    /// day's own Kalendaria candidate (`horascommon.pl:229-232`: `elsif ($sfile &&
+    /// transfered(...)) { $sfile = ''; }`), *before* any rank comparison against the
+    /// temporal winner — this project's `Commemorations.runnersUp` only ever checked
+    /// whether a candidate *lost* occurrence, never whether it had already been excluded
+    /// from candidacy entirely this year. Confirmed real for 19 March 2035 (St Joseph):
+    /// live Perl instrumentation showed both `@commemoentries`/`@ccommemoentries`
+    /// completely empty for that Vespers, unlike an ordinary transfer year (2028) where
+    /// St Joseph *does* survive as a same-day-loser commemoration candidate. Easter 2035
+    /// falls unusually early (25 March), pushing 19 March into Holy Week itself — the
+    /// year's own numeric transfer file (`Transfer/325.txt`) carries `"04-03=03-19"`,
+    /// confirming St Joseph is transferred to 3 April that year, which is exactly the
+    /// entry this reverse lookup finds.
+    ///
+    /// Two exclusions mirror the real check exactly: a `Tempora/`-referencing value is
+    /// never a Sancti transfer (`$val =~ /Tempora/i && $val !~ /Epi1-0/i` `next`s), and a
+    /// value ending in `v` is a vigil-only transfer, not a full transfer of the office
+    /// itself (`$transfer{$key} !~ /v\s*$/i`).
+    ///
+    /// **Not yet applied to `Occurrence.resolve`'s own winner selection** — only to
+    /// `Commemorations.runnersUp`, since that's the one confirmed broken; a transferred
+    /// office losing occurrence to a naturally higher-ranked temporal winner (as St
+    /// Joseph already does against Holy Week's own rank 7) never needed this exclusion to
+    /// produce the right *winner*, only the right *commemoration* list. Extending it to
+    /// occurrence itself is deferred until a real fixture is found that actually needs
+    /// it, rather than guessed at.
+    public func isTransferredAwayThisYear(candidateKey: String, year: Int) -> Bool {
+        guard !transferTable.isEmpty else { return false }
+
+        let easter = Computus.easter(year: year)
+        let numericKey = "\(easter.month)\(String(format: "%02d", easter.day))"
+        let easterNumber = easter.month * 100 + easter.day
+        let letters = ["a", "b", "c", "d", "e", "f", "g"]
+        let letterIndex = (easterNumber - 319 + (easter.month == 4 ? 1 : 0)) % 7
+
+        var filesToCheck = [transferTable[letters[letterIndex]], transferTable[numericKey]]
+        if Computus.isLeapYear(year) {
+            filesToCheck.append(transferTable[letters[(letterIndex + 1) % 7]])
+        }
+
+        for file in filesToCheck.compactMap({ $0 }) {
+            for value in file.values {
+                guard !value.isEmpty, !value.hasSuffix("v") else { continue }
+                if value.range(of: "Tempora", options: .caseInsensitive) != nil { continue }
+                if value.range(of: candidateKey, options: .caseInsensitive) != nil { return true }
+            }
+        }
+        return false
+    }
+
     /// `Tabulae/Tempora/Generale.txt`'s own version-gated whole-week redirect
     /// (`TemporaRedirectResolver`, `Directorium.pm`'s `load_tempora()`) — a *completely
     /// separate* mechanism from the annual, date-keyed transfer table above: this one is

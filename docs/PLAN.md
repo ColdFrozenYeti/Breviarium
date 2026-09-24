@@ -2939,6 +2939,63 @@ Nativity collect (`2033-06-24`) — no further clean, independent sub-pattern wa
 worth a fourth fix this session; the category pass stops here for now, with the
 remaining count well-explained rather than mysterious.
 
+**Phase 3 (later session, 2026-09-24): exhaustive bug hunt.** The user asked for a
+precise scope count rather than the working estimate above. A fresh full recount (not
+just the top-5-per-category examples the sweep normally prints) found the earlier "4
+bugs" estimate was stale and wrong — the real count was **11 distinct root-cause bugs**
+across 27 unique dates, most never previously identified: the three already-named
+concurrence clusters (Epiphany/Holy-Family, Dec-29, Sacred-Heart/Precious-Blood), plus
+eight newly-found ones (a Nativity-Octave-Sunday-commemorated-at-Christmas pattern, Holy
+Name commemorated at Circumcision, Annunciation commemorated on its own 25 March, an
+unexplored "Hoc est testimonium" Advent commemoration, the previously-flagged-but-never-
+traced "Sabbato infra Hebdomadam II in Quadragesima" pattern, a suspected regression in
+the St Joseph transfer fix for 2035 specifically, St Joseph the Worker, and St John
+Baptist's Nativity). The user asked to fix all of them, expecting zero bugs remaining.
+
+**Bug 1: transferred-away offices still commemorated on their own natural date.**
+Re-diagnosing the suspected 2035 St Joseph regression found it wasn't actually a gap in
+the dedup fix at all — it's a different, more fundamental omission. `horascommon.pl:
+229-232`'s own `transfered()` check runs immediately after `occurrence()` fetches a
+day's own Kalendaria candidate, *before* any rank comparison: `elsif ($sfile &&
+transfered($sfile, $year, $version, $dioecesis)) { $sfile = ''; }`. An office that's
+itself been transferred to a different date this year is excluded from candidacy on its
+own natural date entirely — not merely a rank comparison it might lose, but a complete
+disqualification. `Commemorations.runnersUp` only ever checked whether a same-day
+candidate *lost* occurrence, never whether it had already been excluded from candidacy
+altogether.
+
+Confirmed real for 19 March 2035: Easter falls unusually early that year (25 March),
+pushing 19 March into Holy Week itself ("Feria Secunda Hebdomadæ Sanctæ ~ I. classis").
+Live Perl instrumentation (patching `horascommon.pl` to print `@commemoentries`/
+`@ccommemoentries` at their final assignment points) showed *both* completely empty for
+that Vespers — unlike an ordinary transfer year (2028), where St Joseph survives as a
+same-day-loser commemoration candidate. The year's own numeric transfer file
+(`Transfer/325.txt`) carries `"04-03=03-19"`, confirming St Joseph is transferred to 3
+April that year — exactly the entry `transfered()`'s reverse lookup would find. Real
+DO's `transfered()` (`Directorium.pm:235-269`) does a *reverse* lookup across the same
+year's merged transfer table (the same letter/leap-extra-letter/numeric files
+`transferSource` already assembles forward): does this office's own key appear as
+anyone's *value* this year? Ported as `SanctoralCalendar.isTransferredAwayThisYear`,
+mirroring the same file selection and the same two value-exclusions (`Tempora/`-
+referencing values, and values ending in `v` for vigil-only transfers), wired into
+`Commemorations.runnersUp` right where the office's rank is first read. New tests:
+`transferredAwayOfficeIsNotCommemoratedOnItsOwnDate`,
+`stJosephStillCommemoratesInAnOrdinaryTransferYear`
+(`TransferredAwayCommemorationExclusionOracleTests.swift`).
+
+**Not yet applied to `Occurrence.resolve`'s own winner selection** — only to
+`Commemorations.runnersUp`, since that's the one confirmed broken; St Joseph already
+loses occurrence to Holy Week's own rank (7) naturally, so this exclusion was never
+needed to produce the right *winner* for this date, only the right *commemoration* list.
+Extending it to occurrence itself is deferred until a real fixture is found that actually
+needs it.
+
+Full suite (203 Kit + 8 Data + 105 named oracle) confirmed clean. Fresh sweep against the
+prior baseline (Oratio 27, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7,
+Conclusio 0): **Oratio 27 → 23**, every other category unchanged — a bigger drop (4
+dates) than the single confirmed date alone, meaning this same general mechanism also
+silently fixed other transferred-office commemoration dates elsewhere in the range.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

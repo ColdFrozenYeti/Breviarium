@@ -272,6 +272,13 @@ public struct Commemorations {
             guard path != winnerPath,
                 let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path))
             else { continue }
+            // `horascommon.pl:229-232`'s own `transfered()` check, run immediately after
+            // fetching the day's own Kalendaria candidate and *before* any rank
+            // comparison -- a candidate that's itself been transferred to a different
+            // date this year (`SanctoralCalendar.isTransferredAwayThisYear`'s own doc
+            // comment) never becomes a commemoration candidate on its own natural date
+            // at all, regardless of rank. See that doc comment for the full citation.
+            if calendar.isTransferredAwayThisYear(candidateKey: candidate, year: year) { continue }
             if isSunday, let temporalRank,
                 Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
             {
