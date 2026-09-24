@@ -1,14 +1,18 @@
 import XCTest
 
 final class BreviariumUITests: XCTestCase {
-    /// Launches on a fixed date with an explicit reading mode, passed through the
-    /// `UserDefaults` argument domain (`-key value`) so no test inherits another's
-    /// Settings choice from the same simulator.
+    /// Launches on a fixed date with an explicit reading mode and the default text size,
+    /// passed through the `UserDefaults` argument domain (`-key value`) so no test inherits
+    /// another's Settings choice from the same simulator (a snapshot once came out at XXL
+    /// because an earlier test had chosen it). A test can still change the text size
+    /// through Settings; the choice holds for that launch.
     @discardableResult
     private func launchApp(date: String, readingMode: String = "horizontal", pageTurn: String = "slide") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
-        app.launchArguments += ["-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn]
+        app.launchArguments += [
+            "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", "standard",
+        ]
         app.launch()
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
         return app

@@ -3302,6 +3302,25 @@ page. Final snapshots shown to you before moving on.
   Also, `CLAUDE.md` names `design/reference/universalis-compline-night.png`, but the
   file on disk is `Format.png` (plus `Calendar.png` and `Hours Picker.png`).
 
+**First snapshot comparison of the new renderer (App CI run on `2ef9957`, all UI tests
+green on the first compile).** Measured in points at @3x, `design/reference/Format.png`
+against our 16 September 2026 page 1. These already match: body (cap to descender 18.0
+against 18.3, line pitch 23, margin 28 against 27.3), response and half-verse indent
+(23), hanging indent (36.7 against 37.7), rule (82.7 against 83.3 wide) and the gap from
+rule to heading (45 against 44.3). Hoefler Text at 19pt is confirmed: "Glória Patri et
+Fílio*" is about 164pt wide in both. Fixed from the measurements:
+- the last line to the next rule, 53.4 → 37: a separate `separatorSpacingAbove` of 28pt;
+- the heading to the first line, 21 → 26.7: 0.9× body below the heading;
+- the table-of-contents icon to the hour title, 21 → 12.
+
+The screenshot's title sizes are smaller than `CLAUDE.md`'s ratios (name ≈1.0× against
+1.3×, hour title ≈1.2× against 1.5×, headings ≈1.0× against 1.1×, date line ≈18.5pt against
+24.7pt). The user chose to keep the ratios, and `CLAUDE.md` records it. Two further bugs:
+- vertical mode showed "Page 1 of 1", because the count was taken before layout. The text
+  view now reports it after its own layout pass;
+- one snapshot came out at XXL, inherited from an earlier test's Settings choice. UI tests
+  now pin the text size at launch.
+
 ### M6 — Sideload release
 
 Ship the real alpha via the pipeline proven in M0: `build-ipa.yml` produces the unsigned

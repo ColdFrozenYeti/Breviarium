@@ -37,8 +37,8 @@ private func officeAction(for textItem: UITextItem, handler: any OfficeLinkHandl
 /// Vertical reading mode: the whole hour in one scrolling text view. The footer's page
 /// count is the scroll position measured in screen heights.
 ///
-/// TextKit 1 (`usingTextLayoutManager: false`) so the layout manager is available for
-/// jumping to a section and for keeping the reading position when the text size changes.
+/// TextKit 1 (`LayoutReportingTextView.makeTextKit1()`) so the layout manager is available
+/// for jumping to a section and for keeping the reading position when the text size changes.
 struct VerticalOfficeReader: UIViewRepresentable {
     let office: TypesetOffice
     /// Changes whenever the typeset text does (date, priest, rubrics, text size).
@@ -53,16 +53,22 @@ struct VerticalOfficeReader: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView(usingTextLayoutManager: false)
+    func makeUIView(context: Context) -> LayoutReportingTextView {
+        let textView = LayoutReportingTextView.makeTextKit1()
         OfficeTextViewStyle.apply(to: textView)
         textView.isScrollEnabled = true
         textView.alwaysBounceVertical = true
         textView.delegate = context.coordinator
+        // The page count needs the view's real size and content height, which are only
+        // known after its own layout pass (reporting from `updateUIView` gave "Page 1 of 1").
+        textView.onLayout = { [weak coordinator = context.coordinator, weak textView] in
+            guard let coordinator, let textView else { return }
+            coordinator.reportPage(of: textView)
+        }
         return textView
     }
 
-    func updateUIView(_ textView: UITextView, context: Context) {
+    func updateUIView(_ textView: LayoutReportingTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
         textView.textContainerInset = UIEdgeInsets(top: 8, left: margin, bottom: 32, right: margin)
@@ -143,6 +149,32 @@ struct VerticalOfficeReader: UIViewRepresentable {
         ) -> UITextItem.MenuConfiguration? {
             OfficeLink.url(for: textItem) == nil ? UITextItem.MenuConfiguration(menu: defaultMenu) : nil
         }
+    }
+}
+
+/// A text view that tells its owner whenever it has been laid out.
+final class LayoutReportingTextView: UITextView {
+    var onLayout: (() -> Void)?
+    /// A text view does not retain the storage of a TextKit stack built by hand.
+    private var ownedStorage: NSTextStorage?
+
+    /// A TextKit 1 text view (so `layoutManager` is available), built from its parts with
+    /// the designated initialiser.
+    static func makeTextKit1() -> LayoutReportingTextView {
+        let storage = NSTextStorage()
+        let layoutManager = NSLayoutManager()
+        storage.addLayoutManager(layoutManager)
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        container.widthTracksTextView = true
+        layoutManager.addTextContainer(container)
+        let textView = LayoutReportingTextView(frame: .zero, textContainer: container)
+        textView.ownedStorage = storage
+        return textView
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }
 

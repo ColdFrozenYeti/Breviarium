@@ -69,14 +69,16 @@ struct OfficeTypesetter {
                 offsets.append((kind: kind, offset: output.length))
                 appendRule(
                     to: output, width: metrics.separatorWidth, color: textColor,
-                    before: metrics.separatorSpacing, after: metrics.separatorSpacing
+                    before: metrics.separatorSpacingAbove, after: metrics.separatorSpacing
                 )
+                // 0.9x body below the heading: `Format.png` measures 26.7pt from the
+                // heading to the first body line (0.6x gave 21pt).
                 appendParagraph(
                     NSMutableAttributedString(
                         string: Self.headingText(for: kind),
                         attributes: [.font: LiturgicalUIFont.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
                     ),
-                    to: output, style: paragraphStyle(after: metrics.bodySize * 0.6)
+                    to: output, style: paragraphStyle(after: metrics.bodySize * 0.9)
                 )
             case .psalmSeparator:
                 appendRule(
@@ -152,7 +154,8 @@ struct OfficeTypesetter {
             .withTintColor(iconColor, renderingMode: .alwaysOriginal)
         let icon = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
         icon.addAttribute(.link, value: OfficeLink.tableOfContents, range: NSRange(location: 0, length: icon.length))
-        appendParagraph(icon, to: output, style: paragraphStyle(alignment: .right, after: metrics.bodySize * 0.8))
+        // `Format.png` measures 12pt from the icon to the hour title (0.8x body gave 21pt).
+        appendParagraph(icon, to: output, style: paragraphStyle(alignment: .right, after: metrics.bodySize * 0.33))
 
         // Item 5: the hour title, centred.
         appendParagraph(

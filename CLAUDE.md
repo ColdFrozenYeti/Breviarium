@@ -101,6 +101,8 @@ Sampled from the screenshot:
 
 Values are at the default text size.
 
+The size ratios below are deliberate and win over the screenshot (decided 2026-09-24). Measured against `Format.png`, the reference's day-title name (≈1.0× body), hour title (≈1.2×), section headings (≈1.0×) and date line (≈18.5 pt SF) are all smaller than the ratios given here. Keep the ratios; don't re-raise this. Spacing, margins, indents, rules and body metrics do follow the screenshot's measurements.
+
 1. **Navigation title**, centred, small SF, `#B2B2B2`: the hour name (e.g. *Ad Vesperas*).
 2. **Date line**, right-aligned, SF *italic*, `#FF8080`, noticeably larger than body text.
    - Format: *Dies 16 septembris 2026*, i.e. `Dies <day> <month genitive> <year>`.

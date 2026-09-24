@@ -52,7 +52,13 @@ struct Metrics {
     var versicleIndent: CGFloat { 23 * scale }
     var hangingIndent: CGFloat { 38 * scale }
     var separatorWidth: CGFloat { 83 * scale }
+    /// Space below a section rule, down to the heading (measured 44.3pt in `Format.png`).
     var separatorSpacing: CGFloat { 44 * scale }
+    /// Space above a section rule, from the last line of the section before it. Smaller than
+    /// `separatorSpacing` because it is added below that line's own leading: measured
+    /// against `Format.png`, the gap from the text above to the rule is 37pt, which 28
+    /// here reproduces (44 gave 53.4pt).
+    var separatorSpacingAbove: CGFloat { 28 * scale }
     var hourTitleSize: CGFloat { bodySize * 1.5 }
     var dayTitleNameSize: CGFloat { bodySize * 1.3 }
     var sectionHeadingSize: CGFloat { bodySize * 1.1 }
