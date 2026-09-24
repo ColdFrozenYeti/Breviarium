@@ -69,7 +69,9 @@ final class OfficeDataStore {
         }
         do {
             let bundle = try JSONDecoder().decode(DataBundle.self, from: data)
-            latinCorpus = bundle.makeLatinCorpus(psalter: .pius12)
+            // The Vulgate is the default psalter (`CLAUDE.md`); the Psalterium setting that
+            // offers Pius XII comes in B1-M5.
+            latinCorpus = bundle.makeLatinCorpus(psalter: .vulgate)
             englishCorpus = bundle.makeEnglishCorpus()
             sanctoralCalendar = bundle.makeSanctoralCalendar()
         } catch {
