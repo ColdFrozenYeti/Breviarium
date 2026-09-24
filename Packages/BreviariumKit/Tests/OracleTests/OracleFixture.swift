@@ -24,6 +24,7 @@ actor OracleFixture {
     private var vulgateYearCache: [Int: [String: String]] = [:]
     private var holdoutYearCache: [Int: [String: String]] = [:]
     private var bilingualHoldoutYearCache: [Int: [String: String]] = [:]
+    private var bilingualYearCache: [Int: [String: String]] = [:]
     private var spotCheckCache: [String: String]?
 
     /// The main sweep's fixture text for one date (priest off, Latin/Bea only — the
@@ -72,6 +73,31 @@ actor OracleFixture {
                 return nil
             }
             return Self.latinColumn(ofRows: rows)
+        }
+    }
+
+    /// The 2025-2040 bilingual fixture for one date (Vulgate Latin + English, priest off):
+    /// DO's table rows, each a Latin cell and an English cell (`data/SOURCE.md`, "rows"
+    /// format). The first row is the text above DO's table (the day title), Latin only.
+    func bilingual(year: Int, date: String) throws -> [BilingualRow]? {
+        if bilingualYearCache[year] == nil {
+            bilingualYearCache[year] = try Self.extractAndRead(
+                archive: Self.repoRoot.appendingPathComponent("data/oracle-fixtures/bilingual/\(year).tar.gz")
+            )
+        }
+        return bilingualYearCache[year]?["\(year)/\(date)_priestN_bilingual.tsv"].map(Self.rows)
+    }
+
+    /// The Vulgate hold-out's bilingual rows for one date, priest off or on.
+    func bilingualHoldout(year: Int, date: String, priest: Bool) throws -> [BilingualRow]? {
+        _ = try holdout(psalter: .vulgate, year: year, date: date, priest: priest)
+        return bilingualHoldoutYearCache[year]?["\(year)/\(date)_priest\(priest ? "Y" : "N")_bilingual.tsv"].map(Self.rows)
+    }
+
+    static func rows(_ text: String) -> [BilingualRow] {
+        text.split(separator: "\n").map { row in
+            let cells = row.split(separator: "\t", maxSplits: 1, omittingEmptySubsequences: false)
+            return BilingualRow(latin: String(cells.first ?? ""), english: cells.count > 1 ? String(cells[1]) : "")
         }
     }
 
@@ -133,4 +159,10 @@ actor OracleFixture {
         }
         return result
     }
+}
+
+/// One row of Divinum Officium's two-column table: what it prints side by side.
+struct BilingualRow: Equatable, Sendable {
+    var latin: String
+    var english: String
 }

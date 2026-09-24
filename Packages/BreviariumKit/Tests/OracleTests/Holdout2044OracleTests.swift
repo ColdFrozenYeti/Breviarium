@@ -75,4 +75,20 @@ func holdout2044VespersMatchesDivinumOfficium(date: String, priest: Bool) async 
             #expect(oratioSection.contains(title), "\(label): \(title) not in the fixture's Oratio section")
         }
     }
+
+    // The English, against the Vulgate + English hold-out (`EnglishAuditOracleTests`).
+    let rows = try #require(try await OracleFixture.shared.bilingualHoldout(year: year, date: date, priest: priest))
+    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
+    let context = ConditionalContextBuilder.build(
+        day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let bilingual = try #require(HourAssembler(corpus: corpus, context: context, calendar: calendar, englishCorpus: bundle.makeEnglishCorpus())
+        .assembleVespers(day: day, month: month, year: year, priest: priest))
+    let english = englishAudit(hour: bilingual, rows: rows)
+    let label = "\(date) priest=\(priest) English"
+    #expect(english.missingFromDO.isEmpty, "\(label): ours, not DO's: \(english.missingFromDO.map { "[\($0.0)] \($0.1)" })")
+    #expect(english.uncovered.isEmpty, "\(label): DO's, not ours: \(english.uncovered)")
+    #expect(english.uncoveredLatin.isEmpty, "\(label): DO's Latin, not ours: \(english.uncoveredLatin)")
+    #expect(english.mispaired.isEmpty, "\(label): \(english.mispaired)")
+    #expect(english.latinOnly.isEmpty, "\(label): Latin only: \(english.latinOnly.map { "[\($0.0)] \($0.1)" })")
 }
