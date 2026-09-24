@@ -3270,6 +3270,38 @@ class feast, Holy Week day; each with English off (portrait) and English on
 (portrait + landscape); each at default and largest text size; page 1 and one psalmody
 page. Final snapshots shown to you before moving on.
 
+**M5 audit and reading modes (2026-09-24).** Audit of the App target against `CLAUDE.md`:
+
+- **Correctness bug, fixed:** `OfficeDataStore` built `SanctoralCalendar` without
+  `temporaRedirect`. The phone rendered Vespers differently from the verified engine
+  output on 262 dates in 2025-2040. Fixed via `DataBundle.makeSanctoralCalendar()`, now
+  used by the app and every test (`appCalendarFactoryCarriesTheTemporaRedirectTable`).
+- **Paging (user decision):** book-style flow instead of "one page per section group".
+  The text runs line by line onto the next page at any text size. Settings choose
+  horizontal pages (default) or vertical scroll, and a slide or page-curl turn. This is
+  the approved UIKit exception (`CLAUDE.md` now records it). `OfficeTypesetter` typesets
+  the whole hour once into one attributed string. It carries over every style the old
+  SwiftUI `UnitView` had settled on, and the page-1 header's date line and TOC icon become
+  in-text links. `VerticalOfficeReader` is one TextKit-1 `UITextView`;
+  `PagedOfficeReader`/`OfficePager` flow the same text through page-sized
+  `NSTextContainer`s in a `UIPageViewController` (`.scroll` or `.pageCurl`). Changing text
+  size or orientation re-paginates and keeps the reading position; changing date starts
+  at page 1. `UnitView` and `HangingIndentText` are removed (the hanging indent is now a
+  paragraph style). The footer's "Page N of M" is real, and its short date is a
+  jump-to-date button.
+- **English (user decision):** stays deferred to beta; `CLAUDE.md` updated.
+- **UI tests:** updated for text-view rendering. New `testHorizontalPagesFlowAndCountUp`
+  (counter advances on swipe; more pages at XXL), `testReadingModesSnapshots`,
+  `testFooterDateOpensJumpToDateSheet`, and `testPageOneDateLineLinkOpensJumpToDate`,
+  which skips if UIKit doesn't expose text-view links to accessibility.
+- **Blocked here:** snapshot PNGs can't be downloaded into this cloud container
+  (`*.blob.core.windows.net` is denied by the network policy), so visual comparison
+  against `design/reference/` needs that host allowed, or the user reviewing the CI
+  `snapshots` artifact.
+- **Not yet verified:** Hoefler Text against the reference, and the date-line size.
+  Also, `CLAUDE.md` names `design/reference/universalis-compline-night.png`, but the
+  file on disk is `Format.png` (plus `Calendar.png` and `Hours Picker.png`).
+
 ### M6 — Sideload release
 
 Ship the real alpha via the pipeline proven in M0: `build-ipa.yml` produces the unsigned

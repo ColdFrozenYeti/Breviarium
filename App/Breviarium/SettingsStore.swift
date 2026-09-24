@@ -9,6 +9,17 @@ import Foundation
 /// call site defaults `priest: false`), `showRubrics = true` and `showEnglish = false`
 /// (`VespersView`'s own previous hardcoded values), `textSize = .standard` (what
 /// `design/reference/Format.png` was measured at).
+/// How the office moves: book-style horizontal pages (the default, per `CLAUDE.md`'s
+/// "swipes horizontally between pages") or one continuous vertical scroll.
+enum ReadingMode: String, CaseIterable {
+    case horizontal, vertical
+}
+
+/// How a horizontal page turns: a sideways slide, or a book-like page curl.
+enum PageTurn: String, CaseIterable {
+    case slide, curl
+}
+
 @MainActor
 final class SettingsStore: ObservableObject {
     @Published var priestPresent: Bool {
@@ -23,6 +34,12 @@ final class SettingsStore: ObservableObject {
     @Published var textSize: TextSizeSetting {
         didSet { defaults.set(textSize.rawValue, forKey: Keys.textSize) }
     }
+    @Published var readingMode: ReadingMode {
+        didSet { defaults.set(readingMode.rawValue, forKey: Keys.readingMode) }
+    }
+    @Published var pageTurn: PageTurn {
+        didSet { defaults.set(pageTurn.rawValue, forKey: Keys.pageTurn) }
+    }
 
     private let defaults: UserDefaults
 
@@ -31,6 +48,8 @@ final class SettingsStore: ObservableObject {
         static let showRubrics = "settings.showRubrics"
         static let showEnglish = "settings.showEnglish"
         static let textSize = "settings.textSize"
+        static let readingMode = "settings.readingMode"
+        static let pageTurn = "settings.pageTurn"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -40,5 +59,7 @@ final class SettingsStore: ObservableObject {
         showEnglish = defaults.object(forKey: Keys.showEnglish) as? Bool ?? false
         let storedRaw = defaults.string(forKey: Keys.textSize)
         textSize = storedRaw.flatMap { raw in TextSizeSetting.allCases.first { $0.rawValue == raw } } ?? .standard
+        readingMode = defaults.string(forKey: Keys.readingMode).flatMap(ReadingMode.init(rawValue:)) ?? .horizontal
+        pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
     }
 }

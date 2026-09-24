@@ -61,7 +61,9 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
 - **Text size.**
+- **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Later:** Martyrologium ad Primam, and a votive office picker.
+- **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 
 ## Texts and orthography
 
@@ -125,7 +127,10 @@ Values are at the default text size.
 
 ### Behaviour
 
-- **Paging.** An hour is **paginated**, with one page per section group, and the user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot. Propose the page grouping for Vespers.
+- **Paging** (decided 2026-09-24, replacing "one page per section group"). An hour is paginated **like a printed book**: the text flows line by line from one page to the next, at any text size or orientation, and a paragraph that doesn't fit continues at the top of the next page. The user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot.
+  - A **Scrolling** setting switches between these horizontal pages (the default) and one continuous vertical scroll.
+  - A **Page turn** setting chooses a sideways slide (the default) or a book-like page curl for horizontal pages.
+  - Both need UIKit/TextKit (SwiftUI cannot flow one text across pages, and the curl exists only in `UIPageViewController`); this is the approved UIKit exception, confined to `App/Breviarium/Vespers/OfficeReaders.swift` and `OfficeTypesetter.swift`.
 - **Text size** scales every serif size and the vertical spacing proportionally. The chrome text scales too, but more gently.
 
 ### Parallel English

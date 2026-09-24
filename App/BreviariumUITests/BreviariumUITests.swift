@@ -1,15 +1,35 @@
 import XCTest
 
 final class BreviariumUITests: XCTestCase {
-    func testAppLaunches() {
+    /// Launches on a fixed date with an explicit reading mode, passed through the
+    /// `UserDefaults` argument domain (`-key value`) so no test inherits another's
+    /// Settings choice from the same simulator.
+    @discardableResult
+    private func launchApp(date: String, readingMode: String = "horizontal", pageTurn: String = "slide") -> XCUIApplication {
         let app = XCUIApplication()
-        // Pinned rather than "today": occurrence/precedence resolution across arbitrary
-        // real dates isn't exhaustively oracle-tested yet, so a real-time "now" here
-        // would risk this test flaking on some future CI run date that happens to hit
-        // an unexercised edge case, unrelated to whatever change triggered that run.
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
+        app.launchArguments += ["-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn]
         app.launch()
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "label == %@", label)
+        return XCTWaiter().wait(for: [expectation(for: predicate, evaluatedWith: element)], timeout: timeout) == .completed
+    }
+
+    /// The footer's "Page N of M", parsed.
+    private func pageCounter(_ app: XCUIApplication) -> (page: Int, count: Int)? {
+        let parts = app.staticTexts["pageCounter"].label.split(separator: " ")
+        guard parts.count == 4, let page = Int(parts[1]), let count = Int(parts[3]) else { return nil }
+        return (page, count)
+    }
+
+    func testAppLaunches() {
+        // Pinned rather than "today", so a CI run's date never changes what is tested.
+        let app = launchApp(date: "2026-09-16")
+        XCTAssertTrue(app.textViews["officeText"].firstMatch.waitForExistence(timeout: 5))
     }
 
     /// Captures the Vespers screen for 16 September 2026 -- the martyrs'-feast date this
@@ -20,10 +40,7 @@ final class BreviariumUITests: XCTestCase {
     /// largest text size) land once this one is confirmed against
     /// `design/reference/Format.png`.
     func testVespersSnapshot16September2026() {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        let app = launchApp(date: "2026-09-16")
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "vespers-2026-09-16-latin-off-portrait-default"
@@ -31,27 +48,18 @@ final class BreviariumUITests: XCTestCase {
         add(attachment)
     }
 
-    /// Captures a full walkthrough of Vespers for a given date by scrolling down the
-    /// screen's whole continuous document (`VespersView`'s own doc comment covers why
-    /// it's one scroll rather than swiped pages for now) and screenshotting after each
-    /// scroll, stopping once a scroll produces the exact same screenshot as the last one
-    /// -- i.e. the bottom of the content has been reached and there's nothing further to
-    /// capture.
-    private func captureWholeScroll(dateString: String, namePrefix: String) {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = dateString
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+    /// Captures a full walkthrough of Vespers for a given date, turning page after page
+    /// (horizontal mode, the default) or scrolling screen after screen (vertical), and
+    /// screenshotting each, stopping once a turn produces the exact same screenshot as the
+    /// last one -- i.e. the end of the office has been reached.
+    private func captureWholeScroll(dateString: String, namePrefix: String, readingMode: String = "horizontal") {
+        let app = launchApp(date: dateString, readingMode: readingMode)
 
         var previousImageData: Data?
-        // 30, not 20: confirmed real that a longer office (24 February 2026's own
-        // Vespers, with a full commemoration appended after the main Oratio) hit the
-        // old cap without ever reaching the bottom.
-        let maxScreens = 30
+        let maxScreens = 40
         for index in 1...maxScreens {
-            // Let the scroll's own momentum/animation settle before capturing --
-            // screenshotting immediately after swipeUp() can catch the view mid-scroll.
-            Thread.sleep(forTimeInterval: 0.3)
+            // Let the turn's own animation settle before capturing.
+            Thread.sleep(forTimeInterval: 0.4)
             let screenshot = app.screenshot()
             let imageData = screenshot.pngRepresentation
             if let previousImageData, previousImageData == imageData {
@@ -64,7 +72,7 @@ final class BreviariumUITests: XCTestCase {
             attachment.lifetime = .keepAlways
             add(attachment)
 
-            app.swipeUp()
+            if readingMode == "vertical" { app.swipeUp() } else { app.swipeLeft() }
         }
     }
 
@@ -105,10 +113,7 @@ final class BreviariumUITests: XCTestCase {
     /// Confirms the Settings sheet actually opens from the gear icon and shows every
     /// `CLAUDE.md`-required toggle -- M5's own Settings screen.
     func testSettingsSheetOpensAndShowsEveryToggle() {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        let app = launchApp(date: "2026-09-16")
 
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
@@ -124,43 +129,63 @@ final class BreviariumUITests: XCTestCase {
         add(attachment)
     }
 
-    /// M6's own manual checklist names "previous/next day" as something to verify --
-    /// confirms the nav header's chevrons actually move the displayed date, checking the
-    /// date line's own exact text rather than just "something changed".
-    func testPreviousAndNextDayNavigationChangeTheDateLine() {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Dies 16 septembris 2026"].waitForExistence(timeout: 5))
+    /// M6's own manual checklist names "previous/next day" -- confirms the nav header's
+    /// chevrons actually move the displayed date, checking the footer's short date.
+    func testPreviousAndNextDayNavigationChangeTheDate() {
+        let app = launchApp(date: "2026-09-16")
+        let date = app.buttons["jumpToDateButton"]
+        XCTAssertTrue(waitForLabel(date, "16-Sep-26"))
 
         app.buttons["nextDayButton"].tap()
-        XCTAssertTrue(app.staticTexts["Dies 17 septembris 2026"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(date, "17-Sep-26"))
 
         app.buttons["previousDayButton"].tap()
         app.buttons["previousDayButton"].tap()
-        XCTAssertTrue(app.staticTexts["Dies 15 septembris 2026"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(date, "15-Sep-26"))
     }
 
-    /// M6's own manual checklist also names "jump-to-date" -- confirms tapping the date
-    /// line (the chosen entry point, rather than a separate calendar icon) opens it.
-    func testDateLineOpensJumpToDateSheet() {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
-
-        app.staticTexts["dateLine"].tap()
+    /// M6's own manual checklist also names "jump-to-date": the footer date opens it.
+    func testFooterDateOpensJumpToDateSheet() {
+        let app = launchApp(date: "2026-09-16")
+        app.buttons["jumpToDateButton"].tap()
         XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+    }
+
+    /// The date line on page 1 is an in-text link to the same sheet. Skipped, not failed,
+    /// if the system doesn't expose UITextView links to UI tests.
+    func testPageOneDateLineLinkOpensJumpToDate() throws {
+        let app = launchApp(date: "2026-09-16")
+        let dateLink = app.links["Dies 16 septembris 2026"]
+        try XCTSkipUnless(dateLink.waitForExistence(timeout: 5), "UITextView link not exposed to accessibility")
+        dateLink.tap()
+        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+    }
+
+    /// Book-style pagination: several pages at the default size, the counter advancing on
+    /// a swipe, and more pages at the largest text size (the text re-flows; nothing is
+    /// cut off, it moves to later pages).
+    func testHorizontalPagesFlowAndCountUp() {
+        let app = launchApp(date: "2026-09-16")
+        Thread.sleep(forTimeInterval: 0.5)
+        guard let first = pageCounter(app) else { return XCTFail("no page counter: \(app.staticTexts["pageCounter"].label)") }
+        XCTAssertEqual(first.page, 1)
+        XCTAssertGreaterThan(first.count, 3)
+
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.5)
+        XCTAssertEqual(pageCounter(app)?.page, 2)
+
+        setTextSize("XXL", in: app)
+        Thread.sleep(forTimeInterval: 0.5)
+        let largest = pageCounter(app)
+        XCTAssertGreaterThan(largest?.count ?? 0, first.count)
+        setTextSize("M", in: app)
     }
 
     /// Confirms the About screen (CLAUDE.md: "Include the MIT notice on the About
     /// screen") is reachable from Settings and actually shows the licence text.
     func testAboutScreenShowsTheDivinumOfficiumLicense() {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = "2026-09-16"
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        let app = launchApp(date: "2026-09-16")
 
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
@@ -187,42 +212,52 @@ final class BreviariumUITests: XCTestCase {
         app.buttons["Done"].tap()
     }
 
-    /// `CLAUDE.md`'s own snapshot matrix, adapted for what's actually built so far:
-    /// English is deferred to the beta milestones (so every capture here is English
-    /// off), and swipeable paging is likewise deferred (`VespersView`'s own doc comment)
-    /// -- "page 1" is the scroll's own top, and "a psalmody page" is reached by
-    /// scrolling down a fixed amount rather than turning to a specific page number.
-    ///
-    /// One fresh launch per text size, not one launch reused for both: a scroll-to-top
-    /// gesture between sizes turned out to be unreliable two different ways --
-    /// `swipeDown()` a fixed few times wasn't always enough once "largest" made the
-    /// content noticeably taller (confirmed real: a first attempt left the date line
-    /// half-clipped under the nav header), and the usual fallback, tapping the status
-    /// bar, isn't queryable in this app's own accessibility hierarchy at all
-    /// (`app.statusBars` -- "No matches found"). A fresh launch always starts unscrolled,
-    /// sidestepping scroll-position bookkeeping entirely.
+    /// `CLAUDE.md`'s own snapshot matrix, adapted for what's built: English is deferred
+    /// to beta (so every capture is English off). "Page 1" is the first page and "a
+    /// psalmody page" the second, in the default horizontal reading mode. One fresh
+    /// launch per text size, so each starts on page 1.
     private func captureSnapshotMatrix(dateString: String, namePrefix: String, sizeLabel: String, sizeName: String) {
-        let app = XCUIApplication()
-        app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = dateString
-        app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        let app = launchApp(date: dateString)
 
         setTextSize(sizeLabel, in: app)
-        Thread.sleep(forTimeInterval: 0.3)
+        Thread.sleep(forTimeInterval: 0.4)
 
         let page1 = XCTAttachment(screenshot: app.screenshot())
         page1.name = "\(namePrefix)-\(sizeName)-page1"
         page1.lifetime = .keepAlways
         add(page1)
 
-        for _ in 0..<3 {
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: 0.3)
-        }
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.4)
         let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
         psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
         psalmodyPage.lifetime = .keepAlways
         add(psalmodyPage)
+    }
+
+    /// The other two reading modes, for comparison: vertical scroll and the page curl
+    /// (captured mid-turn is not reliable, so after the turn completes).
+    func testReadingModesSnapshots() {
+        let vertical = launchApp(date: "2026-09-16", readingMode: "vertical")
+        let verticalTop = XCTAttachment(screenshot: vertical.screenshot())
+        verticalTop.name = "mode-vertical-top"
+        verticalTop.lifetime = .keepAlways
+        add(verticalTop)
+        vertical.swipeUp()
+        Thread.sleep(forTimeInterval: 0.4)
+        let verticalNext = XCTAttachment(screenshot: vertical.screenshot())
+        verticalNext.name = "mode-vertical-scrolled"
+        verticalNext.lifetime = .keepAlways
+        add(verticalNext)
+        vertical.terminate()
+
+        let curl = launchApp(date: "2026-09-16", pageTurn: "curl")
+        curl.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.8)
+        let curlPage = XCTAttachment(screenshot: curl.screenshot())
+        curlPage.name = "mode-curl-page2"
+        curlPage.lifetime = .keepAlways
+        add(curlPage)
     }
 
     func testSnapshotMatrixFerialDay() {

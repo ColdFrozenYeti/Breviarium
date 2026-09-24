@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Colours from `CLAUDE.md`'s visual spec, sampled from `design/reference/Format.png`.
 /// Night mode only -- there is no light theme.
@@ -77,4 +78,17 @@ enum LiturgicalFont {
     static func black(_ size: CGFloat) -> Font { .custom(blackName, size: size) }
     /// Antiphons -- bold italic, per direct feedback comparing a real rendering.
     static func blackItalic(_ size: CGFloat) -> Font { .custom(blackItalicName, size: size) }
+}
+
+/// The same faces as `LiturgicalFont`, as `UIFont`s for `OfficeTypesetter`'s TextKit
+/// rendering. Falls back to the system font only if Hoefler Text is ever missing.
+enum LiturgicalUIFont {
+    static func regular(_ size: CGFloat) -> UIFont { font(LiturgicalFont.regularName, size) }
+    static func italic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.italicName, size) }
+    static func black(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackName, size) }
+    static func blackItalic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackItalicName, size) }
+
+    private static func font(_ name: String, _ size: CGFloat) -> UIFont {
+        UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+    }
 }

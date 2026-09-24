@@ -1,30 +1,24 @@
 import BreviariumKit
 import SwiftUI
 
-/// The Vespers screen, per `CLAUDE.md`'s visual spec (§ "Page structure") -- the date
-/// line/day title/TOC button/hour title (items 2-6) at the top, then a persistent chrome
-/// header (item 1) and footer (item 10).
+/// The Vespers screen, per `CLAUDE.md`'s visual spec (§ "Page structure"): a persistent
+/// chrome header (item 1) and footer (item 10) around the office itself, which
+/// `OfficeTypesetter` typesets once (items 2-9, with the page-1 header at the start of
+/// the text) and one of two readers shows:
 ///
-/// Rendered as one continuously scrolling document rather than the spec's swipeable
-/// pages, for now: direct feedback, after a real rendering showed a long hymn stanza cut
-/// off mid-line at a page boundary (the previous height-measurement-based pagination
-/// estimated its height slightly wrong, and unlike ordinary overflow the *first* block on
-/// a page has nowhere earlier to spill onto). Continuous scroll sidesteps needing that
-/// measurement pass at all -- text simply flows, the way a real paginated document's
-/// *content* does, without yet committing to where the page breaks fall. Swipeable
-/// paging is deferred to the beta milestones (alongside the other hours, the aesthetic
-/// pass, and the Ambrosian rite): once the content itself is right, slicing it into pages
-/// is a separate, smaller problem. The footer keeps the spec's "Page N of M" shape at a
-/// trivial "Page 1 of 1" in the meantime, rather than dropping it, since the layout slot
-/// itself isn't going away.
+/// - **Horizontal** (the default, per the spec's "swipes horizontally between pages"):
+///   `PagedOfficeReader` flows the text through page-sized TextKit containers like a
+///   printed book, turned by a slide or a page curl.
+/// - **Vertical**: `VerticalOfficeReader`, one continuous scroll.
+///
+/// The user chose both options (Settings), and the book-style flow over the spec's
+/// earlier "one page per section group", which could not guarantee a page never cuts a
+/// hymn stanza off mid-line (`docs/PLAN.md`, M5).
 struct VespersView: View {
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
-    /// Date navigation (M6's own manual checklist: "previous/next day, jump-to-date")
-    /// lives one level up in `ContentView`, which owns the displayed date -- this view
-    /// only ever asks for a move, never computes one itself, matching "no liturgical
-    /// logic in the app target" (a date shift is arithmetic, not a rubric, but the
-    /// principle of keeping this view a pure function of its input still applies).
+    /// Date navigation lives one level up in `ContentView`, which owns the displayed date
+    /// -- this view only ever asks for a move, never computes one itself.
     let onPreviousDay: () -> Void
     let onNextDay: () -> Void
     let onJump: (SimpleDate) -> Void
@@ -32,71 +26,75 @@ struct VespersView: View {
     @State private var showingToc = false
     @State private var showingSettings = false
     @State private var showingDatePicker = false
+    @State private var typesetCache = TypesetCache()
+    /// A character offset to bring into view (a table-of-contents choice); the reader
+    /// clears it once it has jumped.
+    @State private var jumpTarget: Int?
+    @State private var pageNumber = 1
+    @State private var pageCount = 1
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
-    private var blocks: [ContentBlock] { ContentBlock.blocks(for: content.hour) }
+    private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)" }
+
+    /// Everything the typeset text depends on.
+    private var officeKey: String {
+        "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
+    }
+
+    private var office: TypesetOffice {
+        let currentMetrics = self.metrics
+        let showRubrics = settings.showRubrics
+        return typesetCache.office(for: officeKey) {
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics).typeset()
+        }
+    }
 
     var body: some View {
+        let typeset = self.office
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationHeader
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(blocks) { block in
-                                blockView(block)
-                                    .id(block.id)
-                            }
-                        }
-                        .padding(.horizontal, metrics.margin)
-                    }
-                    .sheet(isPresented: $showingToc) {
-                        tocSheet(proxy: proxy)
-                    }
-                }
+                reader(typeset)
                 footer
             }
         }
+        .sheet(isPresented: $showingToc) { tocSheet(typeset) }
+        .sheet(isPresented: $showingDatePicker) { datePickerSheet }
     }
 
     @ViewBuilder
-    private func blockView(_ block: ContentBlock) -> some View {
-        switch block {
-        case .pageHeader:
-            pageOneHeader
-        case .sectionStart(let kind):
-            VStack(alignment: .leading, spacing: 0) {
-                separator
-                sectionHeading(kind)
-            }
-            .padding(.bottom, metrics.bodySize * 0.6)
-        case .psalmSeparator:
-            // The sole source of spacing above and below itself -- the antiphon just
-            // before it has its own trailing space suppressed (`ContentBlock.blocks`),
-            // so this padding alone decides how centred the line looks between the two
-            // antiphons it separates.
-            Rectangle()
-                .fill(Theme.liturgicalText.opacity(0.4))
-                .frame(width: metrics.separatorWidth * 0.4, height: 1)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, metrics.bodySize * 0.5)
-        case .unit(_, let unit, let alternateVerse, let trailingSpace):
-            UnitView(
-                unit: unit, metrics: metrics, showRubrics: settings.showRubrics,
-                italicizeWholeVerse: alternateVerse, suppressTrailingSpace: trailingSpace == .suppressed
+    private func reader(_ office: TypesetOffice) -> some View {
+        switch settings.readingMode {
+        case .vertical:
+            VerticalOfficeReader(
+                office: office, officeID: officeKey, dateKey: dateKey, margin: metrics.margin,
+                jumpTarget: $jumpTarget, onLink: handleLink, onPageChange: updatePage
             )
-            .padding(.bottom, Self.trailingSpacePadding(trailingSpace, metrics: metrics))
+        case .horizontal:
+            GeometryReader { geometry in
+                PagedOfficeReader(
+                    office: office, officeID: officeKey, dateKey: dateKey, pageSize: geometry.size, margin: metrics.margin,
+                    curl: settings.pageTurn == .curl, jumpTarget: $jumpTarget, onLink: handleLink, onPageChange: updatePage
+                )
+            }
+            // The page-turn style is fixed when the page controller is created.
+            .id(settings.pageTurn)
         }
     }
 
-    private static func trailingSpacePadding(_ trailingSpace: ContentBlock.TrailingSpace, metrics: Metrics) -> CGFloat {
-        switch trailingSpace {
-        case .standard: metrics.extraLineSpacing
-        case .suppressed: 0
-        case .stanzaBreak: metrics.bodySize * 0.6
+    private func handleLink(_ url: URL) {
+        if url == OfficeLink.tableOfContents {
+            showingToc = true
+        } else if url == OfficeLink.jumpToDate {
+            showingDatePicker = true
         }
+    }
+
+    private func updatePage(_ number: Int, _ count: Int) {
+        pageNumber = number
+        pageCount = count
     }
 
     // MARK: Item 1 -- navigation title
@@ -142,120 +140,28 @@ struct VespersView: View {
         }
     }
 
-    // MARK: Items 2-6 -- page 1's own header block
-
-    private var pageOneHeader: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Tappable rather than adding a separate calendar icon -- the date line is
-            // already the one element on this page that IS the current date, so making
-            // it the jump-to-date affordance needs no new visible chrome at all.
-            Text(content.dateLine)
-                .font(.system(size: metrics.dateLineSize).italic())
-                .foregroundStyle(Theme.rubric)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.bottom, metrics.bodySize * 0.8)
-                .onTapGesture { showingDatePicker = true }
-                .accessibilityIdentifier("dateLine")
-                .sheet(isPresented: $showingDatePicker) { datePickerSheet }
-
-            dayTitleBlock
-                .padding(.bottom, metrics.bodySize * 0.6)
-
-            Button {
-                showingToc = true
-            } label: {
-                Image(systemName: "list.bullet")
-                    .foregroundStyle(Theme.icon)
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.bottom, metrics.bodySize * 0.8)
-
-            Text(content.hourTitle)
-                .font(LiturgicalFont.regular(metrics.hourTitleSize))
-                .foregroundStyle(Theme.liturgicalText)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.bottom, metrics.bodySize * 0.8)
-        }
-    }
-
-    private var dayTitleBlock: some View {
-        // The name line uses HangingIndentText (a small UIViewRepresentable) rather than
-        // plain SwiftUI Text: confirmed against a real rendering that a wrapped name
-        // (e.g. "Ss. Cornelii Papæ et Cypriani Episcopi, Martyrum") wraps flush-left with
-        // no hanging indent otherwise -- CLAUDE.md's ~38pt hanging indent needs
-        // NSParagraphStyle.headIndent, which plain Text has no way to express.
-        VStack(alignment: .leading, spacing: metrics.bodySize * 0.2) {
-            if let classisLine = content.day.titleBlock.classisLine {
-                Text(classisLine)
-                    .font(LiturgicalFont.regular(metrics.bodySize))
-                    .foregroundStyle(Theme.liturgicalText)
-            }
-            HangingIndentText(
-                text: content.day.titleBlock.nameLine,
-                fontName: LiturgicalFont.blackName,
-                fontSize: metrics.dayTitleNameSize,
-                color: Theme.liturgicalText,
-                indent: metrics.hangingIndent
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if let commemorationLine = content.day.titleBlock.commemorationLine {
-                Text(commemorationLine)
-                    .font(LiturgicalFont.regular(metrics.bodySize))
-                    .foregroundStyle(Theme.liturgicalText)
-            }
-        }
-    }
-
-    // MARK: Item 7 -- section separator
-
-    private var separator: some View {
-        Rectangle()
-            .fill(Theme.liturgicalText)
-            .frame(width: metrics.separatorWidth, height: 1)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, metrics.separatorSpacing)
-    }
-
-    // MARK: Item 8 -- section heading
-
-    private func sectionHeading(_ kind: BreviariumKit.Section.Kind) -> some View {
-        Text(Self.headingText(for: kind))
-            .font(LiturgicalFont.black(metrics.sectionHeadingSize))
-            .foregroundStyle(Theme.liturgicalText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private static func headingText(for kind: BreviariumKit.Section.Kind) -> String {
-        switch kind {
-        case .introductio: "INTRODUCTIO"
-        case .psalmodia: "PSALMODIA"
-        case .capitulum: "CAPITULUM"
-        case .hymnus: "HYMNUS"
-        case .versus: "VERSUS"
-        case .canticum: "CANTICUM"
-        case .precesFeriales: "PRECES FERIALES"
-        case .oratio: "ORATIO"
-        case .conclusio: "CONCLUSIO"
-        }
-    }
-
     // MARK: Item 10 -- footer
 
     private var footer: some View {
         // Three independent slots (nothing on the left, per CLAUDE.md) rather than an
-        // HStack of Spacers -- with a fixed-width trailing date, two Spacers around a
-        // centre Text wouldn't actually land that text on the true midpoint. "Page 1 of
-        // 1" until swipeable paging comes back (see this file's own doc comment) -- the
-        // slot stays, the count is just trivially true for now.
+        // HStack of Spacers, so the centre text lands on the true midpoint. The short
+        // date doubles as a jump-to-date control (the date line on page 1 is the other).
         ZStack {
-            Text("Page 1 of 1")
+            Text("Page \(pageNumber) of \(pageCount)")
                 .font(.system(size: metrics.footerSize))
                 .foregroundStyle(Theme.chrome)
+                .accessibilityIdentifier("pageCounter")
             HStack {
                 Spacer()
-                Text(content.shortDate)
-                    .font(.system(size: metrics.footerSize))
-                    .foregroundStyle(Theme.chrome)
+                Button {
+                    showingDatePicker = true
+                } label: {
+                    Text(content.shortDate)
+                        .font(.system(size: metrics.footerSize))
+                        .foregroundStyle(Theme.chrome)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("jumpToDateButton")
             }
         }
         .padding(.horizontal, metrics.margin)
@@ -264,17 +170,15 @@ struct VespersView: View {
 
     // MARK: Table of contents
 
-    private func tocSheet(proxy: ScrollViewProxy) -> some View {
+    private func tocSheet(_ office: TypesetOffice) -> some View {
         NavigationStack {
             List {
-                ForEach(Array(sectionKindsInOrder.enumerated()), id: \.offset) { _, kind in
+                ForEach(Array(office.sectionOffsets.enumerated()), id: \.offset) { _, section in
                     Button {
                         showingToc = false
-                        withAnimation {
-                            proxy.scrollTo(ContentBlock.sectionStart(kind).id, anchor: .top)
-                        }
+                        jumpTarget = section.offset
                     } label: {
-                        Text(Self.headingText(for: kind))
+                        Text(OfficeTypesetter.headingText(for: section.kind))
                     }
                 }
             }
@@ -286,10 +190,6 @@ struct VespersView: View {
             }
         }
         .preferredColorScheme(.dark)
-    }
-
-    private var sectionKindsInOrder: [BreviariumKit.Section.Kind] {
-        content.hour.sections.filter { !$0.units.isEmpty }.map(\.kind)
     }
 
     // MARK: Jump to date
