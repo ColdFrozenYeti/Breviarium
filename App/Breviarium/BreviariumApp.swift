@@ -4,7 +4,13 @@ import SwiftUI
 struct BreviariumApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView(dateSource: Self.launchDateSource)
+            // `BREVIARIUM_SNAPSHOT_SECTION` (a section's raw name, e.g. `hymnus`) opens the
+            // office at that section, as the table of contents would, so UI tests can
+            // capture a specific section's page deterministically.
+            ContentView(
+                dateSource: Self.launchDateSource,
+                initialSection: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_SECTION"]
+            )
         }
     }
 

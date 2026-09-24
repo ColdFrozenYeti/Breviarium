@@ -84,6 +84,7 @@ struct VerticalOfficeReader: UIViewRepresentable {
             coordinator.reportPage(of: textView)
         }
         if let target = jumpTarget {
+            textView.layoutIfNeeded()
             coordinator.scroll(textView, toCharacter: target)
             coordinator.clearJumpTarget()
         }

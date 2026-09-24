@@ -7,11 +7,15 @@ final class BreviariumUITests: XCTestCase {
     /// because an earlier test had chosen it). A test can still change the text size
     /// through Settings; the choice holds for that launch.
     @discardableResult
-    private func launchApp(date: String, readingMode: String = "horizontal", pageTurn: String = "slide") -> XCUIApplication {
+    private func launchApp(
+        date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
+        section: String? = nil
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
+        if let section { app.launchEnvironment["BREVIARIUM_SNAPSHOT_SECTION"] = section }
         app.launchArguments += [
-            "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", "standard",
+            "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
         ]
         app.launch()
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
@@ -262,6 +266,24 @@ final class BreviariumUITests: XCTestCase {
         curlPage.name = "mode-curl-page2"
         curlPage.lifetime = .keepAlways
         add(curlPage)
+    }
+
+    /// B1-M0: hymns must show as stanzas (normal pitch within a stanza, a gap between
+    /// stanzas), not as evenly spaced single lines. 19 November 2026's hymn, "Fortem virili
+    /// pectore", opened at the HYMNUS section, in both reading modes at M and XXL.
+    /// Measured with `scripts/measure-snapshot.py --pitch`.
+    func testHymnStanzasSnapshots() {
+        for readingMode in ["horizontal", "vertical"] {
+            for (textSize, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-11-19", readingMode: readingMode, textSize: textSize, section: "hymnus")
+                Thread.sleep(forTimeInterval: 0.6)
+                let attachment = XCTAttachment(screenshot: app.screenshot())
+                attachment.name = "hymn-\(readingMode)-\(sizeName)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                app.terminate()
+            }
+        }
     }
 
     func testSnapshotMatrixFerialDay() {

@@ -22,6 +22,8 @@ struct VespersView: View {
     let onPreviousDay: () -> Void
     let onNextDay: () -> Void
     let onJump: (SimpleDate) -> Void
+    /// A section to open at, once, on first appearance (UI tests only; see `BreviariumApp`).
+    var initialSection: String? = nil
 
     @State private var showingToc = false
     @State private var showingSettings = false
@@ -32,6 +34,7 @@ struct VespersView: View {
     @State private var jumpTarget: Int?
     @State private var pageNumber = 1
     @State private var pageCount = 1
+    @State private var appliedInitialSection = false
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
@@ -61,6 +64,11 @@ struct VespersView: View {
             }
         }
         .sheet(isPresented: $showingToc) { tocSheet(typeset) }
+        .onAppear {
+            guard !appliedInitialSection, let initialSection else { return }
+            appliedInitialSection = true
+            jumpTarget = typeset.sectionOffsets.first { $0.kind.rawValue == initialSection }?.offset
+        }
         .sheet(isPresented: $showingDatePicker) { datePickerSheet }
     }
 

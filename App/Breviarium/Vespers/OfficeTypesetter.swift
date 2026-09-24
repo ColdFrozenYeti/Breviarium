@@ -270,7 +270,19 @@ struct OfficeTypesetter {
     /// Appends `text` as one paragraph. The closing line break carries the paragraph's
     /// own attributes, so it never brings in a default font that would change the last
     /// line's height.
+    ///
+    /// Line breaks *inside* a unit (a hymn stanza's lines, from
+    /// `HourAssembler.hymnStanzas`) become U+2028 LINE SEPARATOR first. TextKit starts a
+    /// new paragraph at every `\n`, so a stanza with plain `\n`s turned into one paragraph
+    /// per line, and the stanza gap (`paragraphSpacing`) landed after every line: hymns
+    /// showed as evenly spaced single lines with no visible stanzas (B1-M0; the
+    /// regression came in with the TextKit port, `2ef9957`). With line separators the
+    /// stanza stays one paragraph: `lineSpacing` gives the normal pitch within it, and
+    /// the gap applies once, after its last line.
     private func appendParagraph(_ text: NSMutableAttributedString, to output: NSMutableAttributedString, style: NSParagraphStyle) {
+        text.mutableString.replaceOccurrences(
+            of: "\n", with: "\u{2028}", options: [], range: NSRange(location: 0, length: text.length)
+        )
         let breakAttributes = text.length > 0 ? text.attributes(at: text.length - 1, effectiveRange: nil) : [:]
         var cleanBreakAttributes = breakAttributes
         cleanBreakAttributes.removeValue(forKey: .link)
