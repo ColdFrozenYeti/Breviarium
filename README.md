@@ -78,8 +78,9 @@ git clone --recurse-submodules https://github.com/ColdFrozenYeti/Breviarium.git
 ```
 cd Packages/BreviariumKit
 swift build
-swift test --skip vespersFullRangeContentAudit     # the fast suite, as CI runs it
-swift test --filter vespersFullRangeContentAudit   # the full 2025-2040 content audit (~5 min)
+swift test --skip vespersFullRange       # the fast suite, as Kit CI runs it
+swift test --filter vespersFullRange     # the full-range oracle audits, as "Oracle audits" runs them (~20 min)
+BREVIARIUM_AUDIT_STRIDE=7 swift test --filter vespersFullRangeEnglishAudit   # a quick 1-in-7 sample
 ```
 
 `scripts/test-kit.sh` and `scripts/test-kit.ps1` wrap the build and tests. For first-time
@@ -89,8 +90,10 @@ What the tests check:
 
 - **Oracle tests** compare the engine with Divinum Officium's own output. There are
   named tests for specific dates, each citing the Divinum Officium source it was checked
-  against. There is a full-range content audit, a full-range commemoration audit, and
-  one test case per day and priest setting for 2044.
+  against. Full-range audits cover every day 2025–2040 in both directions (what we show
+  is in DO's page, and what DO's page shows is in ours): content, commemorations and
+  psalmody in both psalters, and the English, column by column. The 2044 hold-out has
+  one test case per day and priest setting, in both psalters and in English.
 - **Fixtures** are regenerated from the pinned checkout by
   `scripts/generate-oracle-fixtures.sh` (in Docker) and
   `scripts/generate-holdout-fixtures.sh <year>`.
