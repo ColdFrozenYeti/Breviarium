@@ -122,8 +122,8 @@ final class OfficeDataStore {
         }
 
         let calendarEngine = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-        guard let liturgicalDay = calendarEngine.day(day: day, month: month, year: year) else {
-            loadDiagnostic = "LiturgicalCalendarEngine.day returned nil for \(year)-\(month)-\(day)"
+        guard let liturgicalDay = calendarEngine.vespersDay(day: day, month: month, year: year) else {
+            loadDiagnostic = "LiturgicalCalendarEngine.vespersDay returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 

@@ -3687,3 +3687,23 @@ psalters with English.
 **CI split.** The full-range audits took Kit CI to over 20 minutes, so they moved to
 their own workflow, `oracle-audits.yml` (`--filter vespersFullRange`), which runs in
 parallel. Kit CI runs `swift test --skip vespersFullRange`.
+
+### B1-M5 — English and the psalter setting in the app
+
+**Day title (alpha carry-over), audited.** New `vespersFullRangeTitleAudit`
+(`TitleAuditOracleTests.swift`) compares the title block's name line with DO's page title
+(the text before " ~ ") on every date from 2025 to 2040. Its baseline found two causes,
+not one:
+- **First Vespers.** The title followed the day's own office, while DO titles the page
+  after the office whose Vespers is prayed. Examples: every Saturday evening before a
+  Sunday, Christmas Eve, the eves of the Ascension and the Assumption, and 30 June (the
+  Precious Blood).
+- **The monthday suffix** ("… III. Augusti") was missing on the Sundays and ferias after
+  Pentecost, and on the resumed Sundays after Epiphany, from August to November.
+
+*Fix.* `LiturgicalCalendarEngine.vespersDay` builds the title from `Concurrence`'s Vespers
+office and adds `HourAssembler.monthdayTitleSuffix`, the function already used and
+audited for commemorations. The app uses it.
+
+*After:* 0 dates. The fast suite passes (346 tests). New named tests:
+`augustFeriaTitleHasItsMonthdaySuffix`, `saturdayEveningTitleIsTheSundaysFirstVespers`.

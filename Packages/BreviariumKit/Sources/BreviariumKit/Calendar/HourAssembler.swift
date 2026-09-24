@@ -983,7 +983,7 @@ public struct HourAssembler {
     /// Roman ordinal (`I.`...`V.`) and the month's genitive from `Psalterium/Comment.txt`'s
     /// `[Menses]` (August to December). Confirmed real: "Commemoratio Dominica X Post
     /// Pentecosten III. Augusti" (16 August 2025).
-    private static func monthdayTitleSuffix(office: String, day: Int, month: Int, year: Int, tomorrow: Bool) -> String {
+    static func monthdayTitleSuffix(office: String, day: Int, month: Int, year: Int, tomorrow: Bool) -> String {
         guard Self.participatesInMonthdayMerge(office: office),
             let key = Computus.monthday(day: day, month: month, year: year, tomorrow: tomorrow),
             let match = key.firstMatch(of: /^([0-9][0-9])([0-9])-[0-9]/),
@@ -2073,7 +2073,7 @@ public struct HourAssembler {
     /// temporal files, excluding `Pent01`-`Pent05` (the weeks nearest Trinity Sunday,
     /// which keep their own proper texts throughout and never reach into the
     /// month/week Scripture cycle).
-    private static func participatesInMonthdayMerge(office: String) -> Bool {
+    static func participatesInMonthdayMerge(office: String) -> Bool {
         guard office.range(of: #"^Tempora[^/]*/(Pent|Epi)"#, options: .regularExpression) != nil else { return false }
         return office.range(of: #"^Tempora[^/]*/Pent0[1-5]"#, options: .regularExpression) == nil
     }
