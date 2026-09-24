@@ -240,6 +240,9 @@ struct OfficeTypesetter {
         case .precesFeriales: "PRECES FERIALES"
         case .oratio: "ORATIO"
         case .conclusio: "CONCLUSIO"
+        case .lectioBrevis: "LECTIO BREVIS"
+        case .antiphonaFinalis: "ANTIPHONA FINALIS"
+        case .officiumCapituli: "DE OFFICIO CAPITULI"
         }
     }
 
@@ -384,7 +387,8 @@ struct OfficeTypesetter {
         let nsText = text as NSString
         var searchRange = NSRange(location: 0, length: nsText.length)
         while searchRange.length > 0 {
-            let found = nsText.range(of: "✠", options: [], range: searchRange)
+            // ✠ and DO's ✙︎ (`+++`, the small cross on the lips or breast) are both red.
+            let found = nsText.range(of: "[✠✙]", options: .regularExpression, range: searchRange)
             if found.location == NSNotFound { break }
             result.addAttribute(.foregroundColor, value: rubricColor, range: found)
             let next = NSMaxRange(found)

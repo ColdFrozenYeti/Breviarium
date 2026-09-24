@@ -177,6 +177,25 @@ public struct Occurrence {
             return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
         }
 
+        // `horascommon.pl:423-442`: "In Festo Sanctae Mariae Sabbato according to the
+        // rubrics" -- a Saturday with neither a temporal nor a sanctoral office above
+        // rank 1.4 is Our Lady's (`Commune/C10`, by season: `a` Advent, `b` January to
+        // 1 February, `c` after Epiphany and in Lent, `Pasc` in Paschaltide), rank 1.3;
+        // `:1757-1760` makes its Commune an `ex` one for the day hours. Beta 2: Vespers
+        // never met it (Saturday evening is Sunday's).
+        if weekday == 6, temporalRank.numericPrecedence < 1.4, (sanctoralRank?.numericPrecedence ?? 0) < 1.4 {
+            let week = TemporalCycle.weekName(day: day, month: month, year: year)
+            let suffix = week.hasPrefix("Adv") ? "a"
+                : (month == 1 || (month == 2 && day == 1)) ? "b"
+                : (week.hasPrefix("Epi") || week.hasPrefix("Quad")) ? "c"
+                : week.hasPrefix("Pasc") ? "Pasc" : ""
+            if let bvm = OfficeRank(rankFieldValue: "Sanctæ Mariæ Sabbato;;Simplex;;1.3;;ex C10\(suffix)"),
+                (sanctoralRank?.numericPrecedence ?? 0) <= bvm.numericPrecedence
+            {
+                return OccurrenceResult(sanctoralWins: false, winningPath: "Commune/C10\(suffix)", winningRank: bvm, isSunday: false)
+            }
+        }
+
         // `horascommon.pl:487`: the Sunday exceptions below apply when `$trank[0] =~
         // /Dominica/i && $dayname[0] !~ /Nat1/i` -- the temporal office's *title*, not
         // the weekday. Holy Family (`Tempora/Epi1-0`, "Sanctæ Familiæ Iesu Mariæ

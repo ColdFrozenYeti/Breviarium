@@ -53,6 +53,11 @@ public enum Unit: Equatable, Sendable {
 public struct Section: Equatable, Sendable {
     public enum Kind: String, Equatable, Sendable, CaseIterable {
         case introductio, psalmodia, capitulum, hymnus, versus, canticum, precesFeriales, oratio, conclusio
+        // Beta 2: Compline's short lesson and the final Marian antiphon; Prime's Martyrology slot
+        // stays empty (a separate "hour" in a later beta).
+        case lectioBrevis, antiphonaFinalis
+        // Prime's *Pretiosa* and "De Officio Capituli".
+        case officiumCapituli
     }
 
     public var kind: Kind

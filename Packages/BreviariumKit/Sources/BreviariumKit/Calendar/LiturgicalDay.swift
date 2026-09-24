@@ -57,6 +57,16 @@ public struct LiturgicalCalendarEngine {
         return Self.liturgicalDay(day: day, month: month, year: year, occurrence: office, titleSuffix: suffix)
     }
 
+    /// The day as a given hour shows it (Beta 2): Vespers and Compline follow
+    /// `vespersDay`; the other hours the day's own office, with its monthday suffix.
+    public func day(for hour: CanonicalHour, day: Int, month: Int, year: Int) -> LiturgicalDay? {
+        if hour.followsConcurrence { return vespersDay(day: day, month: month, year: year) }
+        let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
+        guard let occurrence = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
+        let suffix = HourAssembler.monthdayTitleSuffix(office: occurrence.winningPath, day: day, month: month, year: year, tomorrow: false)
+        return Self.liturgicalDay(day: day, month: month, year: year, occurrence: occurrence, titleSuffix: suffix)
+    }
+
     public func day(day: Int, month: Int, year: Int) -> LiturgicalDay? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
         guard let occurrence = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }

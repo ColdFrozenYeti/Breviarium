@@ -60,6 +60,15 @@ public struct Commemorations {
         self.calendar = calendar
     }
 
+    /// Beta 2: the commemorations at Lauds, the day's own occurrence runners-up
+    /// (`occurrence()`'s `@commemoentries`) at their Lauds index 2, with the same Sunday
+    /// and 1960 eligibility filters as at Vespers but none of the Vespers-only ones.
+    public func laudsCommemorations(day: Int, month: Int, year: Int) -> [Commemoration] {
+        guard let winner = Occurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
+        else { return [] }
+        return runnersUp(day: day, month: month, year: year, winnerPath: winner.winningPath, ind: 2)
+    }
+
     /// The commemorations for the Vespers actually prayed on the evening of `day`, as
     /// decided by `Concurrence.resolve(day:month:year:)`.
     public func resolve(day: Int, month: Int, year: Int) -> [Commemoration] {

@@ -17,6 +17,9 @@ import SwiftUI
 struct VespersView: View {
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
+    /// The hour shown, and the hour picker's choice (Beta 2).
+    let canonicalHour: CanonicalHour
+    let onSelectHour: (CanonicalHour) -> Void
     /// Date navigation lives one level up in `ContentView`, which owns the displayed date
     /// -- this view only ever asks for a move, never computes one itself.
     let onPreviousDay: () -> Void
@@ -28,6 +31,7 @@ struct VespersView: View {
     @State private var showingToc = false
     @State private var showingSettings = false
     @State private var showingDatePicker = false
+    @State private var showingHourPicker = false
     @State private var typesetCache = TypesetCache()
     @State private var parallelCache = ParallelCache()
     /// A section to bring into view (a table-of-contents choice); the reader clears it
@@ -39,7 +43,8 @@ struct VespersView: View {
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
-    private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)" }
+    /// The day and the hour: either changing starts the reader at the top.
+    private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)|\(canonicalHour.rawValue)" }
 
     /// Everything the typeset text depends on.
     private var officeKey: String {
@@ -174,10 +179,15 @@ struct VespersView: View {
     /// the reference screenshot untouched.
     private var navigationHeader: some View {
         ZStack {
+            // The title opens the hour picker (Universalis's own behaviour). A tappable
+            // `Text`, not a `Button`, so UI tests still find it as static text.
             Text(content.hourTitle)
                 .font(.system(size: metrics.navTitleSize))
                 .foregroundStyle(Theme.chrome)
                 .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { showingHourPicker = true }
+                .accessibilityIdentifier("hourPickerButton")
             HStack {
                 Button {
                     showingSettings = true
@@ -204,6 +214,12 @@ struct VespersView: View {
         .padding(.bottom, 4)
         .sheet(isPresented: $showingSettings) {
             SettingsView(settings: settings)
+        }
+        .sheet(isPresented: $showingHourPicker) {
+            HourPickerView(current: canonicalHour) { hour in
+                showingHourPicker = false
+                onSelectHour(hour)
+            }
         }
     }
 
@@ -282,6 +298,45 @@ struct VespersView: View {
                     Button("Cancel") { showingDatePicker = false }
                 }
             }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
+/// The hour picker (Beta 2), modelled on `design/reference/Hours Picker.png` and reduced to
+/// the office's own hours (`CLAUDE.md`): one row per hour, the current one checked.
+struct HourPickerView: View {
+    let current: CanonicalHour
+    let onSelect: (CanonicalHour) -> Void
+
+    private static let hours: [CanonicalHour] = [.laudes, .prima, .tertia, .sexta, .nona, .vesperae, .completorium]
+
+    var body: some View {
+        NavigationStack {
+            List(Self.hours, id: \.self) { hour in
+                Button {
+                    onSelect(hour)
+                } label: {
+                    HStack {
+                        Text(hour.title)
+                            .font(.system(size: 20))
+                            .foregroundStyle(Theme.liturgicalText)
+                        Spacer()
+                        if hour == current {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Theme.icon)
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+                .listRowBackground(Theme.background)
+                .accessibilityIdentifier("hour-\(hour.rawValue)")
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
+            .navigationTitle("Horæ")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .preferredColorScheme(.dark)
     }

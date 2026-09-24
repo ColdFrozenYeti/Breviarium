@@ -65,6 +65,10 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*Hymn\b"#),    // the hymn label, left at the start once the heading is gone
     try! Regex(#"^\s*Verse \(taking the place of the Chapter\)"#),    // DO's group heading in the Easter Octave
     try! Regex(#"Canticle of the Blessed Virgin Luke\s*-?\d*"#),
+    // Beta 2's day hours: their own group headings and the canticle title.
+    try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
+    try! Regex(#"Canticle of Simeon Luke\s*-?[\d:-]*"#),
+    try! Regex(#"Canticle of Zachary Luke\s*-?[\d:-]*"#),
 ]
 
 /// The same for DO's Latin cells: headings and titles the app sets as its own fixed
@@ -81,6 +85,9 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Canticum B\. Mariæ Virginis Luc\.\s*-?\d*"#),
     try! Regex(#"^\s*Hymnus\b"#),
     try! Regex(#"^\s*Versus \(In loco Capituli\)"#),
+    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis)\b"#),
+    try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),
+    try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
 ]
 
 /// What's left of each cell once every piece we render, and the chrome, is removed:

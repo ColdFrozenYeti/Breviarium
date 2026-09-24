@@ -215,7 +215,13 @@ public struct SectionResolver {
 
         for line in lines {
             if line.first == "@", let inclusion = parseInclusion(line) {
-                var included = resolveSection(path: inclusion.path, section: inclusion.section, depth: depth + 1)
+                // As for `$` lines below: the header may carry the I spelling.
+                var section = inclusion.section
+                if !sectionExists(path: inclusion.path, section: section) {
+                    let iSpelling = section.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+                    if sectionExists(path: inclusion.path, section: iSpelling) { section = iSpelling }
+                }
+                var included = resolveSection(path: inclusion.path, section: section, depth: depth + 1)
                 if let subs = inclusion.substitutions {
                     included = applySubstitutions(subs, to: included)
                 }
@@ -256,18 +262,28 @@ public struct SectionResolver {
     /// against each file's real header naming (`Rubricae.txt`: `[Pater secreto]`, bare;
     /// `Preces.txt`: `[Preces feriales Vespera]`, prefixed).
     private func resolvePrayerMacroLine(_ line: String, depth: Int) -> String {
+        // The data build normalises J to I in section headers (Latin prose) but not in
+        // `$` reference lines, so a Latin `$Deus in adjutorium` must also try
+        // `[Deus in adiutorium]` (Beta 2: Compline's skeleton names prayers directly).
+        func candidates(_ name: String) -> [String] {
+            let iSpelling = name.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+            return iSpelling == name ? [name] : [name, iSpelling]
+        }
         for (prefix, path) in Self.sigilPaths where line.hasPrefix(prefix) {
             let rest = String(line.dropFirst(prefix.count))
             let section = prefix == "Preces " ? "Preces \(rest)" : rest
-            return resolveSection(path: path, section: section, depth: depth + 1)
+            let found = candidates(section).first { sectionExists(path: path, section: $0) } ?? section
+            return resolveSection(path: path, section: found, depth: depth + 1)
         }
 
         let name = line
-        if sectionExists(path: Self.prayersPath, section: name) {
-            return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
+        for candidate in candidates(name) where sectionExists(path: Self.prayersPath, section: candidate) {
+            return resolveSection(path: Self.prayersPath, section: candidate, depth: depth + 1)
         }
-        if name.hasSuffix("."), sectionExists(path: Self.prayersPath, section: String(name.dropLast())) {
-            return resolveSection(path: Self.prayersPath, section: String(name.dropLast()), depth: depth + 1)
+        if name.hasSuffix(".") {
+            for candidate in candidates(String(name.dropLast())) where sectionExists(path: Self.prayersPath, section: candidate) {
+                return resolveSection(path: Self.prayersPath, section: candidate, depth: depth + 1)
+            }
         }
         return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
     }
