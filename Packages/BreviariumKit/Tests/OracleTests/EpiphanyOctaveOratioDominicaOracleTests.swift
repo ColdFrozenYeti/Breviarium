@@ -19,7 +19,7 @@ import Testing
     // still within week "Nat1" before that year's Sunday, which does use Epiphany's own
     // collect -- the gate is genuinely week-name-scoped, not the whole octave).
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 12, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

@@ -39,15 +39,34 @@ public enum Psalm {
     private nonisolated(unsafe) static let subVerseAnnotation: Regex<AnyRegexOutput> =
         try! Regex(#"\s*\(\d+[a-z]?\)"#)
 
-    public static func parseVerses(_ lines: [String]) -> [PsalmVerse] {
+    /// `keepingSubVerseLetters` keeps a reference's `a`/`b` letter (`"144:13a"`) for a
+    /// caller that still has to filter by a verse range, which is decided on the lettered
+    /// reference (`horasscripts.pl:598-614`) before DO removes the letter for display
+    /// (`:400-403`); such a caller applies `displayReference` itself afterwards.
+    /// DO's display rules for the marks inside a psalm line, applied in every language
+    /// (`horasscripts.pl:418-419`, `handleverses`, with its `$noflexa` default on): the
+    /// flex `†` is removed, and a `‡` becomes the half-verse break, the line's own later
+    /// `*` dropping (`"A ‡ B * C"` → `"A * B C"`). The Latin text has had this applied
+    /// when the data was built (`LatinOrthography`); the English hasn't, since nothing
+    /// else rewrites English (`CLAUDE.md`), and DO applies these only to psalm lines, not
+    /// to other text (`webdia.pl:696` keeps a `†` elsewhere).
+    static func displayMarks(_ text: String) -> String {
+        var result = text.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+        result = result.replacingOccurrences(of: #"‡\s+(.*?)\*\s*"#, with: "* $1", options: .regularExpression)
+        return result
+    }
+
+    public static func parseVerses(_ lines: [String], keepingSubVerseLetters: Bool = false) -> [PsalmVerse] {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
             let rawReference = String(line[line.startIndex..<spaceIndex])
             guard rawReference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
 
-            let text = String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: "")
+            let text = displayMarks(String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: ""))
             let (first, second) = splitHalves(text)
-            return PsalmVerse(reference: strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second)
+            return PsalmVerse(
+                reference: keepingSubVerseLetters ? rawReference : strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second
+            )
         }
     }
 
@@ -64,6 +83,11 @@ public enum Psalm {
     /// across this divergence (`pairedVerses`'s own doc comment has the full story on
     /// why — it would need treating `†`/`‡` as structural split points too, which
     /// `Psalm.swift`'s own scope note above deliberately doesn't).
+    /// `verse` with its reference's sub-verse letter removed: the form DO displays.
+    public static func displayReference(_ verse: PsalmVerse) -> PsalmVerse {
+        PsalmVerse(reference: strippingSubVerseLetter(verse.reference), firstHalf: verse.firstHalf, secondHalf: verse.secondHalf)
+    }
+
     private static func strippingSubVerseLetter(_ reference: String) -> String {
         guard let last = reference.last, last.isLowercase,
             let secondToLast = reference.dropLast().last, secondToLast.isNumber

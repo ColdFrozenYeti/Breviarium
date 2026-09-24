@@ -14,7 +14,7 @@ import Testing
     // project's engine used to try first, unconditionally) is a different citation,
     // "Heb 1:1-2", reserved for Christmas's own *second* Vespers/Lauds.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 12, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -42,7 +42,7 @@ import Testing
     // `[Adv Ant 17]`, "O Sapiéntia, * quæ ex ore Altíssimi prodiísti...", the first of
     // the seven "O Antiphons".
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 17, month: 12, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

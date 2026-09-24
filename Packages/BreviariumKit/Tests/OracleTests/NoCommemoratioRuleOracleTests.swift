@@ -18,7 +18,7 @@ import Testing
     // Commemoratio". Real fixture shows no commemoration at all -- straight from Oratio
     // to Conclusio -- despite the title's own header still naming it.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 6, year: 2038, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -41,7 +41,7 @@ import Testing
     // 25 December 2027 (Christmas Day itself). Sancti/12-25.txt's own [Rule] includes
     // bare "No commemoratio". Real fixture shows no commemoration at all.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 25, month: 12, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -63,7 +63,7 @@ import Testing
     // 1 January 2028. Sancti/01-01.txt's own [Rule] includes bare "no commemoratio".
     // Real fixture shows no commemoration at all.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 1, month: 1, year: 2028, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -89,7 +89,7 @@ import Testing
     // commemoration -- "Dominica III in Quadragesima" (Tempora/Quad3-0) carries no "No
     // Commemoratio" directive of its own, so St Joseph's own commemoration still renders.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 3, year: 2028, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

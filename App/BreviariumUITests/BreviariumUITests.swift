@@ -1,17 +1,37 @@
 import XCTest
 
 final class BreviariumUITests: XCTestCase {
+    /// Scrolls the Settings form until `element` is loaded: its lower rows (text size,
+    /// About) exist only once scrolled into view, and the form outgrew the screen when
+    /// Psalterium was added.
+    private func scrollSettings(to element: XCUIElement, in app: XCUIApplication) {
+        var swipes = 0
+        while !element.exists, swipes < 5 {
+            app.collectionViews.firstMatch.swipeUp()
+            swipes += 1
+        }
+    }
+
     /// Launches on a fixed date with an explicit reading mode and the default text size,
     /// passed through the `UserDefaults` argument domain (`-key value`) so no test inherits
     /// another's Settings choice from the same simulator (a snapshot once came out at XXL
     /// because an earlier test had chosen it). A test can still change the text size
     /// through Settings; the choice holds for that launch.
     @discardableResult
-    private func launchApp(date: String, readingMode: String = "horizontal", pageTurn: String = "slide") -> XCUIApplication {
+    private func launchApp(
+        date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
+        section: String? = nil, english: Bool = false, psalter: String = "vulgate"
+    ) -> XCUIApplication {
+        // Every launch starts in portrait: a failed step ends a test at once, so a rotation
+        // undone at the end of a test could leak into the next ones (it did, B1-M5: a
+        // landscape capture failed and every later Settings tap missed).
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
+        if let section { app.launchEnvironment["BREVIARIUM_SNAPSHOT_SECTION"] = section }
         app.launchArguments += [
-            "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", "standard",
+            "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
+            "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
         ]
         app.launch()
         XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
@@ -125,7 +145,8 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Ambrosianus"].exists)
         XCTAssertTrue(app.switches["Sacerdos vel diaconus adest"].exists)
         XCTAssertTrue(app.switches["Rubricæ"].exists)
-        XCTAssertTrue(app.staticTexts["English translation"].exists)
+        XCTAssertTrue(app.switches["English translation"].exists)
+        XCTAssertTrue(app.buttons["psalterPicker"].exists || app.otherElements["psalterPicker"].exists || app.staticTexts["Psalterium"].exists)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "settings-screen"
@@ -193,6 +214,7 @@ final class BreviariumUITests: XCTestCase {
 
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        scrollSettings(to: app.staticTexts["About"], in: app)
         app.staticTexts["About"].tap()
         XCTAssertTrue(app.navigationBars["About"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Breviarium"].exists)
@@ -212,28 +234,36 @@ final class BreviariumUITests: XCTestCase {
     private func setTextSize(_ sizeLabel: String, in app: XCUIApplication) {
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        scrollSettings(to: app.buttons[sizeLabel], in: app)
         app.buttons[sizeLabel].tap()
         app.buttons["Done"].tap()
     }
 
-    /// `CLAUDE.md`'s own snapshot matrix, adapted for what's built: English is deferred
-    /// to beta (so every capture is English off). "Page 1" is the first page and "a
-    /// psalmody page" the second, in the default horizontal reading mode. One fresh
-    /// launch per text size, so each starts on page 1.
-    private func captureSnapshotMatrix(dateString: String, namePrefix: String, sizeLabel: String, sizeName: String) {
-        let app = launchApp(date: dateString)
-
+    /// `CLAUDE.md`'s own snapshot matrix. "Page 1" is the first page and "a psalmody
+    /// page" the second, in the default horizontal reading mode. One fresh launch per
+    /// text size, so each starts on page 1. English off by default; the English-on
+    /// captures are `captureEnglishMatrix`'s (Beta 1, B1-M5).
+    private func captureSnapshotMatrix(
+        dateString: String, namePrefix: String, sizeLabel: String, sizeName: String, english: Bool = false,
+        psalter: String = "vulgate", landscape: Bool = false
+    ) {
+        let app = launchApp(date: dateString, english: english, psalter: psalter)
+        // The text size is set in portrait, where Settings has room; then the phone turns.
         setTextSize(sizeLabel, in: app)
-        Thread.sleep(forTimeInterval: 0.4)
+        if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
+        Thread.sleep(forTimeInterval: landscape ? 1.0 : 0.4)
 
-        let page1 = XCTAttachment(screenshot: app.screenshot())
+        // In landscape the screen's own capture came back in the portrait buffer, cropped
+        // (B1-M5); the window's capture follows the app's orientation.
+        func capture() -> XCUIScreenshot { landscape ? app.windows.firstMatch.screenshot() : app.screenshot() }
+        let page1 = XCTAttachment(screenshot: capture())
         page1.name = "\(namePrefix)-\(sizeName)-page1"
         page1.lifetime = .keepAlways
         add(page1)
 
         app.swipeLeft()
         Thread.sleep(forTimeInterval: 0.4)
-        let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
+        let psalmodyPage = XCTAttachment(screenshot: capture())
         psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
         psalmodyPage.lifetime = .keepAlways
         add(psalmodyPage)
@@ -264,6 +294,24 @@ final class BreviariumUITests: XCTestCase {
         add(curlPage)
     }
 
+    /// B1-M0: hymns must show as stanzas (normal pitch within a stanza, a gap between
+    /// stanzas), not as evenly spaced single lines. 19 November 2026's hymn, "Fortem virili
+    /// pectore", opened at the HYMNUS section, in both reading modes at M and XXL.
+    /// Measured with `scripts/measure-snapshot.py --pitch`.
+    func testHymnStanzasSnapshots() {
+        for readingMode in ["horizontal", "vertical"] {
+            for (textSize, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-11-19", readingMode: readingMode, textSize: textSize, section: "hymnus")
+                Thread.sleep(forTimeInterval: 0.6)
+                let attachment = XCTAttachment(screenshot: app.screenshot())
+                attachment.name = "hymn-\(readingMode)-\(sizeName)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                app.terminate()
+            }
+        }
+    }
+
     func testSnapshotMatrixFerialDay() {
         captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial", sizeLabel: "M", sizeName: "default")
         captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial", sizeLabel: "XXL", sizeName: "largest")
@@ -287,5 +335,68 @@ final class BreviariumUITests: XCTestCase {
     func testSnapshotMatrixHolyWeekDay() {
         captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek", sizeLabel: "M", sizeName: "default")
         captureSnapshotMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek", sizeLabel: "XXL", sizeName: "largest")
+    }
+
+    // MARK: Beta 1, B1-M5: English on
+
+    /// `CLAUDE.md`'s matrix with English on: each day in portrait at both sizes, plus
+    /// landscape at the default size, and the ferial day in the Pius XII psalter too
+    /// (its psalms are paired whole, `docs/psalters-and-english.md`).
+    private func captureEnglishMatrix(dateString: String, namePrefix: String) {
+        captureSnapshotMatrix(dateString: dateString, namePrefix: "\(namePrefix)-en", sizeLabel: "M", sizeName: "default", english: true)
+        captureSnapshotMatrix(dateString: dateString, namePrefix: "\(namePrefix)-en", sizeLabel: "XXL", sizeName: "largest", english: true)
+        captureSnapshotMatrix(
+            dateString: dateString, namePrefix: "\(namePrefix)-en-landscape", sizeLabel: "M", sizeName: "default", english: true, landscape: true
+        )
+    }
+
+    func testEnglishSnapshotMatrixFerialDay() {
+        captureEnglishMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial")
+        captureSnapshotMatrix(
+            dateString: "2027-04-09", namePrefix: "matrix-ferial-en-pius12", sizeLabel: "M", sizeName: "default", english: true, psalter: "pius12"
+        )
+        captureSnapshotMatrix(dateString: "2027-04-09", namePrefix: "matrix-ferial-pius12", sizeLabel: "M", sizeName: "default", psalter: "pius12")
+    }
+
+    func testEnglishSnapshotMatrixCommemorationDay() {
+        captureEnglishMatrix(dateString: "2026-02-24", namePrefix: "matrix-commemoration")
+    }
+
+    func testEnglishSnapshotMatrixIClassFeast() {
+        captureEnglishMatrix(dateString: "2026-11-01", namePrefix: "matrix-feast")
+    }
+
+    func testEnglishSnapshotMatrixHolyWeekDay() {
+        captureEnglishMatrix(dateString: "2026-03-29", namePrefix: "matrix-holyweek")
+    }
+
+    /// English on, horizontal and vertical: the pages flow (the counter counts up on a
+    /// swipe) and the table of contents jumps to a later page.
+    func testEnglishPagesFlowAndTableOfContentsJumps() {
+        let app = launchApp(date: "2026-09-16", english: true)
+        Thread.sleep(forTimeInterval: 0.5)
+        guard let first = pageCounter(app) else { return XCTFail("no page counter") }
+        XCTAssertEqual(first.page, 1)
+        XCTAssertGreaterThan(first.count, 3)
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.5)
+        XCTAssertEqual(pageCounter(app)?.page, 2)
+        app.terminate()
+
+        let hymn = launchApp(date: "2026-11-19", section: "hymnus", english: true)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertGreaterThan(pageCounter(hymn)?.page ?? 0, 1)
+        let attachment = XCTAttachment(screenshot: hymn.screenshot())
+        attachment.name = "hymn-en-horizontal-default"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        hymn.terminate()
+
+        let vertical = launchApp(date: "2026-11-19", readingMode: "vertical", section: "hymnus", english: true)
+        Thread.sleep(forTimeInterval: 0.6)
+        let verticalShot = XCTAttachment(screenshot: vertical.screenshot())
+        verticalShot.name = "hymn-en-vertical-default"
+        verticalShot.lifetime = .keepAlways
+        add(verticalShot)
     }
 }

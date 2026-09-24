@@ -94,8 +94,8 @@ are not optional.
   commemorations (antiphon, versicle, collect, the "Commemoratio" rubric) and rubrics, as
   DO's bilingual render does.
 - **Alignment.** Pairing by structural unit, per `CLAUDE.md`:
-  - psalms verse by verse (one to one in Vulgate mode; in Bea mode, merge half-verses
-    where the divisions differ);
+  - psalms verse by verse in Vulgate mode (one to one); in Bea mode, each psalm paired
+    whole (decided in B1-M1);
   - hymns by stanza;
   - everything else by whole unit.
 
@@ -239,8 +239,8 @@ the pinned DO commit:
 
 1. English for every unit, including commemorations and rubrics, following DO's pairing
    and fallback.
-2. Alignment per `CLAUDE.md`. In Bea mode, merge half-verses where the divisions differ,
-   with named tests for each merge pattern found in B1-M1.
+2. Alignment per `CLAUDE.md`: Vulgate psalms by verse line, Bea psalms whole (decided in
+   B1-M1), with named tests for both.
 3. New audits over the `bilingual/` range, in both directions:
    - **English content:** every English piece we render appears in DO's page;
    - **English completeness:** every English unit DO shows has one in our output;
@@ -339,10 +339,13 @@ Open questions, to be answered before the milestone named:
 
 1. **Setting names (B1-M5):** "Psalterium: Vulgata / Pii XII", in Latin like the other
    toggles, or English labels?
-2. **English rubrics (B1-M4):** when rubrics are on, show the English rubric in the English
-   column as DO does, or Latin rubrics only?
-3. **English title block (B1-M5):** `CLAUDE.md` keeps fixed elements in Latin. Keep the
-   day title Latin-only with English on (recommended), or add the English title below it?
-4. **DRBO vs DO English (B1-M1):** if they differ, follow DO (the oracle) or bundle a
-   separate Douay-Rheims text?
-5. **Two-column split policy (B1-M5):** decided on the evidence of the prototype.
+2. ~~English rubrics~~ **Decided in B1-M1:** show DO's English rubric in the English
+   column, beside the Latin.
+3. ~~English title block~~ **Decided in B1-M1:** the day title stays Latin only.
+4. ~~DRBO vs DO English~~ **Decided in B1-M1:** follow DO's English as it is for Beta 1.
+   Replacing the dozen chapters worded like the King James Version with DRBO text is a
+   possible follow-up (`psalters-and-english.md` §6).
+5. **Two-column split policy (B1-M5):** `psalters-and-english.md` §7 is approved as the
+   prototype's starting point; the final policy is decided on its evidence.
+6. **Bea pairing (decided in B1-M1):** with the Pius XII psalter and English on, each
+   psalm is paired whole; `CLAUDE.md` updated.

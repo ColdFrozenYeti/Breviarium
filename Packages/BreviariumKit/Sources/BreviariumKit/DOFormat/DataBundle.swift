@@ -9,6 +9,13 @@
 /// same reasoning applies to compression. Measuring comes first — see `BreviariumData`'s
 /// size report — and compression is a candidate follow-up only if the plain-JSON number
 /// turns out to matter, not a default.
+/// Which Latin psalter the office uses (`CLAUDE.md`, Liturgical scope): the Vulgate by
+/// default, the Pius XII (Bea) psalter as an option.
+public enum Psalter: String, CaseIterable, Codable, Sendable {
+    case vulgate
+    case pius12
+}
+
 public struct DataBundle: Codable, Sendable {
     public var formatVersion: Int
     /// The plain Latin corpus (`Tempora`, `Sancti`, `Commune`, `Psalterium`) — every `@`
@@ -63,11 +70,22 @@ public struct DataBundle: Codable, Sendable {
         self.temporaRedirect = temporaRedirect
     }
 
-    /// The Latin corpus `SectionResolver` should read from: the Bea psalter layered on
-    /// top of plain Latin, matching DO's own `Latin-Bea` dash-fallback behaviour
-    /// (`do-format.md`).
-    public func makeLatinCorpus() -> OfficeCorpus {
-        LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
+    /// The Latin corpus `SectionResolver` should read from, for one psalter
+    /// (`docs/psalters-and-english.md` section 1):
+    /// - `.vulgate`: plain `Latin/` alone, as DO renders with its "Pius XII Psalter"
+    ///   option off (its default, `horas.setup`'s `$psalmvar='0'`);
+    /// - `.pius12`: the Bea psalter layered on top of plain Latin, matching DO's own
+    ///   `Latin-Bea` dash fallback (`SetupString.pl:794-797`, `do-format.md`).
+    ///
+    /// The psalter changes only `Psalterium/Psalmorum/` at Vespers; every other file
+    /// resolves the same way in both.
+    public func makeLatinCorpus(psalter: Psalter) -> OfficeCorpus {
+        switch psalter {
+        case .vulgate:
+            return InMemoryOfficeCorpus(files: latin)
+        case .pius12:
+            return LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
+        }
     }
 
     /// The sanctoral calendar with *all three* of this bundle's calendar tables. Every
@@ -80,10 +98,17 @@ public struct DataBundle: Codable, Sendable {
         SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
     }
 
-    /// The English corpus — no Bea-equivalent overlay exists for English (confirmed: no
-    /// `English-Bea` sibling directory in the checkout), so this is just the one tree.
+    /// The English corpus: DO's English tree layered over plain Latin, section by
+    /// section, as DO builds any file in its fallback language (`SetupString.pl:589-593`:
+    /// `$base_sections = setupstring('Latin', …)` under the English file's own sections,
+    /// then `:626`, every section the English file lacks is filled from the Latin one).
+    /// The `@` references of a section filled this way are resolved afterwards in the
+    /// English context (`:657` on), so a Latin `[Versum 3]` of `@:Versum 2` gives the
+    /// *English* `[Versum 2]`; only text with no English anywhere stays Latin, as it
+    /// does in DO's own English column. The base is plain `Latin/` whichever psalter
+    /// is chosen (`$baselang = 'Latin'`); there is no English Bea tree.
     public func makeEnglishCorpus() -> OfficeCorpus {
-        InMemoryOfficeCorpus(files: english)
+        LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: english), InMemoryOfficeCorpus(files: latin)])
     }
 }
 
@@ -97,12 +122,16 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
         self.layers = layers
     }
 
+    /// Every layer's variants of the section, the lowest layer's first: `SectionResolver`
+    /// takes the last applicable variant, so an upper layer's variant wins exactly when
+    /// it applies, and a lower layer's fills in when none of the upper one's does. That
+    /// is DO's order, which evaluates each file's conditional headers when it parses the
+    /// file (`setupstring_parse_file`) and only then fills missing sections from the
+    /// layer below (`SetupString.pl:626`). Real case: English `Major Special` has only
+    /// `[Feria Versum 3] (feria 7)`; on any other weekday the Latin `[Feria Versum 3]`
+    /// (`@:Dominica Versum 3`) applies, resolved in English ("O Lord, direct my prayer").
     public func rawSections(path: String, name: String) -> [RawSection] {
-        for layer in layers {
-            let sections = layer.rawSections(path: path, name: name)
-            if !sections.isEmpty { return sections }
-        }
-        return []
+        layers.reversed().flatMap { $0.rawSections(path: path, name: name) }
     }
 
     public func baseFile(path: String) -> BaseFileReference? {

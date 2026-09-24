@@ -3465,3 +3465,283 @@ Sources consulted for the CI details above:
 Sources consulted for the 2026-09-16 sideloading amendment (see `docs/install-on-iphone.md`
 for the full citation list): Sideloadly's own site and FAQ, AltStore/AltServer's FAQ site,
 and SideStore's documentation.
+
+---
+
+## Beta 1 (plan: [`Beta_1_plan.md`](Beta_1_plan.md))
+
+### B1-M0 — Housekeeping and baseline
+
+**Baseline (2026-09-24, `main` at `13c6a52`, Linux, Swift 6.1 in Docker):**
+- the fast suite, 341 tests, passes (`swift test --skip vespersFullRange`, 202 s);
+  it includes all 732 `holdout2044VespersMatchesDivinumOfficium` cases;
+- `vespersFullRangeContentAudit` passes: 0/0/0/0/0/0/0 over 2025–2040 (307 s);
+- `vespersFullRangeCommemorationAudit` passes: 0 dates (220 s).
+
+**CI budget.** Measured on the last full runs (`d763107`): Kit CI 4.8 min, App CI 20 min.
+Kit CI stays under the plan's 10-minute threshold, so the long audits stay in it for now.
+Revisit in B1-M2, when the Vulgate and bilingual fixture sets roughly triple the audit
+time. `kit-ci.yml` and `app-ci.yml` now use `concurrency`: a newer push to a pull request
+cancels that PR's older run, and pushes to `main` never cancel each other.
+
+**Bug: hymns shown as single lines, not stanzas.** Measured with the new
+`scripts/measure-snapshot.py --pitch` on the M5 snapshot of 19 November 2026 ("Fortem virili
+pectore"): **every** hymn line had a 34.3 pt pitch, which is the 23 pt line pitch plus
+the 11.4 pt stanza gap (0.6 × 19). The final doxology, the last unit and so without a
+trailing gap, was at 23.0. The engine is correct: `HourAssembler.hymnStanzas` emits one
+`.prose` unit per stanza, its lines joined by `\n`. But TextKit starts a new paragraph at
+every `\n`, so the stanza's `paragraphSpacing` applied after every line. The regression
+came in with the TextKit port (`2ef9957`).
+
+Fixed in `OfficeTypesetter.appendParagraph`: line breaks inside a unit become U+2028 LINE
+SEPARATOR, so a stanza stays one paragraph, with the gap only after its last line. This
+covers any multi-line unit, and hymn stanzas are the only one today. The string length is
+unchanged, so the table of contents' offsets are unaffected. Also added a
+`BREVIARIUM_SNAPSHOT_SECTION` launch hook (open at a section, like the table of
+contents) and `testHymnStanzasSnapshots` (19 November 2026 at the hymn, horizontal and
+vertical, M and XXL).
+
+**After the fix** (App CI on `b8684b6`, `hymn-*` snapshots, `measure-snapshot.py --pitch`):
+
+| Snapshot | Within a stanza | Between stanzas |
+|---|---|---|
+| vertical, M | 23.0 (±0.3) | 34.3–35.0 |
+| vertical, XXL | 34.3 (±0.4) | 51.7–52.7 |
+| horizontal, M | — (see below) | — |
+| horizontal, XXL | 34.3 | — (one stanza on the page) |
+
+Within a stanza the pitch is now the plain line pitch. The stanza gap appears once per
+stanza, 11.4 pt at M and about 17.5 pt at XXL, which is 0.6 × body at both sizes. The
+doxology's *Amen.* stays inside its stanza. The ferial psalmody page still measures 23.0 pt
+body pitch, so nothing else moved.
+
+**Second bug, found by these snapshots: table-of-contents jumps in horizontal mode could
+land one page early.** A section's offset is its separator rule, a paragraph of its own. At
+M on 19 November 2026 the rule before *Hymnus* is the last line of page 7, and the heading
+starts page 8. So the jump showed page 7 (the end of the *Capitulum*), and the M hymn
+snapshot shows no hymn. `PagedOfficeReader` now jumps to the page of the paragraph after
+the rule, which is the heading. When the rule and the heading share a page, which is the
+usual case, nothing changes. The vertical reader still scrolls to the rule, which it
+always shows above the heading.
+
+**`CLAUDE.md` updated** as approved with the B1-M0 plan:
+- the Vulgate psalter becomes the default, with Pius XII as an option;
+- a *Psalterium* setting is added (final label in B1-M5);
+- the oracle scope covers both psalters;
+- the options mapping notes that the psalter option off means the Vulgate;
+- the reference screenshot is named correctly (`Format.png`).
+
+### B1-M1 — The psalters and the English (document)
+
+Written as [`psalters-and-english.md`](psalters-and-english.md), for review; no code.
+Headline findings:
+- the psalter switch changes only `Psalterium/Psalmorum/`;
+- the Vulgate and the English match line for line, while Bea does not;
+- DO's English is complete for Vespers (92 sampled evenings);
+- DO's psalter is Challoner Douay-Rheims (0.6% word variants against DRBO), but about a
+  dozen of its 83 chapters use King James or modern wording.
+
+Five questions are waiting for the user, including Bea pairing and DRBO against DO.
+
+### B1-M2 — Fixtures
+
+- **Generator.** `oracle-worker.sh` takes a psalter (`lang1`) and a format; the new
+  "rows" format keeps DO's Latin and English cells apart. `scripts/generate-fixture-set.sh`
+  builds the sets.
+- **Sets generated** (`data/SOURCE.md` has the table and every check):
+  - `vulgate/` 2025-2040, 9.7 MB;
+  - `bilingual/` 2025-2040, 23 MB;
+  - `holdout/2044-bilingual.tar.gz`, 1.6 MB.
+
+  The committed fixtures grow from 12 MB to 46 MB.
+- **Checks:**
+  - host renders equal container renders;
+  - rows joined equal the flat page;
+  - 2044 generated twice, byte-identical;
+  - no empty renders, cells or rows;
+  - on all 5,844 dates the bilingual Latin column equals the Vulgate Latin-only page.
+- **Bea suite.** No engine or test code changed, so the Bea suite is unaffected; Kit CI
+  confirms it.
+- **Render speed.** Host rendering ran at about 0.3 s per page with 4 workers, so a full
+  set takes about 7-12 minutes.
+
+### B1-M3 — Vulgate in the engine
+
+**Psalter option.** `Psalter` (`.vulgate`, `.pius12`) and
+`DataBundle.makeLatinCorpus(psalter:)`:
+- `.vulgate` is plain `Latin/` alone;
+- `.pius12` is `Latin-Bea/` layered over `Latin/`, as before.
+
+Every test passes its psalter explicitly. The full-range content and commemoration audits,
+the new psalmody audit and the 2044 hold-out run in both psalters (the Vulgate hold-out
+reads the Latin column of `holdout/2044-bilingual.tar.gz`).
+
+The plan's `OfficeOptions` value is not introduced yet. The psalter selects which files
+the corpus holds, so it belongs where the corpus is built, not in a per-call option like
+`priest:`. `OfficeOptions` arrives with English in B1-M4, where it carries `priest` and
+`english`.
+
+**First measurement: the Vulgate already passes the existing audits.** Unchanged engine,
+Vulgate fixtures:
+- content audit 0/0/0/0/0/0/0;
+- commemoration audit 0 dates.
+
+Everything that differs between the psalters (`‡`, titles, ranges, the Magnificat) was
+either already handled or invisible to those two audits.
+
+**New audit, `vespersFullRangePsalmodyAudit`** (`PsalmodyAuditOracleTests.swift`). It
+compares each psalm's title and exact verse-reference list with DO's page, which is the
+direction the content audit can't see.
+- **Baseline** (counted by the first difference on each date): Pius XII 5,683 dates,
+  Vulgate 634.
+- **Parser correction.** A first version miscounted about 570 Paschaltide dates, where
+  the five psalms share one antiphon. The parser now also ends a psalm at the next title;
+  the counts above are after that correction.
+
+**Bug 1: both halves of 144:13 dropped at Psalm 144's split** (Saturdays with the ferial
+psalms, 634 dates, both psalters).
+- *Cause.* `Psalm.parseVerses` stripped the `a`/`b` letter before the verse range was
+  applied, so `144(8-'13a')` and `144('13b'-21)` both rejected an unlettered "13".
+- *DO.* It filters the lettered lines (`horasscripts.pl:598-614`) and drops the letter
+  only for display (`:400-403`).
+- *Fix.* Parse with letters, filter, then strip (`HourAssembler.versesInRange`).
+- *Named test:* `saturdayDividedPsalm144KeepsBothHalvesOfVerse13`.
+
+**Bug 2: psalm titles.**
+- *Symptom.* The title was built from the raw `Psalmi major` token, so it read
+  `Psalmus 144(8-'13a')`. The Pius XII subtitle (`— Messias rex, sacerdos victor`) was
+  never shown.
+- *DO.* `psalmi.pl:692-697` passes `8` and `'13a'` as Perl arguments, and
+  `horasscripts.pl:561-562` titles the psalm `Psalmus 144(8-13a)`. `:581-596` appends the
+  Bea `(subtitle)` line, dropping it for a part that starts after the first verse
+  (`138(14-24)`, `144(8-13a)`).
+- *Fix.* `HourAssembler.psalmTitle(baseNumber:range:fileText:)`. The subtitle is read
+  off the file: no plain-Latin psalm file (1-150) starts with a `(…)` line; only
+  canticles do, and DO titles those separately.
+- *Named test:* `dividedPsalmTitlesMatchDivinumOfficium`.
+
+**After both fixes:** psalmody audit 0 dates in both psalters.
+
+### B1-M4 — English in the engine
+
+**English corpus.** `DataBundle.makeEnglishCorpus()` is `English/` layered over the
+Vulgate `Latin/`, as DO builds its second column (`SetupString.pl:589-639`): a section
+missing in English falls back to the Latin. `LayeredOfficeCorpus` now returns every
+layer's variants, lower layers first, so the last applicable one wins across layers too.
+For example, English `[Feria Versum 3] (feria 7)` beats the Latin `@:Dominica Versum 3`.
+`HourAssembler` resolves every unit a second time against it, per language: antiphons,
+verses, versicles, hymn stanzas, chapter, collect, commemorations and rubrics. With the
+Pius XII psalter, a psalm whose verses don't line up with the English gets one
+`.englishPsalm` block, paired whole (`psalters-and-english.md`).
+
+**New audit, `vespersFullRangeEnglishAudit`** (`EnglishAuditOracleTests.swift`), against
+the bilingual fixtures (Vulgate plus English, one DO table row per line). It makes four
+checks:
+- **content:** every English piece we render is in DO's English column;
+- **coverage, English:** nothing but chrome is left in DO's English column once ours is
+  removed;
+- **coverage, Latin:** the same for DO's Latin column, which the Latin content audit
+  can't see;
+- **pairing:** a unit's Latin and English sit in the same DO row.
+
+The 2044 hold-out runs it too, with the priest on and off.
+
+**Baseline** (engine with no English yet):
+- 944 distinct uncovered English texts, on 5,844 dates;
+- one mispairing, on 591 dates;
+- no English at all for any hymn, psalm, canticle, chapter, collect or versicle.
+
+**Fixes found by the audit**, each checked against DO's Perl:
+- `†` is removed and `‡` becomes the half-verse break, in both languages
+  (`horasscripts.pl:397-419`).
+- The Oratio preamble. The V/R is replaced by the line-5 rubric of `[Dominus]` when there
+  is no priest and the preces were said (`$precesferiales`). *Orémus* is added, and the
+  whole preamble is gated on `Limit…Oratio` (`orationes.pl:152-213`). *Orémus* also goes
+  before each commemoration's collect (`orationes.pl:820`).
+- A closing antiphon's first `*` is removed (`psalmi.pl:688`, `orationes.pl:818`, no
+  `/g`).
+- The seasonal alleluia in English is the lower-case `alleluia`
+  (`LanguageTextTools.pm` `ensure_single_alleluia`).
+- `$`/`&` macro names are trimmed, e.g. the English `$Per Dominum ` in `Sancti/02-24`
+  (`webdia.pl` expand).
+- `;` counts as punctuation when matching an antiphon's opening (`horas.pl` `depunct`),
+  which fixes Psalm 111 on 531 dates.
+- The commemoration rubric names the office from the English `[Rank]`
+  (`SetupString.pl`'s naming), e.g. "Commemoration of Annunciation of the Blessed Virgin
+  Mary".
+- The Ascension/Paschaltide "major special" rule applies only when the office isn't a
+  Sunday's (`horascommon.pl:2296`). This fixes the missing hymn on the Saturdays before
+  the Sundays after Easter.
+- Holy Thursday's and Good Friday's `[Prelude Vespera]` rubric (`specials.pl:123-125`) is
+  now `Hour.prelude`, shown as header item 6.
+- A commemoration's antiphon loses its first `*`, as the closing antiphons do. This fixes
+  the double asterisk in the Lenten feria commemorated on 24 February 2026.
+- The Magnificat antiphon's location is looked up separately in each language. On Tuesday
+  of the third week after Easter the English has its own `[Ant 3]` where the Latin falls
+  back.
+
+**After the fixes:** every check is 0 over 2025-2040. The Latin content, commemoration
+and psalmody audits stay 0 in both psalters, and the 2044 hold-out passes in both
+psalters with English.
+
+**CI split.** The full-range audits took Kit CI to over 20 minutes, so they moved to
+their own workflow, `oracle-audits.yml` (`--filter vespersFullRange`), which runs in
+parallel. Kit CI runs `swift test --skip vespersFullRange`.
+
+### B1-M5 — English and the psalter setting in the app
+
+**Day title (alpha carry-over), audited.** New `vespersFullRangeTitleAudit`
+(`TitleAuditOracleTests.swift`) compares the title block's name line with DO's page title
+(the text before " ~ ") on every date from 2025 to 2040. Its baseline found two causes,
+not one:
+- **First Vespers.** The title followed the day's own office, while DO titles the page
+  after the office whose Vespers is prayed. Examples: every Saturday evening before a
+  Sunday, Christmas Eve, the eves of the Ascension and the Assumption, and 30 June (the
+  Precious Blood).
+- **The monthday suffix** ("… III. Augusti") was missing on the Sundays and ferias after
+  Pentecost, and on the resumed Sundays after Epiphany, from August to November.
+
+*Fix.* `LiturgicalCalendarEngine.vespersDay` builds the title from `Concurrence`'s Vespers
+office and adds `HourAssembler.monthdayTitleSuffix`, the function already used and
+audited for commemorations. The app uses it.
+
+*After:* 0 dates. The fast suite passes (346 tests). New named tests:
+`augustFeriaTitleHasItsMonthdaySuffix`, `saturdayEveningTitleIsTheSundaysFirstVespers`.
+
+**Parallel layout (English on).** `OfficeTypesetter.typesetParallel` turns the hour into rows:
+- **Full width:** the page-1 header, rules and headings, psalm titles, anything without
+  English, and, in portrait, the chapter and collect, stacked Latin then English.
+- **Two columns:** antiphons, verses, versicles and responses, rubrics and hymn stanzas.
+  In landscape, the chapter and collect go side by side too.
+- **Pius XII:** a psalm's Latin sits beside its whole-psalm `.englishPsalm` block.
+
+`ParallelLayout` (`OfficeReaders.swift`) lays each column out in its own TextKit 1 stack
+and packs rows onto pages like the Latin-only book pages:
+- a row too long for the page continues on the next, each column at its own line
+  boundary, never leaving one line of a longer run at the foot of a page;
+- headings and psalm titles never end a page;
+- a versicle stays with its response.
+
+Both reading modes, slide and page curl, and vertical scroll, share it. The Latin-only
+pages now also move a heading or psalm title at the foot of a page to the next one (alpha
+carry-over).
+
+**First snapshots (App CI), four fixes:**
+- the date line drew in the system link style;
+- section rules sat on the previous row, because TextKit drops a text's leading
+  paragraph spacing;
+- words broke letter by letter in XXL columns (now hyphenated, with margins capped at
+  28 pt);
+- vertical mode showed "Page 1 of 1".
+
+Two UI-test harness bugs were also fixed: a failed landscape step left later tests
+rotated, and the longer Settings form needs scrolling.
+
+**Open:**
+- the landscape captures came back in the portrait screen buffer, cropped. Taken from the
+  app window instead, they confirm the landscape layout (two columns at full width, with
+  the chapter and collect side by side). They also showed a real bug: rotating moved the
+  reader a page or two on, because the position kept on relayout was the page's *last*
+  row. It is now the first row (`ParallelLayout.firstRow(onPage:)`);
+- at XXL the hyphenator finds no break in "sæculórum", which still splits "sæculóru /
+  m." in the narrow column.

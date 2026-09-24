@@ -19,7 +19,7 @@ import Testing
     // response read "...obumbrábit tibi. Allelúia." / "Ave, María, grátia plena.
     // Allelúia." / "Dóminus tecum. Allelúia." -- unbracketed, not "(Allelúia.)".
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 4, month: 4, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

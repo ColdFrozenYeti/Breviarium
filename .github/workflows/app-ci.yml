@@ -20,6 +20,13 @@ on:
       - ".github/workflows/app-ci.yml"
   workflow_dispatch:
 
+# A newer push to the same pull request cancels its older, now-redundant run (macOS
+# minutes cost ~10x Linux ones). Pushes to main never cancel each other, so every main
+# commit keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: macos-26

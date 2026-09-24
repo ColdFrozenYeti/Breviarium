@@ -19,6 +19,13 @@ on:
       - ".github/workflows/kit-ci.yml"
   workflow_dispatch:
 
+# A newer push to the same pull request cancels its older, now-redundant run (macOS
+# minutes cost ~10x Linux ones). Pushes to main never cancel each other, so every main
+# commit keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -46,17 +53,14 @@ jobs:
         working-directory: Packages/BreviariumKit
         run: swift build
 
-      # vespersFullRangeContentAudit() is deliberately excluded: its own doc comment
-      # calls it "the investigative tool for 'did we miss anything else'... not part of
-      # the default fast loop" — it only passes once every one of ~5,844 dates across
-      # 2025-2040 matches the real DO fixture byte-for-byte, which is a standing content
-      # target this project works down incrementally (docs/PLAN.md's own dated
-      # addenda), not a correctness bar CI should gate on. Every other test, including
-      # the structural placeholder/missing-section check right above it in the same
-      # file, still runs and must pass.
+      # The full-range audits (vespersFullRange*: content, commemorations, psalmody and
+      # English over every day 2025-2040, in both psalters) run in their own workflow,
+      # oracle-audits.yml, alongside this one on every pull request and main push: with
+      # the English audit they take far longer than this fast suite (docs/PLAN.md, B1-M4,
+      # CI budget). Every other test runs here, the 2044 hold-out included.
       - name: swift test
         working-directory: Packages/BreviariumKit
-        run: swift test --skip vespersFullRangeContentAudit
+        run: swift test --skip vespersFullRange
 
       # Runs BreviariumData against the real pinned DO checkout -- the actual M2
       # deliverable (docs/PLAN.md): a real bundle, with a real size report, not just

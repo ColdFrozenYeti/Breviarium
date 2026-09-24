@@ -18,7 +18,7 @@ import Testing
     // recéditígneus", via `[Hymnus Day6 Vespera]`), Versus falls through Major
     // Special's own `Feria Versum 1` (absent) to `Feria Versum 3`.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -67,7 +67,7 @@ import Testing
     // 093-0.txt`'s own `[Ant 1]` ("Ne reminiscáris..."), September's third
     // Matins-lesson week, merged in by `officestring()` since month >= 7.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -92,7 +92,7 @@ import Testing
     // doesn't apply at all -- the real antiphon is Major Special's own `[Feria Ant 3]`
     // (`(feria 7)` cross-referencing `[Feria7 Ant 3]`, "Suscépit Deus Israël...").
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 17, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

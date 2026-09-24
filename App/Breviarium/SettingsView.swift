@@ -1,3 +1,4 @@
+import BreviariumKit
 import SwiftUI
 
 /// `CLAUDE.md`'s "Settings (Universalis-style toggles)" screen. Night mode only, like the
@@ -32,21 +33,15 @@ struct SettingsView: View {
                     Toggle("Rubricæ", isOn: $settings.showRubrics)
                 }
 
-                // Disabled rather than removed: the underlying data is already there
-                // (OfficeDataStore loads the English corpus unconditionally), but
-                // VespersView doesn't render the parallel Latin/English layout
-                // CLAUDE.md's spec calls for yet -- deferred to the beta milestones, per
-                // direct feedback, rather than half-built now. A live toggle that
-                // visibly changed nothing would be more confusing than an honest "not
-                // yet" label.
                 Section {
-                    HStack {
-                        Text("English translation")
-                        Spacer()
-                        Text("Coming in beta")
-                            .font(.footnote)
+                    Toggle("English translation", isOn: $settings.showEnglish)
+                        .accessibilityIdentifier("englishToggle")
+                    // Latin labels, like the other toggles (Beta 1 open question 1).
+                    Picker("Psalterium", selection: $settings.psalter) {
+                        Text("Vulgata").tag(Psalter.vulgate)
+                        Text("Pii XII").tag(Psalter.pius12)
                     }
-                    .foregroundStyle(Theme.chrome)
+                    .accessibilityIdentifier("psalterPicker")
                 }
 
                 Section("Reading") {

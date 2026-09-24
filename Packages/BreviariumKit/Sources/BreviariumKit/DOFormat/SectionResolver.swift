@@ -221,9 +221,14 @@ public struct SectionResolver {
                 }
                 resolvedLines.append(included)
             } else if line.first == "$" {
-                resolvedLines.append(resolvePrayerMacroLine(String(line.dropFirst()), depth: depth))
+                // DO's `expand` trims the line first (`webdia.pl`, `s/\s+$//`): the English
+                // `Sancti/02-24` ends its collect with `$Per Dominum ` (trailing space),
+                // which must still expand.
+                resolvedLines.append(resolvePrayerMacroLine(String(line.dropFirst()).trimmingCharacters(in: .whitespaces), depth: depth))
             } else if line.first == "&", let macroContext,
-                let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: self, isEnglish: isEnglish)
+                let resolved = ScriptMacros.resolve(
+                    String(line.dropFirst()).trimmingCharacters(in: .whitespaces), context: macroContext, resolver: self, isEnglish: isEnglish
+                )
             {
                 resolvedLines.append(resolved)
             } else {

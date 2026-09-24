@@ -38,6 +38,12 @@ public enum Unit: Equatable, Sendable {
     /// psalm number and its 1-based position among the hour's five psalms. Direct
     /// feedback, comparing a real rendering against real DO output.
     case psalmTitle(String)
+    /// A psalm's English as one block, paired with the psalm's Latin as a whole rather
+    /// than verse by verse: with the Pius XII psalter, whose verse division doesn't match
+    /// the English (Vulgate-numbered) one, as Divinum Officium does (`CLAUDE.md`,
+    /// Alignment; `docs/psalters-and-english.md` question 1). Follows the psalm's Latin
+    /// `.verse` units, which then carry no English of their own.
+    case englishPsalm([PsalmVerse])
 }
 
 /// One named group of `Unit`s — `docs/rubrics-1960-vespers.md` §5's proposed heading
@@ -63,9 +69,15 @@ public struct Section: Equatable, Sendable {
 /// in the app target").
 public struct Hour: Equatable, Sendable {
     public var sections: [Section]
+    /// The winning office's `[Prelude Vespera]`, shown before the hour itself: DO puts it
+    /// at the top of the page (`horas.pl:599-600`, `specials.pl:123-125`). Under 1960 only
+    /// Holy Thursday and Good Friday have one, a rubric ("Vesperæ ab iis qui … hodie non
+    /// dicuntur"): the visual specification's opening rubric (`CLAUDE.md`, item 6).
+    public var prelude: [Unit]
 
-    public init(sections: [Section]) {
+    public init(sections: [Section], prelude: [Unit] = []) {
         self.sections = sections
+        self.prelude = prelude
     }
 }
 

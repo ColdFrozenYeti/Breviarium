@@ -13,6 +13,8 @@ struct ContentView: View {
     }
 
     let dateSource: DateSource
+    /// A section to open at (UI tests only; see `BreviariumApp`).
+    let initialSection: String?
 
     private let dataStore = OfficeDataStore()
     @StateObject private var settings = SettingsStore()
@@ -21,8 +23,9 @@ struct ContentView: View {
     /// own doc comment covers why `SimpleDate`, not `Date`, is what those pass back).
     @State private var displayedDate: SimpleDate
 
-    init(dateSource: DateSource = .now) {
+    init(dateSource: DateSource = .now, initialSection: String? = nil) {
         self.dateSource = dateSource
+        self.initialSection = initialSection
         switch dateSource {
         case .now: _displayedDate = State(initialValue: .today())
         case .fixed(let day, let month, let year): _displayedDate = State(initialValue: SimpleDate(day: day, month: month, year: year))
@@ -35,7 +38,8 @@ struct ContentView: View {
                 content: content, settings: settings,
                 onPreviousDay: { displayedDate = SimpleDate(Computus.addDays(-1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onNextDay: { displayedDate = SimpleDate(Computus.addDays(1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
-                onJump: { newDate in displayedDate = newDate }
+                onJump: { newDate in displayedDate = newDate },
+                initialSection: initialSection
             )
         } else {
             ZStack {
@@ -50,7 +54,10 @@ struct ContentView: View {
     }
 
     private var vespersContent: VespersContent? {
-        dataStore.vespersContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent)
+        dataStore.vespersContent(
+            day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent,
+            psalter: settings.psalter, english: settings.showEnglish
+        )
     }
 }
 

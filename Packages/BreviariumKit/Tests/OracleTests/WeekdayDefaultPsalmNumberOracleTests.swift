@@ -20,7 +20,7 @@ import Testing
     // (Psalmi major.txt's own "Day6 Vespera" first entry, Saturday's plain default),
     // not "109" (the festal default this project's engine rendered before this fix).
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 29, month: 11, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -47,7 +47,7 @@ import Testing
     // psalm is "109" here, confirming the fix's own dayOfWeek-keyed lookup (not a
     // reintroduced hardcoded festal default) gets this contrasting case right too.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 30, month: 11, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -59,7 +59,7 @@ import Testing
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles.first == "Psalmus 109 [1]")
+    #expect(titles.first == "Psalmus 109 — Messias rex, sacerdos victor [1]")
 
     let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-11-30"))
     #expect(fixture.contains("Psalmus 109"))

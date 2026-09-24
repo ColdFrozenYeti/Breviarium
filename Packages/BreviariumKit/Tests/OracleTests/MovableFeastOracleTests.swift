@@ -15,7 +15,7 @@ import Testing
     // 2026: Easter 5 April, Pentecost 24 May, Trinity Sunday 31 May, so Corpus Christi
     // (the following Thursday) is 4 June.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 4, month: 6, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -32,7 +32,7 @@ import Testing
     // 12 June 2026 -- the Friday one full week after Corpus Christi (4 June), matching
     // `Pent02-5`'s own real `[Officium]` text confirmed directly against the checkout.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 12, month: 6, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

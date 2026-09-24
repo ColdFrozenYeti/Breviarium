@@ -17,7 +17,7 @@ import Testing
     // tags and no `Psalm5` rule. The real fixture pairs them with 109/110/111/112/113,
     // exactly like an ordinary Sunday.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 30, month: 11, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -29,7 +29,9 @@ import Testing
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles == ["Psalmus 109 [1]", "Psalmus 110 [2]", "Psalmus 111 [3]", "Psalmus 112 [4]", "Psalmus 113 [5]"])
+    // Expected titles are DO's own, from this date's fixture (the Pius XII subtitles came
+    // with B1-M3's title fix, `HourAssembler.psalmTitle`).
+    #expect(titles == ["Psalmus 109 — Messias rex, sacerdos victor [1]", "Psalmus 110 [2]", "Psalmus 111 — Viri iusti beatiduo [3]", "Psalmus 112 — Laus Dei excelsi et benigni [4]", "Psalmus 113 — A: Mirabilia a Deo in Exodo patrata [5]"])
 
     let antiphonTexts = Set(psalmodia.units.compactMap { unit -> String? in
         if case .antiphon(let text, _) = unit { return text } else { return nil }
@@ -47,7 +49,7 @@ import Testing
     // antiphons -- the same fix applies here via the `communeFallbackPath` route, not
     // just a direct office `[Ant Vespera]`.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 21, month: 4, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

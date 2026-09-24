@@ -14,7 +14,7 @@ import Testing
     // confirming the "ex" gate really does let a psalm antiphon reach the Commune for a
     // real date, not just the already-confirmed Oratio/Magnificat-antiphon cases.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 22, month: 2, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

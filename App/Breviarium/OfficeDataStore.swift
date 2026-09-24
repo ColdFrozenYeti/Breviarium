@@ -23,6 +23,8 @@ struct VespersContent {
 @MainActor
 final class OfficeDataStore {
     private let latinCorpus: OfficeCorpus?
+    /// The Latin corpus for each psalter (`DataBundle.makeLatinCorpus(psalter:)`).
+    private let latinCorpora: [Psalter: OfficeCorpus]
     private let englishCorpus: OfficeCorpus?
     private let sanctoralCalendar: SanctoralCalendar?
 
@@ -55,6 +57,7 @@ final class OfficeDataStore {
     init() {
         guard let url = Bundle.main.url(forResource: "breviarium-data", withExtension: "json") else {
             latinCorpus = nil
+            latinCorpora = [:]
             englishCorpus = nil
             sanctoralCalendar = nil
             loadDiagnostic = "resource breviarium-data.json not found in Bundle.main"
@@ -62,6 +65,7 @@ final class OfficeDataStore {
         }
         guard let data = try? Data(contentsOf: url) else {
             latinCorpus = nil
+            latinCorpora = [:]
             englishCorpus = nil
             sanctoralCalendar = nil
             loadDiagnostic = "could not read data at \(url.path)"
@@ -69,11 +73,14 @@ final class OfficeDataStore {
         }
         do {
             let bundle = try JSONDecoder().decode(DataBundle.self, from: data)
-            latinCorpus = bundle.makeLatinCorpus()
+            let corpora = Dictionary(uniqueKeysWithValues: Psalter.allCases.map { ($0, bundle.makeLatinCorpus(psalter: $0)) })
+            latinCorpora = corpora
+            latinCorpus = corpora[.vulgate]
             englishCorpus = bundle.makeEnglishCorpus()
             sanctoralCalendar = bundle.makeSanctoralCalendar()
         } catch {
             latinCorpus = nil
+            latinCorpora = [:]
             englishCorpus = nil
             sanctoralCalendar = nil
             loadDiagnostic = "decode failed: \(error)"
@@ -84,33 +91,39 @@ final class OfficeDataStore {
     /// the device's local Gregorian calendar, since "what day is it" for a real user
     /// means their own local day boundary, not UTC's). `nil` when the bundled data
     /// failed to load/decode, or the date can't be resolved to an office at all.
-    func vespersContent(on date: Date, priest: Bool, calendar: Calendar = Calendar(identifier: .gregorian)) -> VespersContent? {
+    func vespersContent(
+        on date: Date, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false, calendar: Calendar = Calendar(identifier: .gregorian)
+    ) -> VespersContent? {
         let components = calendar.dateComponents([.day, .month, .year], from: date)
         guard let day = components.day, let month = components.month, let year = components.year else { return nil }
-        return vespersContent(day: day, month: month, year: year, priest: priest)
+        return vespersContent(day: day, month: month, year: year, priest: priest, psalter: psalter, english: english)
     }
 
     /// Same as `vespersContent(on:priest:calendar:)`, but by explicit day/month/year --
     /// used for deterministic snapshot testing (`BreviariumApp`'s `BREVIARIUM_SNAPSHOT_DATE`),
     /// where round-tripping a fixed date through a `Date`/`Calendar` conversion would
     /// otherwise risk landing on the wrong day depending on the device's timezone.
-    func vespersContent(day: Int, month: Int, year: Int, priest: Bool) -> VespersContent? {
-        guard let latinCorpus, let englishCorpus, let sanctoralCalendar else { return nil }
+    func vespersContent(day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false) -> VespersContent? {
+        guard let latinCorpus = latinCorpora[psalter] ?? latinCorpus, let englishCorpus, let sanctoralCalendar else { return nil }
 
         let context = ConditionalContextBuilder.build(
             day: day, month: month, year: year,
             ad: "vesperas", rubrica: rubrica,
             corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
         )
-        let assembler = HourAssembler(corpus: latinCorpus, context: context, calendar: sanctoralCalendar, englishCorpus: englishCorpus)
+        // English is assembled only when it's shown: the English lookups roughly double
+        // the assembly's work.
+        let assembler = HourAssembler(
+            corpus: latinCorpus, context: context, calendar: sanctoralCalendar, englishCorpus: english ? englishCorpus : nil
+        )
         guard let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: priest) else {
             loadDiagnostic = "assembleVespers returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 
         let calendarEngine = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-        guard let liturgicalDay = calendarEngine.day(day: day, month: month, year: year) else {
-            loadDiagnostic = "LiturgicalCalendarEngine.day returned nil for \(year)-\(month)-\(day)"
+        guard let liturgicalDay = calendarEngine.vespersDay(day: day, month: month, year: year) else {
+            loadDiagnostic = "LiturgicalCalendarEngine.vespersDay returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 

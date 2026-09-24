@@ -33,3 +33,4 @@ App/Breviarium/breviarium-data.json
 # archives it packs from this (data/oracle-fixtures/*.tar.gz, main/*.tar.gz) are committed.
 data/oracle-fixtures/raw/
 data/oracle-fixtures/raw-holdout/
+data/oracle-fixtures/raw-*/

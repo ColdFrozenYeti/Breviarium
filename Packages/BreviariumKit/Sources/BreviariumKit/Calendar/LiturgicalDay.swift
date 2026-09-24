@@ -41,6 +41,22 @@ public struct LiturgicalCalendarEngine {
         self.sanctoralCalendar = sanctoralCalendar
     }
 
+    /// The day as Vespers shows it: the office whose Vespers is prayed that evening
+    /// (`Concurrence`, tomorrow's on first Vespers), titled as DO titles the page -- its
+    /// name with the monthday suffix ("… III. Augusti", `HourAssembler.monthdayTitleSuffix`)
+    /// and its own rank. `CLAUDE.md`: "Match Divinum Officium's behaviour, including the
+    /// title block it shows in those cases". Checked on every date by
+    /// `vespersFullRangeTitleAudit`.
+    public func vespersDay(day: Int, month: Int, year: Int) -> LiturgicalDay? {
+        let concurrence = Concurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
+        guard let result = concurrence.resolve(day: day, month: month, year: year) else { return nil }
+        let office = result.vespersOffice
+        let suffix = HourAssembler.monthdayTitleSuffix(
+            office: office.winningPath, day: day, month: month, year: year, tomorrow: result.isFirstVespersOfTomorrow
+        )
+        return Self.liturgicalDay(day: day, month: month, year: year, occurrence: office, titleSuffix: suffix)
+    }
+
     public func day(day: Int, month: Int, year: Int) -> LiturgicalDay? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
         guard let occurrence = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
@@ -56,13 +72,17 @@ public struct LiturgicalCalendarEngine {
         // placeholder text for exactly that second case, which then rendered as the
         // literal day-title-block text -- a real bug, found via a full walkthrough for
         // 14 August 2028.
+        return Self.liturgicalDay(day: day, month: month, year: year, occurrence: occurrence, titleSuffix: "")
+    }
+
+    private static func liturgicalDay(day: Int, month: Int, year: Int, occurrence: OccurrenceResult, titleSuffix: String) -> LiturgicalDay {
         let title = occurrence.winningRank.title
         let rankDisplayName = RankDisplayName1960.name(for: occurrence.winningRank.numericPrecedence)
         let color = LiturgicalColorClassifier.classify(title: title)
 
         let titleBlock = TitleBlock(
             classisLine: rankDisplayName == "Feria" ? nil : rankDisplayName,
-            nameLine: title,
+            nameLine: title + titleSuffix,
             commemorationLine: nil
         )
 

@@ -17,7 +17,7 @@ import Testing
 
 @Test func fridayAfterAscensionUsesAscensionsOwnCapitulumNotSundayAfterAscensions() async throws {
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 22, month: 5, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

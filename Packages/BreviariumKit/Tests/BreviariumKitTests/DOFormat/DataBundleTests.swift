@@ -15,7 +15,11 @@ import Testing
     ])
     let layered = LayeredOfficeCorpus(layers: [bea, latin])
 
-    #expect(layered.rawSections(path: "Psalterium/Dom1/Matutinum", name: "Ps 1").first?.body == ["Beatus vir (Bea)."])
+    // Every layer's variants, the lowest layer's first: the resolver takes the last
+    // applicable one, so the upper layer's wins whenever it applies.
+    #expect(layered.rawSections(path: "Psalterium/Dom1/Matutinum", name: "Ps 1").map(\.body) == [["Beatus vir (Vulgate)."], ["Beatus vir (Bea)."]])
+    let resolver = SectionResolver(corpus: layered, context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "", feria: 1, ad: "vesperas", mense: 1))
+    #expect(resolver.resolve(path: "Psalterium/Dom1/Matutinum", section: "Ps 1") == "Beatus vir (Bea).")
     // Falls through to the next layer when the first doesn't have this file at all.
     #expect(layered.rawSections(path: "Psalterium/Dom1/Matutinum", name: "Oratio").first?.body == ["Only in plain Latin."])
 }
@@ -32,7 +36,7 @@ import Testing
         calendar: [:]
     )
     let resolver = SectionResolver(
-        corpus: bundle.makeLatinCorpus(),
+        corpus: bundle.makeLatinCorpus(psalter: .pius12),
         context: ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 1, ad: "vesperas", mense: 9)
     )
     #expect(resolver.resolve(path: "Psalterium/Dom1/Matutinum", section: "Ps 1") == "Bea text.")

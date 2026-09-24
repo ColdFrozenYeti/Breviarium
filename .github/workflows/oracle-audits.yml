@@ -1,0 +1,48 @@
+name: Oracle audits
+
+# The full-range oracle audits: every day 2025-2040 against Divinum Officium's own
+# rendering, for content, commemorations, psalmody (both psalters) and the English
+# (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests). Split out of Kit CI in
+# Beta 1 (docs/PLAN.md, B1-M4) because together they take several times longer than the
+# fast suite; they still run on every pull request and main push, in parallel with Kit
+# CI, and on demand. Linux only, like Kit CI.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Packages/BreviariumKit/**"
+      - "data/oracle-fixtures/**"
+      - ".github/workflows/oracle-audits.yml"
+  pull_request:
+    paths:
+      - "Packages/BreviariumKit/**"
+      - "data/oracle-fixtures/**"
+      - ".github/workflows/oracle-audits.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  audits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      # Same toolchain setup as kit-ci.yml (see the notes there).
+      - uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.3.3"
+          skip-verify-signature: true
+
+      - name: swift build
+        working-directory: Packages/BreviariumKit
+        run: swift build --build-tests
+
+      - name: Full-range oracle audits
+        working-directory: Packages/BreviariumKit
+        run: swift test --skip-build --filter vespersFullRange

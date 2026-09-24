@@ -24,7 +24,7 @@ import Testing
     // suæ." -- not also the office's own separate "Ecce fidélis servus..." / "Glória et
     // divítiæ in domo eius..." pairing.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 3, year: 2028, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar

@@ -142,7 +142,7 @@ identifier does that automatically: every re-sign and every rebuilt `.ipa` reuse
 *same* App ID (`com.epavone.breviarium`), so ordinary weekly use never registers a new
 one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now rules out.
 
-## 7. After installing: the alpha check (M6)
+## 7. After installing: the on-device check (alpha M6, Beta 1)
 
 A few minutes on the phone after each fresh install, to confirm the build works end to end.
 Every item has a matching automated UI test on CI; this is the on-device confirmation.
@@ -160,11 +160,22 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
    - *Text size* XXL: the text re-flows onto more pages and you stay at the same place.
    - *Scrolling* Vertical: one continuous scroll. Back to Horizontal afterwards.
    - *Page turn* Page curl: pages turn like a book's.
-   - *English translation* shows "Coming in beta" (deferred).
+   - *Psalterium* Pii XII: the psalms change to the Pius XII translation, with their
+     titles. Back to Vulgata afterwards.
 5. **Dates.** The chevrons (top right) move a day back and forward. Tapping the date line
    or the footer date opens *Jump to date*; pick e.g. Palm Sunday and check the title.
 6. **Offline.** Turn on Airplane Mode and relaunch: everything still works.
 7. **Landscape.** Rotate the phone: the pages re-flow to the wider layout.
+8. **English (Beta 1).** Turn on *English translation*:
+   - Portrait: psalms, antiphons, hymn stanzas, versicles and responses show Latin left and
+     English right; the chapter and collect show Latin, then English below.
+   - Landscape: the chapter and collect are side by side too.
+   - Swipe through the whole hour, with *Page turn* slide and then page curl: both columns
+     continue from page to page, and no heading or psalm title is left alone at the
+     bottom of a page.
+   - *Scrolling* Vertical: the same two columns in one scroll.
+   - *Psalterium* Pii XII: each psalm's English is shown whole beside its Latin.
+   - Turn English off again: Latin alone, full width.
 
 ## Sources
 
