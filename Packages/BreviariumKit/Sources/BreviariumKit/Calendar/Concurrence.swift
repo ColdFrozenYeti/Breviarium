@@ -44,12 +44,43 @@ public struct Concurrence {
         guard let today = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
 
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
-        guard let tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
+        guard var tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
         else {
             return ConcurrenceResult(isFirstVespersOfTomorrow: false, vespersOffice: today)
         }
 
         let resolver = SectionResolver(corpus: corpus, context: context)
+
+        // `horascommon.pl:314-315`'s own named, narrow special case, inside
+        // `occurrence()`'s own "$tomorrow" branch (evaluating what *tomorrow's* own
+        // winner would be, from today's own date): "ensure the Dominica IV adventus
+        // win in case it has a '1st Vespers' on Dec 23" -- `$month == 12 && $day ==
+        // 23` (today's own date, at the point this branch runs) zeroes tomorrow's own
+        // sanctoral candidate entirely (`$srank = ''`), forcing tomorrow's occurrence
+        // to resolve to its temporal winner instead. In most years 24 December is
+        // simply "Vigilia Nativitatis" and this never matters (the Vigil naturally
+        // loses occurrence to Advent's own Sunday most years anyway) -- but confirmed
+        // real for 23-24 December 2028, the rare year the 4th Sunday of Advent falls
+        // on Christmas Eve itself: the Vigil's own rank (6.9, `Sancti/12-24s`) would
+        // otherwise numerically outrank Advent IV (6, `Tempora/Adv4-0`) at the ordinary
+        // occurrence level, but the real fixture's own title is "Dominica IV Adventus
+        // ~ I. classis", not the Vigil. This project's `Occurrence.resolve` has no
+        // knowledge of "which date is being asked about as *tomorrow*" (it just
+        // resolves whichever date it's given), so this narrow exclusion is applied
+        // here in `Concurrence` instead, re-deriving tomorrow's own occurrence from
+        // its temporal path alone -- gated tightly enough (one specific trigger date
+        // per year) that it can't affect any other date's own occurrence, including a
+        // direct query of 24 December itself as "today" rather than reached via this
+        // specific Dec-23 pre-emption check.
+        if day == 23, month == 12, tomorrow.winningPath.hasPrefix("Sancti/") {
+            let temporalPath = Occurrence.temporalPath(
+                day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year, calendar: calendar, corpus: corpus, context: context
+            )
+            if let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath)) {
+                tomorrow = OccurrenceResult(sanctoralWins: false, winningPath: temporalPath, winningRank: temporalRank, isSunday: tomorrow.isSunday)
+            }
+        }
+
         let tomorrowRule = resolver.resolve(path: tomorrow.winningPath, section: "Rule")
 
         if hasNoPrimaVespera(tomorrowRule) || isExcludedByTitle(tomorrow.winningRank.title) {

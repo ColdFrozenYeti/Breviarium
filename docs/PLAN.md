@@ -2700,6 +2700,67 @@ Confirmed on a fresh sweep: Psalmodia 22→11, exactly as predicted — the Pasc
 fix alone closed half its remaining count. Capitulum/Versus/Hymnus unchanged (13/11/9,
 as expected — none of them share this specific antiphon-lookup path).
 
+**Capitulum category pass**, two real fixes, found together on the same date:
+
+1. **`horascommon.pl:314-315`'s own named, narrow special case: "ensure the Dominica IV
+   adventus win in case it has a '1st Vespers' on Dec 23."** Inside `occurrence()`'s own
+   `$tomorrow` branch, when today is 23 December, tomorrow's own sanctoral candidate
+   (Christmas Eve's Vigil, `Sancti/12-24s`, rank 6.9) is zeroed out entirely (`$srank =
+   ''`), forcing tomorrow's occurrence to resolve to its temporal winner instead. This
+   only matters in the rare years the 4th Sunday of Advent coincides with Christmas Eve
+   itself — otherwise the Vigil naturally wins occurrence anyway. Ported as a narrow,
+   `day == 23 && month == 12`-gated guard in `Concurrence.resolve`, re-deriving
+   tomorrow's occurrence from its temporal path alone whenever its ordinary winner would
+   be sanctoral. Confirmed real for 23-24 December 2028: the real fixture's own title is
+   "Dominica IV Adventus ~ I. classis" ("Vespera de sequenti"), with Capitulum "1 Cor
+   4:1-2 ... Sic nos exístimet homo..." — not the Vigil's own "Gen 49:10 Non auferétur
+   sceptrum de Iuda..." this project's engine had been rendering instead, having let the
+   Vigil win occurrence outright. New tests:
+   `adventFourWinsChristmasEveWhenItFallsOnTheFourthSunday`,
+   `ordinaryChristmasEveStillWinsItsOwnFirstVespersMostYears`
+   (`AdventFourthSundayOnChristmasEveOracleTests.swift`). Scoped tightly enough (one
+   specific trigger date per year) that it can't affect any other date's own occurrence,
+   including a direct query of 24 December itself as "today."
+
+2. **A second, previously-unexercised bug this first fix surfaced: `oAntiphonLocation`'s
+   own O-Antiphon date was pointed at the wrong day for first Vespers.** Real Perl
+   instrumentation (reading `horas.pl:476`'s `ant123_special` directly) confirmed
+   `$day`/`$month` there are the same package-global, never-reassigned values the whole
+   request was invoked with — Divinum Officium never advances them to "tomorrow" when
+   first Vespers of the next day wins occurrence (only `$vespera` flips to 1). This
+   project's `oAntiphonLocation` had been advancing the effective date by one whenever
+   `isFirstVespers`, on an earlier, unconfirmed guess that DO keyed off the *winning
+   office's* own nominal date — a guess never actually exercised by any prior fixture,
+   since the only realistic year `isFirstVespers` and the 17–23 December O-Antiphon
+   window coincide at all is exactly this same rare Advent-IV-on-the-24th case (in an
+   ordinary year, the evening's `$winner` is the Christmas Vigil, `Sancti/12-24s`,
+   already failing `$winner =~ /tempora/i`). Fixed by dropping the `addDays(1, ...)`
+   entirely: the function now always uses the requested `day`/`month` directly, since the
+   O Antiphon custom is tied to the calendar date of the *evening being prayed* (the
+   23rd), not the following day's own date (the 24th, which fails the `< 24` guard
+   outright). Confirmed real for the same 23-24 December 2028 fixture: the real
+   Magnificat antiphon is the 23rd's own "O Emmánuel, * Rex et légifer noster...", not
+   the wrong Major-Special Saturday fallback ("Suscépit Deus Israël...") the engine had
+   fallen through several tiers to reach. This fix turned out to be the *general* fix for
+   the whole O-Antiphon cluster, not just this one date — it also resolved the
+   previously-flagged Canticum off-by-one bug (20 December 2025 rendering 21 December's
+   antiphon) as a side effect, since both bugs shared the same wrong-date root cause via
+   different call paths. Test assertions added to the same two tests above.
+
+Full suite (203 Kit + 8 Data + 97 named oracle) confirmed clean after both fixes. Fresh
+sweep, measuring both fixes together against the prior baseline (Oratio 51, Canticum 28,
+Psalmodia 11, Capitulum 13, Versus 11, Hymnus 9, Conclusio 0):
+
+Oratio 49, Canticum 12, Psalmodia 9, Capitulum 11, Versus 11, Hymnus 9, Conclusio 0.
+
+Every category held steady or improved, none regressed — Canticum's drop (28→12) is
+larger than either fix's own category name would suggest, confirming the O-Antiphon
+fix's general reach across the cluster. Capitulum's own remaining 11 dates include
+`2033-12-29`/`2039-12-29` (a `Dec 29`-shaped pattern, not `Dec 23` — not yet investigated,
+likely a distinct mechanism) alongside the already-known Epiphany/Holy-Family cluster
+dates (`2029-01-06`, `2030-01-12`, `2030-01-13`, `2032-01-04`), deferred with Hymnus
+above.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

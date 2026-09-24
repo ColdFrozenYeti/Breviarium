@@ -1535,9 +1535,7 @@ public struct HourAssembler {
         // the real antiphon ("Suscépit Deus Israël...") comes from Major Special's own
         // `[Feria7 Ant 3]` instead.
         let antSection = "Ant \(ind)"
-        let oAntiphonLoc = Self.oAntiphonLocation(
-            office: office, isFirstVespers: macroContext.isFirstVespers, day: day, month: month, year: year, resolver: resolver
-        )
+        let oAntiphonLoc = Self.oAntiphonLocation(office: office, day: day, month: month, resolver: resolver)
         let monthdayLoc = monthdayLocation(
             office: office, section: antSection, day: day, month: month, year: year, tomorrow: macroContext.isFirstVespers, resolver: resolver
         )
@@ -1625,14 +1623,39 @@ public struct HourAssembler {
     /// prodiísti...", not the office's own `[Ant 3]` (this project's engine fell
     /// through to whatever fallback tier found something first, before this override
     /// existed).
+    ///
+    /// **`$day`/`$month` are always the actually-requested date, never advanced for
+    /// first Vespers.** `ant123_special` (`horas.pl:476`) reads the same package-global
+    /// `$day`/`$month` the whole request was invoked with — Divinum Officium never
+    /// reassigns those globals to "tomorrow" when first Vespers of the next day wins
+    /// occurrence (only `$vespera` flips to `1`; a handful of *other*, unrelated
+    /// functions like `officestring` take an explicit `tomorrow` boolean parameter for
+    /// their own separate needs, confirmed via `horascommon.pl:1564`, but
+    /// `ant123_special` takes no such parameter and never advances the date). This
+    /// matters because the O Antiphon custom is tied to the calendar date of the
+    /// *evening being prayed*, not the following day's own nominal date — First Vespers
+    /// of December 24 is itself prayed on the evening of the 23rd, so it's the 23rd's
+    /// own "O Emmanuel" that applies, not a 24th that would fall outside the 17-23
+    /// window entirely. An earlier version of this function advanced the effective date
+    /// by one when `isFirstVespers`, on the unconfirmed guess that DO's `$day` meant the
+    /// winning office's own nominal date; this was never exercised by any prior real
+    /// fixture (the only realistic year `isFirstVespers` and the 17-23 December window
+    /// coincide is the rare year Advent IV falls on the 24th itself, since in an
+    /// ordinary year `$winner` for that evening is the Christmas Vigil, `Sancti/12-24s`,
+    /// failing the `$winner =~ /tempora/i` guard outright). Confirmed wrong, and fixed,
+    /// against the real fixture for 23-24 December 2028 (Advent IV on the 24th): the
+    /// real Magnificat antiphon for the 23rd's first Vespers of Advent IV is "O
+    /// Emmánuel, * Rex et légifer noster...", i.e. `[Adv Ant 23]`, keyed off the 23rd
+    /// itself — this project's engine had been advancing to the 24th, missing the
+    /// window (`24 < 24` is false) and falling through several tiers to a wrong
+    /// Major-Special Saturday fallback instead.
     private static func oAntiphonLocation(
-        office: String, isFirstVespers: Bool, day: Int, month: Int, year: Int, resolver: SectionResolver
+        office: String, day: Int, month: Int, resolver: SectionResolver
     ) -> (path: String, section: String)? {
         guard office.hasPrefix("Tempora/") else { return nil }
-        let effective = isFirstVespers ? Computus.addDays(1, day: day, month: month, year: year) : (day: day, month: month, year: year)
-        guard effective.month == 12, effective.day > 16, effective.day < 24 else { return nil }
+        guard month == 12, day > 16, day < 24 else { return nil }
         let path = "Psalterium/Special/Major Special"
-        let section = "Adv Ant \(effective.day)"
+        let section = "Adv Ant \(day)"
         return resolver.sectionExists(path: path, section: section) ? (path, section) : nil
     }
 
