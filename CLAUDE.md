@@ -47,7 +47,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ## Liturgical scope
 
-- **Roman office:** Breviarium Romanum under the 1960 rubrics (1962 typical edition), using the Universal Calendar only (no national, diocesan, or order propers) and the **Pius XII (Bea) psalter**.
+- **Roman office:** Breviarium Romanum under the 1960 rubrics (1962 typical edition), using the Universal Calendar only (no national, diocesan, or order propers), with the **Vulgate psalter by default** and the Pius XII (Bea) psalter as an option (decided 2026-09-24).
 - **Ambrosian office (pre-conciliar):** selectable in settings in a later milestone.
   - Divinum Officium does **not** contain the Ambrosian office; the user will supply sources and details later.
   - The engine must let a second rite plug in without rewriting the Roman one.
@@ -61,6 +61,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
 - **Text size.**
+- **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Later:** Martyrologium ad Primam, and a votive office picker.
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
@@ -76,7 +77,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ## Visual specification
 
-`design/reference/` holds screenshots of Universalis in night mode and is the authority. The first one, `universalis-compline-night.png`, is 1170×2532 px at @3x, so divide by 3 for points. The measurements below were taken from it; re-measure if more screenshots are added. **If a screenshot and this text disagree, ask.**
+`design/reference/` holds screenshots of Universalis in night mode and is the authority. The main one, `Format.png` (Compline; `Calendar.png` and `Hours Picker.png` are the other two), is 1170×2532 px at @3x, so divide by 3 for points. The measurements below were taken from it; re-measure if more screenshots are added. **If a screenshot and this text disagree, ask.**
 
 ### Colours
 
@@ -158,7 +159,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - `web/cgi-bin/horas/`: the Perl engine, which is the reference for rubrical logic.
   - `docs/how-the-calendar-works.md`.
   - `regress/`: DO's regression date ranges.
-- **Options mapping.** The DO version string is `Rubrics 1960 - 1960`. Its "Pius XII Psalter" and "Priest" options correspond to our psalter and priest toggle.
+- **Options mapping.** The DO version string is `Rubrics 1960 - 1960`. Its "Pius XII Psalter" and "Priest" options correspond to our psalter and priest toggle; with "Pius XII Psalter" off, DO shows the Vulgate psalter (the plain `Latin/` tree).
 - **File format.** DO files use `[Section]` headers, conditionals such as `(sed rubrica 1960)`, cross-references such as `@Commune/C3:Section`, `$` and `&` macros, and `v.` / `V.` / `R.` / `!` markers. Understand the format fully before writing the parser; do not guess.
 
 ## Architecture
@@ -191,7 +192,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - every DO syntax feature the parser meets.
 - **Oracle tests** are the main correctness check.
   - Run Divinum Officium in Docker at the **same pinned commit**.
-  - Retrieve its rendered Vespers (`Rubrics 1960 - 1960`, Pius XII psalter) for **every day from 2025-01-01 to 2040-12-31**, with priest on and off, in Latin and English.
+  - Retrieve its rendered Vespers (`Rubrics 1960 - 1960`, for both psalters: Vulgate by default, Pius XII as an option; Beta 1's exact fixture scope is in `docs/Beta_1_plan.md`) for **every day from 2025-01-01 to 2040-12-31**, with priest on and off, in Latin and English.
   - Normalise the output (strip HTML, collapse whitespace, apply the same J→I rule) and store it compressed as golden fixtures.
   - `swift test` diffs engine output against the fixtures, per date and per section.
   - Discover how DO is invoked by reading its CGI scripts and `regress/` tooling, not by guessing URL parameters.
