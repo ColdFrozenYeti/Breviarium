@@ -2822,6 +2822,15 @@ Precious-Blood, Dec-29 Christmas-Octave-Sunday) — no further category-specific
 safely available without attempting one of those three, each already flagged for a future,
 carefully-scoped session rather than risked here.
 
+**Canticum category pass**, no new fix: got the full per-category mismatch date list
+(the same temporary, uncommitted `OracleTests.swift` tweak used for prior passes, run
+once, reverted immediately after) and confirmed all 9 remaining dates are exactly the
+union of the three already-deferred clusters, with no new pattern among them —
+`2029-01-06`/`2030-01-12`/`2030-01-13`/`2035-01-06`/`2036-01-12`/`2036-01-13` (Epiphany/
+Holy-Family), `2038-07-01` (Sacred-Heart/Precious-Blood), `2033-12-29`/`2039-12-29`
+(Dec-29 Christmas-Octave-Sunday). Nothing to fix here without attempting one of those
+three concurrence gaps directly.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
