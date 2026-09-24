@@ -2911,6 +2911,34 @@ collects (mostly downstream of the three already-deferred concurrence clusters),
 John Baptist's own Nativity collect — each still needing its own real-Perl trace before
 any further fix is attempted.
 
+**Third Oratio fix**: the Annunciation Ave Maria versicle pattern (6 of the 34 remaining
+dates) turned out to have the *same* underlying content as the real fixture — the
+mismatch was purely a formatting difference. `horas.pl:675,687-690`'s own
+`postprocess_ant`/`postprocess_vr` run the real Perl's seasonal-Alleluia handling
+(`applyingSeasonalAlleluia`'s own real counterpart) over *every* displayed antiphon and
+versicle/response in the whole office — this project already applied it to the main
+Psalmodia/Magnificat units, but `commemorationUnits` never ran it over a commemoration's
+own antiphon or versicle/response at all. Some proper antiphons (the Annunciation's own
+"Missus est... (Allelúia.)" family) carry a parenthesized Alleluia annotation whose
+visibility depends on the season; outside Paschaltide the parens (and the word) should be
+stripped entirely, and *inside* Paschaltide the word is kept but the parens dropped —
+this project's engine had been showing the raw, still-parenthesized text unconditionally,
+since nothing ran it through this processing at all. Confirmed real for 4 April 2027 (Low
+Sunday, within the Easter Octave, commemorating the Annunciation transferred there that
+year): the real fixture's antiphon/versicle/response read "...obumbrábit tibi. Allelúia."
+/ "Ave, María, grátia plena. Allelúia." / "Dóminus tecum. Allelúia." — unbracketed, not
+"...(Allelúia.)". New test: `paschaltideCommemorationAlleluiaIsUnbracketed`
+(`CommemorationSeasonalAlleluiaOracleTests.swift`).
+
+Full suite (203 Kit + 8 Data + 103 named oracle) confirmed clean. Fresh sweep against the
+prior baseline (Oratio 34, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7,
+Conclusio 0): **Oratio 34 → 27**, every other category unchanged. Oratio's remaining 27
+dates are now almost entirely the Nativity-octave/Circumcision commemoration collects
+(downstream of the three already-deferred concurrence clusters) and St John Baptist's own
+Nativity collect (`2033-06-24`) — no further clean, independent sub-pattern was found
+worth a fourth fix this session; the category pass stops here for now, with the
+remaining count well-explained rather than mysterious.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

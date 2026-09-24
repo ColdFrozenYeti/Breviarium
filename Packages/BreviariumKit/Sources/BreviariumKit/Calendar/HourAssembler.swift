@@ -643,6 +643,21 @@ public struct HourAssembler {
         // domus mea..." with no "*" at all, even though the source file itself
         // (Tempora/Quad1-2.txt's own [Ant 3]) writes it with one.
         antiphonText = antiphonText.replacingOccurrences(of: #"\s*\*\s*"#, with: " ", options: .regularExpression)
+        // `postprocess_ant`/`postprocess_vr` (`horas.pl:675,687-690`) run
+        // `applyingSeasonalAlleluia`'s own real Perl counterparts over *every* displayed
+        // antiphon and versicle/response throughout the whole office, not just the main
+        // Psalmodia/Magnificat ones this project already applies it to -- a
+        // commemoration's own antiphon/versicle went through unprocessed before this,
+        // leaving a literal "(Allelúia.)" parenthetical on screen unbracketed only in
+        // Paschaltide (or, outside Paschaltide/Lent, plain wrong: the parens should be
+        // stripped entirely, not shown at all). Confirmed real for 4 April 2027 (Low
+        // Sunday, within the Easter Octave, commemorating the Annunciation transferred
+        // there that year): the real fixture's antiphon reads "...obumbrábit tibi.
+        // Allelúia." (unbracketed, matching `applyingSeasonalAlleluia`'s own Paschaltide
+        // branch) — this project's engine had been showing the raw, still-parenthesized
+        // "...obumbrábit tibi. (Allelúia.)" instead, never having run this text through
+        // the same processing every other displayed antiphon already gets.
+        antiphonText = Self.applyingSeasonalAlleluia(to: antiphonText, weekName: weekName, isFirstVespers: ind == 1)
 
         // A plain ferial temporal office often has no `[Versum N]` of its own at all,
         // and no Commune to fall back to either -- `orationes.pl:798-803`'s own final
@@ -657,6 +672,7 @@ public struct HourAssembler {
         else { return nil }
         let versumLines = resolver.resolve(path: versumLocation.path, section: versumLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            .map { Self.applyingSeasonalAlleluia(to: $0, weekName: weekName, isFirstVespers: ind == 1) }
         let versicleResponseUnits = Self.unitsFromLines(versumLines)
         guard case .versicleResponse = versicleResponseUnits.first else { return nil }
 
