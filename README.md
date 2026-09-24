@@ -33,7 +33,8 @@ The alpha is **Roman Vespers**, in Latin.
   disabled), the other seven hours, and the Ambrosian rite.
 
 The build log, with every decision and every bug traced to the Divinum Officium source
-it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md).
+it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong in the alpha, and what
+to carry into the betas, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md).
 
 ## Installing on the iPhone
 

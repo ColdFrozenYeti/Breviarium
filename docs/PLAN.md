@@ -3321,6 +3321,13 @@ The screenshot's title sizes are smaller than `CLAUDE.md`'s ratios (name ≈1.0�
 - one snapshot came out at XXL, inherited from an earlier test's Settings choice. UI tests
   now pin the text size at launch.
 
+**M5 closed (2026-09-24).** App CI is green on `d763107`. The re-measured snapshots match
+`Format.png`: last line to rule 37.3 (reference 37.0), heading to first line 26.3 (26.7),
+TOC icon to hour title 12.0 (12.0). Vertical mode reports real page counts. The user
+approved the milestone. What remains for M6 is on the user's side: run Build IPA, fetch
+it with `get-ipa.ps1`, sideload it, and run the checklist in `install-on-iphone.md`. The
+alpha retrospective is in [`alpha-retrospective.md`](alpha-retrospective.md).
+
 ### M6 — Sideload release
 
 Ship the real alpha via the pipeline proven in M0: `build-ipa.yml` produces the unsigned
