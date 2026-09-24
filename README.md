@@ -29,8 +29,12 @@ The alpha is **Roman Vespers**, in Latin.
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
   - About, with the Divinum Officium licence
-- **Deferred to beta:** the parallel English translation (visible in Settings but
-  disabled), the other seven hours, and the Ambrosian rite.
+- **Next, the betas** ([`docs/Beta_1_plan.md`](docs/Beta_1_plan.md) for the first):
+  1. the Vulgate psalter as the default, with Bea kept as an option, and the English
+     translation;
+  2. all the day hours;
+  3. the Ambrosian and Dominican rites;
+  4. Matins.
 
 The build log, with every decision and every bug traced to the Divinum Officium source
 it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong in the alpha, and what
