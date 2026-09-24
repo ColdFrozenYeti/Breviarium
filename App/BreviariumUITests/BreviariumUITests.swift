@@ -253,14 +253,17 @@ final class BreviariumUITests: XCTestCase {
         if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
         Thread.sleep(forTimeInterval: landscape ? 1.0 : 0.4)
 
-        let page1 = XCTAttachment(screenshot: app.screenshot())
+        // In landscape the screen's own capture came back in the portrait buffer, cropped
+        // (B1-M5); the window's capture follows the app's orientation.
+        func capture() -> XCUIScreenshot { landscape ? app.windows.firstMatch.screenshot() : app.screenshot() }
+        let page1 = XCTAttachment(screenshot: capture())
         page1.name = "\(namePrefix)-\(sizeName)-page1"
         page1.lifetime = .keepAlways
         add(page1)
 
         app.swipeLeft()
         Thread.sleep(forTimeInterval: 0.4)
-        let psalmodyPage = XCTAttachment(screenshot: app.screenshot())
+        let psalmodyPage = XCTAttachment(screenshot: capture())
         psalmodyPage.name = "\(namePrefix)-\(sizeName)-psalmody"
         psalmodyPage.lifetime = .keepAlways
         add(psalmodyPage)

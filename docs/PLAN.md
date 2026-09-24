@@ -3707,3 +3707,38 @@ audited for commemorations. The app uses it.
 
 *After:* 0 dates. The fast suite passes (346 tests). New named tests:
 `augustFeriaTitleHasItsMonthdaySuffix`, `saturdayEveningTitleIsTheSundaysFirstVespers`.
+
+**Parallel layout (English on).** `OfficeTypesetter.typesetParallel` turns the hour into rows:
+- **Full width:** the page-1 header, rules and headings, psalm titles, anything without
+  English, and, in portrait, the chapter and collect, stacked Latin then English.
+- **Two columns:** antiphons, verses, versicles and responses, rubrics and hymn stanzas.
+  In landscape, the chapter and collect go side by side too.
+- **Pius XII:** a psalm's Latin sits beside its whole-psalm `.englishPsalm` block.
+
+`ParallelLayout` (`OfficeReaders.swift`) lays each column out in its own TextKit 1 stack
+and packs rows onto pages like the Latin-only book pages:
+- a row too long for the page continues on the next, each column at its own line
+  boundary, never leaving one line of a longer run at the foot of a page;
+- headings and psalm titles never end a page;
+- a versicle stays with its response.
+
+Both reading modes, slide and page curl, and vertical scroll, share it. The Latin-only
+pages now also move a heading or psalm title at the foot of a page to the next one (alpha
+carry-over).
+
+**First snapshots (App CI), four fixes:**
+- the date line drew in the system link style;
+- section rules sat on the previous row, because TextKit drops a text's leading
+  paragraph spacing;
+- words broke letter by letter in XXL columns (now hyphenated, with margins capped at
+  28 pt);
+- vertical mode showed "Page 1 of 1".
+
+Two UI-test harness bugs were also fixed: a failed landscape step left later tests
+rotated, and the longer Settings form needs scrolling.
+
+**Open:**
+- the landscape captures came back in the portrait screen buffer, cropped, and are now
+  taken from the app window instead;
+- at XXL the hyphenator finds no break in "sæculórum", which still splits "sæculóru /
+  m." in the narrow column.
