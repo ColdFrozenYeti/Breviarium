@@ -263,7 +263,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             show(page: keepPosition ? page(containingCharacter: anchor) : 0, in: controller)
         }
         if let target = parent.jumpTarget, !containers.isEmpty {
-            show(page: page(containingCharacter: target), in: controller)
+            show(page: page(containingCharacter: headingCharacter(afterSeparatorAt: target)), in: controller)
             Task { @MainActor [weak self] in self?.parent.jumpTarget = nil }
         }
     }
@@ -300,6 +300,16 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
         guard containers.indices.contains(index) else { return 0 }
         let glyphs = layoutManager.glyphRange(for: containers[index])
         return layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil).location
+    }
+
+    /// A jump target is a section's separator rule (`TypesetOffice.sectionOffsets`), a
+    /// paragraph of its own. The rule can end one page while its heading starts the next,
+    /// so jumps go to the page of the paragraph after it: the heading.
+    private func headingCharacter(afterSeparatorAt index: Int) -> Int {
+        let string = textStorage.string as NSString
+        guard index >= 0, index < string.length else { return index }
+        let rule = string.paragraphRange(for: NSRange(location: index, length: 0))
+        return NSMaxRange(rule) < string.length ? NSMaxRange(rule) : index
     }
 
     private func page(containingCharacter index: Int) -> Int {
