@@ -3328,6 +3328,11 @@ approved the milestone. What remains for M6 is on the user's side: run Build IPA
 it with `get-ipa.ps1`, sideload it, and run the checklist in `install-on-iphone.md`. The
 alpha retrospective is in [`alpha-retrospective.md`](alpha-retrospective.md).
 
+**Next: the betas (2026-09-24).** Beta 1: the Vulgate psalter as the default (Bea kept as
+an option) and English. Beta 2: all the day hours. Beta 3: the Ambrosian and Dominican
+rites. Beta 4: Matins. Beta 1's plan is [`Beta_1_plan.md`](Beta_1_plan.md), and its work
+log continues in a "Beta 1" section at the end of this file.
+
 ### M6 — Sideload release
 
 Ship the real alpha via the pipeline proven in M0: `build-ipa.yml` produces the unsigned
