@@ -3738,7 +3738,10 @@ Two UI-test harness bugs were also fixed: a failed landscape step left later tes
 rotated, and the longer Settings form needs scrolling.
 
 **Open:**
-- the landscape captures came back in the portrait screen buffer, cropped, and are now
-  taken from the app window instead;
+- the landscape captures came back in the portrait screen buffer, cropped. Taken from the
+  app window instead, they confirm the landscape layout (two columns at full width, with
+  the chapter and collect side by side). They also showed a real bug: rotating moved the
+  reader a page or two on, because the position kept on relayout was the page's *last*
+  row. It is now the first row (`ParallelLayout.firstRow(onPage:)`);
 - at XXL the hyphenator finds no break in "sæculórum", which still splits "sæculóru /
   m." in the narrow column.

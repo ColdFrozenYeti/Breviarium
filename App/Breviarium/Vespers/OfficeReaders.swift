@@ -656,9 +656,11 @@ struct ParallelLayout {
         rowPositions.indices.contains(row) ? rowPositions[row].page : 0
     }
 
-    /// The first row that starts on `page` (or the row continuing onto it).
+    /// The first row that starts on `page`, or, if none does, the row continuing onto it:
+    /// the reading position to keep when the layout changes. (It was the *last* row on the
+    /// page, so turning the phone moved the reader a page or two on, B1-M5.)
     func firstRow(onPage page: Int) -> Int {
-        rowPositions.lastIndex { $0.page <= page } ?? 0
+        rowPositions.firstIndex { $0.page == page } ?? rowPositions.lastIndex { $0.page < page } ?? 0
     }
 }
 
