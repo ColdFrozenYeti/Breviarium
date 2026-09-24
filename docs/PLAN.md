@@ -3465,3 +3465,46 @@ Sources consulted for the CI details above:
 Sources consulted for the 2026-09-16 sideloading amendment (see `docs/install-on-iphone.md`
 for the full citation list): Sideloadly's own site and FAQ, AltStore/AltServer's FAQ site,
 and SideStore's documentation.
+
+---
+
+## Beta 1 (plan: [`Beta_1_plan.md`](Beta_1_plan.md))
+
+### B1-M0 — Housekeeping and baseline
+
+**Baseline (2026-09-24, `main` at `13c6a52`, Linux, Swift 6.1 in Docker):**
+- the fast suite, 341 tests, passes (`swift test --skip vespersFullRange`, 202 s);
+  it includes all 732 `holdout2044VespersMatchesDivinumOfficium` cases;
+- `vespersFullRangeContentAudit` passes: 0/0/0/0/0/0/0 over 2025–2040 (307 s);
+- `vespersFullRangeCommemorationAudit` passes: 0 dates (220 s).
+
+**CI budget.** Measured on the last full runs (`d763107`): Kit CI 4.8 min, App CI 20 min.
+Kit CI stays under the plan's 10-minute threshold, so the long audits stay in it for now.
+Revisit in B1-M2, when the Vulgate and bilingual fixture sets roughly triple the audit
+time. `kit-ci.yml` and `app-ci.yml` now use `concurrency`: a newer push to a pull request
+cancels that PR's older run, and pushes to `main` never cancel each other.
+
+**Bug: hymns shown as single lines, not stanzas.** Measured with the new
+`scripts/measure-snapshot.py --pitch` on the M5 snapshot of 19 November 2026 ("Fortem virili
+pectore"): **every** hymn line had a 34.3 pt pitch, which is the 23 pt line pitch plus
+the 11.4 pt stanza gap (0.6 × 19). The final doxology, the last unit and so without a
+trailing gap, was at 23.0. The engine is correct: `HourAssembler.hymnStanzas` emits one
+`.prose` unit per stanza, its lines joined by `\n`. But TextKit starts a new paragraph at
+every `\n`, so the stanza's `paragraphSpacing` applied after every line. The regression
+came in with the TextKit port (`2ef9957`).
+
+Fixed in `OfficeTypesetter.appendParagraph`: line breaks inside a unit become U+2028 LINE
+SEPARATOR, so a stanza stays one paragraph, with the gap only after its last line. This
+covers any multi-line unit, and hymn stanzas are the only one today. The string length is
+unchanged, so the table of contents' offsets are unaffected. Also added a
+`BREVIARIUM_SNAPSHOT_SECTION` launch hook (open at a section, like the table of
+contents) and `testHymnStanzasSnapshots` (19 November 2026 at the hymn, horizontal and
+vertical, M and XXL). Expected after the fix: 23.0 pt within a stanza, 34.3 pt between
+stanzas.
+
+**`CLAUDE.md` updated** as approved with the B1-M0 plan:
+- the Vulgate psalter becomes the default, with Pius XII as an option;
+- a *Psalterium* setting is added (final label in B1-M5);
+- the oracle scope covers both psalters;
+- the options mapping notes that the psalter option off means the Vulgate;
+- the reference screenshot is named correctly (`Format.png`).
