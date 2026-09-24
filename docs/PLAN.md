@@ -3542,3 +3542,25 @@ Headline findings:
   dozen of its 83 chapters use King James or modern wording.
 
 Five questions are waiting for the user, including Bea pairing and DRBO against DO.
+
+### B1-M2 — Fixtures
+
+- **Generator.** `oracle-worker.sh` takes a psalter (`lang1`) and a format; the new
+  "rows" format keeps DO's Latin and English cells apart. `scripts/generate-fixture-set.sh`
+  builds the sets.
+- **Sets generated** (`data/SOURCE.md` has the table and every check):
+  - `vulgate/` 2025-2040, 9.7 MB;
+  - `bilingual/` 2025-2040, 23 MB;
+  - `holdout/2044-bilingual.tar.gz`, 1.6 MB.
+
+  The committed fixtures grow from 12 MB to 46 MB.
+- **Checks:**
+  - host renders equal container renders;
+  - rows joined equal the flat page;
+  - 2044 generated twice, byte-identical;
+  - no empty renders, cells or rows;
+  - on all 5,844 dates the bilingual Latin column equals the Vulgate Latin-only page.
+- **Bea suite.** No engine or test code changed, so the Bea suite is unaffected; Kit CI
+  confirms it.
+- **Render speed.** Host rendering ran at about 0.3 s per page with 4 workers, so a full
+  set takes about 7-12 minutes.
