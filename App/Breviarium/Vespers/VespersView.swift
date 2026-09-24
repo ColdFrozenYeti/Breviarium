@@ -129,18 +129,21 @@ struct VespersView: View {
         GeometryReader { geometry in
             let landscape = geometry.size.width > geometry.size.height
             let parallel = parallelOffice(landscape: landscape)
-            let gutter = metrics.margin * 0.6
+            // Two columns need the width more than wide margins: the margins stop growing
+            // past the default size's 28 pt.
+            let margin = min(metrics.margin, 28)
+            let gutter = margin * 0.6
             switch settings.readingMode {
             case .vertical:
                 ParallelVerticalReader(
                     office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, width: geometry.size.width,
-                    margin: metrics.margin, gutter: gutter, jumpTarget: jumpBinding(parallel.sectionOffsets),
+                    margin: margin, gutter: gutter, jumpTarget: jumpBinding(parallel.sectionOffsets),
                     onLink: handleLink, onPageChange: updatePage
                 )
             case .horizontal:
                 ParallelPagedReader(
                     office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, pageSize: geometry.size,
-                    margin: metrics.margin, gutter: gutter, curl: settings.pageTurn == .curl,
+                    margin: margin, gutter: gutter, curl: settings.pageTurn == .curl,
                     jumpTarget: jumpBinding(parallel.sectionOffsets), onLink: handleLink, onPageChange: updatePage
                 )
                 .id(settings.pageTurn)

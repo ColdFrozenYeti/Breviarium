@@ -447,18 +447,54 @@ final class ColumnLayout {
     let layoutManager = NSLayoutManager()
     private let storage: NSTextStorage
     private let container: NSTextContainer
+    /// Line rects in row coordinates: laid out, then moved down by `topSpace`, with the
+    /// first line's rect grown upward to the row's top to hold it.
     private(set) var lines: [(rect: CGRect, glyphs: NSRange)] = []
+    /// The first paragraph's `paragraphSpacingBefore`. TextKit drops it at the top of a
+    /// text, and every row is a text of its own, so a section's rule sat right under the
+    /// previous row; it is added back here.
+    private let topSpace: CGFloat
+    /// Our links, kept under their own key: TextKit draws `.link` in the system's blue,
+    /// underlined, when it draws glyphs itself (the date line did).
+    static let linkKey = NSAttributedString.Key("BreviariumLink")
 
-    init(text: NSAttributedString, width: CGFloat) {
-        storage = NSTextStorage(attributedString: text)
+    /// `hyphenate`: a narrow column breaks long words with a hyphen rather than
+    /// letter by letter ("sæculóru / m." at XXL).
+    init(text: NSAttributedString, width: CGFloat, hyphenate: Bool = false) {
+        let copy = NSMutableAttributedString(attributedString: text)
+        let whole = NSRange(location: 0, length: copy.length)
+        copy.enumerateAttribute(.link, in: whole) { value, range, _ in
+            guard let value else { return }
+            copy.removeAttribute(.link, range: range)
+            copy.addAttribute(Self.linkKey, value: value, range: range)
+        }
+        if hyphenate {
+            copy.enumerateAttribute(.paragraphStyle, in: whole) { value, range, _ in
+                guard let style = (value as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle else { return }
+                style.hyphenationFactor = 1
+                copy.addAttribute(.paragraphStyle, value: style, range: range)
+            }
+        }
+        topSpace = copy.length > 0 ? (copy.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.paragraphSpacingBefore ?? 0 : 0
+        storage = NSTextStorage(attributedString: copy)
         container = NSTextContainer(size: CGSize(width: max(1, width), height: .greatestFiniteMagnitude))
         container.lineFragmentPadding = 0
         storage.addLayoutManager(layoutManager)
         layoutManager.addTextContainer(container)
         layoutManager.ensureLayout(for: container)
         let all = layoutManager.glyphRange(for: container)
+        var found: [(rect: CGRect, glyphs: NSRange)] = []
         layoutManager.enumerateLineFragments(forGlyphRange: all) { rect, _, _, glyphs, _ in
-            self.lines.append((rect, glyphs))
+            found.append((rect, glyphs))
+        }
+        let space = topSpace
+        lines = found.enumerated().map { index, line in
+            var rect = line.rect.offsetBy(dx: 0, dy: space)
+            if index == 0 {
+                rect.origin.y -= space
+                rect.size.height += space
+            }
+            return (rect, line.glyphs)
         }
     }
 
@@ -480,7 +516,7 @@ final class ColumnLayout {
     func draw(lines range: Range<Int>, at origin: CGPoint) {
         guard let first = range.first, let last = range.last else { return }
         let glyphs = NSUnionRange(lines[first].glyphs, lines[last].glyphs)
-        let point = CGPoint(x: origin.x, y: origin.y - lines[first].rect.minY)
+        let point = CGPoint(x: origin.x, y: origin.y - lines[first].rect.minY + topSpace)
         layoutManager.drawBackground(forGlyphRange: glyphs, at: point)
         layoutManager.drawGlyphs(forGlyphRange: glyphs, at: point)
     }
@@ -488,7 +524,7 @@ final class ColumnLayout {
     /// The in-app link at `point` (relative to where lines `range` were drawn), if any.
     func link(at point: CGPoint, lines range: Range<Int>) -> URL? {
         guard let first = range.first else { return nil }
-        let local = CGPoint(x: point.x, y: point.y + lines[first].rect.minY)
+        let local = CGPoint(x: point.x, y: point.y + lines[first].rect.minY - topSpace)
         let glyph = layoutManager.glyphIndex(for: local, in: container)
         guard glyph < layoutManager.numberOfGlyphs else { return nil }
         let bounds = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
@@ -497,7 +533,7 @@ final class ColumnLayout {
         if storage.attribute(.attachment, at: character, effectiveRange: nil) is TableOfContentsAttachment {
             return OfficeLink.tableOfContents
         }
-        if let url = storage.attribute(.link, at: character, effectiveRange: nil) as? URL, url.scheme == OfficeLink.scheme {
+        if let url = storage.attribute(Self.linkKey, at: character, effectiveRange: nil) as? URL, url.scheme == OfficeLink.scheme {
             return url
         }
         return nil
@@ -536,7 +572,10 @@ struct ParallelLayout {
             case .full(let text, _):
                 return [(ColumnLayout(text: text, width: width), 0)]
             case .pair(let latin, let english, _):
-                return [(ColumnLayout(text: latin, width: columnWidth), 0), (ColumnLayout(text: english, width: columnWidth), columnWidth + gutter)]
+                return [
+                    (ColumnLayout(text: latin, width: columnWidth, hyphenate: true), 0),
+                    (ColumnLayout(text: english, width: columnWidth, hyphenate: true), columnWidth + gutter),
+                ]
             }
         }
         var pages: [[ColumnSlice]] = []
@@ -839,8 +878,14 @@ struct ParallelVerticalReader: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
-    func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
+    func makeUIView(context: Context) -> LayoutReportingScrollView {
+        let scrollView = LayoutReportingScrollView()
+        // The page count and a pending jump need the view's real height, known only
+        // after its own layout pass ("Page 1 of 1" when reported from `updateUIView`).
+        scrollView.onLayout = { [weak coordinator = context.coordinator, weak scrollView] in
+            guard let coordinator, let scrollView else { return }
+            coordinator.didLayout(scrollView)
+        }
         scrollView.backgroundColor = .black
         scrollView.indicatorStyle = .white
         scrollView.alwaysBounceVertical = true
@@ -849,7 +894,7 @@ struct ParallelVerticalReader: UIViewRepresentable {
         return scrollView
     }
 
-    func updateUIView(_ scrollView: UIScrollView, context: Context) {
+    func updateUIView(_ scrollView: LayoutReportingScrollView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
         let key = "\(officeID)|\(Int(width))|\(margin)"
@@ -863,12 +908,13 @@ struct ParallelVerticalReader: UIViewRepresentable {
             coordinator.pageView.onLink = { [weak coordinator] url in coordinator?.parent.onLink(url) }
             coordinator.pageView.frame = CGRect(x: margin, y: 8, width: max(1, width - 2 * margin), height: max(1, layout.totalHeight))
             scrollView.contentSize = CGSize(width: width, height: layout.totalHeight + 8 + 32)
-            coordinator.scroll(scrollView, toRow: anchorRow ?? 0)
+            coordinator.pendingRow = anchorRow ?? 0
         }
         if let target = jumpTarget {
-            coordinator.scroll(scrollView, toRow: target)
+            coordinator.pendingRow = target
             Task { @MainActor in coordinator.parent.jumpTarget = nil }
         }
+        scrollView.setNeedsLayout()
     }
 
     @MainActor
@@ -878,7 +924,18 @@ struct ParallelVerticalReader: UIViewRepresentable {
         var dateKey = ""
         var layout: ParallelLayout?
         let pageView = ParallelPageView(frame: .zero)
+        /// A row to scroll to once the view has its size.
+        var pendingRow: Int?
         private var lastReported: (Int, Int)?
+
+        func didLayout(_ scrollView: UIScrollView) {
+            guard scrollView.bounds.height > 0 else { return }
+            if let row = pendingRow {
+                pendingRow = nil
+                scroll(scrollView, toRow: row)
+            }
+            reportPage(of: scrollView)
+        }
 
         init(parent: ParallelVerticalReader) {
             self.parent = parent
@@ -911,5 +968,15 @@ struct ParallelVerticalReader: UIViewRepresentable {
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             reportPage(of: scrollView)
         }
+    }
+}
+
+/// A scroll view that tells its owner whenever it has been laid out.
+final class LayoutReportingScrollView: UIScrollView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }
