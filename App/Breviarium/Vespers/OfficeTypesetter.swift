@@ -67,6 +67,8 @@ struct OfficeTypesetter {
                 appendHeader(to: output)
             case .sectionStart(let kind):
                 offsets.append((kind: kind, offset: output.length))
+                let start = output.length
+                defer { Self.markKeepWithNext(output, from: start) }
                 appendRule(
                     to: output, width: metrics.separatorWidth, color: textColor,
                     before: metrics.separatorSpacingAbove, after: metrics.separatorSpacing
@@ -86,7 +88,9 @@ struct OfficeTypesetter {
                     before: metrics.bodySize * 0.5, after: metrics.bodySize * 0.5
                 )
             case .unit(_, let unit, let alternateVerse, let trailingSpace):
+                let start = output.length
                 appendUnit(unit, alternateVerse: alternateVerse, trailingSpace: trailingSpace, to: output)
+                if case .psalmTitle = unit { Self.markKeepWithNext(output, from: start) }
             }
         }
 
@@ -95,6 +99,134 @@ struct OfficeTypesetter {
             output.deleteCharacters(in: NSRange(location: output.length - 1, length: 1))
         }
         return TypesetOffice(text: output, sectionOffsets: offsets)
+    }
+
+    /// Marks text that must not end a page (a section's rule and heading, a psalm title):
+    /// `OfficePager` moves it to the next page with what follows.
+    static let keepWithNext = NSAttributedString.Key("BreviariumKeepWithNext")
+
+    private static func markKeepWithNext(_ output: NSMutableAttributedString, from start: Int) {
+        guard output.length > start else { return }
+        output.addAttribute(keepWithNext, value: true, range: NSRange(location: start, length: output.length - start))
+    }
+
+    // MARK: The parallel layout (English on)
+
+    /// The hour as rows of `CLAUDE.md`'s parallel text (§ "Parallel English";
+    /// `docs/psalters-and-english.md` §7): each side set by this same typesetter's
+    /// `appendUnit`, so a column follows every typographic rule the Latin-only page does.
+    /// - Full width: the page-1 header, rules, headings, psalm titles, anything without
+    ///   English, and, in portrait, prose (chapter, collect), stacked Latin then English.
+    /// - Side by side: antiphons, verses, versicles and responses, rubrics, hymn stanzas,
+    ///   and, in landscape, prose.
+    /// - With the Pius XII psalter, a psalm's Latin verses and its `.englishPsalm` block
+    ///   make one row, paired whole.
+    func typesetParallel(landscape: Bool) -> ParallelOffice {
+        var rows: [ParallelRow] = []
+        var sections: [(kind: BreviariumKit.Section.Kind, offset: Int)] = []
+        var currentKind: BreviariumKit.Section.Kind?
+        var pendingLatinVerses = NSMutableAttributedString()
+
+        func flushLatinVerses() {
+            guard pendingLatinVerses.length > 0 else { return }
+            rows.append(.full(pendingLatinVerses, keepWithNext: false))
+            pendingLatinVerses = NSMutableAttributedString()
+        }
+        func build(_ body: (NSMutableAttributedString) -> Void) -> NSMutableAttributedString {
+            let text = NSMutableAttributedString()
+            body(text)
+            return text
+        }
+
+        for block in ContentBlock.blocks(for: content.hour) {
+            if case .unit(_, .englishPsalm(let verses), _, _) = block {
+                let english = build { text in
+                    for (index, verse) in verses.enumerated() {
+                        appendUnit(
+                            .verse(reference: verse.reference, firstHalf: verse.firstHalf, secondHalf: verse.secondHalf),
+                            alternateVerse: index.isMultiple(of: 2), trailingSpace: .standard, to: text
+                        )
+                    }
+                }
+                if pendingLatinVerses.length > 0 {
+                    rows.append(.pair(latin: pendingLatinVerses, english: english, keepTogether: false))
+                    pendingLatinVerses = NSMutableAttributedString()
+                } else {
+                    rows.append(.pair(latin: NSMutableAttributedString(), english: english, keepTogether: false))
+                }
+                continue
+            }
+            if case .unit(_, .verse(_, _, _, nil, _), let alternate, let trailing) = block {
+                // A verse without English of its own: gathered until it's clear whether a
+                // whole-psalm English block follows.
+                if case .unit(_, let unit, _, _) = block {
+                    appendUnit(unit, alternateVerse: alternate, trailingSpace: trailing, to: pendingLatinVerses)
+                }
+                continue
+            }
+            flushLatinVerses()
+
+            switch block {
+            case .pageHeader:
+                rows.append(.full(build { appendHeader(to: $0) }, keepWithNext: false))
+            case .sectionStart(let kind):
+                currentKind = kind
+                sections.append((kind: kind, offset: rows.count))
+                rows.append(.full(build { text in
+                    appendRule(to: text, width: metrics.separatorWidth, color: textColor, before: metrics.separatorSpacingAbove, after: metrics.separatorSpacing)
+                    appendParagraph(
+                        NSMutableAttributedString(
+                            string: Self.headingText(for: kind),
+                            attributes: [.font: LiturgicalUIFont.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
+                        ),
+                        to: text, style: paragraphStyle(after: metrics.bodySize * 0.9)
+                    )
+                }, keepWithNext: true))
+            case .psalmSeparator:
+                rows.append(.full(build { text in
+                    appendRule(
+                        to: text, width: metrics.separatorWidth * 0.4, color: textColor.withAlphaComponent(0.4),
+                        before: metrics.bodySize * 0.5, after: metrics.bodySize * 0.5
+                    )
+                }, keepWithNext: true))
+            case .unit(_, let unit, let alternate, let trailing):
+                let latin = build { appendUnit(unit, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
+                guard latin.length > 0 else { continue }
+                if case .psalmTitle = unit {
+                    rows.append(.full(latin, keepWithNext: true))
+                    continue
+                }
+                guard let english = Self.englishUnit(unit) else {
+                    rows.append(.full(latin, keepWithNext: false))
+                    continue
+                }
+                let englishText = build { appendUnit(english, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
+                if case .prose = unit, currentKind != .hymnus, !landscape {
+                    rows.append(.full(latin, keepWithNext: false))
+                    rows.append(.full(englishText, keepWithNext: false))
+                } else {
+                    let keepTogether: Bool
+                    if case .versicleResponse = unit { keepTogether = true } else { keepTogether = false }
+                    rows.append(.pair(latin: latin, english: englishText, keepTogether: keepTogether))
+                }
+            }
+        }
+        flushLatinVerses()
+        return ParallelOffice(rows: rows, sectionOffsets: sections)
+    }
+
+    /// The unit's English, as a unit of the same kind with the English in its Latin
+    /// slots, so `appendUnit` sets it exactly as it sets the Latin; `nil` without English.
+    static func englishUnit(_ unit: BreviariumKit.Unit) -> BreviariumKit.Unit? {
+        switch unit {
+        case .rubric(_, let english): english.map { .rubric($0) }
+        case .versicleResponse(_, _, let versicle, let response):
+            versicle.flatMap { versicle in response.map { .versicleResponse(versicle: versicle, response: $0) } }
+        case .verse(let reference, _, _, let first, let second): first.map { .verse(reference: reference, firstHalf: $0, secondHalf: second ?? "") }
+        case .antiphon(_, let english): english.map { .antiphon($0) }
+        case .prose(_, let english): english.map { .prose($0) }
+        case .psalmTitle, .englishPsalm: nil
+        }
     }
 
     static func headingText(for kind: BreviariumKit.Section.Kind) -> String {
@@ -162,6 +294,18 @@ struct OfficeTypesetter {
             plain(content.hourTitle, font: LiturgicalUIFont.regular(metrics.hourTitleSize)),
             to: output, style: paragraphStyle(alignment: .center, after: metrics.bodySize * 0.8)
         )
+
+        // Item 6: the opening rubric, the office's own prelude (Holy Thursday and Good
+        // Friday), hidden with rubrics off.
+        if showRubrics {
+            for unit in content.hour.prelude {
+                guard case .rubric(let text, _) = unit else { continue }
+                appendParagraph(
+                    liturgical(text, font: LiturgicalUIFont.italic(metrics.bodySize), color: rubricColor),
+                    to: output, style: paragraphStyle(after: metrics.bodySize * 0.4)
+                )
+            }
+        }
     }
 
     // MARK: Item 9 -- body units
@@ -210,6 +354,9 @@ struct OfficeTypesetter {
                 liturgical(text, font: italic, color: chromeColor), to: output,
                 style: paragraphStyle(after: metrics.bodySize * 0.3)
             )
+        case .englishPsalm:
+            // English only; laid out with the parallel English in B1-M5.
+            break
         }
     }
 
@@ -308,6 +455,21 @@ struct OfficeTypesetter {
     }
 }
 
+/// One row of the parallel layout: full width, or Latin and English side by side.
+/// `keepWithNext`: never the last thing on a page (a heading, a psalm title).
+/// `keepTogether`: never split across pages (a versicle and its response).
+enum ParallelRow {
+    case full(NSAttributedString, keepWithNext: Bool)
+    case pair(latin: NSAttributedString, english: NSAttributedString, keepTogether: Bool)
+}
+
+/// The hour typeset for English on: rows, and each section's first row for the table
+/// of contents.
+struct ParallelOffice {
+    let rows: [ParallelRow]
+    let sectionOffsets: [(kind: BreviariumKit.Section.Kind, offset: Int)]
+}
+
 /// Remembers the last typeset hour so SwiftUI re-renders (a page change, a sheet
 /// opening) reuse it instead of typesetting again -- and so the text views keep their
 /// reading position, which they only reset when `key` changes.
@@ -317,6 +479,21 @@ final class TypesetCache {
     private var cached: TypesetOffice?
 
     func office(for key: String, build: () -> TypesetOffice) -> TypesetOffice {
+        if key == self.key, let cached { return cached }
+        let office = build()
+        self.key = key
+        cached = office
+        return office
+    }
+}
+
+/// `TypesetCache` for the parallel layout.
+@MainActor
+final class ParallelCache {
+    private var key = ""
+    private var cached: ParallelOffice?
+
+    func office(for key: String, build: () -> ParallelOffice) -> ParallelOffice {
         if key == self.key, let cached { return cached }
         let office = build()
         self.key = key

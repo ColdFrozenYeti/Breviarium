@@ -291,9 +291,32 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             container.lineFragmentPadding = 0
             layoutManager.addTextContainer(container)
             containers.append(container)
-            let range = layoutManager.glyphRange(for: container)
+            var range = layoutManager.glyphRange(for: container)
             if NSMaxRange(range) >= layoutManager.numberOfGlyphs || range.length == 0 { break }
+            // A heading or psalm title at the foot of the page moves to the next one,
+            // with the text it introduces: the page is shortened to end above it.
+            if let top = keepWithNextTop(in: range), top > 0 {
+                container.size = CGSize(width: size.width, height: top)
+                range = layoutManager.glyphRange(for: container)
+            }
         }
+    }
+
+    /// The top of the run of `OfficeTypesetter.keepWithNext` lines that ends the page's
+    /// `glyphs`, if it does end with one (and it isn't the whole page).
+    private func keepWithNextTop(in glyphs: NSRange) -> CGFloat? {
+        var glyph = NSMaxRange(glyphs) - 1
+        var top: CGFloat?
+        while glyph > glyphs.location {
+            let character = layoutManager.characterIndexForGlyph(at: glyph)
+            guard textStorage.attribute(OfficeTypesetter.keepWithNext, at: character, effectiveRange: nil) != nil else { break }
+            var line = NSRange()
+            let rect = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &line)
+            top = rect.minY
+            guard line.location > glyphs.location else { return nil }
+            glyph = line.location - 1
+        }
+        return top
     }
 
     private func firstCharacter(ofPage index: Int) -> Int {
@@ -412,5 +435,481 @@ final class OfficePageController: UIViewController {
         super.viewDidLayoutSubviews()
         let size = textView.textContainer.size
         textView.frame = CGRect(x: margin, y: topInset, width: size.width, height: size.height)
+    }
+}
+
+// MARK: - Parallel English: rows of one or two columns
+
+/// One column's text laid out at a fixed width in its own TextKit 1 stack, with its line
+/// fragments (each with its paragraph spacing, so consecutive lines tile with no gaps).
+@MainActor
+final class ColumnLayout {
+    let layoutManager = NSLayoutManager()
+    private let storage: NSTextStorage
+    private let container: NSTextContainer
+    private(set) var lines: [(rect: CGRect, glyphs: NSRange)] = []
+
+    init(text: NSAttributedString, width: CGFloat) {
+        storage = NSTextStorage(attributedString: text)
+        container = NSTextContainer(size: CGSize(width: max(1, width), height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        storage.addLayoutManager(layoutManager)
+        layoutManager.addTextContainer(container)
+        layoutManager.ensureLayout(for: container)
+        let all = layoutManager.glyphRange(for: container)
+        layoutManager.enumerateLineFragments(forGlyphRange: all) { rect, _, _, glyphs, _ in
+            self.lines.append((rect, glyphs))
+        }
+    }
+
+    /// The height of lines `range`, top of the first to the bottom of the last.
+    func height(of range: Range<Int>) -> CGFloat {
+        guard let first = range.first, let last = range.last else { return 0 }
+        return lines[last].rect.maxY - lines[first].rect.minY
+    }
+
+    /// How many lines from `start` fit in `height`.
+    func linesFitting(from start: Int, in height: CGFloat) -> Int {
+        guard start < lines.count else { return 0 }
+        let top = lines[start].rect.minY
+        var count = 0
+        while start + count < lines.count, lines[start + count].rect.maxY - top <= height + 0.5 { count += 1 }
+        return count
+    }
+
+    func draw(lines range: Range<Int>, at origin: CGPoint) {
+        guard let first = range.first, let last = range.last else { return }
+        let glyphs = NSUnionRange(lines[first].glyphs, lines[last].glyphs)
+        let point = CGPoint(x: origin.x, y: origin.y - lines[first].rect.minY)
+        layoutManager.drawBackground(forGlyphRange: glyphs, at: point)
+        layoutManager.drawGlyphs(forGlyphRange: glyphs, at: point)
+    }
+
+    /// The in-app link at `point` (relative to where lines `range` were drawn), if any.
+    func link(at point: CGPoint, lines range: Range<Int>) -> URL? {
+        guard let first = range.first else { return nil }
+        let local = CGPoint(x: point.x, y: point.y + lines[first].rect.minY)
+        let glyph = layoutManager.glyphIndex(for: local, in: container)
+        guard glyph < layoutManager.numberOfGlyphs else { return nil }
+        let bounds = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+        guard bounds.insetBy(dx: -8, dy: -8).contains(local) else { return nil }
+        let character = layoutManager.characterIndexForGlyph(at: glyph)
+        if storage.attribute(.attachment, at: character, effectiveRange: nil) is TableOfContentsAttachment {
+            return OfficeLink.tableOfContents
+        }
+        if let url = storage.attribute(.link, at: character, effectiveRange: nil) as? URL, url.scheme == OfficeLink.scheme {
+            return url
+        }
+        return nil
+    }
+
+    var plainText: String { storage.string }
+}
+
+/// A run of one column's lines placed on a page.
+@MainActor
+struct ColumnSlice {
+    let column: ColumnLayout
+    let lines: Range<Int>
+    let origin: CGPoint
+    var frame: CGRect {
+        CGRect(x: origin.x, y: origin.y, width: column.lines.first.map { $0.rect.width } ?? 0, height: column.height(of: lines))
+    }
+}
+
+/// The parallel office laid out on pages of one size, like `OfficePager`'s book pages: a
+/// row that doesn't fit continues at the top of the next page, each column at its own line
+/// boundary. A heading or psalm title (`keepWithNext`) never ends a page, a versicle and
+/// response (`keepTogether`) never split, and a column never leaves just one line of a
+/// longer run at the foot of a page. With an unbounded page height (the vertical reader)
+/// everything lands on one page.
+@MainActor
+struct ParallelLayout {
+    let pages: [[ColumnSlice]]
+    /// Each row's page and its top on that page, for jumps and for keeping the position.
+    let rowPositions: [(page: Int, y: CGFloat)]
+
+    init(office: ParallelOffice, width: CGFloat, pageHeight: CGFloat, gutter: CGFloat) {
+        let columnWidth = max(1, (width - gutter) / 2)
+        let rows: [[(ColumnLayout, CGFloat)]] = office.rows.map { row in
+            switch row {
+            case .full(let text, _):
+                return [(ColumnLayout(text: text, width: width), 0)]
+            case .pair(let latin, let english, _):
+                return [(ColumnLayout(text: latin, width: columnWidth), 0), (ColumnLayout(text: english, width: columnWidth), columnWidth + gutter)]
+            }
+        }
+        var pages: [[ColumnSlice]] = []
+        var rowPositions: [(page: Int, y: CGFloat)] = []
+        var page: [ColumnSlice] = []
+        var y: CGFloat = 0
+        func newPage() {
+            pages.append(page)
+            page = []
+            y = 0
+        }
+
+        for (index, columns) in rows.enumerated() {
+            let keepWithNext: Bool
+            let keepTogether: Bool
+            switch office.rows[index] {
+            case .full(_, let keep): (keepWithNext, keepTogether) = (keep, false)
+            case .pair(_, _, let keep): (keepWithNext, keepTogether) = (false, keep)
+            }
+            var starts = columns.map { _ in 0 }
+            var positioned = false
+            while zip(columns, starts).contains(where: { column, start in column.0.lines.count > start }) {
+                let remaining = zip(columns, starts).map { column, start in column.0.height(of: start..<column.0.lines.count) }
+                let rowHeight = remaining.max() ?? 0
+                let available = pageHeight - y
+                if !positioned {
+                    // What must fit with this row's start: all of it (keepTogether), or,
+                    // for a heading, the next row's first two lines too.
+                    var needed = keepTogether ? rowHeight : min(rowHeight, columns.map { $0.0.height(of: 0..<min(2, $0.0.lines.count)) }.max() ?? 0)
+                    if keepWithNext, index + 1 < rows.count {
+                        needed = rowHeight + (rows[index + 1].map { $0.0.height(of: 0..<min(2, $0.0.lines.count)) }.max() ?? 0)
+                    }
+                    if y > 0, needed > available, needed <= pageHeight {
+                        newPage()
+                        continue
+                    }
+                    rowPositions.append((page: pages.count, y: y))
+                    positioned = true
+                }
+                if rowHeight <= available {
+                    for (column, start) in zip(columns, starts) where start < column.0.lines.count {
+                        page.append(ColumnSlice(column: column.0, lines: start..<column.0.lines.count, origin: CGPoint(x: column.1, y: y)))
+                    }
+                    y += rowHeight
+                    break
+                }
+                // Split: each column takes the lines that fit, but never a single line of
+                // a longer run (it moves on with the rest).
+                var placedAny = false
+                for (offset, column) in columns.enumerated() where starts[offset] < column.0.lines.count {
+                    var count = column.0.linesFitting(from: starts[offset], in: available)
+                    let left = column.0.lines.count - starts[offset]
+                    if count == 1, left > 1, y > 0 { count = 0 }
+                    if count == 0, y == 0 { count = 1 }    // a line taller than a page
+                    guard count > 0 else { continue }
+                    page.append(ColumnSlice(column: column.0, lines: starts[offset]..<starts[offset] + count, origin: CGPoint(x: column.1, y: y)))
+                    starts[offset] += count
+                    placedAny = true
+                }
+                newPage()
+                if !placedAny, starts.allSatisfy({ $0 == 0 }) {
+                    // Nothing of the row fitted after all: it starts on the new page.
+                    rowPositions[rowPositions.count - 1] = (page: pages.count, y: 0)
+                }
+            }
+            if !positioned { rowPositions.append((page: pages.count, y: y)) }
+        }
+        if !page.isEmpty || pages.isEmpty { pages.append(page) }
+        self.pages = pages
+        self.rowPositions = rowPositions
+    }
+
+    var totalHeight: CGFloat {
+        (pages.last ?? []).map(\.frame.maxY).max() ?? 0
+    }
+
+    func page(ofRow row: Int) -> Int {
+        rowPositions.indices.contains(row) ? rowPositions[row].page : 0
+    }
+
+    /// The first row that starts on `page` (or the row continuing onto it).
+    func firstRow(onPage page: Int) -> Int {
+        rowPositions.lastIndex { $0.page <= page } ?? 0
+    }
+}
+
+/// Draws one page's slices, and turns taps on the page-1 links into `onLink`.
+final class ParallelPageView: UIView {
+    var slices: [ColumnSlice] = [] {
+        didSet {
+            setNeedsDisplay()
+            accessibilityLabel = slices.map { slice in
+                slice.lines.map { index -> String in
+                    let glyphs = slice.column.lines[index].glyphs
+                    let characters = slice.column.layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+                    return (slice.column.plainText as NSString).substring(with: characters)
+                }.joined()
+            }.joined(separator: "\n")
+        }
+    }
+    var onLink: ((URL) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        isOpaque = true
+        contentMode = .redraw
+        isAccessibilityElement = true
+        accessibilityIdentifier = "officeText"
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped(_:))))
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func draw(_ rect: CGRect) {
+        UIColor.black.setFill()
+        UIRectFill(rect)
+        for slice in slices where slice.frame.insetBy(dx: 0, dy: -4).intersects(rect) {
+            slice.column.draw(lines: slice.lines, at: slice.origin)
+        }
+    }
+
+    @objc private func tapped(_ recognizer: UITapGestureRecognizer) {
+        let point = recognizer.location(in: self)
+        for slice in slices where slice.frame.insetBy(dx: -8, dy: -8).contains(point) {
+            let local = CGPoint(x: point.x - slice.origin.x, y: point.y - slice.origin.y)
+            if let url = slice.column.link(at: local, lines: slice.lines) {
+                onLink?(url)
+                return
+            }
+        }
+    }
+}
+
+/// The parallel office in book pages: `PagedOfficeReader`'s counterpart for English on.
+struct ParallelPagedReader: UIViewControllerRepresentable {
+    let office: ParallelOffice
+    let officeID: String
+    let dateKey: String
+    let pageSize: CGSize
+    let margin: CGFloat
+    let gutter: CGFloat
+    let curl: Bool
+    /// A row index (`ParallelOffice.sectionOffsets`).
+    @Binding var jumpTarget: Int?
+    let onLink: (URL) -> Void
+    let onPageChange: (Int, Int) -> Void
+
+    func makeCoordinator() -> ParallelPager { ParallelPager(parent: self) }
+
+    func makeUIViewController(context: Context) -> UIPageViewController {
+        let controller: UIPageViewController
+        if curl {
+            controller = UIPageViewController(
+                transitionStyle: .pageCurl, navigationOrientation: .horizontal,
+                options: [.spineLocation: NSNumber(value: UIPageViewController.SpineLocation.min.rawValue)]
+            )
+            controller.isDoubleSided = false
+        } else {
+            controller = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
+        }
+        controller.dataSource = context.coordinator
+        controller.delegate = context.coordinator
+        controller.view.backgroundColor = .black
+        return controller
+    }
+
+    func updateUIViewController(_ controller: UIPageViewController, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.update(controller)
+    }
+}
+
+@MainActor
+final class ParallelPager: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+    var parent: ParallelPagedReader
+    private var layoutKey = ""
+    private var dateKey = ""
+    private var layout: ParallelLayout?
+    private var pages: [Int: ParallelPageController] = [:]
+    private var currentIndex = 0
+
+    init(parent: ParallelPagedReader) {
+        self.parent = parent
+    }
+
+    func update(_ controller: UIPageViewController) {
+        let size = parent.pageSize
+        let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)"
+        if key != layoutKey, size.width > 1, size.height > 1 {
+            let anchorRow = parent.dateKey == dateKey ? layout?.firstRow(onPage: currentIndex) : nil
+            layoutKey = key
+            dateKey = parent.dateKey
+            pages.removeAll()
+            let newLayout = ParallelLayout(
+                office: parent.office, width: max(1, size.width - 2 * parent.margin),
+                pageHeight: max(1, size.height - OfficePager.pageTopInset - OfficePager.pageBottomInset), gutter: parent.gutter
+            )
+            layout = newLayout
+            show(page: anchorRow.map(newLayout.page(ofRow:)) ?? 0, in: controller)
+        }
+        if let target = parent.jumpTarget, let layout {
+            show(page: layout.page(ofRow: target), in: controller)
+            Task { @MainActor [weak self] in self?.parent.jumpTarget = nil }
+        }
+    }
+
+    private func pageController(_ index: Int) -> ParallelPageController? {
+        guard let layout, layout.pages.indices.contains(index) else { return nil }
+        if let existing = pages[index] { return existing }
+        let page = ParallelPageController(index: index, slices: layout.pages[index], margin: parent.margin) { [weak self] url in
+            self?.parent.onLink(url)
+        }
+        pages[index] = page
+        return page
+    }
+
+    private func show(page index: Int, in controller: UIPageViewController) {
+        guard let page = pageController(index) else { return }
+        let direction: UIPageViewController.NavigationDirection = index >= currentIndex ? .forward : .reverse
+        currentIndex = index
+        controller.setViewControllers([page], direction: direction, animated: false)
+        report()
+    }
+
+    private func report() {
+        let current = currentIndex + 1
+        let total = max(1, layout?.pages.count ?? 1)
+        Task { @MainActor [weak self] in self?.parent.onPageChange(current, total) }
+    }
+
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
+        guard let page = viewController as? ParallelPageController else { return nil }
+        return pageController(page.index - 1)
+    }
+
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
+        guard let page = viewController as? ParallelPageController else { return nil }
+        return pageController(page.index + 1)
+    }
+
+    func pageViewController(
+        _ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
+        previousViewControllers: [UIViewController], transitionCompleted completed: Bool
+    ) {
+        guard completed, let page = pageViewController.viewControllers?.first as? ParallelPageController else { return }
+        currentIndex = page.index
+        report()
+    }
+}
+
+final class ParallelPageController: UIViewController {
+    let index: Int
+    private let pageView = ParallelPageView(frame: .zero)
+    private let margin: CGFloat
+
+    init(index: Int, slices: [ColumnSlice], margin: CGFloat, onLink: @escaping (URL) -> Void) {
+        self.index = index
+        self.margin = margin
+        super.init(nibName: nil, bundle: nil)
+        pageView.slices = slices
+        pageView.onLink = onLink
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        view.addSubview(pageView)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        pageView.frame = CGRect(
+            x: margin, y: OfficePager.pageTopInset,
+            width: max(1, view.bounds.width - 2 * margin),
+            height: max(1, view.bounds.height - OfficePager.pageTopInset - OfficePager.pageBottomInset)
+        )
+    }
+}
+
+/// The parallel office in one continuous scroll: `VerticalOfficeReader`'s counterpart.
+struct ParallelVerticalReader: UIViewRepresentable {
+    let office: ParallelOffice
+    let officeID: String
+    let dateKey: String
+    let width: CGFloat
+    let margin: CGFloat
+    let gutter: CGFloat
+    @Binding var jumpTarget: Int?
+    let onLink: (URL) -> Void
+    let onPageChange: (Int, Int) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIView(context: Context) -> UIScrollView {
+        let scrollView = UIScrollView()
+        scrollView.backgroundColor = .black
+        scrollView.indicatorStyle = .white
+        scrollView.alwaysBounceVertical = true
+        scrollView.delegate = context.coordinator
+        scrollView.addSubview(context.coordinator.pageView)
+        return scrollView
+    }
+
+    func updateUIView(_ scrollView: UIScrollView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.parent = self
+        let key = "\(officeID)|\(Int(width))|\(margin)"
+        if key != coordinator.layoutKey, width > 1 {
+            let anchorRow = coordinator.dateKey == dateKey ? coordinator.topRow(in: scrollView) : nil
+            coordinator.layoutKey = key
+            coordinator.dateKey = dateKey
+            let layout = ParallelLayout(office: office, width: max(1, width - 2 * margin), pageHeight: .greatestFiniteMagnitude, gutter: gutter)
+            coordinator.layout = layout
+            coordinator.pageView.slices = layout.pages.first ?? []
+            coordinator.pageView.onLink = { [weak coordinator] url in coordinator?.parent.onLink(url) }
+            coordinator.pageView.frame = CGRect(x: margin, y: 8, width: max(1, width - 2 * margin), height: max(1, layout.totalHeight))
+            scrollView.contentSize = CGSize(width: width, height: layout.totalHeight + 8 + 32)
+            coordinator.scroll(scrollView, toRow: anchorRow ?? 0)
+        }
+        if let target = jumpTarget {
+            coordinator.scroll(scrollView, toRow: target)
+            Task { @MainActor in coordinator.parent.jumpTarget = nil }
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        var parent: ParallelVerticalReader
+        var layoutKey = ""
+        var dateKey = ""
+        var layout: ParallelLayout?
+        let pageView = ParallelPageView(frame: .zero)
+        private var lastReported: (Int, Int)?
+
+        init(parent: ParallelVerticalReader) {
+            self.parent = parent
+        }
+
+        func topRow(in scrollView: UIScrollView) -> Int? {
+            guard let layout else { return nil }
+            let top = scrollView.contentOffset.y - 8
+            return layout.rowPositions.lastIndex { $0.y <= top + 1 }
+        }
+
+        func scroll(_ scrollView: UIScrollView, toRow row: Int) {
+            guard let layout, layout.rowPositions.indices.contains(row) else { return }
+            let maxOffset = max(0, scrollView.contentSize.height - scrollView.bounds.height)
+            let y = row == 0 ? 0 : min(max(0, layout.rowPositions[row].y + 8), maxOffset)
+            scrollView.setContentOffset(CGPoint(x: 0, y: y), animated: false)
+            reportPage(of: scrollView)
+        }
+
+        func reportPage(of scrollView: UIScrollView) {
+            let height = scrollView.bounds.height
+            guard height > 0 else { return }
+            let total = max(1, Int((scrollView.contentSize.height / height).rounded(.up)))
+            let current = min(total, max(1, Int((scrollView.contentOffset.y / height).rounded()) + 1))
+            if let lastReported, lastReported == (current, total) { return }
+            lastReported = (current, total)
+            Task { @MainActor [weak self] in self?.parent.onPageChange(current, total) }
+        }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            reportPage(of: scrollView)
+        }
     }
 }

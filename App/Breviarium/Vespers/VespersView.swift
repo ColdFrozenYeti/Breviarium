@@ -29,9 +29,10 @@ struct VespersView: View {
     @State private var showingSettings = false
     @State private var showingDatePicker = false
     @State private var typesetCache = TypesetCache()
-    /// A character offset to bring into view (a table-of-contents choice); the reader
-    /// clears it once it has jumped.
-    @State private var jumpTarget: Int?
+    @State private var parallelCache = ParallelCache()
+    /// A section to bring into view (a table-of-contents choice); the reader clears it
+    /// once it has jumped. Each reader gets it as its own offset (`jumpBinding`).
+    @State private var jumpSection: BreviariumKit.Section.Kind?
     @State private var pageNumber = 1
     @State private var pageCount = 1
     @State private var appliedInitialSection = false
@@ -43,6 +44,32 @@ struct VespersView: View {
     /// Everything the typeset text depends on.
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
+            + "|\(settings.psalter.rawValue)|\(settings.showEnglish)"
+    }
+
+    /// The hour's sections in order, for the table of contents.
+    private var sectionKinds: [BreviariumKit.Section.Kind] {
+        ContentBlock.blocks(for: content.hour).compactMap { block in
+            if case .sectionStart(let kind) = block { kind } else { nil }
+        }
+    }
+
+    /// English on: the parallel rows, which differ by orientation (prose is stacked in
+    /// portrait and side by side in landscape).
+    private func parallelOffice(landscape: Bool) -> ParallelOffice {
+        let currentMetrics = self.metrics
+        let showRubrics = settings.showRubrics
+        return parallelCache.office(for: "\(officeKey)|\(landscape)") {
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics).typesetParallel(landscape: landscape)
+        }
+    }
+
+    /// `jumpSection` as the given reader's own offset for that section.
+    private func jumpBinding(_ offsets: [(kind: BreviariumKit.Section.Kind, offset: Int)]) -> Binding<Int?> {
+        Binding(
+            get: { jumpSection.flatMap { kind in offsets.first { $0.kind == kind }?.offset } },
+            set: { if $0 == nil { jumpSection = nil } }
+        )
     }
 
     private var office: TypesetOffice {
@@ -54,20 +81,23 @@ struct VespersView: View {
     }
 
     var body: some View {
-        let typeset = self.office
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationHeader
-                reader(typeset)
+                if settings.showEnglish {
+                    parallelReader
+                } else {
+                    reader(office)
+                }
                 footer
             }
         }
-        .sheet(isPresented: $showingToc) { tocSheet(typeset) }
+        .sheet(isPresented: $showingToc) { tocSheet }
         .onAppear {
             guard !appliedInitialSection, let initialSection else { return }
             appliedInitialSection = true
-            jumpTarget = typeset.sectionOffsets.first { $0.kind.rawValue == initialSection }?.offset
+            jumpSection = sectionKinds.first { $0.rawValue == initialSection }
         }
         .sheet(isPresented: $showingDatePicker) { datePickerSheet }
     }
@@ -78,17 +108,43 @@ struct VespersView: View {
         case .vertical:
             VerticalOfficeReader(
                 office: office, officeID: officeKey, dateKey: dateKey, margin: metrics.margin,
-                jumpTarget: $jumpTarget, onLink: handleLink, onPageChange: updatePage
+                jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink, onPageChange: updatePage
             )
         case .horizontal:
             GeometryReader { geometry in
                 PagedOfficeReader(
                     office: office, officeID: officeKey, dateKey: dateKey, pageSize: geometry.size, margin: metrics.margin,
-                    curl: settings.pageTurn == .curl, jumpTarget: $jumpTarget, onLink: handleLink, onPageChange: updatePage
+                    curl: settings.pageTurn == .curl, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink,
+                    onPageChange: updatePage
                 )
             }
             // The page-turn style is fixed when the page controller is created.
             .id(settings.pageTurn)
+        }
+    }
+
+    /// English on (`CLAUDE.md`, "Parallel English"): the same two reading modes, over
+    /// `OfficeTypesetter.typesetParallel`'s rows.
+    private var parallelReader: some View {
+        GeometryReader { geometry in
+            let landscape = geometry.size.width > geometry.size.height
+            let parallel = parallelOffice(landscape: landscape)
+            let gutter = metrics.margin * 0.6
+            switch settings.readingMode {
+            case .vertical:
+                ParallelVerticalReader(
+                    office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, width: geometry.size.width,
+                    margin: metrics.margin, gutter: gutter, jumpTarget: jumpBinding(parallel.sectionOffsets),
+                    onLink: handleLink, onPageChange: updatePage
+                )
+            case .horizontal:
+                ParallelPagedReader(
+                    office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, pageSize: geometry.size,
+                    margin: metrics.margin, gutter: gutter, curl: settings.pageTurn == .curl,
+                    jumpTarget: jumpBinding(parallel.sectionOffsets), onLink: handleLink, onPageChange: updatePage
+                )
+                .id(settings.pageTurn)
+            }
         }
     }
 
@@ -178,15 +234,15 @@ struct VespersView: View {
 
     // MARK: Table of contents
 
-    private func tocSheet(_ office: TypesetOffice) -> some View {
+    private var tocSheet: some View {
         NavigationStack {
             List {
-                ForEach(Array(office.sectionOffsets.enumerated()), id: \.offset) { _, section in
+                ForEach(Array(sectionKinds.enumerated()), id: \.offset) { _, kind in
                     Button {
                         showingToc = false
-                        jumpTarget = section.offset
+                        jumpSection = kind
                     } label: {
-                        Text(OfficeTypesetter.headingText(for: section.kind))
+                        Text(OfficeTypesetter.headingText(for: kind))
                     }
                 }
             }
