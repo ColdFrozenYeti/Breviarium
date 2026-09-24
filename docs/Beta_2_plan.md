@@ -268,7 +268,18 @@ same psalm machinery, and Compline shares Vespers' concurrence.
 - Build IPA, and you install it on the phone.
 - `docs/beta-2-retrospective.md`.
 
-## Open questions (for your answer before B2-M1 ends)
+## Decisions (answered 2026-09-24, plan approved)
+
+1. **Launch hour: by time of day.** Lauds until 09:00, Terce until 12:00, Sext until 15:00,
+   None until 17:00, Vespers until 20:00, Compline after. Prime is reached from the picker.
+2. **The Martyrology is a separate "hour" of its own, in a later beta.** Prime in Beta 2
+   leaves it out.
+3. **Compline's date:** the Compline of Tuesday is prayed on Tuesday (Tuesday night, after
+   Tuesday's Vespers), as DO does.
+4. **Pius XII fixtures for all six hours:** yes.
+5. **Moving between hours:** through the picker only; no swipe past the last page.
+
+## Open questions (as asked; answered above)
 
 1. **Which hour opens at launch?**
    - (a) The hour for the time of day, which is what Universalis does. My suggestion:
