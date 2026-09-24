@@ -2873,6 +2873,44 @@ include Annunciation-adjacent Ave Maria versicles, Nativity-octave/Circumcision
 commemoration collects, and St Joseph/St John Baptist collects, each needing its own
 real-Perl trace before any fix is attempted, following the same discipline as this one.
 
+**Second Oratio fix, in `Commemorations.swift`** (concurrence-adjacent, so treated with
+the same caution as a `Concurrence.swift` change — full sweep run before trusting it):
+a duplicate-commemoration bug affecting the St Joseph/Annunciation "Ecce fidelis
+servus"-shaped dates. Traced with tagged diagnostics directly in `Commemorations.resolve`
+(temporary `print` statements, reverted before committing) after live Perl
+instrumentation of `getcommemoratio` confirmed real DO calls it *exactly once* per night
+(`GC wday=[Sancti/03-19.txt] ind=[1]`) for 19 March 2028, while this project's engine
+built *two* candidates for the same office.
+
+The real mechanism: when a high-rank office (St Joseph, `Duplex I classis`) loses
+same-day occurrence to a Sunday/Festum-Domini on its own natural date, it's annually
+transferred by `SanctoralCalendar`'s own transfer table (the same mechanism that moves a
+displaced Annunciation onto a later free day) onto the very next free day. This project's
+`Commemorations.resolve` found the office through *two independent mechanisms at once*:
+`runnersUp` found it as an ordinary same-day loser on its own natural date (`ind: 3`,
+reaching the office's own separate `[Ant 3]`/`[Versum 3]`, "Ecce fidélis servus..."/"Glória
+et divítiæ..."), while `tomorrowsTiedFirstVespersCandidate` *separately* found it again as
+tomorrow's own occurrence winner once transferred (`ind: 1`, reaching the correct `[Ant
+1]`/`[Versum 1]`, "Exsúrgens Ioseph a somno..."/"Constítuit eum dóminum domus suæ...").
+Both mechanisms are individually correct for the cases they were built for — the bug is
+only that they can name the *same* office at once when a transfer is in effect, and
+nothing previously deduplicated between them. Fixed by removing any existing same-day
+entry sharing the transferred candidate's own path before appending it, so the correct
+`ind: 1` entry always wins over the stale `ind: 3` one rather than both rendering.
+Confirmed real for 19 March 2028 (St Joseph, transferred to 20 March that year, its own
+Vespers commemorated once, correctly). New test:
+`transferredStJosephCommemoratesOnceNotTwice`
+(`TransferredCommemorationDuplicateOracleTests.swift`).
+
+Full suite (203 Kit + 8 Data + 102 named oracle) confirmed clean. Fresh sweep against the
+prior baseline (Oratio 37, Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7,
+Conclusio 0): **Oratio 37 → 34**, every other category unchanged — no regressions, despite
+touching concurrence-adjacent code. Oratio's remaining 34 dates still include the
+Annunciation Ave Maria versicle pattern, the Nativity-octave/Circumcision commemoration
+collects (mostly downstream of the three already-deferred concurrence clusters), and St
+John Baptist's own Nativity collect — each still needing its own real-Perl trace before
+any further fix is attempted.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

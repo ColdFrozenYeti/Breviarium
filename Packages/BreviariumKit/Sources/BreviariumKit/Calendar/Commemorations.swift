@@ -86,7 +86,30 @@ public struct Commemorations {
             // real Perl, not subject to the ranklimit filter `ownVespersCommemorations`
             // otherwise applies -- added unconditionally here to match, not folded into
             // the filtered pool above.
+            //
+            // **The same office can independently qualify through both mechanisms at
+            // once** when it's itself been annually transferred *away* from today's date
+            // by `SanctoralCalendar`'s own transfer table (the same mechanism that moves
+            // a displaced Annunciation/St Joseph onto a later free day —
+            // `SanctoralCalendar`'s own doc comment). `runnersUp` above finds it as an
+            // ordinary same-day loser on its own natural date (`ind: 3`, today's own
+            // occasion); `tomorrowsTiedFirstVespersCandidate` below *separately* finds it
+            // again as tomorrow's own occurrence winner (`ind: 1`) once transferred onto
+            // that later date — two genuinely different mechanisms that happen to name
+            // the same office when a transfer is in effect. Real DO calls
+            // `getcommemoratio` exactly once for such a night (confirmed by live Perl
+            // instrumentation), always with the transferred `ind: 1`, never the stale
+            // same-day `ind: 3` — so the same-day entry is dropped here whenever the tied
+            // candidate names the same path, rather than shown twice. Confirmed real for
+            // 19 March 2028 (St Joseph, `Duplex I classis` rank 6, loses occurrence to
+            // "Dominica III in Quadragesima" on its own natural date and is transferred
+            // to 20 March that year): the real fixture's single commemoration uses
+            // `Sancti/03-19`'s own `[Ant 1]`/`[Versum 1]` ("Exsúrgens Ioseph a
+            // somno.../Constítuit eum dóminum domus suæ...") — this project's engine had
+            // been showing *both* that and a second, wrong commemoration block built from
+            // the same office's own `[Ant 3]`/`[Versum 3]` instead.
             if let tiedTomorrow = tomorrowsTiedFirstVespersCandidate(day: day, month: month, year: year, today: result.vespersOffice) {
+                commemorations.removeAll { $0.path == tiedTomorrow.path }
                 commemorations.append(tiedTomorrow)
             }
             return commemorations
