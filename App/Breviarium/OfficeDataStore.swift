@@ -71,7 +71,7 @@ final class OfficeDataStore {
             let bundle = try JSONDecoder().decode(DataBundle.self, from: data)
             latinCorpus = bundle.makeLatinCorpus()
             englishCorpus = bundle.makeEnglishCorpus()
-            sanctoralCalendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable)
+            sanctoralCalendar = bundle.makeSanctoralCalendar()
         } catch {
             latinCorpus = nil
             englishCorpus = nil

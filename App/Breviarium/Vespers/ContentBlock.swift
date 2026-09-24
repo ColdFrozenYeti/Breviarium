@@ -1,8 +1,7 @@
 import BreviariumKit
 
 /// One piece of content in the whole hour's flattened, linear reading order -- what
-/// `VespersView` renders straight down its one continuous scroll (see that file's own
-/// doc comment for why it's a single scroll rather than swiped pages for now).
+/// `OfficeTypesetter` turns into one attributed string for every reading mode.
 /// `.sectionStart` is its own block, emitted exactly once per section, so a heading is
 /// never repeated.
 enum ContentBlock: Identifiable {
@@ -23,14 +22,14 @@ enum ContentBlock: Identifiable {
     /// confirmed against the real Bea Psalm135, where verse 10 "Qui percússit..." is
     /// the non-italic one and verse 11 "Et edúxit..." is the italic one -- i.e. odd
     /// verse numbers are the italic side). Always `false` for non-`.verse` units, which
-    /// ignore it. Computed here (not in `UnitView`, which renders one unit in isolation
-    /// with no notion of its neighbours) by counting `.verse` units since the last
+    /// ignore it. Computed here (not in `OfficeTypesetter`, which typesets one unit at a
+    /// time with no notion of its neighbours) by counting `.verse` units since the last
     /// `.antiphon`, since an antiphon marks the start of a new psalm/canticle and the
     /// alternation restarts there.
     case unit(index: Int, unit: BreviariumKit.Unit, alternateVerse: Bool, trailingSpace: TrailingSpace)
 
     /// How much room to leave below a `.unit` block -- also computed here rather than in
-    /// `UnitView`, for the same "needs to see neighbours" reason as `alternateVerse`.
+    /// `OfficeTypesetter`, for the same "needs to see neighbours" reason as `alternateVerse`.
     enum TrailingSpace {
         case standard
         /// No extra gap after this block -- used for a psalm's closing antiphon

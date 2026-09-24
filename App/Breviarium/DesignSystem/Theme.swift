@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Colours from `CLAUDE.md`'s visual spec, sampled from `design/reference/Format.png`.
 /// Night mode only -- there is no light theme.
@@ -51,7 +52,13 @@ struct Metrics {
     var versicleIndent: CGFloat { 23 * scale }
     var hangingIndent: CGFloat { 38 * scale }
     var separatorWidth: CGFloat { 83 * scale }
+    /// Space below a section rule, down to the heading (measured 44.3pt in `Format.png`).
     var separatorSpacing: CGFloat { 44 * scale }
+    /// Space above a section rule, from the last line of the section before it. Smaller than
+    /// `separatorSpacing` because it is added below that line's own leading: measured
+    /// against `Format.png`, the gap from the text above to the rule is 37pt, which 28
+    /// here reproduces (44 gave 53.4pt).
+    var separatorSpacingAbove: CGFloat { 28 * scale }
     var hourTitleSize: CGFloat { bodySize * 1.5 }
     var dayTitleNameSize: CGFloat { bodySize * 1.3 }
     var sectionHeadingSize: CGFloat { bodySize * 1.1 }
@@ -77,4 +84,17 @@ enum LiturgicalFont {
     static func black(_ size: CGFloat) -> Font { .custom(blackName, size: size) }
     /// Antiphons -- bold italic, per direct feedback comparing a real rendering.
     static func blackItalic(_ size: CGFloat) -> Font { .custom(blackItalicName, size: size) }
+}
+
+/// The same faces as `LiturgicalFont`, as `UIFont`s for `OfficeTypesetter`'s TextKit
+/// rendering. Falls back to the system font only if Hoefler Text is ever missing.
+enum LiturgicalUIFont {
+    static func regular(_ size: CGFloat) -> UIFont { font(LiturgicalFont.regularName, size) }
+    static func italic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.italicName, size) }
+    static func black(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackName, size) }
+    static func blackItalic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackItalicName, size) }
+
+    private static func font(_ name: String, _ size: CGFloat) -> UIFont {
+        UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+    }
 }

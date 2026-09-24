@@ -177,11 +177,21 @@ public struct Occurrence {
             return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
         }
 
+        // `horascommon.pl:487`: the Sunday exceptions below apply when `$trank[0] =~
+        // /Dominica/i && $dayname[0] !~ /Nat1/i` -- the temporal office's *title*, not
+        // the weekday. Holy Family (`Tempora/Epi1-0`, "Sanctæ Familiæ Iesu Mariæ
+        // Ioseph") is kept on a Sunday but isn't titled "Dominica", so a Feast of the Lord
+        // of equal rank doesn't beat it. Confirmed real for 13 January 2030 and 2036: the
+        // real fixture is "Sanctæ Familiæ Jesu Mariæ Joseph ~ II. classis", with the
+        // Baptism of the Lord (`Sancti/01-13`, rank 5, "Festum Domini") commemorated at
+        // Lauds only; this project let the Baptism win on the weekday test.
+        let temporalIsDominica = temporalRank.title.range(of: "Dominica", options: .caseInsensitive) != nil
+            && !TemporalCycle.weekName(day: day, month: month, year: year).hasPrefix("Nat1")
         let sanctoralWins = decideSanctoralWins(
             temporalRank: temporalRank,
             sanctoralRank: sanctoralRank,
             sanctoralRule: sanctoralRule,
-            isSunday: isSunday
+            isSunday: temporalIsDominica
         )
 
         if sanctoralWins, let sanctoralPath, let sanctoralRank {

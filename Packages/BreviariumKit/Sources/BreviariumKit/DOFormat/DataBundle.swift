@@ -70,6 +70,16 @@ public struct DataBundle: Codable, Sendable {
         LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: latinBea), InMemoryOfficeCorpus(files: latin)])
     }
 
+    /// The sanctoral calendar with *all three* of this bundle's calendar tables. Every
+    /// consumer should build its calendar here rather than calling
+    /// `SanctoralCalendar.init` field by field: the app once omitted `temporaRedirect`
+    /// (its initialiser defaults it to empty), which changed the rendered Vespers on 262
+    /// dates in 2025-2040 relative to what the oracle tests verify -- Holy Saturday,
+    /// weeks of Paschaltide, late June, among others.
+    public func makeSanctoralCalendar() -> SanctoralCalendar {
+        SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
+    }
+
     /// The English corpus — no Bea-equivalent overlay exists for English (confirmed: no
     /// `English-Bea` sibling directory in the checkout), so this is just the one tree.
     public func makeEnglishCorpus() -> OfficeCorpus {

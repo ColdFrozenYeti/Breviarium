@@ -3051,6 +3051,213 @@ and continue in a cloud session — every fix so far has been validated against 
 2025-2040 sweep and the full Kit/Data/Oracle suite before committing, with no known
 regressions.
 
+**Phase 4 (cloud session, 2026-09-24): the five remaining oracle bugs.** Environment
+note first, since the next cloud session will hit the same thing: this container had no
+Swift toolchain and `download.swift.org` is blocked by the network policy. What worked:
+start `dockerd`, pull `mirror.gcr.io/library/swift:6.1-noble` (Docker Hub itself
+returned 429, and the ECR public mirror's CloudFront blob host is blocked), then run
+`swift build`/`swift test` inside that container with the repo bind-mounted. The DO
+submodule also needed `git submodule update --init`. Baseline re-measured on a clean
+`HEAD` worktree before touching anything: Oratio 14, Canticum 9, Psalmodia 7, Capitulum
+9, Versus 9, Hymnus 7, Conclusio 0 (unchanged from the Phase 3 total).
+
+**Bug 8 of 11 (the "Hoc est testimonium" Advent commemoration): O Antiphon override for a
+commemorated temporal office.** `getcommemoratio` (`specials/orationes.pl:772-785`)
+overrides a commemorated office's antiphon *after* the ordinary `Ant $ind` lookup:
+`if ($wday =~ /tempora/i) { if ($month == 12 && ($hora eq 'Vespera' && $day >= 17 && $day
+<= 23 ...)) { $a = $v{"Adv Ant $day"} } }`. In 2029/2035/2040, 21 December is the Advent
+Ember Friday, and `Tempora/Adv3-5.txt` has its own `[Ant 3]` ("Hoc est testimónium..."),
+which this project rendered; the real fixtures show "O Óriens splendor lucis ætérnæ...".
+Ported by reusing `oAntiphonLocation` (same window, same never-advanced request date) at
+the top of `commemorationUnits`' antiphon chain.
+
+Writing the *control* test (21 December 2026, an ordinary Advent feria) surfaced a
+second bug the sweep cannot see: the commemoration was silently **dropped**, not wrong.
+`Tempora/Adv4-1` has no `[Ant N]` and no `[Oratio]` of its own (its `[Rule]` is just
+"Oratio Dominica"), so `commemorationUnits` returned `nil`. The O Antiphon override
+supplies the antiphon; the collect needed `getcommemoratio`'s own "Oratio Dominica"
+redirect (`orationes.pl:704-711`: `$wday =~ s/\-[0-9]/-0/; $wday =~ s/Epi1\-0/Epi1\-0a/;`,
+then that file's `OratioW // Oratio`), ported as
+`HourAssembler.commemoratedOratioDominicaLocation`. The real 2026 fixture's commemoration
+("Ant. O Óriens... ℣. Roráte, cæli... Orémus. Excita, quǽsumus, Dómine, poténtiam tuam, et
+veni: et magna nobis virtúte succúrre...") now matches word for word. **Methodology
+note:** `vespersFullRangeContentAudit` only checks that rendered text appears in the
+fixture, so an omitted commemoration is invisible to it. A commemoration-count check
+against the fixture would close that blind spot. New tests:
+`emberFridayCommemorationTakesTheOAntiphon`,
+`ordinaryAdventFeriaCommemorationIsRenderedWithItsSundayCollect`
+(`CommemorationOAntiphonOracleTests.swift`).
+
+**Bug 4 of 11 (wrong commemoration at a Lenten Sunday's first Vespers).** 19 March 2033
+(St Joseph, Saturday) should commemorate St Joseph; 24 February 2035 (St Matthias,
+Saturday) should commemorate nothing. This project commemorated the Lenten Saturday on
+both. Read from `concurrence()` directly (`horascommon.pl:842-1472`, static reading was
+enough; no instrumentation needed). The fix has three pieces:
+
+1. `:937-964` ("if tomorrow is a Sunday, get rid of today's tempora completely"): when
+   tomorrow's *temporal* office (`$ctrank[0]`) is titled `(?<!De )Dominica|Trinitatis`
+   (not "Dominica Resurrectionis" under 1955/1960) and a saint wins today, today's
+   temporal runner-up, which `occurrence()` always `unshift`s to the front of
+   `@commemoentries`, is dropped. Ported as `Commemorations.droppingTemporaBeforeSunday`.
+   Only the saint-wins branch is ported; the temporal-wins `else` branch clears `$winner`
+   and feeds the wider cascade. **Pitfall:** Swift's `Regex` has no lookbehind, and the
+   file's `matches` helper treats a pattern that fails to compile as "no match". The
+   first build silently did nothing until the `(?<!De )` was spelled out by hand.
+2. `:1166-1170`: the "nothing of the preceding office" exclusion before a Sunday or Feast
+   of the Lord is rank-gated (`$rank < ($crank >= 6 ? 6 : 5) || $wrank[0] =~ /Dominica/i
+   || $winner{Rule} =~ /Festum Domini/i`). This project had excluded the preceding office
+   before *any* Sunday. St Joseph (6) before a 6.9 Sunday escapes the gate and is
+   commemorated by `:1296`'s `$crank > $rank` branch; St Matthias (5) does not.
+3. `:1063-1081` ("two concurrent Tempora"). **Found by the sweep, not by reading:**
+   pieces 1 and 2 alone moved Oratio 14 → 30. The 5 target dates were fixed, but every
+   Pentecost Vigil and several 29/30 December dates were newly wrong. The old blanket
+   exclusion had been masking this branch: when both days' winners are temporal and
+   tomorrow wins, today's temporal winner is never `$commemoratio`, and unless `$crank <
+   7 && $crank != 6.5 && $crank != 6 && $comrank > 2 && $cwinner{Rule} !~ /no
+   commemoratio/i`, `@commemoentries` is emptied too (the title's plain "Vespera de
+   sequenti."). Confirmed real for 7 June 2025 and 30 December 2028.
+
+New tests: `firstClassFeastBeforeFirstClassSundayIsCommemorated`,
+`secondClassFeastAndLentenSaturdayBeforeSundayAreNotCommemorated`,
+`pentecostVigilIsNotCommemoratedAtPentecostsFirstVespers`,
+`christmasOctaveDayIsNotCommemoratedAtTheOctaveSundaysFirstVespers`
+(`SundayFirstVespersPrecedingOfficeOracleTests.swift`).
+
+Full suite: 322 tests passed (the 6 new named tests included). Fresh sweep with both
+fixes, measured against the re-confirmed baseline: **Oratio 14 → 9**, every other category
+unchanged (Canticum 9, Psalmodia 7, Capitulum 9, Versus 9, Hymnus 7, Conclusio 0). No new
+mismatch date in any category. Fixed dates: 2029-12-21, 2035-12-21, 2040-12-21 (Bug 8)
+and 2033-03-19, 2035-02-24 (Bug 4).
+
+**Dec-29 Christmas-Octave-Sunday concurrence (the third deferred cluster).** In 2033 and
+2039 Christmas is a Sunday, so no Sunday falls between 26 and 31 December and
+"Dominica Infra Octavam Nativitatis" is kept on Friday 30 December (`Transfer/b.txt`/
+`g.txt`, `12-30=Tempora/Nat1-0`, which `SanctoralCalendar` already applied). The real
+fixtures for 29 December show its first Vespers ("Vespera de sequenti."). The mechanism is
+a one-word gap: `concurrence()`'s first-Vespers threshold (`horascommon.pl:974-977`) is
+`$cwrank[2] < (($cwrank[0] =~ /Dominica/i || (Festum Domini && $dayofweek == 6)) ? 5 : 6)`,
+keyed off tomorrow's **title**, and this project used `tomorrow.isSunday`. The
+Friday-kept Sunday (5.4) therefore faced the I. classis threshold of 6. Fixed in
+`Concurrence.resolve` and in the duplicate threshold in
+`Commemorations.tomorrowsTiedFirstVespersCandidate`. Past the threshold, the ordinary
+`crank > rank` check (5.4 > `Nat29`'s 5) does the rest. The real branch taken is `:1063`'s
+"two concurrent Tempora", whose commemoration side was ported just above. Sweep against
+the post-Bug-4 baseline: **Canticum 9 → 7, Capitulum 9 → 7, Oratio 9 → 7, Versus 9 → 7**,
+Hymnus 7 and Psalmodia 7 unchanged, no new mismatch date. Full suite: 328 passed. New
+tests: `christmasOctaveSundayKeptOnFridayHasFirstVespers`,
+`twentyNinthDecemberKeepsItsOwnVespersWhenTheOctaveSundayIsOnSunday`
+(`ChristmasOctaveSundayOnFridayOracleTests.swift`).
+
+**Sacred-Heart/Precious-Blood concurrence, plus 2 of the 6 Epiphany/Holy-Family dates.**
+`concurrence()` checks `horascommon.pl:1161-1170` *before* the 1960 tie-break at `:1242`.
+Its second disjunct gives tomorrow first Vespers even at equal rank when both days are a
+Sunday or a Feast of the Lord: `($cwrank[0] =~ /Dominica/i || $cwinner{Rule} =~ /Festum
+Domini/i) && (... || $wrank[0] =~ /Dominica/i || $winner{Rule} =~ /Festum Domini/i)`. On 1
+July 2038 the Precious Blood (6) is followed by the Sacred Heart (6), both "Festum
+Domini", so the Sacred Heart wins ("Vespera de sequenti; nihil de præcedenti"). This
+project had kept the Precious Blood on the tie-break. Ported as
+`Concurrence.precedingYieldsToSundayOrFeastOfTheLord`. It is skipped when both days are
+temporal (`:1063` decides those first). It is guarded by the three `:1136-1152` "nihil de
+sequenti" disjuncts that can still apply once the threshold is cleared: I. classis today
+(rank 7 on a Saturday) against a tomorrow below 6; a Feast of the Lord against a II.
+classis Sunday outside `Nat1`; and the literal Pent02-5/07-01 case. The same disjunct also
+fixed 6 January 2029 and 2035: Epiphany (6.5, Festum Domini) on a Saturday before Holy
+Family (5, Festum Domini, threshold 5 on a Saturday). Low Sunday 2027 before the
+transferred Annunciation, which has no "Festum Domini", still keeps its own Vespers (control
+test). Sweep against the post-Dec-29 baseline: **every content category 7 → 4**, no new
+mismatch date. Full suite: 331 passed. New tests: `sacredHeartPreEmptsPreciousBloodAtEqualRank`,
+`holyFamilyPreEmptsEpiphanyOnSaturday`,
+`lowSundayKeepsItsVespersBeforeTheTransferredAnnunciation`
+(`FeastOfTheLordConcurrenceOracleTests.swift`). **Remaining: 4 dates, one pattern**:
+2030-01-12/13 and 2036-01-12/13 (Holy Family on Sunday 13 January, where the Baptism of
+the Lord is reduced to a Lauds-only commemoration).
+
+**The last four Epiphany/Holy-Family dates: an occurrence gap, not a concurrence one.** In
+2030 and 2036, 13 January (the Baptism of the Lord, `Sancti/01-13`, rank 5, "Festum
+Domini") is a Sunday, so Holy Family (`Tempora/Epi1-0`, rank 5) falls the same day. The
+real fixtures give Holy Family both 13 January and its first Vespers on the 12th, with the
+Baptism reduced to a Lauds-only commemoration. `occurrence()`'s 1960 exception, "II. cl.
+feasts of the Lord and all I. cl. feasts beat II. cl. Sundays" (`horascommon.pl:487-493`),
+sits inside `elsif ($trank[0] =~ /Dominica/i && $dayname[0] !~ /Nat1/i)`. That tests the
+temporal office's **title**, and Holy Family's title has no "Dominica", so the Baptism
+(5, not > 5) doesn't beat it. This project tested the weekday. It is the same
+title-versus-weekday shape as the Dec-29 fix. The two reverted Phase 2 attempts went at
+the concurrence cascade (`:1156-1163`); the real gap was upstream, in occurrence. Fixed in
+`Occurrence.resolve`. Two *synthetic* unit tests (`sundaySecondClassFeastOfTheLordBeatsSunday`,
+`immaculateConceptionBeatsSundayViaRG15EvenAtLowRank`) built their Sunday with an empty
+title and no `[Officium]`, which no real Sunday file has. They now carry `Tempora/Epi2-0`'s
+real title ("Dominica II post Epiphaniam"), with the assertions unchanged. No oracle
+fixture was touched. New tests: `holyFamilyBeatsTheBaptismOnSundayThirteenthJanuary`,
+`holyFamilyHasFirstVespersBeforeSundayThirteenthJanuary`
+(`HolyFamilyBaptismOccurrenceOracleTests.swift`).
+
+**`vespersFullRangeContentAudit` now passes: 0/0/0/0/0/0/0** across 2025-2040 (it was
+4/4/4/4/4/4/0 before this fix). Full suite: 333 passed.
+
+**New audit: `vespersFullRangeCommemorationAudit` (the reverse direction).** The
+content audit only checks that rendered text appears in the fixture, so omissions are
+invisible to it. The new audit sits beside it in `OracleTests.swift`. For every date
+2025-2040 it counts the commemoration blocks each side renders in the Oratio section
+(DO's "Top Next Oratio" up to "Top Next Conclusio"; the header forms "Commemoratio: ..."
+and "Commemoratio ad Laudes tantum: ..." sit outside it). It also checks that each of our
+"Commemoratio ..." titles opens a block in the fixture. **First run: 89 dates wrong**, all
+omissions. About 80 were a Sunday commemorated at a feast's Vespers (the feast on the
+Sunday, or on the Saturday before). The rest were Ash-Wednesday-week ferias at St Matthias
+(2034, 2039), St Paul plus the Sunday on 22 February (2025, 2031), and All Saints at
+Christ the King. Fixes, each read from the Perl:
+
+1. **`getfrompsalterium`'s real key** (`specials.pl:639-652` + `gettempora`), replacing
+   `seasonalVersumLocation`, now `psalteriumVersumLocation`. The key is the season (Adv;
+   Quad5 for both Passion weeks, so Holy Week no longer falls to `Quad`; Quad; Asc; Pasch;
+   Pent; 1960's Nat/Epi), else `Dominica`/`Feria` by the request's weekday, tried at
+   `$ind`, 1, 3, 2. The missing Dominica/Feria tier left every per-annum Sunday with no
+   versicle, so `commemorationUnits` returned `nil`.
+2. **The monthday merge for commemorations** (`SetupString.pl:723-780`): the
+   Scripture-cycle antiphon overrides the file's own, and the title gains " III.
+   Augusti"-style suffixes ("Commemoratio Dominica X Post Pentecosten III. Augusti",
+   16 August 2025).
+3. Once Sundays rendered, 70 dates flipped the other way (we commemorated, DO didn't):
+   every Feast of the Lord kept on a Sunday. **`occurrence()`'s 1960 tempora removal**
+   (`horascommon.pl:388-406`) drops the temporal office outright. It applies to a II.
+   classis Sunday displaced by a Feast of the Lord of at least II. classis, and to a
+   non-privileged, non-Sunday temporal office under a I. classis saint. Ported as
+   `Commemorations.isTemporaDiscardedBySanctoral1960`.
+4. The last 8 were Saturday Feasts of the Lord before an ordinary Sunday: **branch A,
+   "Vespera de præcedenti; nihil de sequenti"** (`:1136-1152`), checked before the
+   tie-break. It is now guarded in `tomorrowsTiedFirstVespersCandidate`, with the same
+   disjuncts as `Concurrence.precedingYieldsToSundayOrFeastOfTheLord`.
+
+Both audits now pass: **content 0/0/0/0/0/0/0 and commemorations 0 dates**. Full suite:
+338 passed. New tests: `saturdayFeastCommemoratesTheFollowingSundayWithThePsalterVersicle`,
+`monthdayMergedSundayCommemorationHasItsTitleSuffixAndAntiphon`,
+`feastOfTheLordOnSundayDoesNotCommemorateTheSunday`,
+`christTheKingCommemoratesAllSaintsNotTheResumedSunday`,
+`saturdayFeastOfTheLordHasNothingOfTheFollowingSunday`
+(`SundayCommemorationOracleTests.swift`). (Housekeeping: commit `5972ca9` accidentally
+included a temporary debug-dump test, `ZZDebugTmp.swift`, removed in the next commit.)
+**Still unaudited:** the *main office's* own title with the monthday suffix (the
+day-title block), which neither audit compares.
+
+**Hold-out year 2044, priest off and on.** The main fixtures stop at 2040 and cover
+the priest form only on ~128 spot-check dates, so every fix above was traced and measured
+in-sample. To get an out-of-sample check, 2044 (a leap year, Easter 17 April) was
+rendered in full with both priest settings. The DO image couldn't be rebuilt here: CPAN
+and deb.debian.org are blocked. `officium.pl`'s CLI path needs only Perl with CGI.pm,
+installed from Ubuntu's `libcgi-pm-perl`. `oracle-worker.sh` gained `DO_ROOT`/
+`ORACLE_RAW` overrides (container defaults unchanged). Host rendering was first verified
+**byte-identical** to the committed container fixtures: all 365 dates of 2026 priest off
+and all 128 priest-on spot-check files, 0 differences. New:
+`scripts/generate-holdout-fixtures.sh`, `data/oracle-fixtures/holdout/2044.tar.gz` (732
+renders, 1.2 MB, deterministic across two runs), `OracleFixture.holdout(year:date:priest:)`,
+and `holdout2044VespersMatchesDivinumOfficium(date:priest:)`, a parameterized Swift
+Testing test with one case per date and priest setting (732 cases). Each case asserts
+the Psalmodia/Canticum/Oratio sections are present, runs the content check (every
+rendered piece in the fixture) and the commemoration check (count and titles). A
+negative control confirmed the check discriminates: a priest-on render against the
+priest-off fixture is flagged ("Dóminus vobíscum." / "Et cum spíritu tuo."), 0 against the
+right one. **Result: all 732 cases pass on the first run, with no engine change.**
+Full suite: 340 passed.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
@@ -3062,6 +3269,64 @@ snapshots on the simulator → download the PNG artifacts → compare against
 class feast, Holy Week day; each with English off (portrait) and English on
 (portrait + landscape); each at default and largest text size; page 1 and one psalmody
 page. Final snapshots shown to you before moving on.
+
+**M5 audit and reading modes (2026-09-24).** Audit of the App target against `CLAUDE.md`:
+
+- **Correctness bug, fixed:** `OfficeDataStore` built `SanctoralCalendar` without
+  `temporaRedirect`. The phone rendered Vespers differently from the verified engine
+  output on 262 dates in 2025-2040. Fixed via `DataBundle.makeSanctoralCalendar()`, now
+  used by the app and every test (`appCalendarFactoryCarriesTheTemporaRedirectTable`).
+- **Paging (user decision):** book-style flow instead of "one page per section group".
+  The text runs line by line onto the next page at any text size. Settings choose
+  horizontal pages (default) or vertical scroll, and a slide or page-curl turn. This is
+  the approved UIKit exception (`CLAUDE.md` now records it). `OfficeTypesetter` typesets
+  the whole hour once into one attributed string. It carries over every style the old
+  SwiftUI `UnitView` had settled on, and the page-1 header's date line and TOC icon become
+  in-text links. `VerticalOfficeReader` is one TextKit-1 `UITextView`;
+  `PagedOfficeReader`/`OfficePager` flow the same text through page-sized
+  `NSTextContainer`s in a `UIPageViewController` (`.scroll` or `.pageCurl`). Changing text
+  size or orientation re-paginates and keeps the reading position; changing date starts
+  at page 1. `UnitView` and `HangingIndentText` are removed (the hanging indent is now a
+  paragraph style). The footer's "Page N of M" is real, and its short date is a
+  jump-to-date button.
+- **English (user decision):** stays deferred to beta; `CLAUDE.md` updated.
+- **UI tests:** updated for text-view rendering. New `testHorizontalPagesFlowAndCountUp`
+  (counter advances on swipe; more pages at XXL), `testReadingModesSnapshots`,
+  `testFooterDateOpensJumpToDateSheet`, and `testPageOneDateLineLinkOpensJumpToDate`,
+  which skips if UIKit doesn't expose text-view links to accessibility.
+- **Blocked here:** snapshot PNGs can't be downloaded into this cloud container
+  (`*.blob.core.windows.net` is denied by the network policy), so visual comparison
+  against `design/reference/` needs that host allowed, or the user reviewing the CI
+  `snapshots` artifact.
+- **Not yet verified:** Hoefler Text against the reference, and the date-line size.
+  Also, `CLAUDE.md` names `design/reference/universalis-compline-night.png`, but the
+  file on disk is `Format.png` (plus `Calendar.png` and `Hours Picker.png`).
+
+**First snapshot comparison of the new renderer (App CI run on `2ef9957`, all UI tests
+green on the first compile).** Measured in points at @3x, `design/reference/Format.png`
+against our 16 September 2026 page 1. These already match: body (cap to descender 18.0
+against 18.3, line pitch 23, margin 28 against 27.3), response and half-verse indent
+(23), hanging indent (36.7 against 37.7), rule (82.7 against 83.3 wide) and the gap from
+rule to heading (45 against 44.3). Hoefler Text at 19pt is confirmed: "Glória Patri et
+Fílio*" is about 164pt wide in both. Fixed from the measurements:
+- the last line to the next rule, 53.4 → 37: a separate `separatorSpacingAbove` of 28pt;
+- the heading to the first line, 21 → 26.7: 0.9× body below the heading;
+- the table-of-contents icon to the hour title, 21 → 12.
+
+The screenshot's title sizes are smaller than `CLAUDE.md`'s ratios (name ≈1.0× against
+1.3×, hour title ≈1.2× against 1.5×, headings ≈1.0× against 1.1×, date line ≈18.5pt against
+24.7pt). The user chose to keep the ratios, and `CLAUDE.md` records it. Two further bugs:
+- vertical mode showed "Page 1 of 1", because the count was taken before layout. The text
+  view now reports it after its own layout pass;
+- one snapshot came out at XXL, inherited from an earlier test's Settings choice. UI tests
+  now pin the text size at launch.
+
+**M5 closed (2026-09-24).** App CI is green on `d763107`. The re-measured snapshots match
+`Format.png`: last line to rule 37.3 (reference 37.0), heading to first line 26.3 (26.7),
+TOC icon to hour title 12.0 (12.0). Vertical mode reports real page counts. The user
+approved the milestone. What remains for M6 is on the user's side: run Build IPA, fetch
+it with `get-ipa.ps1`, sideload it, and run the checklist in `install-on-iphone.md`. The
+alpha retrospective is in [`alpha-retrospective.md`](alpha-retrospective.md).
 
 ### M6 — Sideload release
 

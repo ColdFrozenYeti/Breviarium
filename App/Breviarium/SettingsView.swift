@@ -49,6 +49,20 @@ struct SettingsView: View {
                     .foregroundStyle(Theme.chrome)
                 }
 
+                Section("Reading") {
+                    Picker("Scrolling", selection: $settings.readingMode) {
+                        Text("Horizontal").tag(ReadingMode.horizontal)
+                        Text("Vertical").tag(ReadingMode.vertical)
+                    }
+                    .accessibilityIdentifier("readingModePicker")
+                    Picker("Page turn", selection: $settings.pageTurn) {
+                        Text("Slide").tag(PageTurn.slide)
+                        Text("Page curl").tag(PageTurn.curl)
+                    }
+                    .disabled(settings.readingMode == .vertical)
+                    .accessibilityIdentifier("pageTurnPicker")
+                }
+
                 Section("Text size") {
                     Picker("Text size", selection: $settings.textSize) {
                         ForEach(TextSizeSetting.allCases, id: \.self) { size in

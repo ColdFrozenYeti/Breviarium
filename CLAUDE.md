@@ -61,7 +61,9 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
 - **Text size.**
+- **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Later:** Martyrologium ad Primam, and a votive office picker.
+- **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 
 ## Texts and orthography
 
@@ -99,6 +101,8 @@ Sampled from the screenshot:
 
 Values are at the default text size.
 
+The size ratios below are deliberate and win over the screenshot (decided 2026-09-24). Measured against `Format.png`, the reference's day-title name (≈1.0× body), hour title (≈1.2×), section headings (≈1.0×) and date line (≈18.5 pt SF) are all smaller than the ratios given here. Keep the ratios; don't re-raise this. Spacing, margins, indents, rules and body metrics do follow the screenshot's measurements.
+
 1. **Navigation title**, centred, small SF, `#B2B2B2`: the hour name (e.g. *Ad Vesperas*).
 2. **Date line**, right-aligned, SF *italic*, `#FF8080`, noticeably larger than body text.
    - Format: *Dies 16 septembris 2026*, i.e. `Dies <day> <month genitive> <year>`.
@@ -125,7 +129,10 @@ Values are at the default text size.
 
 ### Behaviour
 
-- **Paging.** An hour is **paginated**, with one page per section group, and the user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot. Propose the page grouping for Vespers.
+- **Paging** (decided 2026-09-24, replacing "one page per section group"). An hour is paginated **like a printed book**: the text flows line by line from one page to the next, at any text size or orientation, and a paragraph that doesn't fit continues at the top of the next page. The user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot.
+  - A **Scrolling** setting switches between these horizontal pages (the default) and one continuous vertical scroll.
+  - A **Page turn** setting chooses a sideways slide (the default) or a book-like page curl for horizontal pages.
+  - Both need UIKit/TextKit (SwiftUI cannot flow one text across pages, and the curl exists only in `UIPageViewController`); this is the approved UIKit exception, confined to `App/Breviarium/Vespers/OfficeReaders.swift` and `OfficeTypesetter.swift`.
 - **Text size** scales every serif size and the vertical spacing proportionally. The chrome text scales too, but more gently.
 
 ### Parallel English

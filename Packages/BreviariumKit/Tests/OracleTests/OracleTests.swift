@@ -70,7 +70,7 @@ private func collapsedWhitespace(_ text: String) -> String {
 /// empty means a clean diff. `fixtureText` gets `LatinOrthography` applied here (the
 /// fixtures are deliberately stored pre-normalisation — `data/SOURCE.md` — precisely so
 /// this comparison is the one place that needs to run it).
-private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>? = nil) -> [String] {
+func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>? = nil) -> [String] {
     let normalizedFixture = collapsedWhitespace(LatinOrthography.normalize(fixtureText))
     var mismatches: [String] = []
     for section in hour.sections where sectionKinds?.contains(section.kind) ?? true {
@@ -100,7 +100,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-09-16"))
@@ -120,7 +120,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 2, ad: "vesperas", mense: 1)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-01-19"))
@@ -136,7 +136,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Epiphaniam", feria: 5, ad: "vesperas", mense: 2)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 5, month: 2, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-02-05"))
@@ -153,7 +153,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Quadragesima", feria: 4, ad: "vesperas", mense: 2)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 18, month: 2, year: 2026, priest: false))
 
     let precesFeriales = try #require(hour.sections.first { $0.kind == .precesFeriales })
@@ -177,7 +177,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "Nativitas", feria: 1, ad: "vesperas", mense: 12)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 28, month: 12, year: 2025, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-12-28"))
@@ -200,7 +200,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 2, ad: "vesperas", mense: 4)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 20, month: 4, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.main(year: 2026, date: "2026-04-20"))
@@ -223,7 +223,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pentecosten", feria: 4, ad: "vesperas", mense: 9)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect), englishCorpus: bundle.makeEnglishCorpus())
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar(), englishCorpus: bundle.makeEnglishCorpus())
     let hour = try #require(assembler.assembleVespers(day: 16, month: 9, year: 2026, priest: false))
 
     let fixtureText = try #require(try await OracleFixture.shared.spotCheck(filename: "2026-09-16_priestN_bilingual_visual-spec-example.txt"))
@@ -314,7 +314,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
     let context = ConditionalContext(rubrica: "Rubrics 1960 - 1960", tempore: "post Pascha", feria: 1, ad: "vesperas", mense: 4)
-    let assembler = HourAssembler(corpus: corpus, context: context, calendar: SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect))
+    let assembler = HourAssembler(corpus: corpus, context: context, calendar: bundle.makeSanctoralCalendar())
     let hour = try #require(assembler.assembleVespers(day: 5, month: 4, year: 2026, priest: true))
 
     let fixtureText = try #require(try await OracleFixture.shared.spotCheck(filename: "2026-04-05_priestY_latin_easter.txt"))
@@ -334,7 +334,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 @Test func contextBuilderMatchesTheRealSeasonAndFeriaFor16September2026() throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -346,7 +346,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 @Test func contextBuilderMatchesTheRealSeasonAndFeriaFor19January2026() throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 1, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -362,7 +362,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
 @Test func contextBuilderNamesChristmasAndEpiphanyAndAllSoulsForTheDieField() throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     func die(_ day: Int, _ month: Int, _ year: Int) -> String {
         ConditionalContextBuilder.build(
             day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -404,7 +404,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // doc comment already flags as untraced -- not guessed at here.
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -451,7 +451,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // habitáre fratres in unum. ‡" / "132:2 ‡ Sicut óleum óptimum in cápite...".
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 19, month: 11, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -498,7 +498,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // Advent I) and prompting a direct recheck of this date too.
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 9, month: 4, year: 2027, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -541,7 +541,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // preces nostræ...".
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 24, month: 2, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -582,7 +582,7 @@ private func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Secti
     // candidate list for this date (Ss. Euphemiae et al.).
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 9, year: 2026, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
@@ -627,7 +627,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
 @Test func vespersAssemblesWithoutPlaceholderTextAcrossTheFullOracleRange() {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
 
     var failures: [String] = []
     var (day, month, year) = (1, 1, 2025)
@@ -697,7 +697,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
 @Test func vespersFullRangeContentAudit() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
 
     struct Problem {
         var days: Set<String> = []
@@ -779,4 +779,89 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
 
     #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
     #expect(fullReport.isEmpty, "\n\(fullReport)")
+}
+
+/// The commemorations Divinum Officium actually renders at Vespers: every `"Commemoratio "`
+/// that opens a block inside the fixture's Oratio section (`"Top Next Oratio"` up to
+/// `"Top Next Conclusio"`). The title-line forms (`"Commemoratio: ..."`, `"Commemoratio
+/// ad Laudes tantum: ..."`) sit in the page header, outside that section, and never
+/// count -- DO's title and body are separate code paths, and only the body applies
+/// `getcommemoratio`'s own suppressions.
+func fixtureOratioSection(_ fixtureText: String) -> String? {
+    let text = collapsedWhitespace(LatinOrthography.normalize(fixtureText))
+    guard let start = text.range(of: "Top Next Oratio", options: .backwards) else { return nil }
+    let tail = text[start.upperBound...]
+    let end = tail.range(of: "Top Next Conclusio")?.lowerBound ?? tail.endIndex
+    return String(tail[..<end])
+}
+
+/// Every commemoration block this project renders in its own `.oratio` section, by its
+/// `"Commemoratio ..."` rubric.
+func renderedCommemorationRubrics(_ hour: Hour) -> [String] {
+    guard let oratio = hour.sections.first(where: { $0.kind == .oratio }) else { return [] }
+    return oratio.units.compactMap { unit in
+        if case .rubric(let text, _) = unit, text.hasPrefix("Commemoratio ") { return collapsedWhitespace(text) }
+        return nil
+    }
+}
+
+/// The reverse of `vespersFullRangeContentAudit`: that audit only checks that what this
+/// project renders appears in the fixture, so a commemoration it silently *omits* is
+/// invisible to it (Phase 4 found one: ordinary Advent-feria commemorations on 17-23
+/// December, dropped whole because the feria has no collect of its own). This one
+/// compares, per date, the *number* of commemoration blocks each side renders, and
+/// checks each of ours opens a block of the same title in the fixture's Oratio section.
+@Test func vespersFullRangeCommemorationAudit() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = bundle.makeSanctoralCalendar()
+
+    var problems: [String] = []
+    var (day, month, year) = (1, 1, 2025)
+    var daysChecked = 0
+    while true {
+        let dateLabel = "\(year)-\(String(format: "%02d", month))-\(String(format: "%02d", day))"
+        let context = ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        )
+        let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+        if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false),
+            let fixtureText = try await OracleFixture.shared.main(year: year, date: dateLabel)
+        {
+            daysChecked += 1
+            let section = fixtureOratioSection(fixtureText) ?? ""
+            let expectedCount = section.components(separatedBy: "Commemoratio ").count - 1
+            let ours = renderedCommemorationRubrics(hour)
+            let missingTitles = ours.filter { !section.contains($0) }
+            if ours.count != expectedCount || !missingTitles.isEmpty {
+                problems.append("\(dateLabel): fixture has \(expectedCount), engine has \(ours.count) \(ours)")
+            }
+        }
+        if (day, month, year) == (31, 12, 2040) { break }
+        (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
+    }
+
+    #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
+    let report = problems.joined(separator: "\n")
+    #expect(problems.isEmpty, "\n\(problems.count) date(s):\n\(report)")
+}
+
+/// The app builds its calendar with `DataBundle.makeSanctoralCalendar()`, the same
+/// factory every oracle test uses. It once built it field by field and silently dropped
+/// `temporaRedirect`, which changed the rendered Vespers on 262 dates in 2025-2040. Holy
+/// Saturday 2025 is one of them (`Tempora/Quad6-6` redirects under 1960); a calendar
+/// missing the redirect table renders content that isn't in the real fixture.
+@Test func appCalendarFactoryCarriesTheTemporaRedirectTable() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let calendar = bundle.makeSanctoralCalendar()
+    #expect(!bundle.temporaRedirect.isEmpty)
+    #expect(calendar.temporaRedirect == bundle.temporaRedirect)
+
+    let corpus = bundle.makeLatinCorpus()
+    let context = ConditionalContextBuilder.build(
+        day: 19, month: 4, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let hour = try #require(HourAssembler(corpus: corpus, context: context, calendar: calendar).assembleVespers(day: 19, month: 4, year: 2025, priest: false))
+    let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-04-19"))
+    #expect(mismatches(hour: hour, fixtureText: fixture).isEmpty)
 }
