@@ -1,3 +1,4 @@
+import BreviariumKit
 import Foundation
 
 /// `CLAUDE.md`'s "Settings (Universalis-style toggles)" -- `UserDefaults`-backed, since
@@ -40,6 +41,10 @@ final class SettingsStore: ObservableObject {
     @Published var pageTurn: PageTurn {
         didSet { defaults.set(pageTurn.rawValue, forKey: Keys.pageTurn) }
     }
+    /// The Vulgate by default, the Pius XII (Bea) psalter as an option (`CLAUDE.md`).
+    @Published var psalter: Psalter {
+        didSet { defaults.set(psalter.rawValue, forKey: Keys.psalter) }
+    }
 
     private let defaults: UserDefaults
 
@@ -50,16 +55,23 @@ final class SettingsStore: ObservableObject {
         static let textSize = "settings.textSize"
         static let readingMode = "settings.readingMode"
         static let pageTurn = "settings.pageTurn"
+        static let psalter = "settings.psalter"
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        priestPresent = defaults.object(forKey: Keys.priestPresent) as? Bool ?? false
-        showRubrics = defaults.object(forKey: Keys.showRubrics) as? Bool ?? true
-        showEnglish = defaults.object(forKey: Keys.showEnglish) as? Bool ?? false
+        // `bool(forKey:)` rather than `as? Bool`: a UI test's `-key YES` launch argument
+        // arrives as the string "YES", which only `bool(forKey:)` reads as true.
+        func bool(_ key: String, default value: Bool) -> Bool {
+            defaults.object(forKey: key) == nil ? value : defaults.bool(forKey: key)
+        }
+        priestPresent = bool(Keys.priestPresent, default: false)
+        showRubrics = bool(Keys.showRubrics, default: true)
+        showEnglish = bool(Keys.showEnglish, default: false)
         let storedRaw = defaults.string(forKey: Keys.textSize)
         textSize = storedRaw.flatMap { raw in TextSizeSetting.allCases.first { $0.rawValue == raw } } ?? .standard
         readingMode = defaults.string(forKey: Keys.readingMode).flatMap(ReadingMode.init(rawValue:)) ?? .horizontal
         pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
+        psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
     }
 }

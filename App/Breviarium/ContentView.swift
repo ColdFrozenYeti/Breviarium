@@ -54,7 +54,10 @@ struct ContentView: View {
     }
 
     private var vespersContent: VespersContent? {
-        dataStore.vespersContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent)
+        dataStore.vespersContent(
+            day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent,
+            psalter: settings.psalter, english: settings.showEnglish
+        )
     }
 }
 
