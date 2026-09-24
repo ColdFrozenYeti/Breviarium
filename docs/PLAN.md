@@ -3172,6 +3172,28 @@ mismatch date. Full suite: 331 passed. New tests: `sacredHeartPreEmptsPreciousBl
 2030-01-12/13 and 2036-01-12/13 (Holy Family on Sunday 13 January, where the Baptism of
 the Lord is reduced to a Lauds-only commemoration).
 
+**The last four Epiphany/Holy-Family dates: an occurrence gap, not a concurrence one.** In
+2030 and 2036, 13 January (the Baptism of the Lord, `Sancti/01-13`, rank 5, "Festum
+Domini") is a Sunday, so Holy Family (`Tempora/Epi1-0`, rank 5) falls the same day. The
+real fixtures give Holy Family both 13 January and its first Vespers on the 12th, with the
+Baptism reduced to a Lauds-only commemoration. `occurrence()`'s 1960 exception, "II. cl.
+feasts of the Lord and all I. cl. feasts beat II. cl. Sundays" (`horascommon.pl:487-493`),
+sits inside `elsif ($trank[0] =~ /Dominica/i && $dayname[0] !~ /Nat1/i)`. That tests the
+temporal office's **title**, and Holy Family's title has no "Dominica", so the Baptism
+(5, not > 5) doesn't beat it. This project tested the weekday. It is the same
+title-versus-weekday shape as the Dec-29 fix. The two reverted Phase 2 attempts went at
+the concurrence cascade (`:1156-1163`); the real gap was upstream, in occurrence. Fixed in
+`Occurrence.resolve`. Two *synthetic* unit tests (`sundaySecondClassFeastOfTheLordBeatsSunday`,
+`immaculateConceptionBeatsSundayViaRG15EvenAtLowRank`) built their Sunday with an empty
+title and no `[Officium]`, which no real Sunday file has. They now carry `Tempora/Epi2-0`'s
+real title ("Dominica II post Epiphaniam"), with the assertions unchanged. No oracle
+fixture was touched. New tests: `holyFamilyBeatsTheBaptismOnSundayThirteenthJanuary`,
+`holyFamilyHasFirstVespersBeforeSundayThirteenthJanuary`
+(`HolyFamilyBaptismOccurrenceOracleTests.swift`).
+
+**`vespersFullRangeContentAudit` now passes: 0/0/0/0/0/0/0** across 2025-2040 (it was
+4/4/4/4/4/4/0 before this fix). Full suite: 333 passed.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar

@@ -103,7 +103,7 @@ private func makeFixture(
 }
 
 @Test func noSanctoralOfficeMeansTemporalWins() {
-    let (occurrence, d, m, y) = makeFixture(temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;4.2")
+    let (occurrence, d, m, y) = makeFixture(temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;4.2")
     let result = occurrence.resolve(day: d, month: m, year: y)
     #expect(result?.sanctoralWins == false)
     #expect(result?.winningPath == "Tempora/Epi2-0")
@@ -111,7 +111,7 @@ private func makeFixture(
 
 @Test func sanctoralAtOrBelow1point1AlwaysLosesTo1960Temporal() {
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;4.2",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;4.2",
         sanctoralRank: ";;S. Aliquis;;1.1;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
@@ -139,7 +139,7 @@ private func makeFixture(
     // real oracle-fixture check against the Annunciation's own natural date in 2029/2035
     // caught this file/rank mismatch for real).
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;5",
         sanctoralRank: ";;S. Aliquis;;6.0;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
@@ -149,7 +149,7 @@ private func makeFixture(
 
 @Test func sundaySecondClassFeastOfTheLordBeatsSunday() {
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;5",
         sanctoralRank: ";;Festum Domini Aliquod;;5.0;;vide C6",
         sanctoralRule: "Festum Domini; 9 lectiones"
     )
@@ -161,7 +161,7 @@ private func makeFixture(
     // Same rank (5.0) but no "Festum Domini" in the Rule -- an ordinary II. classis
     // saint's feast does NOT beat a Sunday.
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;5",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;5",
         sanctoralRank: ";;S. Aliquis Magnus;;5.0;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
@@ -186,7 +186,7 @@ private func makeFixture(
     // default for the wrong reason). Only the rank value being borrowed from the real
     // Adv1-0.txt matters here, not the path string.
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;6.9",
         sanctoralRank: ";;S. Aliquis;;6.0;;vide C6"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
@@ -198,7 +198,7 @@ private func makeFixture(
     // gets auto-filled into that leading slot -- see do-format.md's [Rank] section);
     // the degree label is the second field.
     let (occurrence, d, m, y) = makeFixture(
-        temporalPath: "Tempora/Epi2-0", temporalRank: ";;Semiduplex;;6.9",
+        temporalPath: "Tempora/Epi2-0", temporalRank: "Dominica II post Epiphaniam;;Semiduplex;;6.9",
         sanctoralRank: "In Conceptione Immaculata Beatæ Mariæ Virginis;;Duplex II classis;;4.0;;vide C10"
     )
     let result = occurrence.resolve(day: d, month: m, year: y)
