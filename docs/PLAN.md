@@ -3194,6 +3194,50 @@ fixture was touched. New tests: `holyFamilyBeatsTheBaptismOnSundayThirteenthJanu
 **`vespersFullRangeContentAudit` now passes: 0/0/0/0/0/0/0** across 2025-2040 (it was
 4/4/4/4/4/4/0 before this fix). Full suite: 333 passed.
 
+**New audit: `vespersFullRangeCommemorationAudit` (the reverse direction).** The
+content audit only checks that rendered text appears in the fixture, so omissions are
+invisible to it. The new audit sits beside it in `OracleTests.swift`. For every date
+2025-2040 it counts the commemoration blocks each side renders in the Oratio section
+(DO's "Top Next Oratio" up to "Top Next Conclusio"; the header forms "Commemoratio: ..."
+and "Commemoratio ad Laudes tantum: ..." sit outside it). It also checks that each of our
+"Commemoratio ..." titles opens a block in the fixture. **First run: 89 dates wrong**, all
+omissions. About 80 were a Sunday commemorated at a feast's Vespers (the feast on the
+Sunday, or on the Saturday before). The rest were Ash-Wednesday-week ferias at St Matthias
+(2034, 2039), St Paul plus the Sunday on 22 February (2025, 2031), and All Saints at
+Christ the King. Fixes, each read from the Perl:
+
+1. **`getfrompsalterium`'s real key** (`specials.pl:639-652` + `gettempora`), replacing
+   `seasonalVersumLocation`, now `psalteriumVersumLocation`. The key is the season (Adv;
+   Quad5 for both Passion weeks, so Holy Week no longer falls to `Quad`; Quad; Asc; Pasch;
+   Pent; 1960's Nat/Epi), else `Dominica`/`Feria` by the request's weekday, tried at
+   `$ind`, 1, 3, 2. The missing Dominica/Feria tier left every per-annum Sunday with no
+   versicle, so `commemorationUnits` returned `nil`.
+2. **The monthday merge for commemorations** (`SetupString.pl:723-780`): the
+   Scripture-cycle antiphon overrides the file's own, and the title gains " III.
+   Augusti"-style suffixes ("Commemoratio Dominica X Post Pentecosten III. Augusti",
+   16 August 2025).
+3. Once Sundays rendered, 70 dates flipped the other way (we commemorated, DO didn't):
+   every Feast of the Lord kept on a Sunday. **`occurrence()`'s 1960 tempora removal**
+   (`horascommon.pl:388-406`) drops the temporal office outright. It applies to a II.
+   classis Sunday displaced by a Feast of the Lord of at least II. classis, and to a
+   non-privileged, non-Sunday temporal office under a I. classis saint. Ported as
+   `Commemorations.isTemporaDiscardedBySanctoral1960`.
+4. The last 8 were Saturday Feasts of the Lord before an ordinary Sunday: **branch A,
+   "Vespera de præcedenti; nihil de sequenti"** (`:1136-1152`), checked before the
+   tie-break. It is now guarded in `tomorrowsTiedFirstVespersCandidate`, with the same
+   disjuncts as `Concurrence.precedingYieldsToSundayOrFeastOfTheLord`.
+
+Both audits now pass: **content 0/0/0/0/0/0/0 and commemorations 0 dates**. Full suite:
+338 passed. New tests: `saturdayFeastCommemoratesTheFollowingSundayWithThePsalterVersicle`,
+`monthdayMergedSundayCommemorationHasItsTitleSuffixAndAntiphon`,
+`feastOfTheLordOnSundayDoesNotCommemorateTheSunday`,
+`christTheKingCommemoratesAllSaintsNotTheResumedSunday`,
+`saturdayFeastOfTheLordHasNothingOfTheFollowingSunday`
+(`SundayCommemorationOracleTests.swift`). (Housekeeping: commit `5972ca9` accidentally
+included a temporary debug-dump test, `ZZDebugTmp.swift`, removed in the next commit.)
+**Still unaudited:** the *main office's* own title with the monthday suffix (the
+day-title block), which neither audit compares.
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
