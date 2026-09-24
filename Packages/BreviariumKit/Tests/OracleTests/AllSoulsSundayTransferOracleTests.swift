@@ -16,7 +16,7 @@ import Testing
 @Test func allSoulsIsTransferredAwayWhenTwoNovemberFallsOnASunday() async throws {
     guard let bundle = RealCorpus.bundle else { return }
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
 
     let candidates = calendar.candidates(day: 2, month: 11, year: 2025)
     #expect(candidates == ["11-02oct"])

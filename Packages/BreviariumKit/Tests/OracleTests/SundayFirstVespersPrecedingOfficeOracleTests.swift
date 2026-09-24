@@ -26,7 +26,7 @@ import Testing
 private func sundayFirstVespers(day: Int, month: Int, year: Int) throws -> (commemorations: [Commemoration], oratio: Section) {
     let bundle = try #require(RealCorpus.bundle)
     let corpus = bundle.makeLatinCorpus()
-    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+    let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
