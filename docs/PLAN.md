@@ -3564,3 +3564,60 @@ Five questions are waiting for the user, including Bea pairing and DRBO against 
   confirms it.
 - **Render speed.** Host rendering ran at about 0.3 s per page with 4 workers, so a full
   set takes about 7-12 minutes.
+
+### B1-M3 — Vulgate in the engine
+
+**Psalter option.** `Psalter` (`.vulgate`, `.pius12`) and
+`DataBundle.makeLatinCorpus(psalter:)`:
+- `.vulgate` is plain `Latin/` alone;
+- `.pius12` is `Latin-Bea/` layered over `Latin/`, as before.
+
+Every test passes its psalter explicitly. The full-range content and commemoration audits,
+the new psalmody audit and the 2044 hold-out run in both psalters (the Vulgate hold-out
+reads the Latin column of `holdout/2044-bilingual.tar.gz`).
+
+The plan's `OfficeOptions` value is not introduced yet. The psalter selects which files
+the corpus holds, so it belongs where the corpus is built, not in a per-call option like
+`priest:`. `OfficeOptions` arrives with English in B1-M4, where it carries `priest` and
+`english`.
+
+**First measurement: the Vulgate already passes the existing audits.** Unchanged engine,
+Vulgate fixtures:
+- content audit 0/0/0/0/0/0/0;
+- commemoration audit 0 dates.
+
+Everything that differs between the psalters (`‡`, titles, ranges, the Magnificat) was
+either already handled or invisible to those two audits.
+
+**New audit, `vespersFullRangePsalmodyAudit`** (`PsalmodyAuditOracleTests.swift`). It
+compares each psalm's title and exact verse-reference list with DO's page, which is the
+direction the content audit can't see.
+- **Baseline** (counted by the first difference on each date): Pius XII 5,683 dates,
+  Vulgate 634.
+- **Parser correction.** A first version miscounted about 570 Paschaltide dates, where
+  the five psalms share one antiphon. The parser now also ends a psalm at the next title;
+  the counts above are after that correction.
+
+**Bug 1: both halves of 144:13 dropped at Psalm 144's split** (Saturdays with the ferial
+psalms, 634 dates, both psalters).
+- *Cause.* `Psalm.parseVerses` stripped the `a`/`b` letter before the verse range was
+  applied, so `144(8-'13a')` and `144('13b'-21)` both rejected an unlettered "13".
+- *DO.* It filters the lettered lines (`horasscripts.pl:598-614`) and drops the letter
+  only for display (`:400-403`).
+- *Fix.* Parse with letters, filter, then strip (`HourAssembler.versesInRange`).
+- *Named test:* `saturdayDividedPsalm144KeepsBothHalvesOfVerse13`.
+
+**Bug 2: psalm titles.**
+- *Symptom.* The title was built from the raw `Psalmi major` token, so it read
+  `Psalmus 144(8-'13a')`. The Pius XII subtitle (`— Messias rex, sacerdos victor`) was
+  never shown.
+- *DO.* `psalmi.pl:692-697` passes `8` and `'13a'` as Perl arguments, and
+  `horasscripts.pl:561-562` titles the psalm `Psalmus 144(8-13a)`. `:581-596` appends the
+  Bea `(subtitle)` line, dropping it for a part that starts after the first verse
+  (`138(14-24)`, `144(8-13a)`).
+- *Fix.* `HourAssembler.psalmTitle(baseNumber:range:fileText:)`. The subtitle is read
+  off the file: no plain-Latin psalm file (1-150) starts with a `(…)` line; only
+  canticles do, and DO titles those separately.
+- *Named test:* `dividedPsalmTitlesMatchDivinumOfficium`.
+
+**After both fixes:** psalmody audit 0 dates in both psalters.
