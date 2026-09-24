@@ -279,6 +279,27 @@ public struct Commemorations {
         let threshold: Double = (tomorrowIsDominica || (todayIsSaturday && tomorrowIsFestumDomini)) ? 5 : 6
         guard tomorrow.winningRank.numericPrecedence >= threshold else { return nil }
 
+        // `horascommon.pl:1136-1152`, checked before the tie-break at `:1242`: "Vespera
+        // de præcedenti; nihil de sequenti" -- today keeps its Vespers and nothing of
+        // tomorrow is commemorated when today is I. classis (rank 7 on a Saturday) and
+        // tomorrow below it; when a Feast of the Lord of at least II. classis precedes a
+        // II. classis Sunday (outside `Nat1`); or for the Sacred-Heart-before-Precious-
+        // Blood case (GitHub #4586). Found by the Phase 4 commemoration audit. Confirmed
+        // real for 1 July 2028 (the Precious Blood on the Saturday before "Dominica IV
+        // Post Pentecosten") and 14 September 2030 (Holy Cross, Saturday): both read
+        // "Vespera de præcedenti; nihil de sequenti", with no commemoration.
+        let rank = today.winningRank.numericPrecedence
+        let crank = tomorrow.winningRank.numericPrecedence
+        let todayWeekday = Computus.dayOfWeek(day: day, month: month, year: year)
+        if rank >= (todayWeekday < 6 ? 6 : 7), crank < 6 { return nil }
+        let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+        if matches(tomorrow.winningRank.title, "Dominica"), !todayWeekName.hasPrefix("Nat1"), crank <= 5, rank >= 5,
+            matches(todayRule, "Festum Domini")
+        {
+            return nil
+        }
+        if today.winningPath.contains("Pent02-5"), tomorrow.winningPath.contains("07-01") { return nil }
+
         return Commemoration(path: tomorrow.winningPath, rank: tomorrow.winningRank, ind: 1)
     }
 
@@ -307,7 +328,9 @@ public struct Commemorations {
 
         let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
-        if temporalPath != winnerPath, let temporalRank {
+        if temporalPath != winnerPath, let temporalRank,
+            !isTemporaDiscardedBySanctoral1960(day: day, month: month, year: year, temporalRank: temporalRank, winnerPath: winnerPath)
+        {
             results.append(Commemoration(path: temporalPath, rank: temporalRank, ind: ind))
         }
 
@@ -374,6 +397,39 @@ public struct Commemorations {
             !matches(tomorrowTemporal.title, "Dominica Resurrectionis")
         else { return candidates }
         return Array(candidates.dropFirst())
+    }
+
+    /// `horascommon.pl:388-406`, inside `occurrence()` once a saint has been kept: under
+    /// 1960 the temporal office is removed from the day entirely (`$tname = ''`, so it
+    /// is never unshifted onto `@commemoentries`) when either
+    /// - the saint is I. classis and the temporal office is below it, unless that office
+    ///   is privileged (2.1, 3.9, 4.9) or a Sunday; or
+    /// - the temporal office is a II. classis Sunday (`$trank[0] =~ /Dominica/i`, not in
+    ///   `Nat1`) and the saint is a Feast of the Lord of at least II. classis.
+    ///
+    /// Found by the Phase 4 commemoration audit: once Sunday commemorations could render
+    /// at all, every Feast of the Lord kept on a Sunday started commemorating the Sunday
+    /// it displaced. Confirmed real for 14 September 2025 (Exaltation of the Holy Cross,
+    /// a Sunday) and 31 October 2027 (Christ the King, commemorating All Saints, not the
+    /// resumed "Dominica IV Post Epiphaniam"): neither real fixture commemorates the
+    /// Sunday.
+    private func isTemporaDiscardedBySanctoral1960(
+        day: Int, month: Int, year: Int, temporalRank: OfficeRank, winnerPath: String
+    ) -> Bool {
+        guard winnerPath.hasPrefix("Sancti/") else { return false }
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        guard let saintRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return false }
+        let srank = saintRank.numericPrecedence
+        let trank = temporalRank.numericPrecedence
+        let temporalIsDominica = matches(temporalRank.title, "Dominica")
+        if srank >= 6, trank < 6, ![2.1, 3.9, 4.9].contains(trank), !temporalIsDominica { return true }
+        let weekName = TemporalCycle.weekName(day: day, month: month, year: year)
+        if temporalIsDominica, !weekName.hasPrefix("Nat1"), trank <= 5, srank >= 5,
+            matches(resolver.resolve(path: winnerPath, section: "Rule"), "Festum Domini")
+        {
+            return true
+        }
+        return false
     }
 
     /// `horascommon.pl:1894-1919`'s `climit1960`, restricted to what this engine's

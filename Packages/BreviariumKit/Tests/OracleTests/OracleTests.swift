@@ -780,3 +780,68 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
     #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
     #expect(fullReport.isEmpty, "\n\(fullReport)")
 }
+
+/// The commemorations Divinum Officium actually renders at Vespers: every `"Commemoratio "`
+/// that opens a block inside the fixture's Oratio section (`"Top Next Oratio"` up to
+/// `"Top Next Conclusio"`). The title-line forms (`"Commemoratio: ..."`, `"Commemoratio
+/// ad Laudes tantum: ..."`) sit in the page header, outside that section, and never
+/// count -- DO's title and body are separate code paths, and only the body applies
+/// `getcommemoratio`'s own suppressions.
+func fixtureOratioSection(_ fixtureText: String) -> String? {
+    let text = collapsedWhitespace(LatinOrthography.normalize(fixtureText))
+    guard let start = text.range(of: "Top Next Oratio", options: .backwards) else { return nil }
+    let tail = text[start.upperBound...]
+    let end = tail.range(of: "Top Next Conclusio")?.lowerBound ?? tail.endIndex
+    return String(tail[..<end])
+}
+
+/// Every commemoration block this project renders in its own `.oratio` section, by its
+/// `"Commemoratio ..."` rubric.
+func renderedCommemorationRubrics(_ hour: Hour) -> [String] {
+    guard let oratio = hour.sections.first(where: { $0.kind == .oratio }) else { return [] }
+    return oratio.units.compactMap { unit in
+        if case .rubric(let text, _) = unit, text.hasPrefix("Commemoratio ") { return collapsedWhitespace(text) }
+        return nil
+    }
+}
+
+/// The reverse of `vespersFullRangeContentAudit`: that audit only checks that what this
+/// project renders appears in the fixture, so a commemoration it silently *omits* is
+/// invisible to it (Phase 4 found one: ordinary Advent-feria commemorations on 17-23
+/// December, dropped whole because the feria has no collect of its own). This one
+/// compares, per date, the *number* of commemoration blocks each side renders, and
+/// checks each of ours opens a block of the same title in the fixture's Oratio section.
+@Test func vespersFullRangeCommemorationAudit() async throws {
+    guard let bundle = RealCorpus.bundle else { return }
+    let corpus = bundle.makeLatinCorpus()
+    let calendar = SanctoralCalendar(entries: bundle.calendar, transferTable: bundle.transferTable, temporaRedirect: bundle.temporaRedirect)
+
+    var problems: [String] = []
+    var (day, month, year) = (1, 1, 2025)
+    var daysChecked = 0
+    while true {
+        let dateLabel = "\(year)-\(String(format: "%02d", month))-\(String(format: "%02d", day))"
+        let context = ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        )
+        let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
+        if let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: false),
+            let fixtureText = try await OracleFixture.shared.main(year: year, date: dateLabel)
+        {
+            daysChecked += 1
+            let section = fixtureOratioSection(fixtureText) ?? ""
+            let expectedCount = section.components(separatedBy: "Commemoratio ").count - 1
+            let ours = renderedCommemorationRubrics(hour)
+            let missingTitles = ours.filter { !section.contains($0) }
+            if ours.count != expectedCount || !missingTitles.isEmpty {
+                problems.append("\(dateLabel): fixture has \(expectedCount), engine has \(ours.count) \(ours)")
+            }
+        }
+        if (day, month, year) == (31, 12, 2040) { break }
+        (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
+    }
+
+    #expect(daysChecked > 5_800, "expected to check the full 2025-2040 range (~5,844 days), only checked \(daysChecked)")
+    let report = problems.joined(separator: "\n")
+    #expect(problems.isEmpty, "\n\(problems.count) date(s):\n\(report)")
+}

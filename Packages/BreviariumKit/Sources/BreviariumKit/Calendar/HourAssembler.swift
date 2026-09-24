@@ -578,7 +578,10 @@ public struct HourAssembler {
         let toRender = mustReduceToOne ? Self.highestPriorityCommemoration(commemorations).map { [$0] } ?? [] : commemorations
 
         return toRender.flatMap {
-            commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, day: day, month: month, resolver: resolver) ?? []
+            commemorationUnits(
+                for: $0, ind: $0.ind, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek,
+                day: day, month: month, year: year, resolver: resolver
+            ) ?? []
         }
     }
 
@@ -677,7 +680,8 @@ public struct HourAssembler {
     /// for the collect). `nil` when any of the three can't be resolved at all, rather
     /// than rendering a partial block.
     private func commemorationUnits(
-        for commemoration: Commemoration, ind: Int, weekName: String, day: Int, month: Int, resolver: SectionResolver
+        for commemoration: Commemoration, ind: Int, weekName: String, dayOfWeek: Int, day: Int, month: Int, year: Int,
+        resolver: SectionResolver
     ) -> [Unit]? {
         let communeReference = commemoration.rank.communeReference
 
@@ -695,7 +699,17 @@ public struct HourAssembler {
         // Óriens splendor lucis ætérnæ...", not the Ember Friday's own `[Ant 3]` ("Hoc
         // est testimónium, quod perhíbuit Ioánnes...") this project rendered before.
         let oAntiphon = Self.oAntiphonLocation(office: commemoration.path, day: day, month: month, resolver: resolver)
-        guard let antiphonLocation = oAntiphon ?? location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
+        // `getcommemoratio` reads the commemorated office through `officestring($lang,
+        // $wday, $ind == 1)`, whose monthday merge (`SetupString.pl:723-780`) overwrites
+        // an ordinary Pent/Epi file's own keys with the Scripture-cycle file's. Confirmed
+        // real for 16 August 2025 (S. Ioachim, commemorating "Dominica X Post Pentecosten
+        // III. Augusti" de sequenti): the antiphon is the monthday file's own.
+        func mergedAnt(_ index: Int) -> (path: String, section: String)? {
+            monthdayLocation(
+                office: commemoration.path, section: "Ant \(index)", day: day, month: month, year: year, tomorrow: ind == 1, resolver: resolver
+            ) ?? location("Ant \(index)")
+        }
+        guard let antiphonLocation = oAntiphon ?? mergedAnt(ind) ?? mergedAnt(4 - ind) else { return nil }
         let rawAntiphonText = resolver.resolve(path: antiphonLocation.path, section: antiphonLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).first
             .map { String($0).components(separatedBy: ";;").first ?? String($0) }
@@ -733,7 +747,7 @@ public struct HourAssembler {
         // `Major Special.txt`'s own `[Quad Versum 3]` -- `Quad1` being this week's own
         // `TemporalCycle.weekName`, with the trailing week number stripped.
         guard let versumLocation = location("Versum \(ind)") ?? location("Versum \(4 - ind)")
-            ?? Self.seasonalVersumLocation(weekName: weekName, ind: ind, resolver: resolver)
+            ?? Self.psalteriumVersumLocation(weekName: weekName, dayOfWeek: dayOfWeek, day: day, ind: ind, resolver: resolver)
         else { return nil }
         let versumLines = resolver.resolve(path: versumLocation.path, section: versumLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -747,7 +761,9 @@ public struct HourAssembler {
         let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
         let named = substituteName(in: collect, office: commemoration.path, resolver: resolver)
 
-        var units: [Unit] = [.rubric("Commemoratio \(commemoration.rank.title)"), .antiphon(antiphonText)]
+        let title = commemoration.rank.title
+            + Self.monthdayTitleSuffix(office: commemoration.path, day: day, month: month, year: year, tomorrow: ind == 1)
+        var units: [Unit] = [.rubric("Commemoratio \(title)"), .antiphon(antiphonText)]
         units.append(contentsOf: versicleResponseUnits)
         units.append(contentsOf: Self.unitsFromResolvedText(named))
         return units
@@ -777,37 +793,71 @@ public struct HourAssembler {
         return nil
     }
 
-    /// `Major Special.txt`'s own commemoration-versicle fallback, tried in the same
-    /// specific-then-generic order the real file itself encodes. Some individual weeks
-    /// carry their *own* override, headed by the full week name (e.g. `[Quad5 Versum
-    /// 3]`, Passion week) — confirmed real for 24 March 2026 (a Tuesday within Passion
-    /// week, commemorated at the Annunciation's own pre-empting first Vespers): the real
-    /// versicle is "Éripe me, Dómine, ab hómine malo. / A viro iníquo éripe me.", not the
-    /// week-agnostic generic Lenten one. This project's engine previously always
-    /// stripped the week number outright (`"Quad5"` -> `"Quad"`), so it never even tried
-    /// the week-specific key, silently falling through to the generic one on *every*
-    /// week, not just the ones (like `Quad1`) that genuinely have no override of their
-    /// own. `[Quad5 Versum 3]`'s own body is itself just a same-file cross-reference
-    /// (`@:Quad5 Versum 3_`, the underscore-suffixed section actually holding the text —
-    /// confirmed by reading `Major Special.txt` directly; the underscore is purely a
-    /// same-file naming convention DO uses to give two section headers with otherwise
-    /// colliding names, not a special lookup key of its own), which `SectionResolver`
-    /// already follows like any other `@`-inclusion once the *header* `[Quad5 Versum 3]`
-    /// itself is found — no separate handling needed here beyond looking it up by its
-    /// own plain name. Only when no week-specific override exists (confirmed still true
-    /// for `Quad1`, matching the generic `[Quad Versum 3]`, "Ángelis suis Deus
-    /// mandávit...", against 24 February 2026) does the week-agnostic, digit-stripped
-    /// prefix (`"Quad1"` -> `"Quad"`) apply, exactly as before.
-    private static func seasonalVersumLocation(weekName: String, ind: Int, resolver: SectionResolver) -> (path: String, section: String)? {
-        let bareprefix = String(weekName.reversed().drop(while: \.isNumber).reversed())
+    /// `getfrompsalterium('Versum', $ind, $lang)` (`specials.pl:639-652`), the last tier
+    /// of `getcommemoratio`'s versicle chain: Major Special's `"<name> Versum $ind"`,
+    /// then `1`, `3`, `2`, where `<name>` is `gettempora('getfrompsalterium major')`
+    /// (`horascommon.pl`'s `gettempora`). That is the season (`Adv`; `Quad5` for both
+    /// Passion weeks; `Quad`; `Asc` for `Pasc6` and from Thursday of `Pasc5`; `Pasch`;
+    /// `Pent` for `Pasc7`), or otherwise `Dominica` on a Sunday and `Feria` on any other
+    /// day, by the *request's* weekday. Under 1960 a `Nat` week becomes `Epi` from 6 to
+    /// 12 January and `Nat` otherwise, and `Epi0`/`Epi1` before the 14th becomes `Epi`.
+    /// `$dayname[0]` is tomorrow's week when first Vespers wins (`@dayname =
+    /// @tomorrowname`), which `weekName` already mirrors.
+    ///
+    /// Confirmed real for 24 March 2026 (Passion week, `[Quad5 Versum 3]`, "Éripe me,
+    /// Dómine, ab hómine malo") and 24 February 2026 (`Quad1`, `[Quad Versum 3]`,
+    /// "Ángelis suis Deus mandávit de te"). The `Dominica`/`Feria` tier was missing
+    /// until the Phase 4 commemoration audit: every Sunday after Pentecost commemorated
+    /// at a feast's Vespers was dropped whole (no versicle found). Confirmed real for 26
+    /// July 2025 (S. Annæ, Saturday, commemorating "Dominica VII Post Pentecosten"):
+    /// `[Feria Versum 3] (feria 7)`, "Vespertína orátio ascéndat ad te, Dómine."
+    private static func psalteriumVersumLocation(
+        weekName: String, dayOfWeek: Int, day: Int, ind: Int, resolver: SectionResolver
+    ) -> (path: String, section: String)? {
+        var name: String
+        if weekName.hasPrefix("Adv") {
+            name = "Adv"
+        } else if weekName.hasPrefix("Quad5") || weekName.hasPrefix("Quad6") {
+            name = "Quad5"
+        } else if weekName.hasPrefix("Quad"), !weekName.hasPrefix("Quadp") {
+            name = "Quad"
+        } else if weekName.hasPrefix("Pasc6") || (weekName.hasPrefix("Pasc5") && dayOfWeek > 3) {
+            name = "Asc"
+        } else if weekName.range(of: "^Pasc[0-5]", options: .regularExpression) != nil {
+            name = "Pasch"
+        } else if weekName.hasPrefix("Pasc7") {
+            name = "Pent"
+        } else {
+            name = dayOfWeek == 0 ? "Dominica" : "Feria"
+        }
+        if weekName.hasPrefix("Nat") {
+            name = (day >= 6 && day < 13) ? "Epi" : "Nat"
+        } else if weekName.range(of: "^Epi[01]", options: .regularExpression) != nil, day < 14 {
+            name = "Epi"
+        }
         let path = "Psalterium/Special/Major Special"
-        for prefix in [weekName, bareprefix] where !prefix.isEmpty {
-            for candidateInd in [ind, 4 - ind] {
-                let section = "\(prefix) Versum \(candidateInd)"
-                if resolver.sectionExists(path: path, section: section) { return (path, section) }
-            }
+        for candidateInd in [ind, 1, 3, 2] {
+            let section = "\(name) Versum \(candidateInd)"
+            if resolver.sectionExists(path: path, section: section) { return (path, section) }
         }
         return nil
+    }
+
+    /// `officestring()`'s monthday merge also rewrites the merged office's title
+    /// (`SetupString.pl:744-760`): `$rank[0] .= " $w $m"`, the week of the month as a
+    /// Roman ordinal (`I.`...`V.`) and the month's genitive from `Psalterium/Comment.txt`'s
+    /// `[Menses]` (August to December). Confirmed real: "Commemoratio Dominica X Post
+    /// Pentecosten III. Augusti" (16 August 2025).
+    private static func monthdayTitleSuffix(office: String, day: Int, month: Int, year: Int, tomorrow: Bool) -> String {
+        guard Self.participatesInMonthdayMerge(office: office),
+            let key = Computus.monthday(day: day, month: month, year: year, tomorrow: tomorrow),
+            let match = key.firstMatch(of: /^([0-9][0-9])([0-9])-[0-9]/),
+            let monthNumber = Int(match.1), let week = Int(match.2)
+        else { return "" }
+        let months = ["Augusti", "Septembris", "Octobris", "Novembris", "Decembris"]
+        let weeks = ["I.", "II.", "III.", "IV.", "V."]
+        guard months.indices.contains(monthNumber - 8), weeks.indices.contains(week - 1) else { return "" }
+        return " \(weeks[week - 1]) \(months[monthNumber - 8])"
     }
 
     /// Substitutes a `"N."`/`"N. et N."` placeholder in a generic Commune collect (or,
