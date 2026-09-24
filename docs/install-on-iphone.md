@@ -142,6 +142,30 @@ identifier does that automatically: every re-sign and every rebuilt `.ipa` reuse
 *same* App ID (`com.epavone.breviarium`), so ordinary weekly use never registers a new
 one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now rules out.
 
+## 7. After installing: the alpha check (M6)
+
+A few minutes on the phone after each fresh install, to confirm the build works end to end.
+Every item has a matching automated UI test on CI; this is the on-device confirmation.
+
+1. **Today opens.** The date line on page 1 reads today's date (*Dies ...*), and the
+   footer shows today's short date on the right.
+2. **Pages flow like a book.** Swipe left: the footer's *Page N of M* counts up, and a
+   paragraph cut at the bottom of one page continues at the top of the next.
+3. **Table of contents.** Tap the red list icon under the day title, pick a section, and
+   it opens on the page where that section starts.
+4. **Settings, gear icon, top left:**
+   - *Sacerdos vel diaconus adest* switches *Domine, exaudi orationem meam* to *Dominus
+     vobiscum* (Oratio and Conclusio).
+   - *Rubricae* off hides the red rubrics.
+   - *Text size* XXL: the text re-flows onto more pages and you stay at the same place.
+   - *Scrolling* Vertical: one continuous scroll. Back to Horizontal afterwards.
+   - *Page turn* Page curl: pages turn like a book's.
+   - *English translation* shows "Coming in beta" (deferred).
+5. **Dates.** The chevrons (top right) move a day back and forward. Tapping the date line
+   or the footer date opens *Jump to date*; pick e.g. Palm Sunday and check the title.
+6. **Offline.** Turn on Airplane Mode and relaunch: everything still works.
+7. **Landscape.** Rotate the phone: the pages re-flow to the wider layout.
+
 ## Sources
 
 Researched 2026-09-16, not from memory, since this space moves fast. Section 3 was
