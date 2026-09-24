@@ -80,7 +80,10 @@ public struct Commemorations {
             // genuinely too low-ranked to contend. `Concurrence`'s own doc comment at
             // the equivalent check cites the same line and the same scope limit (this
             // one confirmed case, not the full real cascade).
-            let candidates = runnersUp(day: day, month: month, year: year, winnerPath: result.vespersOffice.winningPath, ind: 3)
+            let candidates = droppingTemporaBeforeSunday(
+                runnersUp(day: day, month: month, year: year, winnerPath: result.vespersOffice.winningPath, ind: 3),
+                day: day, month: month, year: year, todayWinner: result.vespersOffice
+            )
             var commemorations = ownVespersCommemorations(candidates: candidates, winnerRank: result.vespersOffice.winningRank)
             // `$commemoratio = $cwinner` is a *guaranteed* single commemoration in the
             // real Perl, not subject to the ranklimit filter `ownVespersCommemorations`
@@ -139,14 +142,55 @@ public struct Commemorations {
         // genuinely about *why* tomorrow won, not a blanket rule either way. Only its
         // genuine runners-up (a second co-occurring saint, say) still go through the
         // ranklimit filter below regardless.
+        //
+        // **The exclusion is rank-gated, not blanket.** The real branch fires only when
+        // `$rank < ($crank >= 6 ? 6 : 5) || $wrank[0] =~ /Dominica/i || $winner{Rule} =~
+        // /Festum Domini/i` -- today's own rank below II. classis (or below I. classis,
+        // when tomorrow is itself I. classis), or today itself a Sunday or Feast of the
+        // Lord. An I. classis feast displaced by a I. classis Sunday escapes it and falls
+        // through to `:1296`'s ordinary `$crank > $rank` branch, which *does*
+        // commemorate it. Confirmed real for 19 March 2033 (St Joseph, rank 6, on the
+        // Saturday before "Dominica III in Quadragesima", rank 6.9): "Vespera de
+        // sequenti; commemoratio de præcedenti", "Commemoratio S. Ioseph Sponsi B.M.V.
+        // Confessoris Ant. Ecce fidélis servus...". This project previously excluded the
+        // displaced winner before *any* Sunday, rank regardless.
         let resolver = SectionResolver(corpus: corpus, context: context)
         let tomorrowRule = resolver.resolve(path: result.vespersOffice.winningPath, section: "Rule")
         let tomorrowIsDominicaOrFestumDomini =
             matches(result.vespersOffice.winningRank.title, "Dominica") || matches(tomorrowRule, "Festum Domini")
+        let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+        let crank = result.vespersOffice.winningRank.numericPrecedence
+        let precedingIsExcluded = tomorrowIsDominicaOrFestumDomini
+            && (today.winningRank.numericPrecedence < (crank >= 6 ? 6 : 5)
+                || matches(today.winningRank.title, "Dominica") || matches(todayRule, "Festum Domini"))
 
-        let displacedCandidates =
-            (tomorrowIsDominicaOrFestumDomini ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)])
-            + runnersUp(day: day, month: month, year: year, winnerPath: today.winningPath, ind: 3)
+        let todayRunnersUp = droppingTemporaBeforeSunday(
+            runnersUp(day: day, month: month, year: year, winnerPath: today.winningPath, ind: 3),
+            day: day, month: month, year: year, todayWinner: today
+        )
+
+        // `horascommon.pl:1063-1081`, "two concurrent Tempora": when neither day's winner
+        // is sanctoral (and tomorrow isn't `C10`), a separate branch decides the evening
+        // before the rank cascade above is ever reached. Today's own temporal winner is
+        // never `$commemoratio` there, and unless `$crank < 7 && ($crank != 6.5 &&
+        // $crank != 6) && $comrank > 2 && $cwinner{Rule} !~ /no commemoratio/i`
+        // (`$comrank` being today's first remaining commemoration candidate's rank),
+        // `@commemoentries` is emptied outright -- the title's plain "Vespera de
+        // sequenti.". Confirmed real for 7 June 2025 ("Sabbato in Vigilia Pentecostes",
+        // displaced by Pentecost's own first Vespers, `$crank` 7) and 30 December 2028
+        // (`Tempora/Nat30`, displaced by "Dominica Infra Octavam Nativitatis"): both real
+        // fixtures read "Vespera de sequenti." with no commemoration at all.
+        let displacedCandidates: [Commemoration]
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !result.vespersOffice.winningPath.hasPrefix("Sancti/")
+            && !result.vespersOffice.winningPath.contains("C10")
+        if bothTemporal {
+            let comrank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
+            let keepsSaints = crank < 7 && crank != 6.5 && crank != 6 && comrank > 2 && !matches(tomorrowRule, "no commemoratio")
+            displacedCandidates = keepsSaints ? todayRunnersUp : []
+        } else {
+            displacedCandidates =
+                (precedingIsExcluded ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)]) + todayRunnersUp
+        }
         let displaced = displacedVespersCommemorations(
             candidates: displacedCandidates, displacedRank: today.winningRank, winnerRank: result.vespersOffice.winningRank
         )
@@ -289,6 +333,45 @@ public struct Commemorations {
             results.append(Commemoration(path: path, rank: rank, ind: ind))
         }
         return results
+    }
+
+    /// `horascommon.pl:937-964`, run inside `concurrence()` before any first-vs-second
+    /// Vespers decision: "if tomorrow is a Sunday, get rid of today's tempora completely;
+    /// necessary Commemorations are handled in the Sunday database file". When
+    /// tomorrow's own *temporal* office (`$ctrank[0]`, whoever actually wins tomorrow) is
+    /// titled `(?<!De )Dominica|Trinitatis` -- excluding, for 1955/1960, "Dominica
+    /// Resurrectionis" -- and today is won by a saint (other than a day titled "...infra
+    /// octavam Nativitatis"), today's temporal runner-up is shifted off the front of
+    /// `@commemoentries` (where `occurrence()` always `unshift`s it) and never
+    /// commemorated, whichever evening's Vespers is then prayed. Confirmed real for 24
+    /// February 2035 (S. Matthiæ Apostoli, on the Saturday before "Dominica III in
+    /// Quadragesima"): the real fixture reads "Vespera de sequenti; nihil de
+    /// præcedenti", with no commemoration of "Sabbato infra Hebdomadam II in
+    /// Quadragesima" (rank 3.9, privileged, which the later ranklimit filter alone
+    /// would have kept) -- this project rendered exactly that commemoration.
+    ///
+    /// **Not ported:** the same block's `else` branch (today won by its own temporal
+    /// office: `$winner`/`$rank` cleared outright), which feeds the wider concurrence
+    /// cascade rather than just the commemoration list.
+    private func droppingTemporaBeforeSunday(
+        _ candidates: [Commemoration], day: Int, month: Int, year: Int, todayWinner: OccurrenceResult
+    ) -> [Commemoration] {
+        guard todayWinner.winningPath.hasPrefix("Sancti/"),
+            !matches(todayWinner.winningRank.title, "infra octavam Nativitatis$"),
+            let first = candidates.first, first.path.hasPrefix("Tempora/")
+        else { return candidates }
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
+        let tomorrowTemporalPath = Occurrence.temporalPath(
+            day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year, calendar: calendar, corpus: corpus, context: context
+        )
+        guard let tomorrowTemporal = OfficeRank(rankFieldValue: resolver.resolveRank(path: tomorrowTemporalPath)),
+            // `(?<!De )Dominica|Trinitatis`, spelled out: Swift's `Regex` has no
+            // lookbehind, and `matches` treats a pattern that fails to compile as no match.
+            matches(tomorrowTemporal.title.replacingOccurrences(of: "De Dominica", with: "", options: .caseInsensitive), "Dominica|Trinitatis"),
+            !matches(tomorrowTemporal.title, "Dominica Resurrectionis")
+        else { return candidates }
+        return Array(candidates.dropFirst())
     }
 
     /// `horascommon.pl:1894-1919`'s `climit1960`, restricted to what this engine's
