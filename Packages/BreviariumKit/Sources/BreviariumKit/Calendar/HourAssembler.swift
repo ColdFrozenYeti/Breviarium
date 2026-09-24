@@ -577,7 +577,9 @@ public struct HourAssembler {
         let mustReduceToOne = winningRank.numericPrecedence >= 5 || (winnerIsFeriaLike && winningRank.numericPrecedence >= 4)
         let toRender = mustReduceToOne ? Self.highestPriorityCommemoration(commemorations).map { [$0] } ?? [] : commemorations
 
-        return toRender.flatMap { commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, resolver: resolver) ?? [] }
+        return toRender.flatMap {
+            commemorationUnits(for: $0, ind: $0.ind, weekName: macroContext.weekName, day: day, month: month, resolver: resolver) ?? []
+        }
     }
 
     /// Ports `getcommemoratio`'s own "No Commemoratio" rule check (`orationes.pl:
@@ -674,14 +676,26 @@ public struct HourAssembler {
     /// `orationes.pl:756-769` for the antiphon, `:791-803` for the versicle, `:719-732`
     /// for the collect). `nil` when any of the three can't be resolved at all, rather
     /// than rendering a partial block.
-    private func commemorationUnits(for commemoration: Commemoration, ind: Int, weekName: String, resolver: SectionResolver) -> [Unit]? {
+    private func commemorationUnits(
+        for commemoration: Commemoration, ind: Int, weekName: String, day: Int, month: Int, resolver: SectionResolver
+    ) -> [Unit]? {
         let communeReference = commemoration.rank.communeReference
 
         func location(_ section: String) -> (path: String, section: String)? {
             resolvedLocation(office: commemoration.path, communeReference: communeReference, section: section, resolver: resolver, weekName: weekName)
         }
 
-        guard let antiphonLocation = location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
+        // `orationes.pl:772-785`: after the ordinary `Ant $ind` lookup, a commemorated
+        // *temporal* office (`$wday =~ /tempora/i`) at Vespers between 17 and 23 December
+        // has its antiphon overridden outright by Major Special's own `[Adv Ant $day]` --
+        // the same O Antiphon `oAntiphonLocation` already supplies for the winning
+        // office's own Magnificat, keyed off the same never-advanced request `$day`.
+        // Confirmed real for 21 December 2029 (S. Thomæ Apostoli winning, commemorating
+        // "Feria VI Quattuor Temporum Adventus"): the real commemoration antiphon is "O
+        // Óriens splendor lucis ætérnæ...", not the Ember Friday's own `[Ant 3]` ("Hoc
+        // est testimónium, quod perhíbuit Ioánnes...") this project rendered before.
+        let oAntiphon = Self.oAntiphonLocation(office: commemoration.path, day: day, month: month, resolver: resolver)
+        guard let antiphonLocation = oAntiphon ?? location("Ant \(ind)") ?? location("Ant \(4 - ind)") else { return nil }
         let rawAntiphonText = resolver.resolve(path: antiphonLocation.path, section: antiphonLocation.section)
             .split(separator: "\n", omittingEmptySubsequences: false).first
             .map { String($0).components(separatedBy: ";;").first ?? String($0) }
@@ -727,7 +741,9 @@ public struct HourAssembler {
         let versicleResponseUnits = Self.unitsFromLines(versumLines)
         guard case .versicleResponse = versicleResponseUnits.first else { return nil }
 
-        guard let oratioLocation = location("Oratio \(ind)") ?? location("Oratio") else { return nil }
+        guard let oratioLocation = Self.commemoratedOratioDominicaLocation(office: commemoration.path, resolver: resolver)
+            ?? location("Oratio \(ind)") ?? location("Oratio")
+        else { return nil }
         let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
         let named = substituteName(in: collect, office: commemoration.path, resolver: resolver)
 
@@ -735,6 +751,30 @@ public struct HourAssembler {
         units.append(contentsOf: versicleResponseUnits)
         units.append(contentsOf: Self.unitsFromResolvedText(named))
         return units
+    }
+
+    /// `getcommemoratio`'s own "Oratio Dominica" redirect for a *commemorated* office
+    /// (`specials/orationes.pl:704-711`): when the commemorated office has no `[Oratio]`
+    /// of its own and its `[Rule]` says "Oratio Dominica", the collect is taken from
+    /// that week's Sunday -- `$wday =~ s/\-[0-9]/-0/; $wday =~ s/Epi1\-0/Epi1\-0a/;`,
+    /// then `OratioW // Oratio` from that file. Without this, a ferial commemoration
+    /// whose only collect is its Sunday's was dropped outright (`commemorationUnits`
+    /// returning `nil`), invisible to the content sweep, which only checks rendered text
+    /// against the fixture. Confirmed real for 21 December 2026 (S. Thomæ Apostoli,
+    /// commemorating `Tempora/Adv4-1`, whose own `[Rule]` is just "Oratio Dominica"): the
+    /// real commemoration collect is `Tempora/Adv4-0`'s own "Excita, quǽsumus, Dómine,
+    /// poténtiam tuam, et veni: et magna nobis virtúte succúrre...".
+    private static func commemoratedOratioDominicaLocation(office: String, resolver: SectionResolver) -> (path: String, section: String)? {
+        guard !resolver.sectionExists(path: office, section: "Oratio") else { return nil }
+        let rule = resolver.resolve(path: office, section: "Rule")
+        guard rule.range(of: "Oratio Dominica", options: .caseInsensitive) != nil else { return nil }
+        guard let dash = office.range(of: #"-[0-9]"#, options: .regularExpression) else { return nil }
+        var sunday = office.replacingCharacters(in: dash, with: "-0")
+        if let epiphany = sunday.range(of: "Epi1-0") { sunday.replaceSubrange(epiphany, with: "Epi1-0a") }
+        for section in ["OratioW", "Oratio"] where resolver.sectionExists(path: sunday, section: section) {
+            return (sunday, section)
+        }
+        return nil
     }
 
     /// `Major Special.txt`'s own commemoration-versicle fallback, tried in the same
