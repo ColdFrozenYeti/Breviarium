@@ -2755,11 +2755,17 @@ Oratio 49, Canticum 12, Psalmodia 9, Capitulum 11, Versus 11, Hymnus 9, Conclusi
 
 Every category held steady or improved, none regressed — Canticum's drop (28→12) is
 larger than either fix's own category name would suggest, confirming the O-Antiphon
-fix's general reach across the cluster. Capitulum's own remaining 11 dates include
-`2033-12-29`/`2039-12-29` (a `Dec 29`-shaped pattern, not `Dec 23` — not yet investigated,
-likely a distinct mechanism) alongside the already-known Epiphany/Holy-Family cluster
-dates (`2029-01-06`, `2030-01-12`, `2030-01-13`, `2032-01-04`), deferred with Hymnus
-above.
+fix's general reach across the cluster. Capitulum's own remaining 11 dates include `2033-12-29`/`2039-12-29`, confirmed (real
+fixtures checked directly) to be a *third*, distinct concurrence gap, not the Dec-23
+pattern: both real fixtures read "Dominica Infra Octavam Nativitatis ~ II. classis
+Vespera de sequenti" — the floating Sunday within the Christmas Octave pre-empting 29
+December's own Vespers outright. Not traced further this session (no Docker-based Perl
+instrumentation done yet); flagged alongside the Epiphany/Holy-Family cluster and the
+Sacred-Heart/Precious-Blood gap as a third named, well-scoped concurrence problem for a
+future attempt, rather than risked a fourth `Concurrence.swift` change without first
+understanding its own real mechanism. Capitulum's remaining count otherwise matches the
+already-known Epiphany/Holy-Family cluster dates (`2029-01-06`, `2030-01-12`,
+`2030-01-13`, `2032-01-04`), deferred with Hymnus above.
 
 ### M5 — User interface
 
