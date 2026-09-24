@@ -301,6 +301,8 @@ typesetter turns each unit into one row with a Latin side and an English side:
 
 ## Questions for you
 
+**All five answered yes on 2026-09-24:** every recommendation below is adopted.
+
 1. **Bea with English on: pair each psalm as a whole, not verse by verse?**
    - *Recommended:* yes. Bea's verse numbers can't be matched to the English, and its
      lines break half a line away from the English in places. DO pairs whole psalms too.

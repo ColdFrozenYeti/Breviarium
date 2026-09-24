@@ -143,7 +143,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - **Prose** (chapter, collect, lessons) is **stacked**, Latin then English, in portrait, and shown side by side in landscape.
 - **With English off,** Latin uses the full width.
 - **Alignment** is by structural unit:
-  - psalms by verse number, merging half-verses where the Bea and Vulgate divisions differ;
+  - psalms verse by verse with the Vulgate, whose lines match the English one to one; with the Pius XII psalter, each psalm is paired whole, as Divinum Officium does, since its verse division doesn't match the English (decided 2026-09-24, see `docs/psalters-and-english.md`);
   - hymns by stanza;
   - everything else by whole unit.
 
