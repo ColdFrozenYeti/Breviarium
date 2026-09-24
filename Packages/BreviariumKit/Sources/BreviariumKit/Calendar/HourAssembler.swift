@@ -1284,7 +1284,8 @@ public struct HourAssembler {
         var units: [Unit] = []
         for (index, pair) in pairs.enumerated() {
             let english = index < englishAntiphons.count ? englishAntiphons[index] : nil
-            var psalmContent = psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
+            let (psalmTitle, untaggedPsalmContent) = psalmUnits(number: pair.psalmNumber, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
+            var psalmContent = untaggedPsalmContent
 
             // Direct feedback, comparing a real rendering against real DO output: DO's
             // own getantcross() (horas.pl:238-278) walks an antiphon's words against
@@ -1312,7 +1313,7 @@ public struct HourAssembler {
             let antiphonText = antiphonMatched ? "\(pair.antiphon) ‡" : pair.antiphon
 
             units.append(.antiphon(antiphonText, english: english))
-            units.append(.psalmTitle("Psalmus \(pair.psalmNumber) [\(index + 1)]"))
+            units.append(.psalmTitle("\(psalmTitle) [\(index + 1)]"))
             units.append(contentsOf: psalmContent)
             units.append(.antiphon(antiphonText, english: english))
         }
@@ -1570,29 +1571,76 @@ public struct HourAssembler {
     /// psalm with *zero* verses and no trace of the placeholder anywhere -- exactly the
     /// scenario this project's own full-range placeholder sweep can't catch, since it
     /// only scans text that actually ends up in a `Unit`.
-    private func psalmUnits(number: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
+    /// Returns the psalm's title (`psalmTitle(baseNumber:range:fileText:)`) with its units.
+    private func psalmUnits(
+        number: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+    ) -> (title: String, units: [Unit]) {
         let parsed = PsalmVerseRange.parse(number)
         let baseNumber = parsed?.base ?? number
         let range = parsed?.range
         let path = "Psalterium/Psalmorum/Psalm\(baseNumber)"
         let text = resolver.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
-        let latinVerses = Self.applying(range, to: Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)))
+        let latinVerses = Self.versesInRange(range, of: text)
         let englishVerses: [PsalmVerse]? = englishResolver.flatMap { eng in
             guard eng.sectionExists(path: path, section: RawSectionParser.wholeFileSectionName) else { return nil }
-            let englishText = eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
-            return Self.applying(range, to: Psalm.parseVerses(englishText.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)))
+            return Self.versesInRange(range, of: eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName))
         }
         var units = Self.pairedVerses(latin: latinVerses, english: englishVerses)
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
-        return units
+        return (Self.psalmTitle(baseNumber: baseNumber, range: range, fileText: text), units)
     }
 
-    private static func applying(_ range: PsalmVerseRange?, to verses: [PsalmVerse]) -> [PsalmVerse] {
-        guard let range else { return verses }
-        return verses.filter { verse in
-            guard let (number, letter) = PsalmVerseRange.verseNumberAndLetter(fromReference: verse.reference) else { return true }
-            return range.contains(verse: number, letter: letter)
+    /// The psalm's title line as DO builds it (`horasscripts.pl:561-562`, `:581-596`):
+    /// - `"Psalmus <n>"`, plus the verse range for a divided psalm, as `(<v1><c1>-<v2><c2>)`:
+    ///   `Psalmi major.txt`'s `144(8-'13a')` reaches `psalm()` as the arguments `8` and
+    ///   `'13a'` (`psalmi.pl:692-697`; the quotes are only Perl's), so the title reads
+    ///   `"Psalmus 144(8-13a)"`, never with the quotes;
+    /// - then, for the Pius XII psalter, `" — <subtitle>"` from the file's own leading
+    ///   `(subtitle)` line, unless the psalm part starts after the file's first verse
+    ///   (`:584`: Friday's `138(14-24)` has none, `138(1-13)` has it). DO applies this only
+    ///   when the language is `Latin-Bea`; it can be read off the file here because no
+    ///   plain-Latin psalm file (1-150) starts with a `(…)` line; only canticles (above
+    ///   150) do, which DO titles by a separate branch (`:565-580`) outside the Psalmodia.
+    ///   The subtitle's `/:…:/` small-print marks (`"…actiones /:pars prima:/"`) are
+    ///   dropped, keeping their words, as DO's page shows them.
+    static func psalmTitle(baseNumber: String, range: PsalmVerseRange?, fileText: String) -> String {
+        var title = "Psalmus \(baseNumber)"
+        if let range {
+            title += "(\(range.startVerse)\(range.startLetter.map(String.init) ?? "")-\(range.endVerse)\(range.endLetter.map(String.init) ?? ""))"
         }
+        let lines = fileText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard let first = lines.first, first.hasPrefix("("), first.hasSuffix(")") else { return title }
+        if let range, let firstVerse = lines.dropFirst().lazy.compactMap({ Self.leadingVerseNumber(of: $0) }).first,
+            range.startVerse > firstVerse
+        {
+            return title
+        }
+        let subtitle = first.dropFirst().dropLast()
+            .replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
+        return "\(title) — \(subtitle.split(whereSeparator: { $0.isWhitespace }).joined(separator: " "))"
+    }
+
+    /// The verse number of a `"<psalm>:<verse>[letter] text"` line.
+    private static func leadingVerseNumber(of line: String) -> Int? {
+        guard let reference = line.split(separator: " ", maxSplits: 1).first else { return nil }
+        return PsalmVerseRange.verseNumberAndLetter(fromReference: String(reference))?.verse
+    }
+
+    /// The verses of a psalm file within `range` (all of them if `nil`), with display
+    /// references. The range is applied to the *lettered* references, as DO's own filter
+    /// does (`horasscripts.pl:598-614`, before `handleverses` drops the letter at
+    /// `:400-403`): Saturday's `144(8-'13a')` ends with 144:13a and `144('13b'-21)`
+    /// starts with 144:13b. Filtering after the letters were gone dropped both halves of
+    /// 144:13 on every Saturday that uses the ferial psalms (B1-M3).
+    private static func versesInRange(_ range: PsalmVerseRange?, of text: String) -> [PsalmVerse] {
+        let verses = Psalm.parseVerses(text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init), keepingSubVerseLetters: true)
+        let kept = range.map { range in
+            verses.filter { verse in
+                guard let (number, letter) = PsalmVerseRange.verseNumberAndLetter(fromReference: verse.reference) else { return true }
+                return range.contains(verse: number, letter: letter)
+            }
+        } ?? verses
+        return kept.map(Psalm.displayReference)
     }
 
     /// Pairs Latin and English verses for the same psalm/canticle, but only when their

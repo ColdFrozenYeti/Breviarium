@@ -20,7 +20,7 @@ import Testing
     // Epiphany's own [Rule] has "Psalm5 Vespera3=113" -- the real fixture's own fifth
     // psalm for that date's second Vespers is exactly Psalm 113.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 13, month: 1, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -32,7 +32,9 @@ import Testing
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles == ["Psalmus 109 [1]", "Psalmus 110 [2]", "Psalmus 111 [3]", "Psalmus 112 [4]", "Psalmus 113 [5]"])
+    // Expected titles are DO's own, from this date's fixture (the Pius XII subtitles came
+    // with B1-M3's title fix, `HourAssembler.psalmTitle`).
+    #expect(titles == ["Psalmus 109 — Messias rex, sacerdos victor [1]", "Psalmus 110 [2]", "Psalmus 111 — Viri iusti beatiduo [3]", "Psalmus 112 — Laus Dei excelsi et benigni [4]", "Psalmus 113 — A: Mirabilia a Deo in Exodo patrata [5]"])
 
     let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-01-13"))
     #expect(fixture.contains("Psalmus 113"))
@@ -49,7 +51,7 @@ import Testing
     // confirmed by instrumenting the real Perl directly (`festalFifthPsalmNumber`'s own
     // doc comment has the full trace).
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 16, month: 8, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -61,7 +63,7 @@ import Testing
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles.last == "Psalmus 113 [5]")
+    #expect(titles.last == "Psalmus 113 — A: Mirabilia a Deo in Exodo patrata [5]")
 
     let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-08-16"))
     #expect(fixture.contains("Psalmus 113"))
@@ -81,7 +83,7 @@ import Testing
     // the ordinary festal default (113, "In exitu Israël") this project's engine fell
     // back to before this fix, having silently failed to find the lowercase tag.
     guard let bundle = RealCorpus.bundle else { return }
-    let corpus = bundle.makeLatinCorpus()
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
     let calendar = bundle.makeSanctoralCalendar()
     let context = ConditionalContextBuilder.build(
         day: 28, month: 5, year: 2025, ad: "vesperas", rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
@@ -93,7 +95,9 @@ import Testing
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles == ["Psalmus 109 [1]", "Psalmus 110 [2]", "Psalmus 111 [3]", "Psalmus 112 [4]", "Psalmus 116 [5]"])
+    // Expected titles are DO's own, from this date's fixture (the Pius XII subtitles came
+    // with B1-M3's title fix, `HourAssembler.psalmTitle`).
+    #expect(titles == ["Psalmus 109 — Messias rex, sacerdos victor [1]", "Psalmus 110 [2]", "Psalmus 111 — Viri iusti beatiduo [3]", "Psalmus 112 — Laus Dei excelsi et benigni [4]", "Psalmus 116 — Hymnus laudis et gratiarum actionis [5]"])
 
     let fixture = try #require(try await OracleFixture.shared.main(year: 2025, date: "2025-05-28"))
     #expect(fixture.contains("Psalmus 116"))

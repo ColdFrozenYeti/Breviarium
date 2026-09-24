@@ -509,7 +509,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     let titles = psalmodia.units.compactMap { unit -> String? in
         if case .psalmTitle(let text) = unit { return text } else { return nil }
     }
-    #expect(titles.first == "Psalmus 138(1-13) [1]")
+    #expect(titles.first == "Psalmus 138(1-13) — Deus ubique præsens, omnia videns [1]")    // DO's own title, fixture 2027-04-09.
 
     let allVerseText = psalmodia.units.compactMap { unit -> String? in
         if case .verse(_, let first, let second, _, _) = unit { return "\(first) \(second)" } else { return nil }

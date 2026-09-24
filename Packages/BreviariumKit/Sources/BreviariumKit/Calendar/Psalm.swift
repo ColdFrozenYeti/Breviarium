@@ -39,7 +39,11 @@ public enum Psalm {
     private nonisolated(unsafe) static let subVerseAnnotation: Regex<AnyRegexOutput> =
         try! Regex(#"\s*\(\d+[a-z]?\)"#)
 
-    public static func parseVerses(_ lines: [String]) -> [PsalmVerse] {
+    /// `keepingSubVerseLetters` keeps a reference's `a`/`b` letter (`"144:13a"`) for a
+    /// caller that still has to filter by a verse range, which is decided on the lettered
+    /// reference (`horasscripts.pl:598-614`) before DO removes the letter for display
+    /// (`:400-403`); such a caller applies `displayReference` itself afterwards.
+    public static func parseVerses(_ lines: [String], keepingSubVerseLetters: Bool = false) -> [PsalmVerse] {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
             let rawReference = String(line[line.startIndex..<spaceIndex])
@@ -47,7 +51,9 @@ public enum Psalm {
 
             let text = String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: "")
             let (first, second) = splitHalves(text)
-            return PsalmVerse(reference: strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second)
+            return PsalmVerse(
+                reference: keepingSubVerseLetters ? rawReference : strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second
+            )
         }
     }
 
@@ -64,6 +70,11 @@ public enum Psalm {
     /// across this divergence (`pairedVerses`'s own doc comment has the full story on
     /// why — it would need treating `†`/`‡` as structural split points too, which
     /// `Psalm.swift`'s own scope note above deliberately doesn't).
+    /// `verse` with its reference's sub-verse letter removed: the form DO displays.
+    public static func displayReference(_ verse: PsalmVerse) -> PsalmVerse {
+        PsalmVerse(reference: strippingSubVerseLetter(verse.reference), firstHalf: verse.firstHalf, secondHalf: verse.secondHalf)
+    }
+
     private static func strippingSubVerseLetter(_ reference: String) -> String {
         guard let last = reference.last, last.isLowercase,
             let secondToLast = reference.dropLast().last, secondToLast.isNumber
