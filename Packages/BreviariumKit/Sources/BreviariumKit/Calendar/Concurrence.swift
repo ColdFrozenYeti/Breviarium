@@ -134,11 +134,59 @@ public struct Concurrence {
         // (`horascommon.pl:1130-1332` has many more specific exclusions this pass
         // doesn't attempt), just this one confirmed, named case.
         let firstVespers = tomorrow.winningRank.numericPrecedence >= threshold
-            && tomorrow.winningRank.numericPrecedence > today.winningRank.numericPrecedence
+            && (tomorrow.winningRank.numericPrecedence > today.winningRank.numericPrecedence
+                || precedingYieldsToSundayOrFeastOfTheLord(
+                    day: day, month: month, year: year, today: today, tomorrow: tomorrow,
+                    tomorrowIsDominica: tomorrowIsDominica, tomorrowIsFestumDomini: tomorrowIsFestumDomini, resolver: resolver
+                ))
         return ConcurrenceResult(
             isFirstVespersOfTomorrow: firstVespers,
             vespersOffice: firstVespers ? tomorrow : today
         )
+    }
+
+    /// `horascommon.pl:1161-1170`'s second disjunct, which the Perl checks *before* the
+    /// 1960 "equal rank, the preceding takes precedence" tie-break (`:1242`): when
+    /// tomorrow is a Sunday or a Feast of the Lord, and today is too (`$wrank[0] =~
+    /// /Dominica/i || $winner{Rule} =~ /Festum Domini/i`), tomorrow gets first Vespers
+    /// even at equal rank. (The same disjunct's first alternative, `$rank < ($crank >= 6
+    /// ? 6 : 5)`, already implies `crank > rank` once the threshold is cleared, so it
+    /// needs nothing extra here.) Only reached when the two days are not both temporal:
+    /// `:1063`'s "two concurrent Tempora" branch comes first and decides by `$crank >=
+    /// $rank` alone.
+    ///
+    /// The Perl's preceding "nihil de sequenti" branch (`:1136-1152`) is checked first
+    /// and keeps today's Vespers instead. Its disjuncts that can still apply once the
+    /// threshold is cleared are ported as guards: an I. classis day (on a Saturday, only
+    /// rank 7) against a tomorrow below I. classis; a Feast of the Lord of II. classis or
+    /// higher against a II. classis Sunday outside `Nat1`; and the named Sacred-Heart-
+    /// before-Precious-Blood case (GitHub #4586).
+    ///
+    /// Confirmed real for 1 July 2038: the Precious Blood (`Sancti/07-01`, rank 6,
+    /// "Festum Domini") is followed by the Sacred Heart (`Tempora/Pent02-5`, rank 6,
+    /// "Festum Domini"). The real fixture reads "Sacratissimi Cordis Domini Nostri Jesu
+    /// Christi ~ I. classis Vespera de sequenti; nihil de præcedenti"; this project had
+    /// kept the Precious Blood's second Vespers on the equal-rank tie-break.
+    private func precedingYieldsToSundayOrFeastOfTheLord(
+        day: Int, month: Int, year: Int, today: OccurrenceResult, tomorrow: OccurrenceResult,
+        tomorrowIsDominica: Bool, tomorrowIsFestumDomini: Bool, resolver: SectionResolver
+    ) -> Bool {
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !tomorrow.winningPath.hasPrefix("Sancti/")
+            && !tomorrow.winningPath.contains("C10")
+        guard !bothTemporal, tomorrowIsDominica || tomorrowIsFestumDomini else { return false }
+        let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+        let todayIsFestumDomini = todayRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
+        let todayIsDominica = today.winningRank.title.range(of: "Dominica", options: .caseInsensitive) != nil
+        guard todayIsDominica || todayIsFestumDomini else { return false }
+
+        let rank = today.winningRank.numericPrecedence
+        let crank = tomorrow.winningRank.numericPrecedence
+        let weekday = Computus.dayOfWeek(day: day, month: month, year: year)
+        if rank >= (weekday < 6 ? 6 : 7), crank < 6 { return false }
+        let todayWeek = TemporalCycle.weekName(day: day, month: month, year: year)
+        if tomorrowIsDominica, !todayWeek.hasPrefix("Nat1"), crank <= 5, rank >= 5, todayIsFestumDomini { return false }
+        if today.winningPath.contains("Pent02-5"), tomorrow.winningPath.contains("07-01") { return false }
+        return true
     }
 
     private func hasNoPrimaVespera(_ rule: String) -> Bool {

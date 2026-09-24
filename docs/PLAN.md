@@ -3148,6 +3148,30 @@ tests: `christmasOctaveSundayKeptOnFridayHasFirstVespers`,
 `twentyNinthDecemberKeepsItsOwnVespersWhenTheOctaveSundayIsOnSunday`
 (`ChristmasOctaveSundayOnFridayOracleTests.swift`).
 
+**Sacred-Heart/Precious-Blood concurrence, plus 2 of the 6 Epiphany/Holy-Family dates.**
+`concurrence()` checks `horascommon.pl:1161-1170` *before* the 1960 tie-break at `:1242`.
+Its second disjunct gives tomorrow first Vespers even at equal rank when both days are a
+Sunday or a Feast of the Lord: `($cwrank[0] =~ /Dominica/i || $cwinner{Rule} =~ /Festum
+Domini/i) && (... || $wrank[0] =~ /Dominica/i || $winner{Rule} =~ /Festum Domini/i)`. On 1
+July 2038 the Precious Blood (6) is followed by the Sacred Heart (6), both "Festum
+Domini", so the Sacred Heart wins ("Vespera de sequenti; nihil de præcedenti"). This
+project had kept the Precious Blood on the tie-break. Ported as
+`Concurrence.precedingYieldsToSundayOrFeastOfTheLord`. It is skipped when both days are
+temporal (`:1063` decides those first). It is guarded by the three `:1136-1152` "nihil de
+sequenti" disjuncts that can still apply once the threshold is cleared: I. classis today
+(rank 7 on a Saturday) against a tomorrow below 6; a Feast of the Lord against a II.
+classis Sunday outside `Nat1`; and the literal Pent02-5/07-01 case. The same disjunct also
+fixed 6 January 2029 and 2035: Epiphany (6.5, Festum Domini) on a Saturday before Holy
+Family (5, Festum Domini, threshold 5 on a Saturday). Low Sunday 2027 before the
+transferred Annunciation, which has no "Festum Domini", still keeps its own Vespers (control
+test). Sweep against the post-Dec-29 baseline: **every content category 7 → 4**, no new
+mismatch date. Full suite: 331 passed. New tests: `sacredHeartPreEmptsPreciousBloodAtEqualRank`,
+`holyFamilyPreEmptsEpiphanyOnSaturday`,
+`lowSundayKeepsItsVespersBeforeTheTransferredAnnunciation`
+(`FeastOfTheLordConcurrenceOracleTests.swift`). **Remaining: 4 dates, one pattern**:
+2030-01-12/13 and 2036-01-12/13 (Holy Family on Sunday 13 January, where the Baptism of
+the Lord is reduced to a Lauds-only commemoration).
+
 ### M5 — User interface
 
 SwiftUI views to the visual spec: Today/Vespers page (paginated), TOC sheet, date/calendar
