@@ -143,18 +143,21 @@ public enum ScriptMacros {
     /// own line selection to its 5th line (`Prayers.txt`'s own `[Dominus]` section:
     /// `Dóminus vobíscum` / `Domine, exaudi` V/R pairs, then a 5th, small-font-wrapped
     /// line, `"/:secunda «Domine, exaudi» omittitur:/"`) instead of the ordinary
-    /// non-priest V/R pair (lines 3-4). Unlike `stripSmallFontMarkers`'s own general
-    /// case (most `/:...:/ ` content is genuine text the real page shows plainly), this
-    /// one is DO's own explanatory annotation about *why* nothing appears here — never
-    /// genuine liturgical text — so it's treated the same way `majorSpecialAntLocation`
-    /// already treats a `/:...:/ `-prefixed placeholder result: absent, not rendered,
-    /// per `CLAUDE.md`'s "no explanatory text in the office" rule.
+    /// non-priest V/R pair (lines 3-4). That line is a rubric (the second *Dómine,
+    /// exáudi* is omitted), returned as a `!` rubric line.
     private static func dominusVobiscum2(context: MacroContext, resolver: SectionResolver) -> String {
         guard !context.priest else { return dominusVobiscum(context: context, resolver: resolver) }
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Dominus")
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard lines.count >= 5, !lines[4].hasPrefix("/:") else { return "" }
-        return lines[4]
+        guard lines.count >= 5 else { return "" }
+        // DO's page shows this line (B1-M4's coverage audit: 2 November 2033, All Souls,
+        // "secunda Domine, exaudi omittitur" in both columns), so it is rendered as the
+        // rubric it is, red and hidden with rubrics off, with its small-print `/:…:/`
+        // marks and «» quotes dropped as DO's page drops them.
+        let rubric = lines[4].replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
+            .replacingOccurrences(of: "«", with: "").replacingOccurrences(of: "»", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return rubric.isEmpty ? "" : "!\(rubric)"
     }
 
     /// `horasscripts.pl:160-186`. Adds the farewell "..., allelúia, allelúia." to both

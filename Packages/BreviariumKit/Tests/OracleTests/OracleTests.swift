@@ -30,7 +30,7 @@ enum RealCorpus {
 /// the original `" * "` half-verse spacing `Psalm.splitHalves` drops when attaching the
 /// asterisk directly to the first half for display, since the fixture still has DO's
 /// raw spacing.
-private func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
+func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     switch unit {
     case .rubric(let text, _): return [text]
     case .versicleResponse(let versicle, let response, _, _): return [versicle, response]
@@ -48,6 +48,8 @@ private func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
         // Same for a trailing " ‡".
         return [text.hasSuffix(" ‡") ? String(text.dropLast(2)) : text]
     case .prose(let text, _): return [text]
+    case .englishPsalm:
+        return []
     case .psalmTitle:
         // Not yet independently confirmed against a real fixture's own exact HTML
         // structure for this line -- checked instead via a dedicated, targeted test.
@@ -55,7 +57,7 @@ private func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     }
 }
 
-private func collapsedWhitespace(_ text: String) -> String {
+func collapsedWhitespace(_ text: String) -> String {
     // "+" is DO's own source-text placeholder for the cross gesture in a handful of
     // fixed invocations (Deus in adiutorium, the Magnificat's opening verse); its real
     // rendering substitutes the "✠" glyph. That substitution is a presentation-layer
@@ -73,7 +75,7 @@ private func collapsedWhitespace(_ text: String) -> String {
 func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>? = nil) -> [String] {
     let normalizedFixture = collapsedWhitespace(LatinOrthography.normalize(fixtureText))
     var mismatches: [String] = []
-    for section in hour.sections where sectionKinds?.contains(section.kind) ?? true {
+    for section in [Section(kind: .introductio, units: hour.prelude)] + hour.sections where sectionKinds?.contains(section.kind) ?? true {
         for unit in section.units {
             for piece in oracleComparisonTexts(unit) {
                 let text = collapsedWhitespace(piece)
@@ -208,8 +210,10 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     #expect(diff.isEmpty, "\(diff.count) unit(s) not found in the oracle fixture:\n\(diff.joined(separator: "\n"))")
 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
-    let alleluiaCount = psalmodia.units.filter { $0 == .antiphon("Allelúia, * allelúia, allelúia.") }.count
-    #expect(alleluiaCount == 10, "expected all 5 psalms bracketed by the Allelúia antiphon (open+close each), found \(alleluiaCount)")
+    // Opened with the asterisk, repeated without it (psalmi.pl:688).
+    let openCount = psalmodia.units.filter { $0 == .antiphon("Allelúia, * allelúia, allelúia.") }.count
+    let closeCount = psalmodia.units.filter { $0 == .antiphon("Allelúia, allelúia, allelúia.") }.count
+    #expect(openCount == 5 && closeCount == 5, "expected all 5 psalms bracketed by the Allelúia antiphon, found \(openCount) + \(closeCount)")
 }
 
 @Test func englishSectionsMatchTheRealBilingualFixtureFor16September2026() async throws {
@@ -241,6 +245,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
         case .antiphon(_, let english): return [english].compactMap { $0 }
         case .prose(_, let english): return [english].compactMap { $0 }
         case .psalmTitle: return []
+        case .englishPsalm: return englishComparisonTexts(unit)
         }
     }
 
@@ -251,7 +256,10 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
             for piece in englishTexts(unit) {
                 let text = collapsedWhitespace(piece)
                 guard !text.isEmpty else { continue }
-                if !normalizedFixture.contains(text) { missing.append("[\(section.kind)] \(text)") }
+                // Where DO has no English it prints the Latin, raw (with J); ours is in I.
+                if !normalizedFixture.contains(text), !collapsedWhitespace(LatinOrthography.normalize(normalizedFixture)).contains(text) {
+                    missing.append("[\(section.kind)] \(text)")
+                }
             }
         }
     }
@@ -281,33 +289,31 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     #expect(canticum.units.contains {
         if case .verse(let ref, _, _, let firstEnglish, _) = $0 { return ref == "1:46" && firstEnglish != nil } else { return false }
     })
-    // Psalm 127 (this office's own weekday psalm) does NOT pair, and this is a real,
-    // confirmed data-quality issue in the pinned DO checkout, not our bug: the Bea
-    // Latin-Bea/Psalterium/Psalmorum/Psalm127.txt mislabels its own 4th verse as
-    // "127:3" (a bare repeat of the number, immediately after "127:3a"/"127:3b") instead
-    // of "127:4", breaking the exact reference-sequence match against English's clean
-    // "127:1,2,3a,3b,4,5,6". Confirming this falls back to Latin-only (not a silently
-    // wrong pairing) is the point of this assertion.
+    // Psalm 127 in the Pius XII psalter can't be paired verse by verse with the English
+    // (the Bea file even repeats "127:3" where the English has "127:4"), so, as decided
+    // in B1-M1 (`psalters-and-english.md` question 1, as DO does), its English is paired
+    // with the whole psalm: the Latin verses carry none, and one `.englishPsalm` block
+    // follows them.
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     let psalm127Verses = psalmodia.units.filter { if case .verse(let ref, _, _, _, _) = $0 { return ref.hasPrefix("127:") } else { return false } }
     #expect(!psalm127Verses.isEmpty)
     #expect(psalm127Verses.allSatisfy { if case .verse(_, _, _, let firstEnglish, _) = $0 { return firstEnglish == nil } else { return false } })
+    #expect(psalmodia.units.contains { if case .englishPsalm(let verses) = $0 { return verses.first?.reference == "127:1" } else { return false } })
     // The Gloria doxology that follows Psalm 127 is fixed, 2-line, and always pairs
     // positionally regardless of any psalm-specific numbering divergence.
     #expect(psalmodia.units.contains {
         if case .verse(let ref, _, _, let firstEnglish, _) = $0 { return ref.isEmpty && firstEnglish != nil } else { return false }
     })
 
-    // The versicle itself is a real, confirmed DO English-tree gap, not our bug:
-    // Commune/C3.txt's English side has no [Versum 3] at all (only [Versum 1]/[Versum
-    // 2] directly) even though its Latin side does (as `@:Versum 2`, confirmed a
-    // universal alias pattern across Commune/C1.txt/C1p.txt/C2.txt/C4.txt/C5.txt, but
-    // *not* universal on real office files -- several alias to Versum 1 instead, and
-    // some carry a genuinely distinct versicle -- so this can't be simplified to always
-    // querying "Versum 2" directly). Correctly resolving `resolvedLocation`'s "same
-    // exact section" rule here means English stays nil rather than guessing.
+    // `Commune/C3.txt`'s English has no `[Versum 3]`, but DO fills it from the Latin
+    // file's `[Versum 3]` (`@:Versum 2`) and resolves that in English (`SetupString.pl:
+    // 589-593`, `:626`; `DataBundle.makeEnglishCorpus`): the fixture's English column
+    // shows "The saints shall rejoice in glory: / They shall be joyful in their beds."
     let versus = try #require(hour.sections.first { $0.kind == .versus })
-    #expect(versus.units.contains(.versicleResponse(versicle: "Exsultábunt Sancti in glória.", response: "Lætabúntur in cubílibus suis.")))
+    #expect(versus.units.contains(.versicleResponse(
+        versicle: "Exsultábunt Sancti in glória.", response: "Lætabúntur in cubílibus suis.",
+        versicleEnglish: "The saints shall rejoice in glory:", responseEnglish: "They shall be joyful in their beds."
+    )))
 }
 
 @Test func easterSundayIntroductioAndConclusioMatchTheRealOracleWithPriestForm() async throws {
@@ -610,6 +616,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
     case .antiphon(let text, let english): [text, english].compactMap { $0 }
     case .prose(let text, let english): [text, english].compactMap { $0 }
     case .psalmTitle(let text): [text]
+    case .englishPsalm(let verses): verses.flatMap { [$0.firstHalf, $0.secondHalf] }
     }
 }
 

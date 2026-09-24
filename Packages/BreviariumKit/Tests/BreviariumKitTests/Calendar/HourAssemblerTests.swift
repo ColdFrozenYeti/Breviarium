@@ -111,7 +111,7 @@ private let feriaTemporal = RawOfficeFile(path: "Tempora/Epi2-1", sections: [
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     #expect(psalmodia.units.first == .antiphon("Antiphona feriae * de psalmo."))
     #expect(psalmodia.units.contains(.verse(reference: "114:1", firstHalf: "Dilexi, quoniam exaudiet Dominus*", secondHalf: "vocem orationis meae.")))
-    #expect(psalmodia.units.last == .antiphon("Antiphona feriae * de psalmo."))
+    #expect(psalmodia.units.last == .antiphon("Antiphona feriae de psalmo."))    // repeated without its asterisk (psalmi.pl:688)
 
     let conclusio = try #require(hour.sections.first { $0.kind == .conclusio })
     #expect(conclusio.units.contains(.versicleResponse(versicle: "Domine, exaudi orationem meam.", response: "Et clamor meus ad te veniat.")))
@@ -222,7 +222,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
 
-    #expect(oratio.units == [.prose("Oratio communis indexata.", english: nil)])
+    #expect(Array(oratio.units.dropFirst()) == [.prose("Oratio communis indexata.", english: nil)])    // after the Domine, exaudi (orationes.pl:185-213)
 }
 
 @Test func usesTheCommunesEnglishIndexedOratioWhenItGenuinelyExists() throws {
@@ -247,7 +247,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
 
-    #expect(oratio.units == [.prose("Oratio communis indexata.", english: "The genuinely matching English collect.")])
+    #expect(Array(oratio.units.dropFirst()) == [.prose("Oratio communis indexata.", english: "The genuinely matching English collect.")])
 }
 
 @Test func aCommunesOwnIndexedOratioWinsOverItsPlainOneWhenTheOfficeDefinesNeither() throws {
@@ -270,7 +270,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
 
-    #expect(oratio.units == [.prose("Oratio communis indexata.")])
+    #expect(Array(oratio.units.dropFirst()) == [.prose("Oratio communis indexata.")])
 }
 
 @Test func aVideCommunesIndexedAntVesperaIsNeverUsedForPsalmodyFallingThroughToTheWeekdaySchedule() throws {
@@ -385,7 +385,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
 
-    #expect(oratio.units == [.prose("Concede propitius, ut beatae Aliquis Virginis natalicia colimus.")])
+    #expect(Array(oratio.units.dropFirst()) == [.prose("Concede propitius, ut beatae Aliquis Virginis natalicia colimus.")])
 }
 
 @Test func leavesACollectWithNoNPlaceholderUntouched() throws {
@@ -401,7 +401,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     let hour = try #require(assembler.assembleVespers(day: 19, month: 1, year: 2026, priest: false))
     let oratio = try #require(hour.sections.first { $0.kind == .oratio })
 
-    #expect(oratio.units == [.prose("Oratio propria de sancto nominato.")])
+    #expect(Array(oratio.units.dropFirst()) == [.prose("Oratio propria de sancto nominato.")])
 }
 
 @Test func festalUnnumberedAntiphonsPairWithTheSundayPsalmsAndARuleGivenFifth() throws {
@@ -455,7 +455,7 @@ private let englishPrayersFile = RawOfficeFile(path: "Psalterium/Common/Prayers.
     // The fifth psalm is the "Vespera3" (today's own second Vespers) entry, not
     // "Vespera" (999, which would point nowhere here) -- confirmed real precedence.
     #expect(psalmodia.units.contains(.verse(reference: "200:1", firstHalf: "Psalmus quintus*", secondHalf: "proprius.")))
-    #expect(psalmodia.units.last == .antiphon("Ant quinque * quinti."))
+    #expect(psalmodia.units.last == .antiphon("Ant quinque quinti."))
 }
 
 // MARK: - Paschaltide Alleluia antiphon
@@ -479,7 +479,7 @@ private let paschaltideFeria = RawOfficeFile(path: "Tempora/Pasc2-1", sections: 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
     #expect(psalmodia.units.first == .antiphon("Alleluia, * alleluia, alleluia."))
-    #expect(psalmodia.units.last == .antiphon("Alleluia, * alleluia, alleluia."))
+    #expect(psalmodia.units.last == .antiphon("Alleluia, alleluia, alleluia."))
     #expect(!psalmodia.units.contains(.antiphon("Antiphona feriae * de psalmo.")))
 }
 

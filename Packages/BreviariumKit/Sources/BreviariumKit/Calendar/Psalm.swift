@@ -43,13 +43,26 @@ public enum Psalm {
     /// caller that still has to filter by a verse range, which is decided on the lettered
     /// reference (`horasscripts.pl:598-614`) before DO removes the letter for display
     /// (`:400-403`); such a caller applies `displayReference` itself afterwards.
+    /// DO's display rules for the marks inside a psalm line, applied in every language
+    /// (`horasscripts.pl:418-419`, `handleverses`, with its `$noflexa` default on): the
+    /// flex `†` is removed, and a `‡` becomes the half-verse break, the line's own later
+    /// `*` dropping (`"A ‡ B * C"` → `"A * B C"`). The Latin text has had this applied
+    /// when the data was built (`LatinOrthography`); the English hasn't, since nothing
+    /// else rewrites English (`CLAUDE.md`), and DO applies these only to psalm lines, not
+    /// to other text (`webdia.pl:696` keeps a `†` elsewhere).
+    static func displayMarks(_ text: String) -> String {
+        var result = text.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+        result = result.replacingOccurrences(of: #"‡\s+(.*?)\*\s*"#, with: "* $1", options: .regularExpression)
+        return result
+    }
+
     public static func parseVerses(_ lines: [String], keepingSubVerseLetters: Bool = false) -> [PsalmVerse] {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
             let rawReference = String(line[line.startIndex..<spaceIndex])
             guard rawReference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
 
-            let text = String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: "")
+            let text = displayMarks(String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: ""))
             let (first, second) = splitHalves(text)
             return PsalmVerse(
                 reference: keepingSubVerseLetters ? rawReference : strippingSubVerseLetter(rawReference), firstHalf: first, secondHalf: second
