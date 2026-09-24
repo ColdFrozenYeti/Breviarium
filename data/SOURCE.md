@@ -45,8 +45,11 @@ CGI::Compile, etc.) is present.
 Full parameter mapping, confirmed against the real container:
 
 - `version="Rubrics 1960"`, `command=prayVespera`, `date=M-D-YYYY` (no leading zeros).
-- `lang1=Latin-Bea` always (`CLAUDE.md` fixes the Bea psalter permanently).
-- `lang2=Latin-Bea` for a Latin-only render, `lang2=English` for parallel text. **Not**
+- `lang1=Latin` for the Vulgate psalter (the default since Beta 1; DO's own default,
+  `horas.setup`'s `$psalmvar='0'`), `lang1=Latin-Bea` for the Pius XII psalter (the
+  alpha's fixtures).
+- For a Latin-only render, `lang2` equals `lang1` (`Latin` or `Latin-Bea`);
+  `lang2=English` for parallel text. For Bea, **not**
   `lang2=Latin` with `psalmvar=1`: `officium.pl`'s own psalmvar-based `Latin`→`Latin-Bea`
   auto-upgrade only ever mutates *one* of `lang1`/`lang2` (each check reads the other's
   already-updated value in sequence), so it leaves them unequal and silently defeats the
