@@ -935,7 +935,8 @@ public struct HourAssembler {
             units += Self.unitsFromLines(chunk, english: pairEnglish ? english?.chunks[index] : nil)
             if index < latin.psalms.count {
                 let (title, content) = psalmUnits(number: latin.psalms[index], resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
-                units.append(.psalmTitle(title))
+                // Numbered on from Lauds' five: "Psalmus 69 [6]".
+                units.append(.psalmTitle(Self.numberedPsalmTitle(title, 6 + index)))
                 units += content
             }
         }
@@ -959,9 +960,29 @@ public struct HourAssembler {
             : winnerPath.hasPrefix("Tempora/") && resolver.sectionExists(path: winnerPath, section: "Commemoratio") ? "Commemoratio" : nil
         guard let section else { return nil }
         let text = resolver.unresolvedBody(path: winnerPath, section: section)?.joined(separator: "\n") ?? ""
+        // `:305-312`: under 1960 an octave or a Sunday named in its heading is dropped
+        // (`nooctnat()`: not from 25 December), and a vigil under a saint (but the four
+        // named ones). The Sunday after Ascension and the Holy Family's octave Sunday.
+        let heading = text.split(separator: "\n").first { $0.hasPrefix("!") }.map(String.init) ?? ""
+        if heading.range(of: "O[ckt]t[aá]|Dominic[aæ]", options: [.regularExpression, .caseInsensitive]) != nil,
+            macroContext.month < 12 || macroContext.day < 25
+        {
+            return nil
+        }
+        if heading.range(of: "Vigil", options: .caseInsensitive) != nil, winnerPath.hasPrefix("Sancti/"),
+            winnerPath.range(of: "08-14|06-23|06-28|08-09", options: .regularExpression) == nil
+        {
+            return nil
+        }
         guard let match = text.firstMatch(of: /@([A-Za-z0-9\/\-]+):Oratio/) else { return nil }
         let path = String(match.1)
         guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { return nil }
+        // The same test on the heading `getrefs` builds from the referenced office.
+        if rank.title.range(of: "O[ckt]t[aá]|Dominic[aæ]", options: [.regularExpression, .caseInsensitive]) != nil,
+            macroContext.month < 12 || macroContext.day < 25
+        {
+            return nil
+        }
         return Commemoration(path: path, rank: rank, ind: 2)
     }
 

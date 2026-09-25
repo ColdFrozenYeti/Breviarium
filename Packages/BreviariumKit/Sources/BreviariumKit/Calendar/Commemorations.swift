@@ -387,6 +387,18 @@ public struct Commemorations {
             }
             results.append(Commemoration(path: path, rank: rank, ind: ind))
         }
+        if ind == 2 {
+            // `horascommon.pl:1690-1711`, 1960: every commemoration goes when the winner's
+            // rule says "No Sunday Commemoratio" on a Sunday (the Holy Family), when a
+            // Festum Domini would commemorate another, or for 28 June on a Sunday.
+            let winnerRule = resolver.resolve(path: winnerPath, section: "Rule")
+            if isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
+            if let first = results.first {
+                let firstRule = resolver.sectionExists(path: first.path, section: "Rule") ? resolver.resolve(path: first.path, section: "Rule") : ""
+                if matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
+                if isSunday, first.path.range(of: "06-28r?$", options: .regularExpression) != nil { return [] }
+            }
+        }
         return results
     }
 

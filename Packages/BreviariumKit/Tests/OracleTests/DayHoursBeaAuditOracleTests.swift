@@ -9,7 +9,7 @@ import Testing
 // `vespersFullRangePsalmodyAudit` does for Vespers). The Vulgate side, with the English,
 // is `dayHoursFullRangeAudit`.
 
-private nonisolated(unsafe) let anyPsalmodyTitle = try! Regex(#"(?:Psalmus|Canticum|Symbolum)\b[^\[]*?\[\d\]"#)
+private nonisolated(unsafe) let anyPsalmodyTitle = try! Regex(#"(?:Psalmus|Canticum|Symbolum)\b[^\[]{0,100}?\[\d\]"#)
 private nonisolated(unsafe) let verseReference = try! Regex(#"(?:^| )(\d{1,3}:\d{1,3}) "#)
 
 /// DO's psalms on a day hour's page: each "Psalmus … [n]" title and the verse references
