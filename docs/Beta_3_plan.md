@@ -147,7 +147,7 @@ extend to Matins: content, coverage, psalmody, English, and title. So does
     WebP and confirmed 1024 × 1024, 8-bit RGB, with no alpha channel;
   - a UI test captures the simulator's Home Screen, so the icon can be seen on a device
     frame;
-  - the lossless original replaces it when you send it, with no other change.
+  - replaced the same night by the lossless original, `design/Icon.png`.
 - **Release notes:** the app's *Release notes* screen gains a "Beta 3" section, filled
   as the beta lands.
 
@@ -258,8 +258,8 @@ at zero, and the 2044 hold-out passing.
    smaller italic line (*Lectio i*).
 5. **Merge and release:** open a PR and build an IPA. Merge and publish after you've tried
    it on the phone.
-6. **The icon's original:** you will put it at `design/icon/icon-1024.png` on `main`. The
-   app's asset catalog is copied from it.
+6. **The icon's original:** `design/Icon.png` on `main` (added 25 September). The app's
+   asset catalog is copied from it.
 
 ## Open questions (as asked; answered above)
 
