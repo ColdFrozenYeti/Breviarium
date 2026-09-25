@@ -334,6 +334,13 @@ public struct Commemorations {
     private func runnersUp(day: Int, month: Int, year: Int, winnerPath: String, ind: Int) -> [Commemoration] {
         let resolver = SectionResolver(corpus: corpus, context: context)
         var results: [Commemoration] = []
+        // `horascommon.pl:1681-1684`: a saint's "Tempora none" clears every commemoration
+        // (Christmas Eve over the Advent feria). At Lauds (Beta 2).
+        if ind == 2, winnerPath.hasPrefix("Sancti/"),
+            resolver.resolve(path: winnerPath, section: "Rule").range(of: "Tempora none", options: .caseInsensitive) != nil
+        {
+            return []
+        }
 
         let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
