@@ -188,7 +188,7 @@ public struct SectionResolver {
         }
         let lines = ConditionalLineProcessor.resolve(lines: winner.body, context: context)
         let text = lines.joined(separator: "\n")
-        return resolveInclusionsAndMacros(in: text, depth: depth)
+        return resolveInclusionsAndMacros(in: text, depth: depth, callerPath: path)
     }
 
     /// Picks the winning `[Name] (condition)` variant: the *last* one (in file order)
@@ -217,7 +217,22 @@ public struct SectionResolver {
     /// Processes a resolved section's text line by line: a line that is itself a `@`
     /// inclusion directive (already fully qualified by `RawSectionParser`) or a `$Name`
     /// prayer macro gets replaced by its resolved text; everything else passes through.
-    private func resolveInclusionsAndMacros(in text: String, depth: Int) -> String {
+    /// `SetupString.pl:519-527`, `get_loadtime_inclusion`: in Paschaltide an `@` into
+    /// the Commons of Apostles and Martyrs (`C1`-`C3`) reads their Paschal form
+    /// (`C3` -> `C3p`, `C3a` -> `C3ap`), except from inside those Commons and for a hymn,
+    /// collect, lesson or versicle. 9 June 2038: Ss. Primus and Felician's `[Ant 2]`,
+    /// `@Commune/C3`, is "Fíliæ Ierúsalem…" at Lauds.
+    private func paschalInclusionPath(_ path: String, section: String, callerPath: String?) -> String {
+        guard context.tempore.range(of: "Pasch|Ascensionis|Pentecostes", options: .regularExpression) != nil,
+            let callerPath, callerPath.range(of: "C[123]", options: .regularExpression) == nil,
+            section.range(of: "Hymnus|Oratio|Lectio|Secreta|Postcommunio|Versum", options: [.regularExpression, .caseInsensitive]) == nil,
+            let match = path.firstMatch(of: /(C[123][abcd]*)$/)
+        else { return path }
+        let paschal = path.replacingCharacters(in: match.range, with: match.1 + "p")
+        return sectionExists(path: paschal, section: section) ? paschal : path
+    }
+
+    private func resolveInclusionsAndMacros(in text: String, depth: Int, callerPath: String? = nil) -> String {
         guard depth < Self.maxInclusionDepth else {
             return "Cannot resolve too deeply nested references"
         }
@@ -230,11 +245,12 @@ public struct SectionResolver {
             if line.first == "@", let inclusion = parseInclusion(line) {
                 // As for `$` lines below: the header may carry the I spelling.
                 var section = inclusion.section
-                if !sectionExists(path: inclusion.path, section: section) {
+                let path = paschalInclusionPath(inclusion.path, section: section, callerPath: callerPath)
+                if !sectionExists(path: path, section: section) {
                     let iSpelling = section.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
-                    if sectionExists(path: inclusion.path, section: iSpelling) { section = iSpelling }
+                    if sectionExists(path: path, section: iSpelling) { section = iSpelling }
                 }
-                var included = resolveSection(path: inclusion.path, section: section, depth: depth + 1)
+                var included = resolveSection(path: path, section: section, depth: depth + 1)
                 if let subs = inclusion.substitutions {
                     included = applySubstitutions(subs, to: included)
                 }

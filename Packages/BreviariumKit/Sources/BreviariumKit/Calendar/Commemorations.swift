@@ -357,7 +357,11 @@ public struct Commemorations {
             // date this year (`SanctoralCalendar.isTransferredAwayThisYear`'s own doc
             // comment) never becomes a commemoration candidate on its own natural date
             // at all, regardless of rank. See that doc comment for the full citation.
-            if calendar.isTransferredAwayThisYear(candidateKey: candidate, year: year) { continue }
+            if !calendar.hasOwnTransferEntry(day: day, month: month, year: year),
+                calendar.isTransferredAwayThisYear(candidateKey: candidate, year: year)
+            {
+                continue
+            }
             if isSunday, let temporalRank,
                 Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
             {

@@ -195,6 +195,13 @@ public struct SanctoralCalendar: Sendable {
     /// produce the right *winner*, only the right *commemoration* list. Extending it to
     /// occurrence itself is deferred until a real fixture is found that actually needs
     /// it, rather than guessed at.
+    /// Whether the date's candidates come from a transfer entry of its own
+    /// (`horascommon.pl:224`, `$transfer =~ /Sancti/`); DO then skips `transfered()`
+    /// for them (`04-05=03-25~04-05` in 2027 keeps St Vincent Ferrer).
+    public func hasOwnTransferEntry(day: Int, month: Int, year: Int) -> Bool {
+        transferredCandidates(targetKey: Computus.sanctoralKey(day: day, month: month, year: year), year: year) != nil
+    }
+
     public func isTransferredAwayThisYear(candidateKey: String, year: Int) -> Bool {
         guard !transferTable.isEmpty else { return false }
 
@@ -210,8 +217,11 @@ public struct SanctoralCalendar: Sendable {
         }
 
         for file in filesToCheck.compactMap({ $0 }) {
-            for value in file.values {
+            for (key, value) in file {
                 guard !value.isEmpty, !value.hasSuffix("v") else { continue }
+                // `Directorium.pm:266`, `$val !~ /^$key/`: an entry that stays on its own
+                // date moves nothing away (`e.txt`'s `08-09=08-09cc`: St Romanus in 2025).
+                if value.hasPrefix(key) { continue }
                 if value.range(of: "Tempora", options: .caseInsensitive) != nil { continue }
                 if value.range(of: candidateKey, options: .caseInsensitive) != nil { return true }
             }

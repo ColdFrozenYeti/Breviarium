@@ -1189,6 +1189,13 @@ public struct HourAssembler {
         // Mary" (`Sancti/03-25` has no `[Officium]` in either language). `resolveRank`
         // over the layered English corpus is exactly that.
         let englishTitle = englishResolver.map { eng -> String in
+            // English `Sancti/09-11`'s `[[Oratio]` typo runs its collect into `[Officium]`;
+            // DO's heading shows those lines, but not the `$Per Dominum` among them.
+            if let raw = eng.unresolvedBody(path: commemoration.path, section: "Officium"),
+                raw.filter({ !$0.trimmingCharacters(in: .whitespaces).isEmpty }).count > 1
+            {
+                return raw.filter { !$0.hasPrefix("$") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }.joined(separator: " ") + suffix
+            }
             let name = eng.resolveRank(path: commemoration.path).components(separatedBy: ";;").first?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return (name.isEmpty ? commemoration.rank.title : name) + suffix
@@ -1438,7 +1445,9 @@ public struct HourAssembler {
         guard let path = communeFallbackPath(reference) else { return nil }
         guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil, path.hasPrefix("Commune/") else { return path }
         let paschalPath = "\(path)p"
-        return resolver.sectionExists(path: paschalPath, section: "Officium") ? paschalPath : path
+        // `C3ap` is a stub (`@Commune/C3p` and its own `[Oratio]`), with no `[Officium]`.
+        return resolver.sectionExists(path: paschalPath, section: "Officium") || resolver.sectionExists(path: paschalPath, section: "Oratio")
+            ? paschalPath : path
     }
 
     // MARK: - Psalmodia
