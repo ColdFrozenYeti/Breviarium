@@ -10,6 +10,9 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "Beta 3", notes: [
+            "A new app icon: an illuminated B.",
+        ]),
         Release(name: "Beta 2", notes: [
             "The day hours: Lauds, Prime, Terce, Sext, None and Compline, alongside Vespers.",
             "The app opens on the hour for the time of day; tap the hour's name at the top to switch hours.",

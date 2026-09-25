@@ -169,6 +169,23 @@ final class BreviariumUITests: XCTestCase {
         add(notes)
     }
 
+    /// Beta 3's icon on the simulator's Home Screen: the app is installed and launched
+    /// once, then the Home button shows SpringBoard. A freshly installed app lands on the
+    /// last Home Screen page, so the capture swipes left until it shows.
+    func testHomeScreenIcon() {
+        _ = launchApp(date: "2026-09-16")
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let icon = springboard.icons["Breviarium"]
+        for _ in 0..<4 where !(icon.exists && icon.isHittable) {
+            springboard.swipeLeft()
+        }
+        let attachment = XCTAttachment(screenshot: springboard.screenshot())
+        attachment.name = "home-screen-icon"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     /// M6's own manual checklist names "previous/next day" -- confirms the nav header's
     /// chevrons actually move the displayed date, checking the footer's short date.
     func testPreviousAndNextDayNavigationChangeTheDate() {
