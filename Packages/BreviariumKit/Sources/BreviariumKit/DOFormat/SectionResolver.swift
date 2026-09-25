@@ -51,7 +51,12 @@ public struct SectionResolver {
 
     /// Resolves one section to its final text.
     public func resolve(path: String, section: String) -> String {
-        resolveSection(path: path, section: section, depth: 0)
+        // `horas.pl:117`: a line ending in `~` runs on into the next one as DO shows it
+        // (Pent13-0's `[Ant 2]`, "Cum transíret ~" / "Iesus * quoddam castéllum…",
+        // with a rubric-conditional alternative between them).
+        let text = resolveSection(path: path, section: section, depth: 0)
+        guard text.contains("~") else { return text }
+        return text.replacingOccurrences(of: #"[ \t]*~[ \t]*\n[ \t]*"#, with: " ", options: .regularExpression)
     }
 
     /// Whether `path` actually resolves `section` under the current `context` — not just

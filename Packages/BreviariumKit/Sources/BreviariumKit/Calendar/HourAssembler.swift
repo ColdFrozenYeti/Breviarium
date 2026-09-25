@@ -349,9 +349,9 @@ public struct HourAssembler {
                     hour: hour, winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
                 ))
             case "Capitulum Responsorium Versus" where hour == .prima:
-                // `$commemoratio{Rule}` (`specprima.pl:119`): the day's first commemoration.
+                // `$commemoratio{Rule}` (`specprima.pl:119`).
                 let commemoratioRule = Commemorations(corpus: corpus, context: context, calendar: calendar)
-                    .laudsCommemorations(day: day, month: month, year: year).first
+                    .primeCommemoration(day: day, month: month, year: year)
                     .map { resolver.resolve(path: $0.path, section: "Rule") } ?? ""
                 sections.append(contentsOf: assemblePrimeCapitulum(
                     winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,

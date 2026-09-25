@@ -69,7 +69,9 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|The Capitular Office|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
     try! Regex(#"Canticle of Simeon Luke\s*-?[\d:-]*"#),
     try! Regex(#"Canticle of Zachary Luke\s*-?[\d:-]*"#),
-    try! Regex(#"Canticle of [\p{L} .]+? \[\d+\] [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
+    try! Regex(#"Canticle of [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
+    // The Athanasian Creed keeps its Latin title in the English column.
+    try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?"#),
     try! Regex(#"Canticle of [\p{L} .]+? [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
 ]
 
@@ -92,7 +94,7 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
     // Lauds' Old Testament canticle titles ("Canticum Iudith [4] Iudith 16:15-22"),
     // once the verse numbers are gone.
-    try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
+    try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
 ]
 
 /// What's left of each cell once every piece we render, and the chrome, is removed:

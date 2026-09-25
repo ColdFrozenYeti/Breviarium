@@ -838,7 +838,16 @@ extension HourAssembler {
         let rule = macroContext.winningRule
         let dayOfWeek = macroContext.dayOfWeek
         let weekName = macroContext.weekName
-        let communeRule = communeRule(winner: winner, resolver: resolver, weekName: weekName)
+        // `psalmi.pl:474`'s `$commune{Rule}`: the commune's own rule, `vide` as well as
+        // `ex` (DO loads `%commune` for both, `horascommon.pl:1745`; only `$communerule`
+        // is `ex`-only). 26 June, "vide C3": Sunday psalms at Lauds.
+        let communeRule: String = {
+            let reference = winner.winningRank.communeReference
+            guard !reference.isEmpty, let path = Self.paschalCommuneFallbackPath(reference, weekName: weekName, resolver: resolver),
+                resolver.sectionExists(path: path, section: "Rule")
+            else { return "" }
+            return resolver.resolve(path: path, section: "Rule")
+        }()
         let communeIsEx = winner.winningRank.communeReference.lowercased().hasPrefix("ex")
         func lines(_ path: String, _ section: String, _ resolver: SectionResolver) -> [String] {
             resolver.resolve(path: path, section: section).split(separator: "\n").map(String.init)
