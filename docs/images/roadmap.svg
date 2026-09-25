@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="784" viewBox="0 0 880 784" role="img" aria-labelledby="t d">
+<title id="t">Breviarium roadmap</title>
+<desc id="d">Alpha, Beta 1 and Beta 2 are released. Next: Beta 3, Matins and the new icon. Then Beta 4, the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5, the Dominican rite; Beta 6, the Ambrosian rite, which needs a source; Beta 7, the Ambrosian Little Office; then 1.0. The Monastic office is possible after 1.0.</desc>
+<rect width="880" height="784" rx="18" fill="#000000"/>
+<text x="40" y="52" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#FFFFFF" letter-spacing="1.5">ROADMAP</text>
+<text x="840" y="52" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-style="italic" fill="#FF8080">Alpha to 1.0</text>
+<line x1="40" y1="68" x2="123" y2="68" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="64" y1="118" x2="64" y2="316" stroke="#FF4D33" stroke-width="2"/>
+<line x1="64" y1="316" x2="64" y2="646" stroke="#5C5C5C" stroke-width="2" stroke-dasharray="4 5"/>
+<line x1="64" y1="646" x2="64" y2="712" stroke="#5C5C5C" stroke-width="1.5" stroke-dasharray="1 5" stroke-linecap="round"/>
+<circle cx="64" cy="118" r="11" fill="#FF4D33"/>
+<path d="M59 118 l3.5 3.8 l6.5 -7.6" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="96" y="120" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">Alpha</text>
+<text x="840" y="119" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">RELEASED</text>
+<text x="96" y="143" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Roman Vespers under the 1960 rubrics, computed for any date</text>
+<circle cx="64" cy="184" r="11" fill="#FF4D33"/>
+<path d="M59 184 l3.5 3.8 l6.5 -7.6" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="96" y="186" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">Beta 1</text>
+<text x="840" y="185" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">RELEASED</text>
+<text x="96" y="209" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">The Vulgate psalter by default, and the parallel English</text>
+<circle cx="64" cy="250" r="11" fill="#FF4D33"/>
+<path d="M59 250 l3.5 3.8 l6.5 -7.6" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="96" y="252" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">Beta 2</text>
+<text x="840" y="251" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">RELEASED</text>
+<text x="96" y="275" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">The day hours, Lauds to Compline, and the hour picker</text>
+<circle cx="64" cy="316" r="11" fill="#000000" stroke="#FF4D33" stroke-width="2.5"/>
+<circle cx="64" cy="316" r="4.5" fill="#FF4D33"/>
+<text x="96" y="318" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 3</text>
+<text x="840" y="317" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FF4D33">NEXT</text>
+<text x="96" y="341" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Matins · the new app icon · the title block’s commemoration line</text>
+<circle cx="64" cy="382" r="10" fill="#000000" stroke="#B2B2B2" stroke-width="2"/>
+<text x="96" y="384" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 4</text>
+<text x="840" y="383" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">PLANNED</text>
+<text x="96" y="407" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Little Office of Our Lady (Roman) · Office of the Dead · the Martyrology</text>
+<circle cx="64" cy="448" r="10" fill="#000000" stroke="#B2B2B2" stroke-width="2"/>
+<text x="96" y="450" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 5</text>
+<text x="840" y="449" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">PLANNED</text>
+<text x="96" y="473" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">The Dominican rite (Ordo Prædicatorum, 1962)</text>
+<circle cx="64" cy="514" r="10" fill="#000000" stroke="#FF8080" stroke-width="2" stroke-dasharray="3 3"/>
+<text x="96" y="516" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 6</text>
+<text x="840" y="515" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FF8080">NEEDS A SOURCE</text>
+<text x="96" y="539" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">The Ambrosian rite, from a text source still to be chosen</text>
+<circle cx="64" cy="580" r="10" fill="#000000" stroke="#B2B2B2" stroke-width="2"/>
+<text x="96" y="582" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 7</text>
+<text x="840" y="581" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">PLANNED</text>
+<text x="96" y="605" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Little Office of Our Lady (Ambrosian)</text>
+<rect x="54" y="636" width="20" height="20" transform="rotate(45 64 646)" fill="#000000" stroke="#FFFFFF" stroke-width="2"/>
+<text x="96" y="648" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">1.0</text>
+<text x="840" y="647" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FFFFFF">GOAL</text>
+<text x="96" y="671" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Phone checks, landscape and the largest text size, then a freeze</text>
+<circle cx="64" cy="712" r="7" fill="#000000" stroke="#5C5C5C" stroke-width="1.5" stroke-dasharray="2 3"/>
+<text x="96" y="714" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">After 1.0</text>
+<text x="840" y="713" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">POSSIBLE</text>
+<text x="96" y="737" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2" font-style="italic">The Monastic office (1963), and votive offices</text>
+</svg>

@@ -48,12 +48,16 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Liturgical scope
 
 - **Roman office:** Breviarium Romanum under the 1960 rubrics (1962 typical edition), using the Universal Calendar only (no national, diocesan, or order propers), with the **Vulgate psalter by default** and the Pius XII (Bea) psalter as an option (decided 2026-09-24).
-- **Ambrosian office (pre-conciliar):** selectable in settings in a later milestone.
-  - Divinum Officium does **not** contain the Ambrosian office; the user will supply sources and details later.
+- **Dominican office:** Divinum Officium's *Ordo Prædicatorum - 1962*, in Beta 5 (decided 2026-09-25).
+  - Checked against DO like the Roman office.
+  - English: DO's Dominican English where it exists; where it doesn't (DO has none for the Dominican saints), the Roman English for texts that match the Roman ones; otherwise Latin only.
+- **Ambrosian office (pre-conciliar):** Beta 6, and its Little Office of Our Lady in Beta 7.
+  - Divinum Officium does **not** contain the Ambrosian office. The source is still to be chosen, and will probably be an online text source. It is bundled at build time, so the app stays offline, and its licence must allow that.
   - The engine must let a second rite plug in without rewriting the Roman one.
-- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 adds the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`). Matins comes in Beta 4.
+- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`). Matins comes in Beta 3. The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
 - **The hour picker** lists only the office's own hours (*Ad Laudes* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24).
-- **Later additions:** the Martyrology (a separate "hour" in the picker, decided 2026-09-24), votive offices where the rubrics permit, and possibly the Little Office of Our Lady and the Office of the Dead.
+- **Beta 4 (decided 2026-09-25):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24).
+- **Later:** votive offices where the rubrics permit, and possibly the Monastic office, after 1.0.
 
 ## Settings (Universalis-style toggles)
 
@@ -178,7 +182,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 - **`Breviarium` app target**
   - SwiftUI views only, with no liturgical logic. Every rubrical decision lives in the Kit.
 - **Rite abstraction**
-  - Roman-1960 and Ambrosian are separate providers behind one interface covering calendar, precedence, and hour assembly.
+  - Roman-1960, Dominican and Ambrosian are separate providers behind one interface covering calendar, precedence, and hour assembly. The Dominican rite (Beta 5) is the first to use it, since it can be checked against DO.
 - **Vespers date semantics**
   - Selecting a date and opening Vespers gives what is prayed on that evening, including first Vespers of the next day where the 1960 rubrics require it.
   - Match Divinum Officium's behaviour, including the title block it shows in those cases.

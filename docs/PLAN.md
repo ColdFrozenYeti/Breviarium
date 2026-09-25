@@ -3847,3 +3847,21 @@ Vespers.
 - The IPA: Build IPA passed on the branch (run 36090291752); `scripts/get-ipa.ps1` fetches
   it.
 - [`beta-2-retrospective.md`](beta-2-retrospective.md).
+
+## Roadmap to 1.0 (2026-09-25)
+
+After Beta 2's release the order of the remaining betas changed. The old order, above
+and in `Beta_1_plan.md`, had the Ambrosian and Dominican rites in Beta 3 and Matins in
+Beta 4. The new order:
+- **Beta 3:** Matins, the new icon, and the title block's commemoration line.
+- **Beta 4:** the Little Office of Our Lady, the Office of the Dead, and the Martyrology.
+- **Beta 5:** the Dominican rite.
+- **Beta 6:** the Ambrosian rite.
+- **Beta 7:** the Ambrosian Little Office.
+- **Then 1.0.**
+
+The reasons and the decisions behind them are in [`roadmap.md`](roadmap.md), and the
+icon specs are in [`icon-spec.md`](icon-spec.md). Divinum Officium, at the pinned commit,
+turned out to contain the Dominican office (*Ordo Prædicatorum - 1962*), with English for
+its seasonal texts but not its saints, and the Little Office of Our Lady (Commune C12),
+with its English. It does not contain the Ambrosian office.
