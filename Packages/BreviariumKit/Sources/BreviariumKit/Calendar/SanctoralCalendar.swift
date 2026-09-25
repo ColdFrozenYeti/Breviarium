@@ -55,6 +55,10 @@ public struct SanctoralCalendar: Sendable {
     /// for why a `Tempora/`-referencing or `"X-X"` piece isn't handled by this method.
     private func transferredCandidates(targetKey: String, year: Int) -> [String]? {
         guard let source = transferSource(targetKey: targetKey, year: year) else { return nil }
+        // `X-X`/`X/X` name no file: the day's own office is suppressed that year, DO
+        // finding no Sancti office at all (`Transfer/417.txt`'s `06-23=X/X;;1960`: the
+        // Baptist's vigil gives way when the Sacred Heart takes 24 June, as in 2033).
+        if source == "X-X" || source == "X/X" { return [] }
         let pieces = source.split(separator: "~").map(String.init).filter { !$0.isEmpty }
         guard !pieces.isEmpty, pieces.allSatisfy(Self.isSanctiStyleTransferSource) else { return nil }
         return pieces
@@ -191,6 +195,13 @@ public struct SanctoralCalendar: Sendable {
     /// produce the right *winner*, only the right *commemoration* list. Extending it to
     /// occurrence itself is deferred until a real fixture is found that actually needs
     /// it, rather than guessed at.
+    /// Whether the date's candidates come from a transfer entry of its own
+    /// (`horascommon.pl:224`, `$transfer =~ /Sancti/`); DO then skips `transfered()`
+    /// for them (`04-05=03-25~04-05` in 2027 keeps St Vincent Ferrer).
+    public func hasOwnTransferEntry(day: Int, month: Int, year: Int) -> Bool {
+        transferredCandidates(targetKey: Computus.sanctoralKey(day: day, month: month, year: year), year: year) != nil
+    }
+
     public func isTransferredAwayThisYear(candidateKey: String, year: Int) -> Bool {
         guard !transferTable.isEmpty else { return false }
 
@@ -206,8 +217,11 @@ public struct SanctoralCalendar: Sendable {
         }
 
         for file in filesToCheck.compactMap({ $0 }) {
-            for value in file.values {
+            for (key, value) in file {
                 guard !value.isEmpty, !value.hasSuffix("v") else { continue }
+                // `Directorium.pm:266`, `$val !~ /^$key/`: an entry that stays on its own
+                // date moves nothing away (`e.txt`'s `08-09=08-09cc`: St Romanus in 2025).
+                if value.hasPrefix(key) { continue }
                 if value.range(of: "Tempora", options: .caseInsensitive) != nil { continue }
                 if value.range(of: candidateKey, options: .caseInsensitive) != nil { return true }
             }

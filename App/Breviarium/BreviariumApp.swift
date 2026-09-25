@@ -1,3 +1,4 @@
+import BreviariumKit
 import SwiftUI
 
 @main
@@ -9,7 +10,10 @@ struct BreviariumApp: App {
             // capture a specific section's page deterministically.
             ContentView(
                 dateSource: Self.launchDateSource,
-                initialSection: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_SECTION"]
+                initialSection: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_SECTION"],
+                // `BREVIARIUM_SNAPSHOT_HOUR` (DO's name, e.g. `Vespera`, `Laudes`) pins the
+                // hour, which otherwise follows the time of day.
+                initialHour: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_HOUR"].flatMap(CanonicalHour.init(rawValue:))
             )
         }
     }

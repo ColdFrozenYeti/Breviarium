@@ -94,6 +94,22 @@ actor OracleFixture {
         return bilingualHoldoutYearCache[year]?["\(year)/\(date)_priest\(priest ? "Y" : "N")_bilingual.tsv"].map(Self.rows)
     }
 
+    /// One year of a Beta 2 day-hour set (`hours/<Hour>/<year>.tar.gz`, or `hours-bea/…`),
+    /// read whole and not cached: a sweep holds one year at a time. `nil` if the archive
+    /// isn't there.
+    func hourYear(set: String = "hours", hour: CanonicalHour, year: Int) throws -> [String: String]? {
+        let archive = Self.repoRoot.appendingPathComponent("data/oracle-fixtures/\(set)/\(hour.doName)/\(year).tar.gz")
+        guard FileManager.default.fileExists(atPath: archive.path) else { return nil }
+        return try Self.extractAndRead(archive: archive)
+    }
+
+    /// A day hour's 2044 hold-out (`holdout/2044-<Hour>.tar.gz`), priest off and on.
+    func hourHoldout(hour: CanonicalHour, year: Int) throws -> [String: String]? {
+        let archive = Self.repoRoot.appendingPathComponent("data/oracle-fixtures/holdout/\(year)-\(hour.doName).tar.gz")
+        guard FileManager.default.fileExists(atPath: archive.path) else { return nil }
+        return try Self.extractAndRead(archive: archive)
+    }
+
     static func rows(_ text: String) -> [BilingualRow] {
         text.split(separator: "\n").map { row in
             let cells = row.split(separator: "\t", maxSplits: 1, omittingEmptySubsequences: false)
@@ -165,4 +181,18 @@ actor OracleFixture {
 struct BilingualRow: Equatable, Sendable {
     var latin: String
     var english: String
+}
+
+/// A chapter as one string, "reference text", as the tests read it before the reference
+/// moved above the text (its own `.psalmTitle` unit) and *Deo grátias* became a response.
+func capitulumReading(_ section: BreviariumKit.Section) -> String {
+    var parts: [String] = []
+    for unit in section.units {
+        switch unit {
+        case .psalmTitle(let reference, _): parts.append(reference)
+        case .prose(let text, _): parts.append(text)
+        default: continue
+        }
+    }
+    return parts.joined(separator: " ")
 }

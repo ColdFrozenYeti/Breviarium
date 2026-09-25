@@ -37,7 +37,10 @@ public enum Unit: Equatable, Sendable {
     /// A psalm/canticle's own title within Psalmodia, e.g. `"Psalmus 132 [1]"` -- the
     /// psalm number and its 1-based position among the hour's five psalms. Direct
     /// feedback, comparing a real rendering against real DO output.
-    case psalmTitle(String)
+    ///
+    /// Also a chapter's or short lesson's Scripture reference (`"1 Pet 1:17-19"`), set
+    /// above its text like a psalm's number; only these carry an English form.
+    case psalmTitle(String, english: String? = nil)
     /// A psalm's English as one block, paired with the psalm's Latin as a whole rather
     /// than verse by verse: with the Pius XII psalter, whose verse division doesn't match
     /// the English (Vulgate-numbered) one, as Divinum Officium does (`CLAUDE.md`,
@@ -53,6 +56,13 @@ public enum Unit: Equatable, Sendable {
 public struct Section: Equatable, Sendable {
     public enum Kind: String, Equatable, Sendable, CaseIterable {
         case introductio, psalmodia, capitulum, hymnus, versus, canticum, precesFeriales, oratio, conclusio
+        // Beta 2: Compline's short lesson and the final Marian antiphon; Prime's Martyrology slot
+        // stays empty (a separate "hour" in a later beta).
+        case lectioBrevis, antiphonaFinalis
+        // Prime's *Pretiosa* and "De Officio Capituli".
+        case officiumCapituli
+        // The Greater Litanies after Lauds on St Mark's day.
+        case litaniae
     }
 
     public var kind: Kind
@@ -115,7 +125,8 @@ enum DOMarkers {
     /// whitespace), if the line starts with one — used when building `Unit`s directly
     /// from resolved text rather than from a macro that already returns clean text.
     static func stripLineLabel(_ line: String) -> String {
-        for label in ["V.", "R.", "v.", "r.", "Ant."] {
+        // "R.br." first: the short responsory's opening label goes whole, not as "br.".
+        for label in ["R.br.", "V.", "R.", "v.", "r.", "Ant."] {
             if line.hasPrefix(label) {
                 return String(line.dropFirst(label.count)).trimmingCharacters(in: .whitespaces)
             }

@@ -51,19 +51,21 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Ambrosian office (pre-conciliar):** selectable in settings in a later milestone.
   - Divinum Officium does **not** contain the Ambrosian office; the user will supply sources and details later.
   - The engine must let a second rite plug in without rewriting the Roman one.
-- **Hours:** all eight eventually, Matutinum to Completorium. The alpha is **Roman Vespers only**.
-- **Later additions:** Martyrology at Prime (on/off setting), votive offices where the rubrics permit, and possibly the Little Office of Our Lady and the Office of the Dead.
+- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 adds the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`). Matins comes in Beta 4.
+- **The hour picker** lists only the office's own hours (*Ad Laudes* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24).
+- **Later additions:** the Martyrology (a separate "hour" in the picker, decided 2026-09-24), votive offices where the rubrics permit, and possibly the Little Office of Our Lady and the Office of the Dead.
 
 ## Settings (Universalis-style toggles)
 
-- **Ritus:** Romanus / Ambrosianus. Ambrosianus stays disabled until it is implemented.
+- **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
 - **Text size.**
 - **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
-- **Later:** Martyrologium ad Primam, and a votive office picker.
+- **Release notes** and **About**: plain screens opened from Settings; release notes list what each release added, newest first (added 2026-09-25).
+- **Later:** the Martyrology, as a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24), and a votive office picker.
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 
 ## Texts and orthography

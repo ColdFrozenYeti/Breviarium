@@ -60,7 +60,13 @@ public enum Psalm {
         lines.compactMap { line in
             guard let spaceIndex = line.firstIndex(of: " "), spaceIndex > line.startIndex else { return nil }
             let rawReference = String(line[line.startIndex..<spaceIndex])
-            guard rawReference.first?.isNumber == true else { return nil }    // Skips the odd leading "(...)" title line.
+            guard rawReference.first?.isNumber == true else {
+                // The Athanasian Creed (`Psalm234.txt`) has no verse numbers: each line is
+                // a verse all the same. The leading "(...)" title line is skipped.
+                guard line.first?.isLetter == true else { return nil }
+                let (first, second) = splitHalves(displayMarks(line))
+                return PsalmVerse(reference: "", firstHalf: first, secondHalf: second)
+            }
 
             let text = displayMarks(String(line[line.index(after: spaceIndex)...]).replacing(subVerseAnnotation, with: ""))
             let (first, second) = splitHalves(text)

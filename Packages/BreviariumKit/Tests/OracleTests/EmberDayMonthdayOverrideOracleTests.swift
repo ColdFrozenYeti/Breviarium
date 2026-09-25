@@ -34,9 +34,7 @@ import Testing
     let assembler = HourAssembler(corpus: corpus, context: context, calendar: calendar)
     let hour = try #require(assembler.assembleVespers(day: 23, month: 9, year: 2026, priest: false))
     let capitulum = try #require(hour.sections.first { $0.kind == .capitulum })
-    let capitulumText = capitulum.units.compactMap { unit -> String? in
-        if case .prose(let t, _) = unit { return t } else { return nil }
-    }
+    let capitulumText = [capitulumReading(capitulum)]
     #expect(capitulumText.contains { $0.contains("2 Cor 1:3-4") && $0.contains("Benedíctus Deus") })
 
     let hymnus = try #require(hour.sections.first { $0.kind == .hymnus })

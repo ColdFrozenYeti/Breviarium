@@ -7,23 +7,26 @@ option), and an optional parallel English translation. The app computes the offi
 itself for any date. It is fully offline, night mode only, and for private
 use. It is installed by sideloading with a free Apple ID.
 
-## Status: Beta 1
+## Status: Beta 2
 
-Beta 1 is **Roman Vespers**, in Latin with an optional English translation, in either
-psalter.
+Beta 2 is the **Roman diurnal**: Lauds, Prime, Terce, Sext, None, Vespers and Compline,
+in Latin with an optional English translation, in either psalter.
 
-- **The office is right.** For every evening from 2025 to 2040, the engine's Vespers is
-  checked against [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium)'s
-  own output, in both psalters, and every section matches:
-  - psalms, chapter, hymn, versicle, Magnificat, collect and conclusion, and every
-    commemoration, including those DO shows that the engine might have left out;
-  - each psalm's title and verse list;
+- **The office is right.** For every day from 2025 to 2040, each hour is checked against
+  [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium)'s own output:
+  - everything the engine shows is on DO's page, and nothing on DO's page is missing, in
+    Latin and in English, with each Latin-English pair in the same row;
+  - each psalm's title and verse list, in both psalters;
   - the day title, including evenings that already belong to the next day's office;
-  - the English, column by column against DO's bilingual page.
+  - Vespers' commemorations, and at Lauds those said at Lauds only.
 
   All of 2044 is checked too, with the priest form on and off, as an out-of-sample year
-  the engine was never tuned against.
-- **The app** shows Vespers for any date:
+  the engine was never tuned against. So are `CLAUDE.md`'s named edge cases, hour by
+  hour: the Triduum's own forms, All Souls, Our Lady on Saturday, the Greater Litanies
+  on St Mark, transferred feasts and the rest.
+- **The app** opens on the hour for the time of day (Lauds until 09:00, Terce until 12:00,
+  Sext until 15:00, None until 17:00, Vespers until 20:00, then Compline). Tapping the
+  hour's name at the top opens the list of hours. Every hour reads the same way:
   - The office reads like a book: pages turn sideways (a slide or a page curl) and the
     text flows line by line from one page to the next. A continuous vertical scroll is
     available instead.
@@ -40,17 +43,19 @@ psalter.
   - Text size
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
-  - About, with the Divinum Officium licence
+  - *Ritus*: Romanus, with Ambrosianus and Dominicanus listed as coming soon
+  - Release notes, and About with the Divinum Officium licence
 - **Next, the later betas:**
-  1. all the day hours;
-  2. the Ambrosian and Dominican rites;
-  3. Matins.
+  1. Matins, and the Martyrology as an hour of its own;
+  2. the Ambrosian and Dominican rites.
 
 The build log, with every decision and every bug traced to the Divinum Officium source
 it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong,
-and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md)
-and [`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md). Beta 1's plan is
-[`docs/Beta_1_plan.md`](docs/Beta_1_plan.md).
+and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md),
+[`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md) and
+[`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md). Beta 2's plan is
+[`docs/Beta_2_plan.md`](docs/Beta_2_plan.md), and how each day hour is put together is in
+[`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md).
 
 ## Installing on the iPhone
 
@@ -58,9 +63,15 @@ There is no Mac and no paid developer account. CI builds an **unsigned** `.ipa`,
 sideloading tool on Windows signs it with a free Apple ID. The signature lasts 7 days
 and is renewed weekly.
 
-1. On GitHub, run the **Build IPA** workflow (Actions → Build IPA → Run workflow).
-2. On Windows, fetch it with `.\scripts\get-ipa.ps1` (needs the GitHub CLI).
-3. Sign and install it with AltStore/AltServer.
+1. Get the `.ipa`:
+   - **a release:** download it from the repository's
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 2 is
+     `Breviarium-Beta-2.ipa`);
+   - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
+     workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
+     CLI). Given a release tag and a notes file, the same workflow publishes the build as
+     a pre-release.
+2. Sign and install it with AltStore/AltServer.
 
 [`docs/install-on-iphone.md`](docs/install-on-iphone.md) covers the one-time setup, the
 weekly re-sign routine, and a short checklist to run on the phone after each install.
@@ -72,8 +83,8 @@ weekly re-sign routine, and a short checklist to run on the phone after each ins
 | `Packages/BreviariumKit/` | The engine: calendar, occurrence and concurrence, commemorations, hour assembly, text model. Pure Swift and Foundation, so it builds on Linux and Windows. Also contains `BreviariumData`, the build-time tool that turns the Divinum Officium texts into the app's bundled data file. |
 | `App/` | The SwiftUI app (XcodeGen `project.yml`) and its UI snapshot tests. Built only on CI. |
 | `data/divinum-officium/` | Divinum Officium, as a git submodule pinned to one commit (see `data/SOURCE.md`). |
-| `data/oracle-fixtures/` | Divinum Officium's own rendered Vespers, used as the tests' reference: every day 2025–2040 in each psalter and in Latin with English, a spot-check set with the other option combinations, and the 2044 hold-out year. |
-| `docs/` | The plan and build log, the 1960 Vespers rubrics reference, the Divinum Officium file format, and setup and install guides. |
+| `data/oracle-fixtures/` | Divinum Officium's own rendered hours, used as the tests' reference: every day 2025–2040 for each hour, in each psalter and in Latin with English, a spot-check set with the other option combinations, and the 2044 hold-out year. |
+| `docs/` | The plan and build log, the 1960 Vespers and day-hours rubrics references, the Divinum Officium file format, and setup and install guides. |
 | `design/reference/` | Universalis night-mode screenshots, the visual reference. |
 | `scripts/` | Test runners, fixture generators, and the Windows `.ipa` fetcher. |
 
@@ -90,8 +101,10 @@ git clone --recurse-submodules https://github.com/ColdFrozenYeti/Breviarium.git
 ```
 cd Packages/BreviariumKit
 swift build
-swift test --skip vespersFullRange       # the fast suite, as Kit CI runs it
-swift test --filter vespersFullRange     # the full-range oracle audits, as "Oracle audits" runs them (~20 min)
+swift test --skip "vespersFullRange|dayHoursFullRange"   # the fast suite, as Kit CI runs it
+swift test --filter vespersFullRange     # Vespers' full-range oracle audits (~30 min)
+swift test --filter dayHoursFullRange    # the day hours' full-range audits (a few hours on one core)
+BREVIARIUM_AUDIT_HOURS=Laudes swift test --filter dayHoursFullRange   # one hour only
 BREVIARIUM_AUDIT_STRIDE=7 swift test --filter vespersFullRangeEnglishAudit   # a quick 1-in-7 sample
 ```
 

@@ -3745,3 +3745,105 @@ rotated, and the longer Settings form needs scrolling.
   row. It is now the first row (`ParallelLayout.firstRow(onPage:)`);
 - at XXL the hyphenator finds no break in "sæculórum", which still splits "sæculóru /
   m." in the narrow column.
+
+## Beta 2 (plan: [`Beta_2_plan.md`](Beta_2_plan.md))
+
+Beta 2 adds the six day hours to Vespers: Lauds, Prime, Terce, Sext, None and Compline.
+The decisions (launch hour by time of day, the Martyrology as a later "hour" of its own,
+Compline on its own evening, Pius XII fixtures for every hour, no swipe between hours)
+are recorded in the plan. The structure of each hour and the DO Perl each part ports are
+in [`rubrics-1960-day-hours.md`](rubrics-1960-day-hours.md) (B2-M1).
+
+### B2-M2 — Fixtures
+
+`generate-fixture-set.sh` gained the hour as a fourth field (`command=pray<Hour>`), with
+three new sets: `hours/<Hour>/` (Vulgate Latin + English, rows), `hours-bea/<Hour>/`
+(Pius XII Latin, flat) and `holdout/2044-<Hour>` (priest off and on). 5,844 renders per
+range set, 732 per hold-out, none empty; about 168 MB in all (sizes per hour in
+`data/SOURCE.md`), over the plan's 80-110 MB estimate because Lauds and Prime are long.
+
+### B2-M3 and B2-M4 — The day hours in the engine
+
+`HourAssembler.assemble(_ hour:day:month:year:priest:)` walks `Ordinarium/<hour>` (Terce,
+Sext and None share `Minor`) for every hour; `assembleVespers` is now one case of it.
+Vespers and Compline follow concurrence, the other hours occurrence. The day-hour parts
+live in `Calendar/DayHours.swift`.
+
+**Audits** (`Tests/OracleTests`):
+- `dayHoursFullRangeAudit(hour:)`: every date 2025-2040 against DO's bilingual page,
+  content and coverage in both languages, Latin-English pairing, and the day title;
+- `dayHoursFullRangeBeaAudit(hour:)`: the same range with the Pius XII psalter, content
+  and each psalm's title and verse list;
+- `dayHoursFullRangeHoldout2044(hour:)`: 2044, priest off and on;
+- `dayHourNamedEdgeCase`: 35 named cases from `CLAUDE.md`, one line each;
+- `debugOneDayHour`: one hour, one date, with its one-page audit
+  (`BREVIARIUM_DEBUG_HOUR`, `BREVIARIUM_DEBUG_DATE`, optional `BREVIARIUM_DEBUG_TSV`).
+
+The full-range audits run in the Oracle audits workflow, in a job of their own
+(`dayHoursFullRange`); Kit CI skips them. `BREVIARIUM_AUDIT_HOURS=Prima,Laudes` limits a
+run to some hours.
+
+**What the audits found**, each fixed by porting the Perl it cites (the commit messages
+have the dates):
+- *Calendar and occurrence:* Our Lady on Saturday (`horascommon.pl:423-442`); All Souls on
+  a Saturday gives way only at Vespers and Compline; `X-X`/`X/X` transfer entries suppress
+  the day's saint (the Baptist's vigil in 2033); `transfered()` ignores an entry that
+  stays on its own date and isn't consulted for a date with its own entry (St Romanus
+  2025; St Vincent Ferrer under the transferred Annunciation, 2027); `$communerule` only
+  for an `ex` commune, but `$commune{Rule}` for `vide` too (Lauds psalms on 26 June).
+- *Text display (`webdia.pl`, `horas.pl`):* `_`, `{:…:}`, `/:…:/`, `+++`, a trailing `~`
+  that merges lines (dropping the next line's `r.`), bracketed `(Allelúia.)`
+  (`process_inline_alleluias`), `suppress_alleluia` on psalm verses from Septuagesima,
+  the editor's grave accents, J/I-insensitive `$` and `@` lookups, the Paschal commons for
+  `@` includes (`SetupString.pl:519-527`).
+- *Hours:* All Souls' own hours (`&special()` with its column language, `&psalm(n,v1,v2)`,
+  `#` headings); the Athanasian Creed's unnumbered verses; the psalter hymn key
+  `Day<weekday>` (`gettempora('Hymnus major')`); Prime's responsory doxology from the
+  winner or a commemoration with `climit1960 == 1`; the Greater Litanies after Lauds on St
+  Mark; `Sub unica concl` only at the major hours.
+- *Commemorations at Lauds:* `climit1960` (including "ad Laudes tantum"); the temporal
+  office only from rank 1.5 or 2.1; no saint under a I. classis temporal office; no
+  non-privileged feria; `Tempora none`; the winner's own `[Commemoratio 2]`, last;
+  `[Adv Ant 21L]`/`[Adv Ant 23L]`; only the last commemoration keeps its conclusion
+  (`delconclusio`, which applies at Vespers too).
+
+**Results** (2026-09-25, head `73b41d9`, on Linux with the open-source toolchain):
+- `dayHoursFullRangeAudit`: 0 differences for all six hours over 2025-2040 (Lauds and
+  Prime 50 min, the other four 48 min, on one core each);
+- `dayHoursFullRangeBeaAudit`: 0 for all six hours (28 min);
+- `dayHoursFullRangeHoldout2044`: 0 for all six hours, priest off and on (10 min);
+- `vespersFullRange*`: all five still at 0;
+- the fast suite: 348 tests pass, including the 35 named day-hour cases (4 min).
+
+**Not done: the title block's commemoration line** (*Commemoratio ad Laudes tantum: …*),
+planned here as a Beta 1 carry-over. DO builds it in `occurrence()` (`$officename[2]`,
+`horascommon.pl:538-830`) over many branches ("Tempora:", "Scriptura ut in:",
+"Transfer:", and the Vespers forms), and it needs its own audit against every fixture's
+header row. It moves to the next beta; the app already shows the line when the engine
+supplies one.
+
+### B2-M5 — The hours in the app
+
+- `OfficeDataStore.content(for:day:month:year:priest:psalter:english:)` assembles any hour;
+  `vespersContent` wraps it.
+- The app opens on the hour for the time of day (`ContentView.hourForTimeOfDay`).
+- The navigation title is a button that opens `HourPickerView`: the seven hours, with
+  separator rules and a red check mark on the current one. The chosen hour stays when the
+  date changes.
+- Section headings for the new sections: LECTIO BREVIS, ANTIPHONA FINALIS, DE OFFICIO
+  CAPITULI, LITANIÆ.
+- UI tests: `launchApp(hour:)` pins the hour (`BREVIARIUM_SNAPSHOT_HOUR`);
+  `testHourPickerSwitchesTheHour`; `testDayHoursSnapshots` captures pages 1 and 2 of every
+  day hour for a ferial day and a feast, Lauds on 16 September 2026 and Compline on Holy
+  Saturday.
+
+App CI passed on the branch (workflow_dispatch, run 36090289516), with every UI test
+green. The snapshots show the picker and each hour's pages in the same typography as
+Vespers.
+
+### B2-M6 — Release
+
+- `docs/install-on-iphone.md`: the hours and the picker are item 9 of the on-device check.
+- The IPA: Build IPA passed on the branch (run 36090291752); `scripts/get-ipa.ps1` fetches
+  it.
+- [`beta-2-retrospective.md`](beta-2-retrospective.md).

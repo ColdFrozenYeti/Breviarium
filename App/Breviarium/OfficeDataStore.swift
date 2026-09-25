@@ -87,28 +87,24 @@ final class OfficeDataStore {
         }
     }
 
-    /// Roman Vespers for `date`, in the given calendar's own day/month/year (defaults to
-    /// the device's local Gregorian calendar, since "what day is it" for a real user
-    /// means their own local day boundary, not UTC's). `nil` when the bundled data
-    /// failed to load/decode, or the date can't be resolved to an office at all.
-    func vespersContent(
-        on date: Date, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false, calendar: Calendar = Calendar(identifier: .gregorian)
-    ) -> VespersContent? {
-        let components = calendar.dateComponents([.day, .month, .year], from: date)
-        guard let day = components.day, let month = components.month, let year = components.year else { return nil }
-        return vespersContent(day: day, month: month, year: year, priest: priest, psalter: psalter, english: english)
+    /// Same as `content(for:day:month:year:…)`, for Vespers (kept for existing callers).
+    func vespersContent(day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false) -> VespersContent? {
+        content(for: .vesperae, day: day, month: month, year: year, priest: priest, psalter: psalter, english: english)
     }
 
-    /// Same as `vespersContent(on:priest:calendar:)`, but by explicit day/month/year --
-    /// used for deterministic snapshot testing (`BreviariumApp`'s `BREVIARIUM_SNAPSHOT_DATE`),
-    /// where round-tripping a fixed date through a `Date`/`Calendar` conversion would
-    /// otherwise risk landing on the wrong day depending on the device's timezone.
-    func vespersContent(day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false) -> VespersContent? {
+    /// One hour of the office for an explicit day/month/year (Beta 2: any day hour).
+    /// Explicit integers rather than a `Date`, so a fixed snapshot date can't land on the
+    /// wrong day through a timezone (`BreviariumApp`'s `BREVIARIUM_SNAPSHOT_DATE`). `nil`
+    /// when the bundled data failed to load, or the date can't be resolved to an office.
+    func content(
+        for canonicalHour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false
+    ) -> VespersContent? {
         guard let latinCorpus = latinCorpora[psalter] ?? latinCorpus, let englishCorpus, let sanctoralCalendar else { return nil }
 
+        // DO evaluates `(sed ad …)` conditionals against the hour (`$hora`).
         let context = ConditionalContextBuilder.build(
             day: day, month: month, year: year,
-            ad: "vesperas", rubrica: rubrica,
+            ad: canonicalHour.doName, rubrica: rubrica,
             corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
         )
         // English is assembled only when it's shown: the English lookups roughly double
@@ -116,14 +112,14 @@ final class OfficeDataStore {
         let assembler = HourAssembler(
             corpus: latinCorpus, context: context, calendar: sanctoralCalendar, englishCorpus: english ? englishCorpus : nil
         )
-        guard let hour = assembler.assembleVespers(day: day, month: month, year: year, priest: priest) else {
-            loadDiagnostic = "assembleVespers returned nil for \(year)-\(month)-\(day)"
+        guard let hour = assembler.assemble(canonicalHour, day: day, month: month, year: year, priest: priest) else {
+            loadDiagnostic = "assemble(\(canonicalHour)) returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 
         let calendarEngine = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-        guard let liturgicalDay = calendarEngine.vespersDay(day: day, month: month, year: year) else {
-            loadDiagnostic = "LiturgicalCalendarEngine.vespersDay returned nil for \(year)-\(month)-\(day)"
+        guard let liturgicalDay = calendarEngine.day(for: canonicalHour, day: day, month: month, year: year) else {
+            loadDiagnostic = "LiturgicalCalendarEngine.day(for:) returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 
@@ -132,7 +128,7 @@ final class OfficeDataStore {
         return VespersContent(
             hour: hour,
             day: liturgicalDay,
-            hourTitle: "Ad Vesperas",
+            hourTitle: canonicalHour.title,
             dateLine: LatinDateLine.format(day: day, month: month, year: year),
             shortDate: Self.shortDateFormatter.string(from: displayDate)
         )

@@ -142,7 +142,7 @@ identifier does that automatically: every re-sign and every rebuilt `.ipa` reuse
 *same* App ID (`com.epavone.breviarium`), so ordinary weekly use never registers a new
 one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now rules out.
 
-## 7. After installing: the on-device check (alpha M6, Beta 1)
+## 7. After installing: the on-device check (alpha M6, Beta 1, Beta 2)
 
 A few minutes on the phone after each fresh install, to confirm the build works end to end.
 Every item has a matching automated UI test on CI; this is the on-device confirmation.
@@ -176,6 +176,24 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
    - *Scrolling* Vertical: the same two columns in one scroll.
    - *Psalterium* Pii XII: each psalm's English is shown whole beside its Latin.
    - Turn English off again: Latin alone, full width.
+9. **The hours (Beta 2).**
+   - **Launch hour.** The app opens on the hour for the time of day: Lauds until 09:00,
+     Terce until 12:00, Sext until 15:00, None until 17:00, Vespers until 20:00, and
+     Compline after that.
+   - **Hour picker.** Tap the hour name at the top. The list shows *Ad Laudes* to *Ad
+     Completorium*, with a red check mark on the current hour. Pick each hour in turn and
+     check that its title (e.g. *Ad Primam*) appears in the top bar and on page 1.
+   - **Lauds:** the psalms, the Benedictus with its antiphon, and any commemorations after
+     the collect.
+   - **Prime:** the Athanasian Creed on Trinity Sunday, and *Pretiosa* and *De Officio
+     Capituli*. There is no Martyrology; it becomes an hour of its own in a later beta.
+   - **Terce, Sext and None:** the hymn, three psalms under one antiphon, the chapter with
+     its short responsory, and the collect.
+   - **Compline:** the short lesson, the psalms, the Nunc dimittis, the collect *Visita*
+     and the Marian antiphon of the season. On Holy Saturday it takes its own short form.
+   - **Dates with the picker:** move a day on with the chevrons; the hour you picked stays.
+   - **Settings still apply** to every hour: English, the psalter, priest, rubrics, text
+     size, scrolling and page turn.
 
 ## Sources
 

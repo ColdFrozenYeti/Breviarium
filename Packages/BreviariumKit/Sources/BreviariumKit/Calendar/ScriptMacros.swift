@@ -19,11 +19,21 @@ public struct MacroContext: Sendable {
     public var winningRule: String
     /// `$vespera == 1` (tomorrow's first Vespers pre-empts) vs. `== 3` (today's own).
     public var isFirstVespers: Bool
+    /// `$hora`.
+    public var hour: CanonicalHour
+    /// `$day`/`$month` as DO has them while rendering: the office's own date, tomorrow's
+    /// on first Vespers (and the Compline after it).
+    public var officeDay: Int = 0
+    public var officeMonth: Int = 0
+    /// The calendar date asked for, whatever office wins.
+    public var day: Int = 0
+    public var month: Int = 0
 
     public init(
         weekName: String, dayOfWeek: Int, priest: Bool,
-        winningRank: OfficeRank, winningRule: String, isFirstVespers: Bool
+        winningRank: OfficeRank, winningRule: String, isFirstVespers: Bool, hour: CanonicalHour = .vesperae
     ) {
+        self.hour = hour
         self.weekName = weekName
         self.dayOfWeek = dayOfWeek
         self.priest = priest
@@ -60,6 +70,7 @@ public enum ScriptMacros {
         case "Dominus_vobiscum": return dominusVobiscum(context: context, resolver: resolver)
         case "Dominus_vobiscum2": return dominusVobiscum2(context: context, resolver: resolver)
         case "Benedicamus_Domino": return benedicamusDomino(context: context, resolver: resolver)
+        case "Divinum_auxilium": return divinumAuxilium(resolver: resolver)
         default: return nil
         }
     }
@@ -96,7 +107,7 @@ public enum ScriptMacros {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
         let usesLausTibi = context.weekName.range(of: "Quad", options: .caseInsensitive) != nil && !isSeptuagesimaVespers
 
         let index = usesLausTibi ? 1 : 0
@@ -169,10 +180,11 @@ public enum ScriptMacros {
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Benedicamus Domino")
 
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
         let isPaschalOctave = context.weekName.range(of: "Pasc0", options: .caseInsensitive) != nil
 
-        guard isPaschalOctave || isSeptuagesimaVespers else { return text }
+        // Only at Lauds and Vespers (`horasscripts.pl:167`, `$hora =~ /(Laudes|Vespera)/`).
+        guard context.hour.isMajor, isPaschalOctave || isSeptuagesimaVespers else { return text }
 
         let alleluiaDuplex = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia Duplex")
         let firstLine = alleluiaDuplex.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""
@@ -185,5 +197,18 @@ public enum ScriptMacros {
                 return "\(line.dropLast()), \(suffix)"
             }
             .joined(separator: "\n")
+    }
+
+    /// `horasscripts.pl:669-677`: `Divínum auxílium…` as a versicle, its response shortened
+    /// to "Amen." for the Roman office.
+    private static func divinumAuxilium(resolver: SectionResolver) -> String {
+        var lines = resolver.resolve(path: SectionResolver.prayersPath, section: "Divinum auxilium")
+            .split(separator: "\n").map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard lines.count >= 2 else { return lines.joined(separator: "\n") }
+        lines[lines.count - 2] = "V. " + lines[lines.count - 2]
+        var last = lines[lines.count - 1]
+        if let range = last.range(of: #"^.*\. "#, options: .regularExpression) { last.removeSubrange(range) }
+        lines[lines.count - 1] = "R. " + last
+        return lines.joined(separator: "\n")
     }
 }

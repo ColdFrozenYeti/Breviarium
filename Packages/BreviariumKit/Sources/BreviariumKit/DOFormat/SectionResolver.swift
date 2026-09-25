@@ -51,7 +51,14 @@ public struct SectionResolver {
 
     /// Resolves one section to its final text.
     public func resolve(path: String, section: String) -> String {
-        resolveSection(path: path, section: section, depth: 0)
+        // `horas.pl:117`: a line ending in `~` runs on into the next one as DO shows it
+        // (Pent13-0's `[Ant 2]`, "Cum transíret ~" / "Iesus * quoddam castéllum…",
+        // with a rubric-conditional alternative between them).
+        let text = resolveSection(path: path, section: section, depth: 0)
+        guard text.contains("~") else { return text }
+        // The next line's own "r." (first letter red, `horas.pl:178`) goes before the
+        // merge: Preces' "Orémus pro Pontífice nostro~" / "r. N.".
+        return text.replacingOccurrences(of: #"[ \t]*~[ \t]*\n[ \t]*(?:r\.[ \t]*)?"#, with: " ", options: .regularExpression)
     }
 
     /// Whether `path` actually resolves `section` under the current `context` — not just
@@ -181,13 +188,19 @@ public struct SectionResolver {
         }
         let lines = ConditionalLineProcessor.resolve(lines: winner.body, context: context)
         let text = lines.joined(separator: "\n")
-        return resolveInclusionsAndMacros(in: text, depth: depth)
+        return resolveInclusionsAndMacros(in: text, depth: depth, callerPath: path)
     }
 
     /// Picks the winning `[Name] (condition)` variant: the *last* one (in file order)
     /// whose condition is empty or holds against `context` — mirroring
     /// `setupstring_parse_file`'s hash-overwrite semantics (`SetupString.pl:340-348`),
     /// where each new true-conditioned header replaces the previous entry for that key.
+    /// The winning variant's body, unresolved (`@` references still in place): for a
+    /// caller that needs to read a reference itself, as `getrefs` does.
+    public func unresolvedBody(path: String, section: String) -> [String]? {
+        winningVariant(path: path, section: section)?.body
+    }
+
     private func winningVariant(path: String, section: String) -> RawSection? {
         let resolvedPath = resolvingBaseChain(from: path, section: section)
         var winner: RawSection?
@@ -204,7 +217,22 @@ public struct SectionResolver {
     /// Processes a resolved section's text line by line: a line that is itself a `@`
     /// inclusion directive (already fully qualified by `RawSectionParser`) or a `$Name`
     /// prayer macro gets replaced by its resolved text; everything else passes through.
-    private func resolveInclusionsAndMacros(in text: String, depth: Int) -> String {
+    /// `SetupString.pl:519-527`, `get_loadtime_inclusion`: in Paschaltide an `@` into
+    /// the Commons of Apostles and Martyrs (`C1`-`C3`) reads their Paschal form
+    /// (`C3` -> `C3p`, `C3a` -> `C3ap`), except from inside those Commons and for a hymn,
+    /// collect, lesson or versicle. 9 June 2038: Ss. Primus and Felician's `[Ant 2]`,
+    /// `@Commune/C3`, is "Fíliæ Ierúsalem…" at Lauds.
+    private func paschalInclusionPath(_ path: String, section: String, callerPath: String?) -> String {
+        guard context.tempore.range(of: "Pasch|Ascensionis|Pentecostes", options: .regularExpression) != nil,
+            let callerPath, callerPath.range(of: "C[123]", options: .regularExpression) == nil,
+            section.range(of: "Hymnus|Oratio|Lectio|Secreta|Postcommunio|Versum", options: [.regularExpression, .caseInsensitive]) == nil,
+            let match = path.firstMatch(of: /(C[123][abcd]*)$/)
+        else { return path }
+        let paschal = path.replacingCharacters(in: match.range, with: match.1 + "p")
+        return sectionExists(path: paschal, section: section) ? paschal : path
+    }
+
+    private func resolveInclusionsAndMacros(in text: String, depth: Int, callerPath: String? = nil) -> String {
         guard depth < Self.maxInclusionDepth else {
             return "Cannot resolve too deeply nested references"
         }
@@ -215,7 +243,14 @@ public struct SectionResolver {
 
         for line in lines {
             if line.first == "@", let inclusion = parseInclusion(line) {
-                var included = resolveSection(path: inclusion.path, section: inclusion.section, depth: depth + 1)
+                // As for `$` lines below: the header may carry the I spelling.
+                var section = inclusion.section
+                let path = paschalInclusionPath(inclusion.path, section: section, callerPath: callerPath)
+                if !sectionExists(path: path, section: section) {
+                    let iSpelling = section.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+                    if sectionExists(path: path, section: iSpelling) { section = iSpelling }
+                }
+                var included = resolveSection(path: path, section: section, depth: depth + 1)
                 if let subs = inclusion.substitutions {
                     included = applySubstitutions(subs, to: included)
                 }
@@ -256,18 +291,28 @@ public struct SectionResolver {
     /// against each file's real header naming (`Rubricae.txt`: `[Pater secreto]`, bare;
     /// `Preces.txt`: `[Preces feriales Vespera]`, prefixed).
     private func resolvePrayerMacroLine(_ line: String, depth: Int) -> String {
+        // The data build normalises J to I in section headers (Latin prose) but not in
+        // `$` reference lines, so a Latin `$Deus in adjutorium` must also try
+        // `[Deus in adiutorium]` (Beta 2: Compline's skeleton names prayers directly).
+        func candidates(_ name: String) -> [String] {
+            let iSpelling = name.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+            return iSpelling == name ? [name] : [name, iSpelling]
+        }
         for (prefix, path) in Self.sigilPaths where line.hasPrefix(prefix) {
             let rest = String(line.dropFirst(prefix.count))
             let section = prefix == "Preces " ? "Preces \(rest)" : rest
-            return resolveSection(path: path, section: section, depth: depth + 1)
+            let found = candidates(section).first { sectionExists(path: path, section: $0) } ?? section
+            return resolveSection(path: path, section: found, depth: depth + 1)
         }
 
         let name = line
-        if sectionExists(path: Self.prayersPath, section: name) {
-            return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
+        for candidate in candidates(name) where sectionExists(path: Self.prayersPath, section: candidate) {
+            return resolveSection(path: Self.prayersPath, section: candidate, depth: depth + 1)
         }
-        if name.hasSuffix("."), sectionExists(path: Self.prayersPath, section: String(name.dropLast())) {
-            return resolveSection(path: Self.prayersPath, section: String(name.dropLast()), depth: depth + 1)
+        if name.hasSuffix(".") {
+            for candidate in candidates(String(name.dropLast())) where sectionExists(path: Self.prayersPath, section: candidate) {
+                return resolveSection(path: Self.prayersPath, section: candidate, depth: depth + 1)
+            }
         }
         return resolveSection(path: Self.prayersPath, section: name, depth: depth + 1)
     }

@@ -20,7 +20,7 @@ final class BreviariumUITests: XCTestCase {
     @discardableResult
     private func launchApp(
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
-        section: String? = nil, english: Bool = false, psalter: String = "vulgate"
+        section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera"
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -29,12 +29,14 @@ final class BreviariumUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_DATE"] = date
         if let section { app.launchEnvironment["BREVIARIUM_SNAPSHOT_SECTION"] = section }
+        // Pinned, as the app otherwise opens the hour for the time of day (Beta 2).
+        app.launchEnvironment["BREVIARIUM_SNAPSHOT_HOUR"] = hour
         app.launchArguments += [
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
         ]
         app.launch()
-        XCTAssertTrue(app.staticTexts["Ad Vesperas"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
         return app
     }
 
@@ -143,6 +145,7 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Romanus"].exists)
         XCTAssertTrue(app.staticTexts["Ambrosianus"].exists)
+        XCTAssertTrue(app.staticTexts["Dominicanus"].exists)
         XCTAssertTrue(app.switches["Sacerdos vel diaconus adest"].exists)
         XCTAssertTrue(app.switches["Rubricæ"].exists)
         XCTAssertTrue(app.switches["English translation"].exists)
@@ -152,6 +155,18 @@ final class BreviariumUITests: XCTestCase {
         attachment.name = "settings-screen"
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        // Release notes, beside About at the foot of the list.
+        app.swipeUp()
+        let releaseNotes = app.buttons["Release notes"]
+        XCTAssertTrue(releaseNotes.waitForExistence(timeout: 5))
+        releaseNotes.tap()
+        XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Beta 2"].exists || app.staticTexts["BETA 2"].exists)
+        let notes = XCTAttachment(screenshot: app.screenshot())
+        notes.name = "settings-release-notes"
+        notes.lifetime = .keepAlways
+        add(notes)
     }
 
     /// M6's own manual checklist names "previous/next day" -- confirms the nav header's
@@ -398,5 +413,90 @@ final class BreviariumUITests: XCTestCase {
         verticalShot.name = "hymn-en-vertical-default"
         verticalShot.lifetime = .keepAlways
         add(verticalShot)
+    }
+
+    // MARK: Beta 2: the day hours
+
+    private static let titles = [
+        "Laudes": "Ad Laudes", "Prima": "Ad Primam", "Tertia": "Ad Tertiam", "Sexta": "Ad Sextam", "Nona": "Ad Nonam",
+        "Vespera": "Ad Vesperas", "Completorium": "Ad Completorium",
+    ]
+
+    /// The hour picker opens from the title and switches the hour.
+    func testHourPickerSwitchesTheHour() {
+        let app = launchApp(date: "2026-09-16")
+        app.staticTexts["hourPickerButton"].tap()
+        let lauds = app.buttons["hour-Laudes"]
+        XCTAssertTrue(lauds.waitForExistence(timeout: 5))
+        let picker = XCTAttachment(screenshot: app.screenshot())
+        picker.name = "hour-picker"
+        picker.lifetime = .keepAlways
+        add(picker)
+        lauds.tap()
+        XCTAssertTrue(app.staticTexts["Ad Laudes"].waitForExistence(timeout: 5))
+    }
+
+    /// Page 1 and page 2 of every day hour, for a ferial day and a I class feast, plus
+    /// Lauds of 16 September 2026 (the title block's commemoration example) and Compline
+    /// of Holy Saturday.
+    func testDayHoursSnapshots() {
+        for (date, name) in [("2027-04-09", "ferial"), ("2026-11-01", "feast")] {
+            for hour in ["Laudes", "Prima", "Tertia", "Sexta", "Nona", "Completorium"] {
+                captureTwoPages(date: date, hour: hour, name: "hours-\(name)-\(hour)")
+            }
+        }
+        captureTwoPages(date: "2026-09-16", hour: "Laudes", name: "hours-0916-Laudes")
+        captureTwoPages(date: "2026-04-04", hour: "Completorium", name: "hours-holysaturday-Completorium")
+    }
+
+    /// 25 September 2026, as reported from the phone: each little hour's chapter page and
+    /// last page (None's end was cut off), Compline's Marian antiphon, and None with
+    /// English on.
+    func testDayHoursChapterAndLastPages() {
+        for hour in ["Prima", "Tertia", "Sexta", "Nona", "Completorium"] {
+            captureChapterAndLastPage(date: "2026-09-25", hour: hour, english: false, name: "0925-\(hour)")
+        }
+        captureChapterAndLastPage(date: "2026-09-25", hour: "Nona", english: true, name: "0925-Nona-en")
+    }
+
+    private func captureChapterAndLastPage(date: String, hour: String, english: Bool, name: String) {
+        let chapterSection = hour == "Completorium" ? "lectioBrevis" : "capitulum"
+        var app = launchApp(date: date, section: chapterSection, english: english, hour: hour)
+        Thread.sleep(forTimeInterval: 0.6)
+        let chapter = XCTAttachment(screenshot: app.screenshot())
+        chapter.name = "\(name)-chapter"
+        chapter.lifetime = .keepAlways
+        add(chapter)
+        app.terminate()
+
+        app = launchApp(date: date, english: english, hour: hour)
+        Thread.sleep(forTimeInterval: 0.4)
+        var swipes = 0
+        while let counter = pageCounter(app), counter.page < counter.count, swipes < 40 {
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            swipes += 1
+        }
+        let last = XCTAttachment(screenshot: app.screenshot())
+        last.name = "\(name)-last"
+        last.lifetime = .keepAlways
+        add(last)
+        app.terminate()
+    }
+
+    private func captureTwoPages(date: String, hour: String, name: String) {
+        let app = launchApp(date: date, hour: hour)
+        Thread.sleep(forTimeInterval: 0.4)
+        let page1 = XCTAttachment(screenshot: app.screenshot())
+        page1.name = "\(name)-page1"
+        page1.lifetime = .keepAlways
+        add(page1)
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.4)
+        let page2 = XCTAttachment(screenshot: app.screenshot())
+        page2.name = "\(name)-page2"
+        page2.lifetime = .keepAlways
+        add(page2)
+        app.terminate()
     }
 }

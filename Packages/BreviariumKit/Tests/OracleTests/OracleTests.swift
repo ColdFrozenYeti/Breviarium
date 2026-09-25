@@ -33,7 +33,7 @@ enum RealCorpus {
 func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     switch unit {
     case .rubric(let text, _): return [text]
-    case .versicleResponse(let versicle, let response, _, _): return [versicle, response]
+    case .versicleResponse(let versicle, let response, _, _): return [versicle, response].filter { !$0.isEmpty }
     case .verse(_, let first, let second, _, _):
         guard !second.isEmpty else { return [first] }
         // A leading "‡ " (the antiphon/first-verse dagger rule) is this project's own
@@ -50,10 +50,10 @@ func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .prose(let text, _): return [text]
     case .englishPsalm:
         return []
-    case .psalmTitle:
-        // Not yet independently confirmed against a real fixture's own exact HTML
-        // structure for this line -- checked instead via a dedicated, targeted test.
-        return []
+    case .psalmTitle(let text, let english):
+        // A psalm's title is checked by the psalmody audits; a chapter's Scripture
+        // reference (the only kind with English) is compared here.
+        return english == nil ? [] : [text]
     }
 }
 
@@ -466,7 +466,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     #expect(titles.first == "Psalmus 132 [1]")
     #expect(titles.count == 5, "expected one title per psalm, got \(titles)")
@@ -513,7 +513,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     #expect(titles.first == "Psalmus 138(1-13) — Deus ubique præsens, omnia videns [1]")    // DO's own title, fixture 2027-04-09.
 
@@ -615,7 +615,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
         [first, second, firstEnglish, secondEnglish].compactMap { $0 }
     case .antiphon(let text, let english): [text, english].compactMap { $0 }
     case .prose(let text, let english): [text, english].compactMap { $0 }
-    case .psalmTitle(let text): [text]
+    case .psalmTitle(let text, _): [text]
     case .englishPsalm(let verses): verses.flatMap { [$0.firstHalf, $0.secondHalf] }
     }
 }

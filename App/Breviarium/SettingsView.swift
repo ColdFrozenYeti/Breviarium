@@ -19,13 +19,16 @@ struct SettingsView: View {
                         Image(systemName: "checkmark")
                             .foregroundStyle(Theme.icon)
                     }
-                    HStack {
-                        Text("Ambrosianus")
-                        Spacer()
-                        Text("Coming later")
-                            .font(.footnote)
+                    // Shown but not selectable until each rite is built.
+                    ForEach(["Ambrosianus", "Dominicanus"], id: \.self) { rite in
+                        HStack {
+                            Text(rite)
+                            Spacer()
+                            Text("Coming soon")
+                                .font(.footnote)
+                        }
+                        .foregroundStyle(Theme.chrome)
                     }
-                    .foregroundStyle(Theme.chrome)
                 }
 
                 Section {
@@ -68,6 +71,9 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink("Release notes") {
+                        ReleaseNotesView()
+                    }
                     NavigationLink("About") {
                         AboutView()
                     }

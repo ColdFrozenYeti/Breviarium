@@ -60,6 +60,15 @@ public struct Commemorations {
         self.calendar = calendar
     }
 
+    /// Beta 2: the commemorations at Lauds, the day's own occurrence runners-up
+    /// (`occurrence()`'s `@commemoentries`) at their Lauds index 2, with the same Sunday
+    /// and 1960 eligibility filters as at Vespers but none of the Vespers-only ones.
+    public func laudsCommemorations(day: Int, month: Int, year: Int) -> [Commemoration] {
+        guard let winner = Occurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
+        else { return [] }
+        return runnersUp(day: day, month: month, year: year, winnerPath: winner.winningPath, ind: 2)
+    }
+
     /// The commemorations for the Vespers actually prayed on the evening of `day`, as
     /// decided by `Concurrence.resolve(day:month:year:)`.
     public func resolve(day: Int, month: Int, year: Int) -> [Commemoration] {
@@ -325,11 +334,19 @@ public struct Commemorations {
     private func runnersUp(day: Int, month: Int, year: Int, winnerPath: String, ind: Int) -> [Commemoration] {
         let resolver = SectionResolver(corpus: corpus, context: context)
         var results: [Commemoration] = []
+        // `horascommon.pl:1681-1684`: a saint's "Tempora none" clears every commemoration
+        // (Christmas Eve over the Advent feria). At Lauds (Beta 2).
+        if ind == 2, winnerPath.hasPrefix("Sancti/"),
+            resolver.resolve(path: winnerPath, section: "Rule").range(of: "Tempora none", options: .caseInsensitive) != nil
+        {
+            return []
+        }
 
         let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
         let temporalRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: temporalPath))
         if temporalPath != winnerPath, let temporalRank,
-            !isTemporaDiscardedBySanctoral1960(day: day, month: month, year: year, temporalRank: temporalRank, winnerPath: winnerPath)
+            !isTemporaDiscardedBySanctoral1960(day: day, month: month, year: year, temporalRank: temporalRank, winnerPath: winnerPath),
+            ind != 2 || isTemporaCommemoratedUnderSaint(temporalRank: temporalRank, winnerPath: winnerPath, resolver: resolver)
         {
             results.append(Commemoration(path: temporalPath, rank: temporalRank, ind: ind))
         }
@@ -347,15 +364,40 @@ public struct Commemorations {
             // date this year (`SanctoralCalendar.isTransferredAwayThisYear`'s own doc
             // comment) never becomes a commemoration candidate on its own natural date
             // at all, regardless of rank. See that doc comment for the full citation.
-            if calendar.isTransferredAwayThisYear(candidateKey: candidate, year: year) { continue }
+            if !calendar.hasOwnTransferEntry(day: day, month: month, year: year),
+                calendar.isTransferredAwayThisYear(candidateKey: candidate, year: year)
+            {
+                continue
+            }
             if isSunday, let temporalRank,
                 Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
             {
                 continue
             }
-            guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
-            else { continue }
+            if ind == 2 {
+                // `horascommon.pl:365`: under 1960 a I. classis temporal office leaves no
+                // saint below it (the Easter and Pentecost octaves: St George, 23 April).
+                if let temporalRank, temporalRank.numericPrecedence >= 6, rank.numericPrecedence < 6 { continue }
+                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included.
+                guard Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
+                else { continue }
+            } else {
+                guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
+                else { continue }
+            }
             results.append(Commemoration(path: path, rank: rank, ind: ind))
+        }
+        if ind == 2 {
+            // `horascommon.pl:1690-1711`, 1960: every commemoration goes when the winner's
+            // rule says "No Sunday Commemoratio" on a Sunday (the Holy Family), when a
+            // Festum Domini would commemorate another, or for 28 June on a Sunday.
+            let winnerRule = resolver.resolve(path: winnerPath, section: "Rule")
+            if isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
+            if let first = results.first {
+                let firstRule = resolver.sectionExists(path: first.path, section: "Rule") ? resolver.resolve(path: first.path, section: "Rule") : ""
+                if matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
+                if isSunday, first.path.range(of: "06-28r?$", options: .regularExpression) != nil { return [] }
+            }
         }
         return results
     }
@@ -413,6 +455,18 @@ public struct Commemorations {
     /// a Sunday) and 31 October 2027 (Christ the King, commemorating All Saints, not the
     /// resumed "Dominica IV Post Epiphaniam"): neither real fixture commemorates the
     /// Sunday.
+    /// `horascommon.pl:537-540`, at Lauds (Beta 2): under a winning saint the temporal
+    /// office is commemorated only from rank 1.5 (2.1 under a II. classis saint), never
+    /// under a I. classis one, and not the Sacred Heart under the Precious Blood. A plain
+    /// Paschaltide feria (28 April 2025, S. Paul of the Cross) isn't.
+    private func isTemporaCommemoratedUnderSaint(temporalRank: OfficeRank, winnerPath: String, resolver: SectionResolver) -> Bool {
+        guard winnerPath.hasPrefix("Sancti/"), let saint = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return true }
+        let srank = saint.numericPrecedence
+        let trank = temporalRank.numericPrecedence
+        if matches(saint.title, "Sangu"), matches(temporalRank.title, "Cor[dp]") { return false }
+        return srank < 7 && !winnerPath.contains("01-01") && trank >= (srank >= 5 ? 2.1 : 1.5)
+    }
+
     private func isTemporaDiscardedBySanctoral1960(
         day: Int, month: Int, year: Int, temporalRank: OfficeRank, winnerPath: String
     ) -> Bool {
@@ -457,6 +511,33 @@ public struct Commemorations {
     /// directly against the pinned DO engine's own `climit1960`, after `occurrence()`'s
     /// `@commemoentries`-emptying turned out to be expected behaviour for a single
     /// candidate (`$sfile = shift @commemoentries`), not the actual cause.
+    /// `horascommon.pl:1884-1909`, `climit1960`, at the hours other than Vespers and
+    /// Compline: 1, a full commemoration; 2, at Lauds only ("ad Laudes tantum"); 0, none.
+    /// A Sancti commemoration is 1 unless the winner is the temporal office (or Our Lady
+    /// on Saturday); then on a Sunday it needs II. classis, and on another day I. classis
+    /// for 1 and anything above rank 1 for 2. Found by the Prime audit: 11 October 2026,
+    /// the Maternity on a Sunday (1), and 16 July, Mount Carmel on a feria (2).
+    static func climit1960(candidatePath: String, candidateRank: Double, winnerPath: String, resolver: SectionResolver) -> Int {
+        if candidatePath.contains("7-16"), winnerPath.contains("C10") { return 0 }
+        guard winnerPath.hasPrefix("Tempora/") || winnerPath.contains("C10") else { return 1 }
+        if resolver.resolveRank(path: winnerPath).range(of: "Dominica", options: .caseInsensitive) != nil {
+            return candidateRank >= 5 ? 1 : 0
+        }
+        return candidateRank >= 6 ? 1 : candidateRank > 1 ? 2 : 0
+    }
+
+    /// The commemoration DO reads at Prime (`$commemoratio`, set at the other hours only
+    /// when `climit1960` is 1: `horascommon.pl:722`).
+    public func primeCommemoration(day: Int, month: Int, year: Int) -> Commemoration? {
+        guard let winner = Occurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
+        else { return nil }
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        guard let first = runnersUp(day: day, month: month, year: year, winnerPath: winner.winningPath, ind: 2).first else { return nil }
+        guard first.path.hasPrefix("Sancti/") else { return first }
+        return Self.climit1960(candidatePath: first.path, candidateRank: first.rank.numericPrecedence, winnerPath: winner.winningPath, resolver: resolver) == 1
+            ? first : nil
+    }
+
     private static func isVespersCommemorationEligible1960(candidateRank: Double, winnerIsSanctoral: Bool) -> Bool {
         winnerIsSanctoral || candidateRank >= 6
     }

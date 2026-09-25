@@ -26,9 +26,7 @@ import Testing
     let hour = try #require(assembler.assembleVespers(day: 22, month: 5, year: 2026, priest: false))
 
     let capitulum = try #require(hour.sections.first { $0.kind == .capitulum })
-    let capitulumText = capitulum.units.compactMap { unit -> String? in
-        if case .prose(let t, _) = unit { return t } else { return nil }
-    }
+    let capitulumText = [capitulumReading(capitulum)]
     #expect(capitulumText.contains { $0.contains("Act. 1:1-2") && $0.contains("Primum quidem sermónem") })
     #expect(!capitulumText.contains { $0.contains("1 Petri 4:7-8") })
 
