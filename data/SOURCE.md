@@ -126,6 +126,26 @@ Checks made on 2026-09-24, against the pinned commit above:
   column equals the Vulgate Latin-only page. Tests can take Vulgate Latin from either
   set, and the 2044 Vulgate Latin test can read the bilingual hold-out.
 
+### Beta 2 sets: the day hours
+
+Generated 2026-09-24/25 by `scripts/generate-fixture-set.sh <set> <first> <last> <hour>`
+(the fourth field picks the hour; `oracle-worker.sh` passes it as `command=pray<Hour>`),
+against the pinned commit above. Every range set is 5,844 renders per hour and every
+hold-out 732, none empty. The Martyrology row on DO's Prime page is in the fixtures but
+left out of the comparison: it is a separate "hour" in a later beta.
+
+| Set | Path | Content | Size |
+|---|---|---|---|
+| Day hours | `hours/<Hour>/<year>.tar.gz`, 2025-2040 | Vulgate Latin + English, priest off, rows, `<date>_priestN_bilingual.tsv` | 109 MB |
+| Day hours, Pius XII | `hours-bea/<Hour>/<year>.tar.gz`, 2025-2040 | Pius XII Latin, priest off, flat, `<date>_priestN_latin.txt` | 51 MB |
+| Hold-outs | `holdout/2044-<Hour>.tar.gz` | Vulgate Latin + English, priest off and on, rows | 7.6 MB |
+
+Per hour (bilingual / Pius XII / hold-out): Completorium 13 / 5.9 / 0.9 MB, Tertia
+15 / 6.9 / 1.1, Sexta 16 / 7.1 / 1.1, Nona 16 / 7.4 / 1.2, Prima 22 / 11 / 1.5, Laudes
+29 / 13 / 2.0. The total, about 168 MB, is above the plan's 80-110 MB estimate (open
+question 4 in `docs/Beta_2_plan.md`), mostly because Lauds and Prime are long; the
+largest single archive is about 2 MB.
+
 Generated 2026-09-16 against the pinned commit above: 6,228 renders, zero empty/failed
 outputs, ~11.5 MB compressed total. Re-run `scripts/generate-oracle-fixtures.sh` (needs
 Docker Desktop running) whenever the DO pin moves or the covered/spot-check set changes,
