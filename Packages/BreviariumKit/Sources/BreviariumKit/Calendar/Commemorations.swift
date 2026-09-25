@@ -362,8 +362,14 @@ public struct Commemorations {
             {
                 continue
             }
-            guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
-            else { continue }
+            if ind == 2 {
+                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included.
+                guard Self.climit1960AtLaudes(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver)
+                else { continue }
+            } else {
+                guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
+                else { continue }
+            }
             results.append(Commemoration(path: path, rank: rank, ind: ind))
         }
         return results
@@ -466,6 +472,21 @@ public struct Commemorations {
     /// directly against the pinned DO engine's own `climit1960`, after `occurrence()`'s
     /// `@commemoentries`-emptying turned out to be expected behaviour for a single
     /// candidate (`$sfile = shift @commemoentries`), not the actual cause.
+    /// `horascommon.pl:1884-1909`, `climit1960`, at Lauds: a Sancti commemoration
+    /// survives unless the winner is the temporal office (or Our Lady on Saturday) and
+    /// - on a Sunday, the feast is below II. classis (a II. classis one stays at Lauds);
+    /// - on another day, it is ranked 1 or below (above that, "ad Laudes tantum").
+    /// Found by the Prime audit: 11 October 2026, the Maternity on a Sunday.
+    static func climit1960AtLaudes(candidatePath: String, candidateRank: Double, winnerPath: String, resolver: SectionResolver) -> Bool {
+        if candidatePath.contains("7-16"), winnerPath.contains("C10") { return false }
+        guard winnerPath.hasPrefix("Tempora/") || winnerPath.contains("C10") else { return true }
+        let winnerRank = resolver.resolveRank(path: winnerPath)
+        if winnerRank.range(of: "Dominica", options: .caseInsensitive) != nil {
+            return candidateRank >= 5
+        }
+        return candidateRank > 1
+    }
+
     private static func isVespersCommemorationEligible1960(candidateRank: Double, winnerIsSanctoral: Bool) -> Bool {
         winnerIsSanctoral || candidateRank >= 6
     }

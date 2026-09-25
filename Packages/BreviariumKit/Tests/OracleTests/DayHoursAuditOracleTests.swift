@@ -71,6 +71,23 @@ struct DayHourAuditReport {
     }
 }
 
+/// DO's rows without the Martyrology, a separate "hour" in a later beta (decided
+/// 2026-09-24). Its row ends at the Martyrology's own "℟. Deo grátias."; whatever
+/// follows in the same row (All Souls' Prime goes on with its own versicle and collect)
+/// is kept.
+func withoutMartyrology(_ rows: [BilingualRow]) -> [BilingualRow] {
+    rows.compactMap { row in
+        guard row.latin.contains("Martyrologium") else { return row }
+        func after(_ text: String, _ marker: String) -> String {
+            guard let range = text.range(of: marker) else { return "" }
+            return String(text[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+        }
+        let latin = after(row.latin, "℟. Deo grátias.")
+        let english = after(row.english, "℟. Thanks be to God.")
+        return latin.isEmpty && english.isEmpty ? nil : BilingualRow(latin: latin, english: english)
+    }
+}
+
 /// One hour, one date: assembled as the app assembles it.
 func assembleDayHour(
     _ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, bundle: DataBundle, corpus: OfficeCorpus, english: OfficeCorpus?,
@@ -112,9 +129,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english, calendar: calendar
                 )
                 if let assembled {
-                    // The Martyrology is a separate "hour" in a later beta (decided
-                    // 2026-09-24): its row on DO's Prime page isn't ours to show.
-                    let rows = OracleFixture.rows(text).filter { !$0.latin.contains("Martyrologium") }
+                    let rows = withoutMartyrology(OracleFixture.rows(text))
                     report.add(hour: assembled, rows: rows, title: title, date: date)
                 } else {
                     report.failedToAssemble.append(date)
@@ -144,6 +159,11 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         calendar: calendar
     )
     var out = "TITLE: \(title ?? "-")\n"
+    let debugContext = ConditionalContextBuilder.build(
+        day: parts[2], month: parts[1], year: parts[0], ad: hour.doName, rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+    )
+    let commemorated = Commemorations(corpus: corpus, context: debugContext, calendar: calendar).laudsCommemorations(day: parts[2], month: parts[1], year: parts[0])
+    out += "LAUDS COMMEMORATIONS: \(commemorated.map(\.path))\n"
     for section in assembled?.sections ?? [] {
         out += "## \(section.kind)\n"
         for unit in section.units { out += "  \(unit)\n".prefix(260) + "\n" }
@@ -155,9 +175,44 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
         if let assembled {
             var report = DayHourAuditReport()
-            report.add(hour: assembled, rows: OracleFixture.rows(text).filter { !$0.latin.contains("Martyrologium") }, title: title, date: date)
+            report.add(hour: assembled, rows: withoutMartyrology(OracleFixture.rows(text)), title: title, date: date)
             out += "\n=== AUDIT\n" + (report.text.isEmpty ? "clean" : report.text)
         }
     }
     print(out)
+}
+
+/// The out-of-sample year (`holdout/2044-<Hour>.tar.gz`), priest off and on: the same
+/// checks as `dayHoursFullRangeAudit` on a year the engine was never tuned against.
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+        return
+    }
+    guard let bundle = RealCorpus.bundle, let archive = try await OracleFixture.shared.hourHoldout(hour: hour, year: 2044) else { return }
+    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
+    let english = bundle.makeEnglishCorpus()
+    let calendar = bundle.makeSanctoralCalendar()
+
+    var report = DayHourAuditReport()
+    for priest in [false, true] {
+        var (day, month, year) = (1, 1, 2044)
+        while year == 2044 {
+            let date = String(format: "%04d-%02d-%02d", year, month, day)
+            if let text = archive["2044/\(date)_priest\(priest ? "Y" : "N")_bilingual.tsv"] {
+                let (assembled, title) = assembleDayHour(
+                    hour, day: day, month: month, year: year, priest: priest, bundle: bundle, corpus: corpus, english: english, calendar: calendar
+                )
+                if let assembled {
+                    let rows = withoutMartyrology(OracleFixture.rows(text))
+                    report.add(hour: assembled, rows: rows, title: title, date: date + (priest ? " priest" : ""))
+                } else {
+                    report.failedToAssemble.append(date)
+                }
+            }
+            (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
+        }
+    }
+    #expect(report.daysChecked == 732, "expected 366 dates twice, checked \(report.daysChecked)")
+    #expect(report.text.isEmpty, "\n\(hour) 2044:\n\(report.text)")
 }

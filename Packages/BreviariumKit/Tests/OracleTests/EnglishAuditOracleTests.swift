@@ -69,7 +69,8 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|The Capitular Office|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
     try! Regex(#"Canticle of Simeon Luke\s*-?[\d:-]*"#),
     try! Regex(#"Canticle of Zachary Luke\s*-?[\d:-]*"#),
-    try! Regex(#"Canticle of [\p{L} .]+?( \[\d+\])? [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
+    try! Regex(#"Canticle of [\p{L} .]+? \[\d+\] [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
+    try! Regex(#"Canticle of [\p{L} .]+? [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
 ]
 
 /// The same for DO's Latin cells: headings and titles the app sets as its own fixed

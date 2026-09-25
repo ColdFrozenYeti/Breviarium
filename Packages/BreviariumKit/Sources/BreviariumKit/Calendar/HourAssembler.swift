@@ -349,8 +349,13 @@ public struct HourAssembler {
                     hour: hour, winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
                 ))
             case "Capitulum Responsorium Versus" where hour == .prima:
+                // `$commemoratio{Rule}` (`specprima.pl:119`): the day's first commemoration.
+                let commemoratioRule = Commemorations(corpus: corpus, context: context, calendar: calendar)
+                    .laudsCommemorations(day: day, month: month, year: year).first
+                    .map { resolver.resolve(path: $0.path, section: "Rule") } ?? ""
                 sections.append(contentsOf: assemblePrimeCapitulum(
-                    winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                    winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                    commemoratioRule: commemoratioRule
                 ))
             case "Martyrologium":
                 if let pretiosa = assemblePretiosa(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver) {
@@ -1905,10 +1910,22 @@ public struct HourAssembler {
         let range = parsed?.range
         let path = "Psalterium/Psalmorum/Psalm\(baseNumber)"
         let text = resolver.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)
-        let latinVerses = Self.versesInRange(range, of: text)
+        // `webdia.pl:684`, `suppress_alleluia`: from Septuagesima every "alleluia" goes,
+        // the Pius XII psalter's own too (103:35 "…Dómino! Allelúja." shows "…Dómino!.").
+        let suppress = Self.isAlleluiaSuppressed(
+            weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers && macroContext.hour == .vesperae
+        )
+        func suppressed(_ verses: [PsalmVerse]) -> [PsalmVerse] {
+            guard suppress else { return verses }
+            func strip(_ text: String) -> String {
+                text.replacingOccurrences(of: #"[,.]?\s*all[ae]l[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive])
+            }
+            return verses.map { PsalmVerse(reference: $0.reference, firstHalf: strip($0.firstHalf), secondHalf: strip($0.secondHalf)) }
+        }
+        let latinVerses = suppressed(Self.versesInRange(range, of: text))
         let englishVerses: [PsalmVerse]? = englishResolver.flatMap { eng in
             guard eng.sectionExists(path: path, section: RawSectionParser.wholeFileSectionName) else { return nil }
-            return Self.versesInRange(range, of: eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName))
+            return suppressed(Self.versesInRange(range, of: eng.resolvePsalmText(path: path, section: RawSectionParser.wholeFileSectionName)))
         }
         var units = Self.pairedVerses(latin: latinVerses, english: englishVerses)
         units.append(contentsOf: gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))

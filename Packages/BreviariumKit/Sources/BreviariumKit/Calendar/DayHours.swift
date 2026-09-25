@@ -33,6 +33,8 @@ extension HourAssembler {
             name = "Pasch"
         }
         if caller == "Lectio brevis Prima", name.isEmpty { name = "Per Annum" }
+        // `:2311-2313`: the Roman office's psalter hymn is the weekday's own.
+        if caller == "Hymnus major", name.isEmpty { name = "Day\(dayOfWeek)" }
         if caller.hasPrefix("Capitulum") || caller.hasSuffix("major"), name.isEmpty {
             let duplex = caller == "Capitulum minor" && officeTitle.range(of: "Duplex", options: .caseInsensitive) != nil
                 && officeTitle.range(of: "Dominica|Vigilia", options: [.regularExpression, .caseInsensitive]) == nil
@@ -634,6 +636,8 @@ extension HourAssembler {
             text.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
                 guard let match = line.firstMatch(of: /^\s*&special\('([^']+)'(?:,\s*'(\w+)')?/) else { return String(line) }
                 let name = String(match.1)
+                // The Martyrology is a separate "hour" in a later beta (decided 2026-09-24).
+                if name == "#Martyrologium" { return "" }
                 guard match.2 == "Latin", own.isEnglish else {
                     return own.sectionExists(path: path, section: name) ? own.resolve(path: path, section: name) : String(line)
                 }
@@ -735,7 +739,8 @@ extension HourAssembler {
     /// then the short responsory, whose versicle changes with the season
     /// (`get_prima_responsory`, `:110-136`), and the versicle.
     func assemblePrimeCapitulum(
-        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?,
+        commemoratioRule: String = ""
     ) -> [Section] {
         let special = "Psalterium/Special/Prima Special"
         let deoGratias = bothTexts(path: SectionResolver.prayersPath, section: "Deo gratias", resolver: resolver, englishResolver: englishResolver)
@@ -749,7 +754,11 @@ extension HourAssembler {
             caller: "Prima responsory", weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, day: macroContext.officeDay,
             officeTitle: winner.winningRank.title
         )
-        if let match = macroContext.winningRule.firstMatch(of: /(?i)Doxology=(Nat|Epi|Pasch|Asc|Corp|Heart)/) { key = String(match.1) }
+        if let match = macroContext.winningRule.firstMatch(of: /(?i)Doxology=(Nat|Epi|Pasch|Asc|Corp|Heart)/)
+            ?? commemoratioRule.firstMatch(of: /(?i)Doxology=(Nat|Epi|Pasch|Asc|Corp|Heart)/)
+        {
+            key = String(match.1)
+        }
         if macroContext.officeMonth == 12, macroContext.officeDay > 8, macroContext.officeDay < 16, macroContext.officeDay != 12 { key = "Adv" }
         if key == "Corp" || key == "Heart" { key = "" }
 
