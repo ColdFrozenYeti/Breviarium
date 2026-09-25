@@ -7,7 +7,9 @@ name: Build IPA
 # docs/install-on-iphone.md.
 #
 # Manual only: click "Run workflow" whenever a fresh .ipa is needed, then run
-# scripts/get-ipa.ps1 to fetch it.
+# scripts/get-ipa.ps1 to fetch it. Given a release tag, it also publishes the .ipa as a
+# GitHub pre-release under that tag, with the notes file as its description (e.g. tag
+# "Beta-2", notes docs/releases/beta-2.md). The .ipa is still unsigned.
 #
 # If a paid Apple Developer Program membership is ever added later, the intended change
 # is additive: a signing step slots in between the build step below and the packaging
@@ -15,6 +17,22 @@ name: Build IPA
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish as a pre-release under this tag (leave empty for an artifact only)"
+        required: false
+        default: ""
+      release_title:
+        description: "The release's title"
+        required: false
+        default: ""
+      release_notes:
+        description: "Path of the release notes file in the repository"
+        required: false
+        default: ""
+
+permissions:
+  contents: write # only used by the optional release step
 
 jobs:
   build-ipa:
@@ -80,3 +98,19 @@ jobs:
           name: Breviarium-ipa
           path: App/Breviarium.ipa
           if-no-files-found: error
+
+      - name: Publish the release
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          TITLE: ${{ inputs.release_title }}
+          NOTES: ${{ inputs.release_notes }}
+        run: |
+          set -euo pipefail
+          cp App/Breviarium.ipa "Breviarium-${TAG}.ipa"
+          gh release create "$TAG" "Breviarium-${TAG}.ipa" \
+            --target "$GITHUB_SHA" \
+            --title "${TITLE:-$TAG}" \
+            --notes-file "${NOTES:-/dev/null}" \
+            --prerelease

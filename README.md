@@ -62,9 +62,15 @@ There is no Mac and no paid developer account. CI builds an **unsigned** `.ipa`,
 sideloading tool on Windows signs it with a free Apple ID. The signature lasts 7 days
 and is renewed weekly.
 
-1. On GitHub, run the **Build IPA** workflow (Actions → Build IPA → Run workflow).
-2. On Windows, fetch it with `.\scripts\get-ipa.ps1` (needs the GitHub CLI).
-3. Sign and install it with AltStore/AltServer.
+1. Get the `.ipa`:
+   - **a release:** download it from the repository's
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 2 is
+     `Breviarium-Beta-2.ipa`);
+   - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
+     workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
+     CLI). Given a release tag and a notes file, the same workflow publishes the build as
+     a pre-release.
+2. Sign and install it with AltStore/AltServer.
 
 [`docs/install-on-iphone.md`](docs/install-on-iphone.md) covers the one-time setup, the
 weekly re-sign routine, and a short checklist to run on the phone after each install.
