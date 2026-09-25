@@ -3865,3 +3865,44 @@ icon specs are in [`icon-spec.md`](icon-spec.md). Divinum Officium, at the pinne
 turned out to contain the Dominican office (*Ordo Prædicatorum - 1962*), with English for
 its seasonal texts but not its saints, and the Little Office of Our Lady (Commune C12),
 with its English. It does not contain the Ambrosian office.
+
+## Beta 3
+
+The plan is [`Beta_3_plan.md`](Beta_3_plan.md), approved on 25 September 2026 with its six
+answers. It runs overnight, with no stops at the milestone gates.
+
+### B3-M0 — Housekeeping and the icon
+
+- **Baseline** on `main` at the Beta 2 merge: the fast suite passes all 348 tests
+  (`swift test --skip "vespersFullRange|dayHoursFullRange"`, 201 s). Every full-range
+  audit was at zero on the merged head (Oracle audits run 36129053936). The engine has
+  not changed since.
+- **The icon:** the user's illuminated B.
+  - `design/Icon.png` on `main`: 1024 × 1024, 8-bit RGB, no alpha, which meets
+    `icon-spec.md`.
+  - It's copied to `AppIcon.appiconset/icon-1024.png`.
+  - A WebP of it, converted, stood in for an hour until the original arrived.
+  - `testHomeScreenIcon` captures it on the simulator's Home Screen.
+- The Release notes screen has a "Beta 3" section.
+
+### B3-M1 — Understand Matins
+
+[`rubrics-1960-matins.md`](rubrics-1960-matins.md), cited to the pinned commit. It is
+based on reading all of `specmatins.pl` and the Matins parts of `specials.pl` and
+`horascommon.pl`, and on DO's renders of five dates.
+
+Findings that shape the engine:
+- **The 1960 lesson types** decide the structure. I and II class feasts get three
+  nocturns and nine lessons. Sundays, III class feasts and ferias get one nocturn of nine
+  psalms and three lessons, with the 1960 contraction of lessons 2 and 3 on Sundays and
+  III class feasts.
+- **The occurring Scripture** (`$scriptura`) is new state: the temporal office whose
+  lessons a saint's day reads in its first nocturn. The engine needs it from
+  `Occurrence`.
+- **The initia tables** (`Tabulae/Stransfer`) are new data, in the same format as
+  `Tabulae/Transfer`.
+- **The commemoration line differs per hour.** At Matins, 16 September 2026 reads
+  *Tempora: Feria Quarta …*, while Lauds and Prime read *Commemoratio ad Laudes tantum:
+  …*.
+- **No labels:** the *Absolutio.*/*Benedictio.* labels are dropped, as at the other
+  hours since Beta 2's phone test.
