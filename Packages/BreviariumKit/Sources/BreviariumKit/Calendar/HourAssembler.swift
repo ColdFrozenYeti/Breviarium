@@ -468,14 +468,17 @@ public struct HourAssembler {
             }
             return text
         }
-        // `horas.pl:142-146`: the red "Benedictio."/"Absolutio." prefix is translated.
-        func translatedLabel(_ line: String) -> String {
-            if line.hasPrefix("Benedictio.") { return "Benediction." + line.dropFirst("Benedictio.".count) }
-            if line.hasPrefix("Absolutio.") { return "Absolution." + line.dropFirst("Absolutio.".count) }
+        // DO prefixes a blessing or absolution with a red "Benedictio."/"Absolutio." label
+        // (`horas.pl:142-146` translates it). It isn't liturgical text, so it isn't shown
+        // (`CLAUDE.md`: no explanatory text in the office).
+        func withoutLabel(_ line: String) -> String {
+            for label in ["Benedictio.", "Absolutio.", "Benediction.", "Absolution."] where line.hasPrefix(label) {
+                return String(line.dropFirst(label.count)).trimmingCharacters(in: .whitespaces)
+            }
             return line
         }
-        let nonBlank = lines.compactMap(cleaned)
-        let englishNonBlank = englishLines?.compactMap(cleaned).map(translatedLabel)
+        let nonBlank = lines.compactMap(cleaned).map(withoutLabel)
+        let englishNonBlank = englishLines?.compactMap(cleaned).map(withoutLabel)
         let english = (englishNonBlank?.count == nonBlank.count) ? englishNonBlank : nil
 
         var units: [Unit] = []
@@ -2561,9 +2564,7 @@ public struct HourAssembler {
         // same file and was tried unconditionally first.
         let capitulumSection = office.hasSuffix("12-25") && macroContext.isFirstVespers ? "Capitulum Vespera 1" : "Capitulum Laudes"
         if let capitulum = lookup(capitulumSection) ?? lookup("Capitulum Vespera") {
-            sections.append(Section(kind: .capitulum, units: [
-                .prose(Self.formatCapitulum(capitulum.latin), english: capitulum.english.map(Self.formatCapitulum)),
-            ]))
+            sections.append(Section(kind: .capitulum, units: Self.capitulumUnits(latin: capitulum.latin, english: capitulum.english)))
         }
         // `hymnusmajor`'s own `checkmtv()` (`specials/hymni.pl:67-72`, `specials.pl:532-
         // 539`): "after 'Cum Nostra Hac Aetate'" -- Pope John XXIII's 1960 motu proprio
@@ -3005,6 +3006,47 @@ public struct HourAssembler {
     /// `"!Sap 3:1-3\nv. Iustórum ánimæ...pace.\nR. Deo grátias."` becomes
     /// `"Sap 3:1-3 Iustórum ánimæ...pace. ℟. Deo grátias."`, matching the fixture
     /// exactly.
+    /// A chapter or short lesson as the app shows it: the Scripture reference on its own
+    /// above the text, like a psalm's number (DO's leading `!` line); the text itself;
+    /// then its response (*Deo grátias*, DO's `R.` line) set as a response, not as
+    /// "℟. …" inside the prose. `thanks` is the response to use when the text has none
+    /// of its own.
+    static func capitulumUnits(latin: String, english: String?, thanks: (latin: String, english: String?)? = nil) -> [Unit] {
+        func parts(_ text: String, _ thanks: String?) -> (reference: String?, body: String, response: String?) {
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            var reference: String?
+            var body: [String] = []
+            var response: String?
+            for (index, line) in lines.enumerated() {
+                if index == 0, DOMarkers.isRubricLine(line) {
+                    reference = DOMarkers.stripRubricMarkers(line).trimmingCharacters(in: .whitespaces)
+                } else if line.hasPrefix("R.") || line.hasPrefix("r.") {
+                    response = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                } else {
+                    body.append(DOMarkers.isRubricLine(line) ? DOMarkers.stripRubricMarkers(line) : DOMarkers.stripLineLabel(line))
+                }
+            }
+            if response == nil, let thanks {
+                let line = thanks.split(separator: "\n").map(String.init).first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
+                let stripped = line.hasPrefix("R.") ? String(line.dropFirst(2)) : DOMarkers.stripLineLabel(line)
+                response = stripped.trimmingCharacters(in: .whitespaces).isEmpty ? nil : stripped.trimmingCharacters(in: .whitespaces)
+            }
+            return (reference, body.joined(separator: " "), response)
+        }
+        let latinParts = parts(latin, thanks?.latin)
+        let englishParts = english.map { parts($0, thanks?.english) }
+        var units: [Unit] = []
+        if let reference = latinParts.reference { units.append(.psalmTitle(reference, english: englishParts?.reference)) }
+        units.append(.prose(latinParts.body, english: englishParts?.body))
+        if let response = latinParts.response {
+            units.append(.versicleResponse(
+                versicle: "", response: response, versicleEnglish: englishParts.map { _ in "" }, responseEnglish: englishParts?.response
+            ))
+        }
+        return units
+    }
+
     static func formatCapitulum(_ text: String) -> String {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)

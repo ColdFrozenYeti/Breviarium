@@ -16,7 +16,7 @@ import Testing
 func englishComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     switch unit {
     case .rubric(_, let english): return [english].compactMap { $0 }
-    case .versicleResponse(_, _, let versicle, let response): return [versicle, response].compactMap { $0 }
+    case .versicleResponse(_, _, let versicle, let response): return [versicle, response].compactMap { $0 }.filter { !$0.isEmpty }
     case .verse(_, _, _, let first, let second):
         guard let first else { return [] }
         guard let second, !second.isEmpty else { return [first] }
@@ -24,7 +24,7 @@ func englishComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
         return ["\(withoutAsterisk) * \(second)"]
     case .antiphon(_, let english): return [english].compactMap { $0 }
     case .prose(_, let english): return [english].compactMap { $0 }
-    case .psalmTitle: return []
+    case .psalmTitle(_, let english): return [english].compactMap { $0 }
     case .englishPsalm(let verses):
         return verses.map { verse in
             guard !verse.secondHalf.isEmpty else { return verse.firstHalf }
@@ -69,6 +69,8 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|The Capitular Office|Litany of the Saints|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
     try! Regex(#"Canticle of Simeon Luke\s*-?[\d:-]*"#),
     try! Regex(#"Canticle of Zachary Luke\s*-?[\d:-]*"#),
+    try! Regex(#"\b(Benediction|Absolution)\."#),
+    try! Regex(#"\bbr\."#),
     try! Regex(#"Canticle of [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
     // The Athanasian Creed keeps its Latin title in the English column.
     try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?"#),
@@ -92,6 +94,10 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis)\b"#),
     try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),
     try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
+    // The blessing's and absolution's red label, which the app doesn't show.
+    try! Regex(#"\b(Benedictio|Absolutio)\."#),
+    // The short responsory's "R.br." label, which the app doesn't show.
+    try! Regex(#"\bbr\."#),
     // Lauds' Old Testament canticle titles ("Canticum Iudith [4] Iudith 16:15-22"),
     // once the verse numbers are gone.
     try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),

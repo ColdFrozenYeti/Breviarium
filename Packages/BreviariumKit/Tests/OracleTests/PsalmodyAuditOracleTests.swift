@@ -48,7 +48,7 @@ func renderedPsalms(_ hour: Hour) -> [RenderedPsalm] {
     var psalms: [RenderedPsalm] = []
     for unit in psalmodia.units {
         switch unit {
-        case .psalmTitle(let title):
+        case .psalmTitle(let title, _):
             psalms.append(RenderedPsalm(title: collapsedOracleText(title), references: []))
         case .verse(let reference, _, _, _, _) where !reference.isEmpty && !psalms.isEmpty:
             psalms[psalms.count - 1].references.append(reference)

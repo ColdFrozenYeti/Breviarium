@@ -41,7 +41,7 @@ func dayHourRenderedPsalms(_ hour: Hour) -> [RenderedPsalm] {
         inPsalm = false
         for unit in section.units {
         switch unit {
-        case .psalmTitle(let title):
+        case .psalmTitle(let title, _):
             inPsalm = title.hasPrefix("Psalmus")
             if inPsalm { psalms.append(RenderedPsalm(title: title.split(whereSeparator: { $0.isWhitespace }).joined(separator: " "), references: [])) }
         case .verse(let reference, _, _, _, _) where inPsalm && !reference.isEmpty:

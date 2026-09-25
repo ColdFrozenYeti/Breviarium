@@ -436,6 +436,41 @@ final class BreviariumUITests: XCTestCase {
         captureTwoPages(date: "2026-04-04", hour: "Completorium", name: "hours-holysaturday-Completorium")
     }
 
+    /// 25 September 2026, as reported from the phone: each little hour's chapter page and
+    /// last page (None's end was cut off), Compline's Marian antiphon, and None with
+    /// English on.
+    func testDayHoursChapterAndLastPages() {
+        for hour in ["Prima", "Tertia", "Sexta", "Nona", "Completorium"] {
+            captureChapterAndLastPage(date: "2026-09-25", hour: hour, english: false, name: "0925-\(hour)")
+        }
+        captureChapterAndLastPage(date: "2026-09-25", hour: "Nona", english: true, name: "0925-Nona-en")
+    }
+
+    private func captureChapterAndLastPage(date: String, hour: String, english: Bool, name: String) {
+        let chapterSection = hour == "Completorium" ? "lectioBrevis" : "capitulum"
+        var app = launchApp(date: date, section: chapterSection, english: english, hour: hour)
+        Thread.sleep(forTimeInterval: 0.6)
+        let chapter = XCTAttachment(screenshot: app.screenshot())
+        chapter.name = "\(name)-chapter"
+        chapter.lifetime = .keepAlways
+        add(chapter)
+        app.terminate()
+
+        app = launchApp(date: date, english: english, hour: hour)
+        Thread.sleep(forTimeInterval: 0.4)
+        var swipes = 0
+        while let counter = pageCounter(app), counter.page < counter.count, swipes < 40 {
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            swipes += 1
+        }
+        let last = XCTAttachment(screenshot: app.screenshot())
+        last.name = "\(name)-last"
+        last.lifetime = .keepAlways
+        add(last)
+        app.terminate()
+    }
+
     private func captureTwoPages(date: String, hour: String, name: String) {
         let app = launchApp(date: date, hour: hour)
         Thread.sleep(forTimeInterval: 0.4)

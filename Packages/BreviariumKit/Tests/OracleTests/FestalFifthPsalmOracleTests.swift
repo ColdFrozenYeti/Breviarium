@@ -30,7 +30,7 @@ import Testing
 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     // Expected titles are DO's own, from this date's fixture (the Pius XII subtitles came
     // with B1-M3's title fix, `HourAssembler.psalmTitle`).
@@ -61,7 +61,7 @@ import Testing
 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     #expect(titles.last == "Psalmus 113 — A: Mirabilia a Deo in Exodo patrata [5]")
 
@@ -93,7 +93,7 @@ import Testing
 
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     // Expected titles are DO's own, from this date's fixture (the Pius XII subtitles came
     // with B1-M3's title fix, `HourAssembler.psalmTitle`).

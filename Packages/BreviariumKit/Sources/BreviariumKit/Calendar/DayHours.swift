@@ -341,12 +341,7 @@ extension HourAssembler {
         if resolver.sectionExists(path: chapterLocation.path, section: chapterLocation.section) {
             let texts = bothTexts(path: chapterLocation.path, section: chapterLocation.section, resolver: resolver, englishResolver: englishResolver)
             let deoGratias = bothTexts(path: SectionResolver.prayersPath, section: "Deo gratias", resolver: resolver, englishResolver: englishResolver)
-            func formatted(_ text: String, _ thanks: String?) -> String {
-                var body = Self.formatCapitulum(text)
-                if let thanks, !body.contains(Self.formatCapitulum(thanks)) { body += " " + Self.formatCapitulum(thanks) }
-                return body
-            }
-            units.append(.prose(formatted(texts.latin, deoGratias.latin), english: texts.english.map { formatted($0, deoGratias.english) }))
+            units.append(contentsOf: Self.capitulumUnits(latin: texts.latin, english: texts.english, thanks: deoGratias))
         }
 
         // The short responsory and versicle.
@@ -524,7 +519,7 @@ extension HourAssembler {
         }
         let latin = split(texts.latin)
         let english = texts.english.map(split)
-        var units: [Unit] = [.prose(Self.formatCapitulum(latin.reading), english: english.map { Self.formatCapitulum($0.reading) })]
+        var units = Self.capitulumUnits(latin: latin.reading, english: english?.reading)
         units.append(contentsOf: Self.unitsFromLines(latin.rest, english: english?.rest))
         units.append(contentsOf: Self.unitsFromLines(group.lines, english: englishGroup?.lines))
         return [Section(kind: .lectioBrevis, units: units)]
@@ -596,7 +591,20 @@ extension HourAssembler {
         func lines(_ text: String?) -> [String] { text?.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) ?? [] }
         let latinLines = lines(antiphon.latin) + lines(auxilium) + group.lines
         let englishLines: [String]? = englishResolver == nil ? nil : lines(antiphon.english) + lines(englishAuxilium) + (englishGroup?.lines ?? [])
-        return Section(kind: .antiphonaFinalis, units: Self.unitsFromLines(latinLines, english: englishLines))
+        // The antiphon's lines are one text, set like a hymn stanza, not a paragraph each.
+        var units = Self.unitsFromLines(latinLines, english: englishLines)
+        let leading = units.prefix { if case .prose = $0 { true } else { false } }
+        if leading.count > 1 {
+            var latin: [String] = []
+            var english: [String] = []
+            for case .prose(let text, let englishText) in leading {
+                latin.append(text.trimmingCharacters(in: .whitespaces))
+                if let englishText { english.append(englishText.trimmingCharacters(in: .whitespaces)) }
+            }
+            let merged = Unit.prose(latin.joined(separator: "\n"), english: english.count == latin.count ? english.joined(separator: "\n") : nil)
+            units.replaceSubrange(0..<leading.count, with: [merged])
+        }
+        return Section(kind: .antiphonaFinalis, units: units)
     }
 
     // MARK: - An office's own form of the hour
@@ -742,10 +750,7 @@ extension HourAssembler {
         let special = "Psalterium/Special/Prima Special"
         let deoGratias = bothTexts(path: SectionResolver.prayersPath, section: "Deo gratias", resolver: resolver, englishResolver: englishResolver)
         let chapter = bothTexts(path: special, section: "Dominica", resolver: resolver, englishResolver: englishResolver)
-        var units: [Unit] = [.prose(
-            Self.formatCapitulum(chapter.latin + "\n" + deoGratias.latin),
-            english: chapter.english.map { Self.formatCapitulum($0 + "\n" + (deoGratias.english ?? "")) }
-        )]
+        var units = Self.capitulumUnits(latin: chapter.latin, english: chapter.english, thanks: deoGratias)
 
         var key = Self.tempora(
             caller: "Prima responsory", weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, day: macroContext.officeDay,
@@ -804,7 +809,7 @@ extension HourAssembler {
         let lesson = bothTexts(path: special, section: name, resolver: resolver, englishResolver: englishResolver)
         let tuAutem = bothTexts(path: SectionResolver.prayersPath, section: "Tu autem", resolver: resolver, englishResolver: englishResolver)
         var units = Self.unitsFromLines(lines(blessing.latin), english: blessing.english.map(lines))
-        units.append(.prose(Self.formatCapitulum(lesson.latin), english: lesson.english.map(Self.formatCapitulum)))
+        units.append(contentsOf: Self.capitulumUnits(latin: lesson.latin, english: lesson.english))
         units.append(contentsOf: Self.unitsFromLines(lines(tuAutem.latin), english: tuAutem.english.map(lines)))
         return Section(kind: .lectioBrevis, units: units)
     }
@@ -968,14 +973,7 @@ extension HourAssembler {
         if resolver.sectionExists(path: chapterLocation.path, section: chapterLocation.section) {
             let texts = bothTexts(path: chapterLocation.path, section: chapterLocation.section, resolver: resolver, englishResolver: englishResolver)
             let thanks = bothTexts(path: SectionResolver.prayersPath, section: "Deo gratias", resolver: resolver, englishResolver: englishResolver)
-            func formatted(_ text: String, _ thanks: String?) -> String {
-                var body = Self.formatCapitulum(text)
-                if let thanks, !body.contains(Self.formatCapitulum(thanks)) { body += " " + Self.formatCapitulum(thanks) }
-                return body
-            }
-            sections.append(Section(kind: .capitulum, units: [
-                .prose(formatted(texts.latin, thanks.latin), english: texts.english.map { formatted($0, thanks.english) }),
-            ]))
+            sections.append(Section(kind: .capitulum, units: Self.capitulumUnits(latin: texts.latin, english: texts.english, thanks: thanks)))
         }
 
         var hymnLocation = proprium("Hymnus Laudes", flag: true, winner: winner, resolver: resolver, weekName: weekName)

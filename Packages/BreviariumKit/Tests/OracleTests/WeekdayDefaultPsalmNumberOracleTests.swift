@@ -30,7 +30,7 @@ import Testing
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     #expect(titles.first == "Psalmus 143(1-8) [1]")
 
@@ -57,7 +57,7 @@ import Testing
     let psalmodia = try #require(hour.sections.first { $0.kind == .psalmodia })
 
     let titles = psalmodia.units.compactMap { unit -> String? in
-        if case .psalmTitle(let text) = unit { return text } else { return nil }
+        if case .psalmTitle(let text, _) = unit { return text } else { return nil }
     }
     #expect(titles.first == "Psalmus 109 — Messias rex, sacerdos victor [1]")
 
