@@ -248,7 +248,20 @@ at zero, and the 2044 hold-out passing.
   2's paging bugs were only visible on the phone, so the PR isn't merged and the release
   isn't published until you've tried it (open question 5).
 
-## Open questions (recommendations first)
+## Decisions (answered 2026-09-25, plan approved)
+
+1. **Launch hour:** Matins from 00:00 to 05:00, then Lauds until 09:00 as before.
+2. **Which day's Matins:** always the chosen date's own Matins, as DO shows it. No
+   anticipation setting.
+3. **Pius XII fixtures for Matins:** yes, as for every other hour.
+4. **Lesson headings:** the nocturns are the section headings, and each lesson takes a
+   smaller italic line (*Lectio i*).
+5. **Merge and release:** open a PR and build an IPA. Merge and publish after you've tried
+   it on the phone.
+6. **The icon's original:** you will put it at `design/icon/icon-1024.png` on `main`. The
+   app's asset catalog is copied from it.
+
+## Open questions (as asked; answered above)
 
 1. **Matins in the launch schedule.** The app opens on the hour for the time of day,
    Lauds until 09:00.
