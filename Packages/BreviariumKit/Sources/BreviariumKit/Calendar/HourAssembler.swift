@@ -253,7 +253,7 @@ public struct HourAssembler {
                     }
                     sections.append(Section(kind: .oratio, units: oratioUnits))
                 }
-            case "Conclusio" where hour == .laudes && isLitaniaeMajores(day: day, month: month, macroContext: macroContext, winnerPath: winner.winningPath):
+            case "Conclusio" where hour == .laudes && isLitaniaeMajores(day: day, month: month, year: year, macroContext: macroContext, winnerPath: winner.winningPath):
                 sections.append(contentsOf: assembleLitaniae(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
             case "Conclusio":
                 // `specials.pl:378-383`'s own "Special conclusions, e.g. on All Souls'
@@ -873,7 +873,7 @@ public struct HourAssembler {
     /// `specials.pl:342-351`: the Greater Litanies follow Lauds on 25 April (on the 26th
     /// when the 25th is Easter Monday, under 1960), or in April when the office's rule
     /// says "Laudes Litania" (a saint's only on the 25th).
-    func isLitaniaeMajores(day: Int, month: Int, macroContext: MacroContext, winnerPath: String) -> Bool {
+    func isLitaniaeMajores(day: Int, month: Int, year: Int, macroContext: MacroContext, winnerPath: String) -> Bool {
         guard month == 4 else { return false }
         let week = macroContext.weekName
         let dow = macroContext.dayOfWeek
@@ -882,7 +882,12 @@ public struct HourAssembler {
         if day == 26, week.hasPrefix("Pasc0"), dow == 2 { return true }
         let rule = macroContext.winningRule
         if rule.range(of: "Laudes Litania", options: .caseInsensitive) != nil { return !(winnerPath.hasPrefix("Sancti/") && day != 25) }
-        return false
+        // `$commemoratio{Rule}`/`$scriptura{Rule}`: the day's temporal office under a
+        // saint (Rogation Monday, 30 April 2035, under St Catherine of Siena).
+        let resolver = SectionResolver(corpus: corpus, context: context)
+        let temporal = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
+        return temporal != winnerPath && resolver.sectionExists(path: temporal, section: "Rule")
+            && resolver.resolve(path: temporal, section: "Rule").range(of: "Laudes Litania", options: .caseInsensitive) != nil
     }
 
     /// `specials.pl:353-376`: in place of the conclusion, *Domine exaudi* and *Benedicamus
@@ -1212,10 +1217,10 @@ public struct HourAssembler {
         let englishTitle = englishResolver.map { eng -> String in
             // English `Sancti/09-11`'s `[[Oratio]` typo runs its collect into `[Officium]`;
             // DO's heading shows those lines, but not the `$Per Dominum` among them.
-            if let raw = eng.unresolvedBody(path: commemoration.path, section: "Officium"),
-                raw.filter({ !$0.trimmingCharacters(in: .whitespaces).isEmpty }).count > 1
-            {
-                return raw.filter { !$0.hasPrefix("$") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }.joined(separator: " ") + suffix
+            if let unresolved = eng.unresolvedBody(path: commemoration.path, section: "Officium") {
+                let raw = ConditionalLineProcessor.resolve(lines: unresolved, context: eng.context)
+                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                if raw.count > 1 { return raw.filter { !$0.hasPrefix("$") }.joined(separator: " ") + suffix }
             }
             let name = eng.resolveRank(path: commemoration.path).components(separatedBy: ";;").first?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
