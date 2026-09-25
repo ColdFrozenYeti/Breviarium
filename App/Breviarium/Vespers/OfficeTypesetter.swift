@@ -288,6 +288,11 @@ struct OfficeTypesetter {
         let configuration = UIImage.SymbolConfiguration(pointSize: metrics.bodySize, weight: .regular)
         attachment.image = UIImage(systemName: "list.bullet", withConfiguration: configuration)?
             .withTintColor(iconColor, renderingMode: .alwaysOriginal)
+        // A fixed size and no attachment view: left to size itself, the icon settled only
+        // once page 1 was on screen, and the whole hour reflowed under the pages already
+        // counted (25 September 2026: None's chapter reference left alone at a page's foot).
+        attachment.allowsTextAttachmentView = false
+        attachment.bounds = CGRect(origin: .zero, size: attachment.image?.size ?? .zero)
         let icon = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
         icon.addAttribute(.link, value: OfficeLink.tableOfContents, range: NSRange(location: 0, length: icon.length))
         // `Format.png` measures 12pt from the icon to the hour title (0.8x body gave 21pt).
@@ -456,6 +461,7 @@ struct OfficeTypesetter {
         }
         let attachment = NSTextAttachment()
         attachment.image = image
+        attachment.allowsTextAttachmentView = false
         attachment.bounds = CGRect(origin: .zero, size: size)
         let rule = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
         rule.addAttribute(.font, value: UIFont.systemFont(ofSize: 1), range: NSRange(location: 0, length: rule.length))
