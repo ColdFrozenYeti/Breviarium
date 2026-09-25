@@ -45,9 +45,6 @@ in Latin with an optional English translation, in either psalter.
   - Page turn (slide or page curl)
   - *Ritus*: Romanus, with Ambrosianus and Dominicanus listed as coming soon
   - Release notes, and About with the Divinum Officium licence
-- **Next, the later betas:**
-  1. Matins, and the Martyrology as an hour of its own;
-  2. the Ambrosian and Dominican rites.
 
 The build log, with every decision and every bug traced to the Divinum Officium source
 it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong,
@@ -56,6 +53,14 @@ and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retr
 [`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md). Beta 2's plan is
 [`docs/Beta_2_plan.md`](docs/Beta_2_plan.md), and how each day hour is put together is in
 [`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md).
+
+## Roadmap
+
+![Roadmap: Alpha, Beta 1 and Beta 2 released; Beta 3 Matins and the new icon; Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+
+Why it's in this order, and what each beta depends on, is in
+[`docs/roadmap.md`](docs/roadmap.md). The icon is being designed to
+[`docs/icon-spec.md`](docs/icon-spec.md).
 
 ## Installing on the iPhone
 
