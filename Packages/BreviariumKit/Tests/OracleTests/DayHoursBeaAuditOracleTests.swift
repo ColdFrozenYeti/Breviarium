@@ -54,7 +54,7 @@ func dayHourRenderedPsalms(_ hour: Hour) -> [RenderedPsalm] {
     return psalms
 }
 
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeBeaAudit(hour: CanonicalHour) async throws {
     if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return

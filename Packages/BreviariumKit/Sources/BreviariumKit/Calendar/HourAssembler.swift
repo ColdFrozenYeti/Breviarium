@@ -146,6 +146,8 @@ public struct HourAssembler {
         } ?? [:]
 
         var sections: [Section] = []
+        let matins = hour == .matutinum
+            ? matinsDay(winner: winner, macroContext: macroContext, resolver: resolver, day: day, month: month, year: year) : nil
         for group in groups {
             if hour != .vesperae, skipsGroup(
                 group.name, hour: hour, winner: winner, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext,
@@ -346,6 +348,25 @@ public struct HourAssembler {
                     office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
                     dayOfWeek: macroContext.dayOfWeek
                 ))
+            case "Invitatorium" where hour == .matutinum:
+                if let matins, let section = assembleInvitatorium(
+                    matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ) {
+                    sections.append(section)
+                }
+            case "Hymnus" where hour == .matutinum:
+                if let matins, let section = assembleMatinsHymn(
+                    matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ) {
+                    sections.append(section)
+                }
+            case "Psalmi cum lectionibus":
+                if let matins {
+                    sections.append(contentsOf: assembleMatinsPsalmi(
+                        matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                        trailing: group.lines, englishTrailing: englishGroups[group.name]?.lines
+                    ))
+                }
             case "Hymnus":
                 sections.append(contentsOf: assembleMinorHymn(
                     hour: hour, winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
@@ -463,8 +484,9 @@ public struct HourAssembler {
             } else {
                 // Inline small print keeps its words ("/:(percutit sibi pectus):/"), and
                 // `+++` is DO's ✙︎ (`webdia.pl:492-502`, `setcross`).
+                // `++` is DO's plain red cross (`webdia.pl:498-502`): *Dómine, lábia + mea*.
                 text = text.replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
-                    .replacingOccurrences(of: " +++ ", with: " ✙︎ ")
+                    .replacingOccurrences(of: " +++ ", with: " ✙︎ ").replacingOccurrences(of: " ++ ", with: " + ")
             }
             return text
         }
@@ -487,7 +509,12 @@ public struct HourAssembler {
             let line = nonBlank[i]
             let englishLine = english?[i]
             if DOMarkers.isRubricLine(line) {
-                units.append(.rubric(DOMarkers.stripRubricMarkers(line), english: englishLine.map(DOMarkers.stripRubricMarkers)))
+                // `%Laudes%` is DO's link to another hour (`webdia.pl`), shown as the word.
+                func tidy(_ text: String) -> String {
+                    DOMarkers.stripRubricMarkers(text).replacingOccurrences(of: "%", with: "")
+                        .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+                }
+                units.append(.rubric(tidy(line), english: englishLine.map(tidy)))
                 i += 1
             } else if line.hasPrefix("V.") && i + 1 < nonBlank.count && nonBlank[i + 1].hasPrefix("R.") {
                 units.append(.versicleResponse(

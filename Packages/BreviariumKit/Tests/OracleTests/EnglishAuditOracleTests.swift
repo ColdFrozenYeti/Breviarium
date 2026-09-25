@@ -24,7 +24,8 @@ func englishComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
         return ["\(withoutAsterisk) * \(second)"]
     case .antiphon(_, let english): return [english].compactMap { $0 }
     case .prose(_, let english): return [english].compactMap { $0 }
-    case .psalmTitle(_, let english): return [english].compactMap { $0 }
+    case .psalmTitle(_, let english): return [english].compactMap { $0 }.filter { !$0.isEmpty }
+    case .lesson(let paragraph): return paragraph.english ?? []
     case .englishPsalm(let verses):
         return verses.map { verse in
             guard !verse.secondHalf.isEmpty else { return verse.firstHalf }
@@ -75,6 +76,13 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     // The Athanasian Creed keeps its Latin title in the English column.
     try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?"#),
     try! Regex(#"Canticle of [\p{L} .]+? [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
+    // Beta 3, Matins: its group headings, and the nocturns' and lessons' own headings,
+    // which the app sets as its own (NOCTURNUS I, *Lectio i*).
+    try! Regex(#"^\s*Invitatory\b"#),
+    try! Regex(#"\bwith lections\b"#),
+    try! Regex(#"\bAt the Nocturn\b"#),
+    try! Regex(#"\bNocturn I{1,3}\b"#),
+    try! Regex(#"\bReading \d+\b"#),
 ]
 
 /// The same for DO's Latin cells: headings and titles the app sets as its own fixed
@@ -101,6 +109,12 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     // Lauds' Old Testament canticle titles ("Canticum Iudith [4] Iudith 16:15-22"),
     // once the verse numbers are gone.
     try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
+    // Beta 3, Matins' headings.
+    try! Regex(#"^\s*Invitatorium\b"#),
+    try! Regex(#"\bcum lectionibus\b"#),
+    try! Regex(#"\bAd Nocturnum\b"#),
+    try! Regex(#"\bNocturnus I{1,3}\b"#),
+    try! Regex(#"\bLectio \d+\b"#),
 ]
 
 /// What's left of each cell once every piece we render, and the chrome, is removed:

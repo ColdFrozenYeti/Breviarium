@@ -78,6 +78,20 @@ public struct SectionResolver {
     /// plain fallback variant of its own. `winningVariant` already has the correct,
     /// already-tested condition-matching logic (`resolve()` itself is built on it) --
     /// this was simply the one caller not consulting it.
+    /// One `$Name` or `&Name` line as DO expands it (a prayer, a rubric, a script
+    /// macro); any other line as it is. Beta 3: Matins emits these line by line
+    /// (`$Pater noster Et`, `$rubrica Pater secreto`, `$Jube domne`).
+    public func expandMacroLine(_ line: String) -> String {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.first == "$" { return resolvePrayerMacroLine(String(trimmed.dropFirst()), depth: 0) }
+        if trimmed.first == "&", let macroContext,
+            let resolved = ScriptMacros.resolve(String(trimmed.dropFirst()), context: macroContext, resolver: self, isEnglish: isEnglish)
+        {
+            return resolved
+        }
+        return line
+    }
+
     public func sectionExists(path: String, section: String) -> Bool {
         winningVariant(path: path, section: section) != nil
     }

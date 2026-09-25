@@ -51,9 +51,12 @@ func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .englishPsalm:
         return []
     case .psalmTitle(let text, let english):
-        // A psalm's title is checked by the psalmody audits; a chapter's Scripture
-        // reference (the only kind with English) is compared here.
-        return english == nil ? [] : [text]
+        // A psalm's title is checked by the psalmody audits, and a Matins lesson's own
+        // heading (*Lectio i*, DO's "Lectio 1") isn't DO's text; a chapter's or lesson's
+        // Scripture reference and a lesson's title lines are compared here.
+        if english != nil { return [text] }
+        return text.range(of: #"^(Psalmus|Canticum|Symbolum|Lectio [ivx]+$)"#, options: .regularExpression) == nil ? [text] : []
+    case .lesson(let paragraph): return paragraph.lines
     }
 }
 
@@ -245,7 +248,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
         case .antiphon(_, let english): return [english].compactMap { $0 }
         case .prose(_, let english): return [english].compactMap { $0 }
         case .psalmTitle: return []
-        case .englishPsalm: return englishComparisonTexts(unit)
+        case .englishPsalm, .lesson: return englishComparisonTexts(unit)
         }
     }
 
@@ -617,6 +620,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
     case .prose(let text, let english): [text, english].compactMap { $0 }
     case .psalmTitle(let text, _): [text]
     case .englishPsalm(let verses): verses.flatMap { [$0.firstHalf, $0.secondHalf] }
+    case .lesson(let paragraph): paragraph.lines + (paragraph.english ?? [])
     }
 }
 

@@ -105,7 +105,7 @@ func assembleDayHour(
 
 /// Every date 2025-2040 (every `BREVIARIUM_AUDIT_STRIDE`th), one hour. Skipped when the
 /// hour's fixtures aren't there yet.
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_AUDIT_HOURS=Prima,Laudes` runs only those (several processes in parallel).
     if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
@@ -129,6 +129,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english, calendar: calendar
                 )
                 if let assembled {
+                    if ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_TRACE"] != nil { FileHandle.standardError.write(Data("DATE \(date)\n".utf8)) }
                     let rows = withoutMartyrology(OracleFixture.rows(text))
                     report.add(hour: assembled, rows: rows, title: title, date: date)
                 } else {
@@ -171,6 +172,16 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
     var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
     if page == nil { page = try await OracleFixture.shared.hourYear(hour: hour, year: parts[0])?["\(parts[0])/\(date)_priestN_bilingual.tsv"] }
+    if env["BREVIARIUM_DEBUG_NOAUDIT"] != nil { page = nil }
+    if env["BREVIARIUM_DEBUG_PIECES"] != nil, let assembled {
+        for section in assembled.sections {
+            for unit in section.units {
+                print("PIECE \(section.kind) \(String(describing: unit).prefix(60))")
+                let pieces = oracleComparisonTexts(unit)
+                print("  -> \(pieces.count)")
+            }
+        }
+    }
     if let text = page {
         out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
         if let assembled {
@@ -184,7 +195,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
 
 /// The out-of-sample year (`holdout/2044-<Hour>.tar.gz`), priest off and on: the same
 /// checks as `dayHoursFullRangeAudit` on a year the engine was never tuned against.
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
     if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return

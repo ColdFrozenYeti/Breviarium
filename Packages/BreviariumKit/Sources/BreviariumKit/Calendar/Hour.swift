@@ -47,6 +47,45 @@ public enum Unit: Equatable, Sendable {
     /// Alignment; `docs/psalters-and-english.md` question 1). Follows the psalm's Latin
     /// `.verse` units, which then carry no English of their own.
     case englishPsalm([PsalmVerse])
+    /// A paragraph of a Matins lesson (Beta 3): its source lines (Scripture's verses, a
+    /// homily's sentences as DO breaks them), shown as one paragraph, with its English
+    /// the same way. Kept as lines so each can be checked against DO's page.
+    case lesson(LessonParagraph)
+}
+
+/// `Unit`'s own description, so nothing prints it by reflection: the Swift 6.1 runtime on
+/// Linux misreads this enum's payloads when reflecting over it once it has a `.lesson`
+/// case (printing one unit twice over-released it and crashed, B3-M3). Test failures and
+/// debug output print units through this.
+extension Unit: CustomStringConvertible {
+    public var description: String {
+        func quoted(_ text: String?) -> String { text.map { $0.debugDescription } ?? "nil" }
+        switch self {
+        case .rubric(let text, let english): return "rubric(\(quoted(text)), english: \(quoted(english)))"
+        case .versicleResponse(let versicle, let response, let versicleEnglish, let responseEnglish):
+            return "versicleResponse(\(quoted(versicle)), \(quoted(response)), english: \(quoted(versicleEnglish)), \(quoted(responseEnglish)))"
+        case .verse(let reference, let first, let second, let firstEnglish, let secondEnglish):
+            return "verse(\(quoted(reference)), \(quoted(first)), \(quoted(second)), english: \(quoted(firstEnglish)), \(quoted(secondEnglish)))"
+        case .antiphon(let text, let english): return "antiphon(\(quoted(text)), english: \(quoted(english)))"
+        case .prose(let text, let english): return "prose(\(quoted(text)), english: \(quoted(english)))"
+        case .psalmTitle(let text, let english): return "psalmTitle(\(quoted(text)), english: \(quoted(english)))"
+        case .englishPsalm(let verses): return "englishPsalm(\(verses.count) verses)"
+        case .lesson(let paragraph):
+            return "lesson(\(paragraph.lines.map { $0.debugDescription }.joined(separator: ", ")), english: \(paragraph.english.map { $0.joined(separator: " ").debugDescription } ?? "nil"))"
+        }
+    }
+}
+
+/// A paragraph of a Matins lesson: its source lines in Latin and, when there is one, the
+/// English paragraph's lines.
+public struct LessonParagraph: Equatable, Sendable {
+    public var lines: [String]
+    public var english: [String]?
+
+    public init(lines: [String], english: [String]? = nil) {
+        self.lines = lines
+        self.english = english
+    }
 }
 
 /// One named group of `Unit`s — `docs/rubrics-1960-vespers.md` §5's proposed heading
@@ -63,6 +102,9 @@ public struct Section: Equatable, Sendable {
         case officiumCapituli
         // The Greater Litanies after Lauds on St Mark's day.
         case litaniae
+        // Beta 3, Matins: the invitatory, the nocturns (three, or the single one) and the
+        // Te Deum.
+        case invitatorium, nocturnusI, nocturnusII, nocturnusIII, adNocturnum, teDeum
     }
 
     public var kind: Kind
