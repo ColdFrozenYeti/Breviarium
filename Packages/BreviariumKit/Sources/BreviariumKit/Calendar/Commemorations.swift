@@ -364,6 +364,9 @@ public struct Commemorations {
                 continue
             }
             if ind == 2 {
+                // `horascommon.pl:365`: under 1960 a I. classis temporal office leaves no
+                // saint below it (the Easter and Pentecost octaves: St George, 23 April).
+                if let temporalRank, temporalRank.numericPrecedence >= 6, rank.numericPrecedence < 6 { continue }
                 // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included.
                 guard Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
                 else { continue }

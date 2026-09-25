@@ -307,10 +307,7 @@ extension HourAssembler {
         }
         let latin = stanzas(texts.latin)
         let english = texts.english.map(stanzas)
-        let pair = english?.count == latin.count
-        return [Section(kind: .hymnus, units: latin.enumerated().map { index, stanza in
-            .prose(stanza, english: pair ? english?[index] : nil)
-        })]
+        return [Section(kind: .hymnus, units: Self.pairedStanzas(latin: latin, english: english))]
     }
 
     // MARK: - Chapter and short responsory
@@ -878,7 +875,9 @@ extension HourAssembler {
         }
         let paschalAlleluia = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
             && (!resolver.sectionExists(path: office, section: "Ant Laudes") || winner.winningRank.communeReference.contains("C10"))
-            && !communeIsEx
+            // Our Lady on Saturday is `vide C10` for `$communetype` (`horascommon.pl:437`);
+            // its `ex` rank only feeds `$communerule`. 3 May 2025: one Allelúia antiphon.
+            && (!communeIsEx || winner.winningRank.communeReference.contains("C10"))
 
         func entries(_ resolver: SectionResolver, english: Bool) -> [(antiphon: String, psalms: [String])] {
             let psalmLines = lines(psalmSource.0, psalmSource.1, resolver)
@@ -993,8 +992,7 @@ extension HourAssembler {
             func stanzas(_ text: String) -> [String] { Self.hymnStanzas(text.replacingOccurrences(of: #"\*\s*"#, with: "", options: .regularExpression)) }
             let latin = stanzas(texts.latin)
             let english = texts.english.map(stanzas)
-            let pair = english?.count == latin.count
-            sections.append(Section(kind: .hymnus, units: latin.enumerated().map { index, stanza in .prose(stanza, english: pair ? english?[index] : nil) }))
+            sections.append(Section(kind: .hymnus, units: Self.pairedStanzas(latin: latin, english: english)))
         }
 
         var versumLocation = proprium("Versum 2", flag: true, winner: winner, resolver: resolver, weekName: weekName)
@@ -1062,5 +1060,23 @@ extension HourAssembler {
             units.append(.antiphon(Self.closingAntiphon(antiphons.latin), english: antiphons.english.map(Self.closingAntiphon)))
         }
         return Section(kind: .canticum, units: units)
+    }
+}
+
+extension HourAssembler {
+    /// A hymn's stanzas, Latin with English. When the translation has more stanzas (the
+    /// Pentecost Lauds hymn: 7 Latin, 8 English, the English doxology in two), the extra
+    /// ones go with the last Latin stanza, so none of the English is lost; DO shows the
+    /// whole hymn in one row.
+    static func pairedStanzas(latin: [String], english: [String]?) -> [Unit] {
+        // `webdia.pl:694`: the editor's grave accents go ("`gainst").
+        let english = english?.map { $0.replacingOccurrences(of: "`", with: "") }
+        guard let english, !english.isEmpty, !latin.isEmpty else { return latin.map { .prose($0, english: nil) } }
+        guard english.count != latin.count else { return zip(latin, english).map { .prose($0, english: $1) } }
+        guard english.count > latin.count else { return latin.map { .prose($0, english: nil) } }
+        return latin.enumerated().map { index, stanza in
+            let text = index == latin.count - 1 ? english[index...].joined(separator: "\n\n") : english[index]
+            return .prose(stanza, english: text)
+        }
     }
 }

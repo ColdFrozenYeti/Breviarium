@@ -66,7 +66,7 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*Verse \(taking the place of the Chapter\)"#),    // DO's group heading in the Easter Octave
     try! Regex(#"Canticle of the Blessed Virgin Luke\s*-?\d*"#),
     // Beta 2's day hours: their own group headings and the canticle title.
-    try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|The Capitular Office|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
+    try! Regex(#"^\s*(Chapter Responsory Verse|Chapter Verse|Short Lesson|Short reading|Special Completorium|Suffrage|The Capitular Office|Litany of the Saints|Canticle: Benedictus|Lectio brevis|Canticle: Nunc dimittis|Final Antiphon of the Blessed Virgin Mary|Final Antiphon)\b"#),
     try! Regex(#"Canticle of Simeon Luke\s*-?[\d:-]*"#),
     try! Regex(#"Canticle of Zachary Luke\s*-?[\d:-]*"#),
     try! Regex(#"Canticle of [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
@@ -89,7 +89,7 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Canticum B\. Mariæ Virginis Luc\.\s*-?\d*"#),
     try! Regex(#"^\s*Hymnus\b"#),
     try! Regex(#"^\s*Versus \(In loco Capituli\)"#),
-    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis)\b"#),
+    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis)\b"#),
     try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),
     try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
     // Lauds' Old Testament canticle titles ("Canticum Iudith [4] Iudith 16:15-22"),

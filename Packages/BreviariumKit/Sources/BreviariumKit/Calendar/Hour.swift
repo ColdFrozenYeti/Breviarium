@@ -58,6 +58,8 @@ public struct Section: Equatable, Sendable {
         case lectioBrevis, antiphonaFinalis
         // Prime's *Pretiosa* and "De Officio Capituli".
         case officiumCapituli
+        // The Greater Litanies after Lauds on St Mark's day.
+        case litaniae
     }
 
     public var kind: Kind

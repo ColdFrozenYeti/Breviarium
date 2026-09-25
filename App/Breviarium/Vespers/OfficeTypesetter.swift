@@ -243,6 +243,7 @@ struct OfficeTypesetter {
         case .lectioBrevis: "LECTIO BREVIS"
         case .antiphonaFinalis: "ANTIPHONA FINALIS"
         case .officiumCapituli: "DE OFFICIO CAPITULI"
+        case .litaniae: "LITANIÆ"
         }
     }
 

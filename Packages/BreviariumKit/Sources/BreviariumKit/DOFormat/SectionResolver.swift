@@ -56,7 +56,9 @@ public struct SectionResolver {
         // with a rubric-conditional alternative between them).
         let text = resolveSection(path: path, section: section, depth: 0)
         guard text.contains("~") else { return text }
-        return text.replacingOccurrences(of: #"[ \t]*~[ \t]*\n[ \t]*"#, with: " ", options: .regularExpression)
+        // The next line's own "r." (first letter red, `horas.pl:178`) goes before the
+        // merge: Preces' "Orémus pro Pontífice nostro~" / "r. N.".
+        return text.replacingOccurrences(of: #"[ \t]*~[ \t]*\n[ \t]*(?:r\.[ \t]*)?"#, with: " ", options: .regularExpression)
     }
 
     /// Whether `path` actually resolves `section` under the current `context` — not just
@@ -193,6 +195,12 @@ public struct SectionResolver {
     /// whose condition is empty or holds against `context` — mirroring
     /// `setupstring_parse_file`'s hash-overwrite semantics (`SetupString.pl:340-348`),
     /// where each new true-conditioned header replaces the previous entry for that key.
+    /// The winning variant's body, unresolved (`@` references still in place): for a
+    /// caller that needs to read a reference itself, as `getrefs` does.
+    public func unresolvedBody(path: String, section: String) -> [String]? {
+        winningVariant(path: path, section: section)?.body
+    }
+
     private func winningVariant(path: String, section: String) -> RawSection? {
         let resolvedPath = resolvingBaseChain(from: path, section: section)
         var winner: RawSection?
