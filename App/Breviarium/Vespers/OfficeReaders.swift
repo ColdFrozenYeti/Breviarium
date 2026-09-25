@@ -242,6 +242,12 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
     /// One controller per page, reused: a text container can back only one text view.
     private var pages: [Int: OfficePageController] = [:]
     private var currentIndex = 0
+    private weak var controller: UIPageViewController?
+    /// Each page's glyphs as `paginate()` left them, to notice a later reflow.
+    private var pageRanges: [NSRange] = []
+    private var reflows = 0
+    /// The heading the reader last jumped to, kept across a repagination.
+    private var jumpCharacter: Int?
 
     init(parent: PagedOfficeReader) {
         self.parent = parent
@@ -252,6 +258,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
     var linkHandler: (URL) -> Void { parent.onLink }
 
     func update(_ controller: UIPageViewController) {
+        self.controller = controller
         let size = parent.pageSize
         let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)"
         if key != layoutKey, size.width > 1, size.height > 1 {
@@ -259,11 +266,15 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             let anchor = keepPosition ? firstCharacter(ofPage: currentIndex) : 0
             layoutKey = key
             dateKey = parent.dateKey
+            reflows = 0
+            jumpCharacter = nil
             paginate()
             show(page: keepPosition ? page(containingCharacter: anchor) : 0, in: controller)
         }
         if let target = parent.jumpTarget, !containers.isEmpty {
-            show(page: page(containingCharacter: headingCharacter(afterSeparatorAt: target)), in: controller)
+            let character = headingCharacter(afterSeparatorAt: target)
+            jumpCharacter = character
+            show(page: page(containingCharacter: character), in: controller)
             Task { @MainActor [weak self] in self?.parent.jumpTarget = nil }
         }
     }
@@ -300,6 +311,23 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
                 range = layoutManager.glyphRange(for: container)
             }
         }
+        pageRanges = containers.map { layoutManager.glyphRange(for: $0) }
+    }
+
+    /// Paginates again if the text has reflowed since `paginate()`. Something in a page's
+    /// text view changes the shared layout once it is on screen, and the pages counted
+    /// before no longer fit it: the end of the hour fell off the last page and a heading
+    /// or reference was left alone at a page's foot (25 September 2026, Compline and
+    /// None). The next pagination sees the settled layout; a few passes at most.
+    private func repaginateIfReflowed() {
+        guard let controller, reflows < 3, !containers.isEmpty else { return }
+        let reflowed = containers.count != pageRanges.count
+            || zip(containers, pageRanges).contains { layoutManager.glyphRange(for: $0.0) != $0.1 }
+        guard reflowed else { return }
+        reflows += 1
+        let anchor = jumpCharacter ?? firstCharacter(ofPage: currentIndex)
+        paginate()
+        show(page: page(containingCharacter: anchor), in: controller)
     }
 
     /// The top of the run of `OfficeTypesetter.keepWithNext` lines that ends the page's
@@ -348,6 +376,9 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
         let page = OfficePageController(
             index: index, container: containers[index], margin: parent.margin, topInset: Self.pageTopInset, textViewDelegate: self
         )
+        page.onLayout = { [weak self] in
+            Task { @MainActor [weak self] in self?.repaginateIfReflowed() }
+        }
         pages[index] = page
         return page
     }
@@ -376,6 +407,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             range = layoutManager.glyphRange(for: container)
             if range.length == 0 { break }
         }
+        pageRanges = containers.map { layoutManager.glyphRange(for: $0) }
     }
 
     private func report() {
@@ -406,6 +438,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
     ) {
         guard completed, let page = pageViewController.viewControllers?.first as? OfficePageController else { return }
         currentIndex = page.index
+        jumpCharacter = nil
         report()
     }
 
@@ -425,6 +458,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
 /// One page: a non-scrolling text view bound to that page's text container.
 final class OfficePageController: UIViewController {
     let index: Int
+    var onLayout: (() -> Void)?
     private let textView: UITextView
     private let margin: CGFloat
     private let topInset: CGFloat
@@ -463,6 +497,7 @@ final class OfficePageController: UIViewController {
         super.viewDidLayoutSubviews()
         let size = textView.textContainer.size
         textView.frame = CGRect(x: margin, y: topInset, width: size.width, height: size.height)
+        onLayout?()
     }
 }
 
