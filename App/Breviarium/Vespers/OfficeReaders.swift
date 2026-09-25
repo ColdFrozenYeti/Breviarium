@@ -413,11 +413,19 @@ final class OfficePageController: UIViewController {
         self.index = index
         self.margin = margin
         self.topInset = topInset
-        textView = UITextView(frame: CGRect(origin: .zero, size: container.size), textContainer: container)
+        let size = container.size
+        textView = UITextView(frame: CGRect(origin: .zero, size: size), textContainer: container)
         super.init(nibName: nil, bundle: nil)
         OfficeTextViewStyle.apply(to: textView)
         textView.isScrollEnabled = false
         textView.delegate = textViewDelegate
+        // The container's size is the page: `paginate()` decided which lines it holds. A
+        // text view would otherwise make it track its own size (and resize it when
+        // scrolling is off), reflowing the shared layout so that the last page no longer
+        // reached the end of the hour (25 September 2026: Compline stopped mid-collect).
+        container.widthTracksTextView = false
+        container.heightTracksTextView = false
+        container.size = size
     }
 
     @available(*, unavailable)
