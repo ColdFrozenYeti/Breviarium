@@ -146,6 +146,22 @@ Per hour (bilingual / Pius XII / hold-out): Completorium 13 / 5.9 / 0.9 MB, Tert
 question 4 in `docs/Beta_2_plan.md`), mostly because Lauds and Prime are long; the
 largest single archive is about 2 MB.
 
+### Beta 3 sets: Matins
+
+Generated 2026-09-25 with the same script and hour field (`Matutinum`, DO's
+`prayMatutinum`), against the pinned commit above: 5,844 renders for each range set and
+730 for the hold-out, none empty.
+
+| Set | Path | Content | Size |
+|---|---|---|---|
+| Matins | `hours/Matutinum/<year>.tar.gz`, 2025-2040 | Vulgate Latin + English, priest off, rows | 90 MB |
+| Matins, Pius XII | `hours-bea/Matutinum/<year>.tar.gz`, 2025-2040 | Pius XII Latin, priest off, flat | 35 MB |
+| Hold-out | `holdout/2044-Matutinum.tar.gz` | Vulgate Latin + English, priest off and on, rows | 12 MB |
+
+137 MB in all, within the plan's estimate (`docs/Beta_3_plan.md`, "Oracle fixtures");
+the largest single archive is about 6 MB. Matins is the longest hour by far: a
+nine-lesson day renders to about 75 KB of text.
+
 Generated 2026-09-16 against the pinned commit above: 6,228 renders, zero empty/failed
 outputs, ~11.5 MB compressed total. Re-run `scripts/generate-oracle-fixtures.sh` (needs
 Docker Desktop running) whenever the DO pin moves or the covered/spot-check set changes,
