@@ -182,3 +182,17 @@ struct BilingualRow: Equatable, Sendable {
     var latin: String
     var english: String
 }
+
+/// A chapter as one string, "reference text", as the tests read it before the reference
+/// moved above the text (its own `.psalmTitle` unit) and *Deo grátias* became a response.
+func capitulumReading(_ section: BreviariumKit.Section) -> String {
+    var parts: [String] = []
+    for unit in section.units {
+        switch unit {
+        case .psalmTitle(let reference, _): parts.append(reference)
+        case .prose(let text, _): parts.append(text)
+        default: continue
+        }
+    }
+    return parts.joined(separator: " ")
+}

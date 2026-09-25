@@ -27,10 +27,7 @@ import Testing
     let hour = try #require(assembler.assembleVespers(day: 19, month: 9, year: 2026, priest: false))
 
     let capitulum = try #require(hour.sections.first { $0.kind == .capitulum })
-    guard case .prose(let capitulumText, _) = try #require(capitulum.units.first) else {
-        Issue.record("expected a .prose capitulum unit")
-        return
-    }
+    let capitulumText = capitulumReading(capitulum)
     #expect(capitulumText.contains("Altitúdo divitiárum sapiéntiæ"))
 
     let hymnus = try #require(hour.sections.first { $0.kind == .hymnus })

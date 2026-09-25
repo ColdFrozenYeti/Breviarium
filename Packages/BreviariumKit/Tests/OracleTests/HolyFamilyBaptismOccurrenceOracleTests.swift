@@ -29,10 +29,7 @@ private func holyFamilyVespers(day: Int, month: Int, year: Int) throws -> (Concu
 
 private func holyFamilyCapitulumMatches(_ hour: Hour) -> Bool {
     guard let capitulum = hour.sections.first(where: { $0.kind == .capitulum }) else { return false }
-    return capitulum.units.contains { unit in
-        if case .prose(let text, _) = unit { return text.hasPrefix("Luc 2:51 Descéndit Iesus cum María et Ioseph") }
-        return false
-    }
+    return capitulumReading(capitulum).hasPrefix("Luc 2:51 Descéndit Iesus cum María et Ioseph")
 }
 
 @Test func holyFamilyBeatsTheBaptismOnSundayThirteenthJanuary() async throws {

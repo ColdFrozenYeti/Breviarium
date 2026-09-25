@@ -38,10 +38,7 @@ private func christmasOctaveConcurrence(day: Int, month: Int, year: Int) throws 
     #expect(result.isFirstVespersOfTomorrow)
     #expect(result.vespersOffice.winningPath == "Tempora/Nat1-0")
     let capitulum = try #require(hour.sections.first { $0.kind == .capitulum })
-    #expect(capitulum.units.contains { unit in
-        if case .prose(let text, _) = unit { return text.hasPrefix("Gal 4:1-2 Fratres: Quanto témpore heres párvulus est") }
-        return false
-    })
+    #expect(capitulumReading(capitulum).hasPrefix("Gal 4:1-2 Fratres: Quanto témpore heres párvulus est"))
 
     let fixture = try #require(try await OracleFixture.shared.main(year: 2033, date: "2033-12-29"))
     #expect(fixture.hasPrefix("Dominica Infra Octavam Nativitatis ~ II. classis Vespera de sequenti."))
