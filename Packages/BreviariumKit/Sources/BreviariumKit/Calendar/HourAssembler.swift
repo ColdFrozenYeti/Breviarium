@@ -115,6 +115,7 @@ public struct HourAssembler {
         )
         macroContext.officeDay = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year).day : day
         macroContext.officeMonth = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year).month : month
+        (macroContext.day, macroContext.month) = (day, month)
         let resolver = SectionResolver(corpus: corpus, context: contentContext, macroContext: macroContext)
 
         // `specials.pl:36-37`: an office's own `[Special <hour>]` replaces the whole hour
@@ -233,7 +234,8 @@ public struct HourAssembler {
                     // `assembleCommemorations`'s own separate rank-based mechanism finds
                     // anything -- that's an unrelated system; the chained content here is
                     // already embedded in this same section's own raw text either way.
-                    if macroContext.winningRule.range(of: "Sub unica conc", options: .caseInsensitive) != nil {
+                    // Only at the major hours (`orationes.pl:217`, `$horamajor`).
+                    if hour.isMajor, macroContext.winningRule.range(of: "Sub unica conc", options: .caseInsensitive) != nil {
                         (named, englishCollect) = Self.strippingTrailingDoxologyMacro(named, english: englishCollect)
                     }
                     var oratioUnits: [Unit] = []

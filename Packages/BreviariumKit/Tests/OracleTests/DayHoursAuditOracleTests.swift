@@ -90,6 +90,10 @@ func assembleDayHour(
 /// hour's fixtures aren't there yet.
 @Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
 func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
+    // `BREVIARIUM_AUDIT_HOURS=Prima,Laudes` runs only those (several processes in parallel).
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+        return
+    }
     guard let bundle = RealCorpus.bundle, try await OracleFixture.shared.hourYear(hour: hour, year: 2040) != nil else { return }
     let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
     let english = bundle.makeEnglishCorpus()
@@ -144,10 +148,16 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         out += "## \(section.kind)\n"
         for unit in section.units { out += "  \(unit)\n".prefix(260) + "\n" }
     }
-    if let archive = try await OracleFixture.shared.hourYear(hour: hour, year: parts[0]),
-        let text = archive["\(parts[0])/\(date)_priestN_bilingual.tsv"]
-    {
+    // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
+    var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+    if page == nil { page = try await OracleFixture.shared.hourYear(hour: hour, year: parts[0])?["\(parts[0])/\(date)_priestN_bilingual.tsv"] }
+    if let text = page {
         out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
+        if let assembled {
+            var report = DayHourAuditReport()
+            report.add(hour: assembled, rows: OracleFixture.rows(text).filter { !$0.latin.contains("Martyrologium") }, title: title, date: date)
+            out += "\n=== AUDIT\n" + (report.text.isEmpty ? "clean" : report.text)
+        }
     }
     print(out)
 }

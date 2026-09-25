@@ -157,10 +157,13 @@ public struct Occurrence {
         var sanctoralRank: OfficeRank?
         var sanctoralRule = ""
 
+        // The All Souls exclusion is in `occurrence()`'s `$hora =~ /Vespera|Completorium/`
+        // branch only: on a Saturday the day hours are still All Souls'.
+        let isVespersOrCompline = context.ad.range(of: "vesper|complet", options: [.regularExpression, .caseInsensitive]) != nil
         for candidate in calendar.candidates(day: day, month: month, year: year) {
             let path = "Sancti/\(candidate)"
             guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { continue }
-            if Self.isAllSoulsSuppressedOnSaturday(title: rank.title, month: month, weekday: weekday) { continue }
+            if isVespersOrCompline, Self.isAllSoulsSuppressedOnSaturday(title: rank.title, month: month, weekday: weekday) { continue }
             sanctoralPath = path
             sanctoralRank = rank
             sanctoralRule = resolver.resolve(path: path, section: "Rule")

@@ -2,7 +2,8 @@ name: Oracle audits
 
 # The full-range oracle audits: every day 2025-2040 against Divinum Officium's own
 # rendering, for content, commemorations, psalmody (both psalters) and the English
-# (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests). Split out of Kit CI in
+# (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests), and from Beta 2 the
+# day hours (dayHoursFullRangeAudit, one job of its own). Split out of Kit CI in
 # Beta 1 (docs/PLAN.md, B1-M4) because together they take several times longer than the
 # fast suite; they still run on every pull request and main push, in parallel with Kit
 # CI, and on demand. Linux only, like Kit CI.
@@ -27,6 +28,11 @@ concurrency:
 
 jobs:
   audits:
+    strategy:
+      fail-fast: false
+      matrix:
+        filter: [vespersFullRange, dayHoursFullRange]
+    name: audits (${{ matrix.filter }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -45,4 +51,4 @@ jobs:
 
       - name: Full-range oracle audits
         working-directory: Packages/BreviariumKit
-        run: swift test --skip-build --filter vespersFullRange
+        run: swift test --skip-build --filter ${{ matrix.filter }}

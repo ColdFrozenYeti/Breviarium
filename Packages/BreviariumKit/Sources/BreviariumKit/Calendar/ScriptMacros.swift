@@ -25,6 +25,9 @@ public struct MacroContext: Sendable {
     /// on first Vespers (and the Compline after it).
     public var officeDay: Int = 0
     public var officeMonth: Int = 0
+    /// The calendar date asked for, whatever office wins.
+    public var day: Int = 0
+    public var month: Int = 0
 
     public init(
         weekName: String, dayOfWeek: Int, priest: Bool,
@@ -104,7 +107,7 @@ public enum ScriptMacros {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
         let usesLausTibi = context.weekName.range(of: "Quad", options: .caseInsensitive) != nil && !isSeptuagesimaVespers
 
         let index = usesLausTibi ? 1 : 0
@@ -177,7 +180,7 @@ public enum ScriptMacros {
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Benedicamus Domino")
 
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
         let isPaschalOctave = context.weekName.range(of: "Pasc0", options: .caseInsensitive) != nil
 
         // Only at Lauds and Vespers (`horasscripts.pl:167`, `$hora =~ /(Laudes|Vespera)/`).

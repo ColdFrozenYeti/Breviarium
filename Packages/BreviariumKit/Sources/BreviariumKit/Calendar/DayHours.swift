@@ -440,9 +440,9 @@ extension HourAssembler {
                 lines.append(rawLine)
             }
         }
-        guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil
-            || Self.matches(macroContext.winningRule, "Responsory Breve cum Alleluja") && macroContext.hour.isLittleHour
-        else { return lines }
+        let paschal = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
+        guard paschal || Self.matches(macroContext.winningRule, "Responsory Breve cum Alleluja") && macroContext.hour.isLittleHour
+        else { return lines.map { Self.processingInlineAlleluias($0, paschal: paschal) } }
         let alleluiaDuplex = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia Duplex")
             .split(separator: "\n").first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? ""
         let alleluia = alleluiaDuplex.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? "Allelúia"
@@ -467,7 +467,20 @@ extension HourAssembler {
                 lines[index] = Self.ensuringSingleAlleluia(line, alleluia: alleluia)
             }
         }
-        return lines
+        return lines.map { Self.processingInlineAlleluias($0, paschal: paschal) }
+    }
+
+    /// `LanguageTextTools.pm:55-73`, `process_inline_alleluias`, which `webdia.pl:681`
+    /// runs over everything DO displays: a bracketed "(Allelúia.)" is unbracketed in
+    /// Paschaltide and dropped otherwise (St Michael's `Versum Tertia`, borrowed from
+    /// 8 May).
+    static func processingInlineAlleluias(_ line: String, paschal: Bool) -> String {
+        guard line.range(of: "(", options: .literal) != nil else { return line }
+        let replaced = line.replacingOccurrences(
+            of: #"\((all[ae]l[uú][ij]a[^)]*)\)"#, with: paschal ? " $1 " : "", options: [.regularExpression, .caseInsensitive]
+        )
+        guard replaced != line else { return line }
+        return replaced.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
 
     /// `LanguageTextTools.pm:103-118`, `ensure_double_alleluia`.
@@ -561,7 +574,9 @@ extension HourAssembler {
         group: SkeletonGroup, englishGroup: SkeletonGroup?, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
     ) -> Section {
         let weekName = macroContext.weekName
-        let (month, day) = (macroContext.officeMonth, macroContext.officeDay)
+        // DO's `$month`/`$day` here are the date asked for, not the office's: Compline on
+        // 1 February still has Alma Redemptoris, before the Purification.
+        let (month, day) = (macroContext.month, macroContext.day)
         let name: String
         if weekName.range(of: "Adv|Nat", options: [.regularExpression, .caseInsensitive]) != nil || month == 1 || (month == 2 && day < 2)
             || (month == 2 && day == 2 && macroContext.hour != .completorium)
@@ -593,37 +608,74 @@ extension HourAssembler {
     func assembleSpecialHour(
         path: String, section: String, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
     ) -> Hour {
-        func chunks(_ text: String) -> [(psalm: String?, lines: [String])] {
-            var result: [(psalm: String?, lines: [String])] = [(nil, [])]
+        // A chunk is a psalm, a `#Heading` (a new section, as DO shows it), or plain lines.
+        func chunks(_ text: String) -> [(psalm: String?, heading: String?, lines: [String])] {
+            var result: [(psalm: String?, heading: String?, lines: [String])] = [(nil, nil, [])]
             for line in text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if let match = trimmed.firstMatch(of: /^&psalm\((\d+)\)$/) {
-                    result.append((String(match.1), []))
-                    result.append((nil, []))
+                if trimmed.hasPrefix("#") {
+                    result.append((nil, String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces), []))
+                    result.append((nil, nil, []))
+                } else if let match = trimmed.firstMatch(of: /^&psalm\((\d+)(?:,\s*'?(\w+)'?,\s*'?(\w+)'?)?\)$/) {
+                    // `&psalm(37,1,11)`: verses 1-11 (`horasscripts.pl:447-456`).
+                    let spec = match.2.map { from in "\(match.1)(\(from)-\(match.3 ?? ""))" } ?? String(match.1)
+                    result.append((spec, nil, []))
+                    result.append((nil, nil, []))
                 } else {
                     result[result.count - 1].lines.append(line)
                 }
             }
             return result
         }
-        let latin = chunks(resolver.resolve(path: path, section: section))
+        // `horasscripts.pl:693-712`, `special($name, $lang)`: the office's own section in
+        // place (All Souls). `$lang` picks the column's office (`columnsel`), so the
+        // English file's `&special('Conclusio', 'Latin')` shows the Latin there, as DO does.
+        func expandingSpecials(_ text: String, _ own: SectionResolver) -> String {
+            text.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
+                guard let match = line.firstMatch(of: /^\s*&special\('([^']+)'(?:,\s*'(\w+)')?/) else { return String(line) }
+                let name = String(match.1)
+                guard match.2 == "Latin", own.isEnglish else {
+                    return own.sectionExists(path: path, section: name) ? own.resolve(path: path, section: name) : String(line)
+                }
+                // The Latin section, its `&` macros still run in the column's own
+                // language (`&Gloria` is "Eternal rest" there).
+                var latinOnly = resolver
+                latinOnly.macroContext = nil
+                guard latinOnly.sectionExists(path: path, section: name) else { return String(line) }
+                return latinOnly.resolve(path: path, section: name).split(separator: "\n", omittingEmptySubsequences: false).map { part in
+                    guard part.hasPrefix("&"), let context = own.macroContext,
+                        let resolved = ScriptMacros.resolve(String(part.dropFirst()), context: context, resolver: own, isEnglish: true)
+                    else { return String(part) }
+                    return resolved
+                }.joined(separator: "\n")
+            }.joined(separator: "\n")
+        }
+        let latin = chunks(expandingSpecials(resolver.resolve(path: path, section: section), resolver))
         let english = englishResolver.flatMap { eng in
-            eng.sectionExists(path: path, section: section) ? chunks(eng.resolve(path: path, section: section)) : nil
+            eng.sectionExists(path: path, section: section) ? chunks(expandingSpecials(eng.resolve(path: path, section: section), eng)) : nil
         }
         let pairEnglish = english?.count == latin.count
+        var sections: [Section] = []
         var units: [Unit] = []
+        var kind = Section.Kind.introductio
         var psalmNumber = 0
         for (index, chunk) in latin.enumerated() {
-            if let psalm = chunk.psalm {
+            if let heading = chunk.heading {
+                if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
+                units = []
+                kind = heading.lowercased().hasPrefix("oratio") ? .oratio : heading.lowercased().hasPrefix("conclusio") ? .conclusio : kind
+            } else if let psalm = chunk.psalm {
                 psalmNumber += 1
                 let (title, content) = psalmUnits(number: psalm, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
-                units.append(.psalmTitle(Self.numberedPsalmTitle(title, Int(psalm).map { $0 > 150 } == true ? nil : psalmNumber)))
+                let base = psalm.prefix { $0.isNumber }
+                units.append(.psalmTitle(Self.numberedPsalmTitle(title, Int(base).map { $0 > 150 } == true ? nil : psalmNumber)))
                 units.append(contentsOf: content)
             } else {
                 units.append(contentsOf: Self.unitsFromLines(chunk.lines, english: pairEnglish ? english?[index].lines : nil))
             }
         }
-        return Hour(sections: [Section(kind: .introductio, units: units)])
+        if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
+        return Hour(sections: sections)
     }
 
     // MARK: - Omitted and replaced sections

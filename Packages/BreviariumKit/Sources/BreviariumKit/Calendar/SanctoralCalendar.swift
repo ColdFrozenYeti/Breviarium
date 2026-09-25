@@ -55,6 +55,10 @@ public struct SanctoralCalendar: Sendable {
     /// for why a `Tempora/`-referencing or `"X-X"` piece isn't handled by this method.
     private func transferredCandidates(targetKey: String, year: Int) -> [String]? {
         guard let source = transferSource(targetKey: targetKey, year: year) else { return nil }
+        // `X-X`/`X/X` name no file: the day's own office is suppressed that year, DO
+        // finding no Sancti office at all (`Transfer/417.txt`'s `06-23=X/X;;1960`: the
+        // Baptist's vigil gives way when the Sacred Heart takes 24 June, as in 2033).
+        if source == "X-X" || source == "X/X" { return [] }
         let pieces = source.split(separator: "~").map(String.init).filter { !$0.isEmpty }
         guard !pieces.isEmpty, pieces.allSatisfy(Self.isSanctiStyleTransferSource) else { return nil }
         return pieces
