@@ -43,7 +43,8 @@ in Latin with an optional English translation, in either psalter.
   - Text size
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
-  - About, with the Divinum Officium licence
+  - *Ritus*: Romanus, with Ambrosianus and Dominicanus listed as coming soon
+  - Release notes, and About with the Divinum Officium licence
 - **Next, the later betas:**
   1. Matins, and the Martyrology as an hour of its own;
   2. the Ambrosian and Dominican rites.

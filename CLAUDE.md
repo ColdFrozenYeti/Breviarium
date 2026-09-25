@@ -57,13 +57,14 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ## Settings (Universalis-style toggles)
 
-- **Ritus:** Romanus / Ambrosianus. Ambrosianus stays disabled until it is implemented.
+- **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
 - **Text size.**
 - **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
+- **Release notes** and **About**: plain screens opened from Settings; release notes list what each release added, newest first (added 2026-09-25).
 - **Later:** the Martyrology, as a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24), and a votive office picker.
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 

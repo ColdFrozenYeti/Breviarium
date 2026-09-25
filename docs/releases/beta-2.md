@@ -15,6 +15,8 @@ or the Pius XII psalter.
   V./R. marks.
 - The Marian antiphon at Compline reads as one stanza, and no "Benedictio" or
   "Absolutio" labels appear in the office.
+- Settings: a Release notes screen beside About, and *Ritus* lists Ambrosianus and
+  Dominicanus as coming soon.
 - Pages: the last page always reaches the end of the hour, and a heading or reference is
   never left alone at the foot of a page.
 

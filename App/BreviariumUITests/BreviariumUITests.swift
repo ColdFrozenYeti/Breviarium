@@ -145,6 +145,7 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Romanus"].exists)
         XCTAssertTrue(app.staticTexts["Ambrosianus"].exists)
+        XCTAssertTrue(app.staticTexts["Dominicanus"].exists)
         XCTAssertTrue(app.switches["Sacerdos vel diaconus adest"].exists)
         XCTAssertTrue(app.switches["Rubricæ"].exists)
         XCTAssertTrue(app.switches["English translation"].exists)
@@ -154,6 +155,18 @@ final class BreviariumUITests: XCTestCase {
         attachment.name = "settings-screen"
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        // Release notes, beside About at the foot of the list.
+        app.swipeUp()
+        let releaseNotes = app.buttons["Release notes"]
+        XCTAssertTrue(releaseNotes.waitForExistence(timeout: 5))
+        releaseNotes.tap()
+        XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Beta 2"].exists || app.staticTexts["BETA 2"].exists)
+        let notes = XCTAttachment(screenshot: app.screenshot())
+        notes.name = "settings-release-notes"
+        notes.lifetime = .keepAlways
+        add(notes)
     }
 
     /// M6's own manual checklist names "previous/next day" -- confirms the nav header's
