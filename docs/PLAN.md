@@ -3806,3 +3806,44 @@ have the dates):
   non-privileged feria; `Tempora none`; the winner's own `[Commemoratio 2]`, last;
   `[Adv Ant 21L]`/`[Adv Ant 23L]`; only the last commemoration keeps its conclusion
   (`delconclusio`, which applies at Vespers too).
+
+**Results** (2026-09-25, head `73b41d9`, on Linux with the open-source toolchain):
+- `dayHoursFullRangeAudit`: 0 differences for all six hours over 2025-2040 (Lauds and
+  Prime 50 min, the other four 48 min, on one core each);
+- `dayHoursFullRangeBeaAudit`: 0 for all six hours (28 min);
+- `dayHoursFullRangeHoldout2044`: 0 for all six hours, priest off and on (10 min);
+- `vespersFullRange*`: all five still at 0;
+- the fast suite: 348 tests pass, including the 35 named day-hour cases (4 min).
+
+**Not done: the title block's commemoration line** (*Commemoratio ad Laudes tantum: …*),
+planned here as a Beta 1 carry-over. DO builds it in `occurrence()` (`$officename[2]`,
+`horascommon.pl:538-830`) over many branches ("Tempora:", "Scriptura ut in:",
+"Transfer:", and the Vespers forms), and it needs its own audit against every fixture's
+header row. It moves to the next beta; the app already shows the line when the engine
+supplies one.
+
+### B2-M5 — The hours in the app
+
+- `OfficeDataStore.content(for:day:month:year:priest:psalter:english:)` assembles any hour;
+  `vespersContent` wraps it.
+- The app opens on the hour for the time of day (`ContentView.hourForTimeOfDay`).
+- The navigation title is a button that opens `HourPickerView`: the seven hours, with
+  separator rules and a red check mark on the current one. The chosen hour stays when the
+  date changes.
+- Section headings for the new sections: LECTIO BREVIS, ANTIPHONA FINALIS, DE OFFICIO
+  CAPITULI, LITANIÆ.
+- UI tests: `launchApp(hour:)` pins the hour (`BREVIARIUM_SNAPSHOT_HOUR`);
+  `testHourPickerSwitchesTheHour`; `testDayHoursSnapshots` captures pages 1 and 2 of every
+  day hour for a ferial day and a feast, Lauds on 16 September 2026 and Compline on Holy
+  Saturday.
+
+App CI passed on the branch (workflow_dispatch, run 36090289516), with every UI test
+green. The snapshots show the picker and each hour's pages in the same typography as
+Vespers.
+
+### B2-M6 — Release
+
+- `docs/install-on-iphone.md`: the hours and the picker are item 9 of the on-device check.
+- The IPA: Build IPA passed on the branch (run 36090291752); `scripts/get-ipa.ps1` fetches
+  it.
+- [`beta-2-retrospective.md`](beta-2-retrospective.md).
