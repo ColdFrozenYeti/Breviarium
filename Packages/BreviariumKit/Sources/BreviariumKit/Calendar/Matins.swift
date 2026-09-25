@@ -156,6 +156,8 @@ extension HourAssembler {
                     output.append("Ant. \(half)")
                 } else if line == "$ant" {
                     output.append("Ant. \(ant)")
+                } else if line.hasPrefix("&Gloria") {
+                    output.append(contentsOf: gloriaLines(String(line.dropFirst()), matins: matins, resolver: resolver))
                 } else if line.hasPrefix("&") {
                     let name = String(line.dropFirst())
                     let resolved = ScriptMacros.resolve(name, context: macroContext, resolver: resolver, isEnglish: english)
@@ -300,7 +302,12 @@ extension HourAssembler {
                         let take = min(3, proper.count)
                         built.append(contentsOf: proper.prefix(take))
                         proper.removeFirst(take)
-                        if let versum = proprium("Nocturn \(nocturn) Versum", flag: true, winner: matins.winner, resolver: resolver, weekName: matins.weekName) {
+                        // `getproprium`: a Commune file without the first nocturn's versicle
+                        // gives its `[Versum 1]` (`specials.pl:465-469`).
+                        if let versum = proprium(
+                            "Nocturn \(nocturn) Versum", flag: true, winner: matins.winner, resolver: resolver, weekName: matins.weekName,
+                            substitute: nocturn == 1 ? "Versum 1" : nil
+                        ) {
                             built.append(contentsOf: lines(versum.path, versum.section, resolver))
                         }
                     }
@@ -502,6 +509,14 @@ extension HourAssembler {
                 psalmNumber += 1
                 let (title, content) = psalmUnits(number: psalm, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
                 var psalmContent = content
+                // `horasscripts.pl:664`: Psalm 94 as a nocturn psalm (Epiphany) repeats its
+                // antiphon at each `$ant` of the file.
+                if psalm == "94" {
+                    psalmContent = psalmContent.map { unit in
+                        guard String(describing: unit).contains(":ant is missing!") else { return unit }
+                        return .antiphon(open?.latin ?? latinEntry.antiphon, english: open?.english ?? englishAntiphon)
+                    }
+                }
                 if offset < latinEntry.psalms.count - 1 {
                     let gloria = gloriaUnits(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
                     psalmContent = Array(psalmContent.dropLast(gloria.count))
@@ -739,8 +754,10 @@ extension HourAssembler {
     func lectioSource(_ requested: Int, matins: MatinsDay, resolver: SectionResolver) -> LectioSource {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         func section(_ path: String?, _ name: String) -> String? {
-            guard let path, resolver.sectionExists(path: path, section: name) else { return nil }
-            let text = resolver.resolve(path: path, section: name)
+            guard let path else { return nil }
+            let effective = monthdayMerged(path, section: name, matins: matins, resolver: resolver)
+            guard resolver.sectionExists(path: effective, section: name) else { return nil }
+            let text = resolver.resolve(path: effective, section: name)
             return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
         }
         let office = matins.office
@@ -779,11 +796,27 @@ extension HourAssembler {
         if nocturn == 1, has(rule, "Lectio1 Quad"), !has(matins.weekName, #"Quad(\d|p3\-[3456])"#) {
             text = nil
         }
-        // The Commune (`:915-946`), for an `ex` Commune.
+        // The Commune (`:915-946`), for an `ex` Commune, or by the rule "in N Nocturno
+        // Lectiones ex Commune in L loco" (St Agnes: the Commune's second set).
         if text == nil, office.hasPrefix("Sancti"), let commune = matins.commune, commune.hasPrefix("Commune"),
             matins.communeIsEx && matins.rank > 3 || has(rule, "in \(nocturn) Nocturno Lectiones ex")
         {
-            if let c = section(commune, "Lectio\(num)") {
+            var file = commune
+            var name = "Lectio\(num)"
+            if let match = rule.firstMatch(of: /(?i)in (\d) Nocturno Lectiones ex (Commune|C\d+[a-z]*) in (\d+) loco/),
+                Int(match.1) == nocturn, let loco = Int(match.3)
+            {
+                if match.2 != "Commune" { file = "Commune/\(match.2)" }
+                if loco > 1 { name += " in \(loco) loco" }
+            }
+            if let c = section(file, name) {
+                text = c
+                source = file
+                if contractScripture(num, matins: matins) {
+                    let third = name.replacingOccurrences(of: "Lectio2", with: "Lectio3")
+                    if let rest = section(file, third) { text = c + "\n" + rest }
+                }
+            } else if let c = section(commune, "Lectio\(num)") {
                 text = c
                 source = commune
                 if contractScripture(num, matins: matins), let third = section(commune, "Lectio3") { text = c + "\n" + third }
@@ -821,7 +854,6 @@ extension HourAssembler {
         }
         var responsoryNumber = num
         if lessonType != .defaultType || (office.hasPrefix("Sancti") && matins.rank < 2), num > 2 { responsoryNumber = 3 }
-        if contractScripture(requested, matins: matins, forResponsory: true) { responsoryNumber = 3 }
         return LectioSource(text: text ?? "", responsoryPath: source, responsoryNumber: responsoryNumber)
     }
 
@@ -830,11 +862,16 @@ extension HourAssembler {
     /// *Te Deum* follows (`lectio`, `:1236-1375`).
     func lectioUnits(_ lesson: Int, matins: MatinsDay, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
-        let source = lectioSource(lesson, matins: matins, resolver: resolver)
+        var source = lectioSource(lesson, matins: matins, resolver: resolver)
+        source.text = source.text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { Self.processingInlineAlleluias(String($0), paschal: matins.paschal) }.joined(separator: "\n")
         var englishSource = englishResolver.map { lectioSource(lesson, matins: matins, resolver: $0) }
         // `:1349-1353`: outside Latin, a parenthesised reference or number loses its brackets
         // (`parenthesised_text`), "(2 Cor. ii. 15.)" showing as "2 Cor. ii. 15.".
-        if let text = englishSource?.text { englishSource?.text = Self.unbracketingReferences(text) }
+        if let text = englishSource?.text {
+            englishSource?.text = Self.unbracketingReferences(text.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { Self.processingInlineAlleluias(String($0), paschal: matins.paschal) }.joined(separator: "\n"))
+        }
         var units: [Unit] = [.psalmTitle("Lectio \(Self.romanNumeral(lesson))")]
         units.append(contentsOf: Self.lessonUnits(source.text, english: englishSource?.text))
 
@@ -848,7 +885,7 @@ extension HourAssembler {
         if !isLast {
             let latin = responsoryLines(lesson, source: source, matins: matins, resolver: resolver)
             let english = englishResolver.map { responsoryLines(lesson, source: englishSource ?? source, matins: matins, resolver: $0) }
-            units.append(contentsOf: responsoryUnits(latin, english: english, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext))
+            units.append(contentsOf: responsoryUnits(latin, english: english, matins: matins, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext))
         }
         return units
     }
@@ -862,18 +899,38 @@ extension HourAssembler {
         {
             number = 9
         }
-        let candidates = [source.responsoryPath, matins.office, matins.commune, matins.scriptura].compactMap { $0 }
+        // After that, a contracted second lesson takes the third responsory (`:1255-1257`).
+        if contractScripture(lesson, matins: matins, forResponsory: true) { number = 3 }
         // `&Gloria` stays a marker for `responsory_gloria`, as in DO's text.
         let resolver = SectionResolver(corpus: resolver.corpus, context: resolver.context, macroContext: nil, isEnglish: resolver.isEnglish)
-        var text = ""
-        for path in candidates {
-            for section in ["Responsory\(number) 1960", "Responsory\(number)"] where resolver.sectionExists(path: path, section: section) {
-                let found = resolver.resolve(path: path, section: section)
-                if !found.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = found; break }
-            }
-            if !text.isEmpty { break }
+        func find(_ path: String?, _ section: String) -> String? {
+            guard let path else { return nil }
+            let effective = monthdayMerged(path, section: section, matins: matins, resolver: resolver)
+            guard resolver.sectionExists(path: effective, section: section) else { return nil }
+            let found = resolver.resolve(path: effective, section: section)
+            return found.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : found
         }
+        func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
+        let name = "Responsory\(number)"
+        var text: String?
+        // `:1262-1305`: the lesson source's own 1960 responsory; by rule, the occurring
+        // Scripture's; else the winner's own before the lesson source's, then the Commune's.
+        if let own1960 = find(source.responsoryPath, "\(name) 1960") {
+            text = own1960
+        } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
+            text = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
+        } else {
+            text = find(matins.office, name) ?? find(source.responsoryPath, name) ?? find(matins.commune, name)
+        }
+        if text == nil {
+            let winnerName = matins.office.contains("C9") && number == 9 ? "Responsory91" : name
+            text = find(matins.office, winnerName) ?? find(matins.commune, name)
+        }
+        let text = text ?? ""
+        // `process_inline_alleluias`: "(Allelúia.)" is kept, unbracketed, in Paschaltide and
+        // dropped outside it (`LanguageTextTools.pm:55-73`).
         var lines = text.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            .map { Self.processingInlineAlleluias($0, paschal: matins.paschal) }
         if matins.paschal {
             // `matins_lectio_responsory_alleluia`: one alleluia on the respond's end, the
             // verse's repeat and the last line.
@@ -888,14 +945,13 @@ extension HourAssembler {
     /// A responsory's lines as units: the respond (its two halves, like a psalm verse),
     /// then each `V.` with the `R.` after it, the *Gloria* too.
     func responsoryUnits(
-        _ latin: [String], english: [String]?, resolver: SectionResolver, englishResolver: SectionResolver?, macroContext: MacroContext
+        _ latin: [String], english: [String]?, matins: MatinsDay, resolver: SectionResolver, englishResolver: SectionResolver?, macroContext: MacroContext
     ) -> [Unit] {
         func normalised(_ lines: [String], _ resolver: SectionResolver) -> [String] {
             var result: [String] = []
             for line in lines {
                 if line.hasPrefix("&Gloria") {
-                    let gloria = resolver.expandMacroLine("$Gloria1").split(separator: "\n").first.map(String.init) ?? ""
-                    result.append(gloria.isEmpty ? "V. Glória Patri, et Fílio, * et Spirítui Sancto." : gloria)
+                    result.append(contentsOf: gloriaLines(String(line.dropFirst()), matins: matins, resolver: resolver))
                 } else if line.hasPrefix("*"), let last = result.last, last.hasPrefix("R.") {
                     // The respond's second half on its own line.
                     result[result.count - 1] = last + " " + line
@@ -992,13 +1048,45 @@ extension HourAssembler {
             }
             var body = line
             if body.hasPrefix("v. ") { body = String(body.dropFirst(3)) }
-            if let number = body.range(of: #"^[0-9]+\s+"#, options: .regularExpression) { body.removeSubrange(number) }
+            // A verse number goes, and the verse starts with a capital, as DO sets it
+            // (`lectio`, `:1325-1330`, `s/^./\u$&/`).
+            if let number = body.range(of: #"^[0-9]+\s+"#, options: .regularExpression) {
+                body.removeSubrange(number)
+                if let first = body.first { body = first.uppercased() + body.dropFirst() }
+            }
             body = body.replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
                 .replacingOccurrences(of: "¶", with: "").trimmingCharacters(in: .whitespaces)
             if !body.isEmpty { paragraph.append(body) }
         }
         if !paragraph.isEmpty { result.append((false, paragraph)) }
         return result
+    }
+
+    /// `officestring` (`SetupString.pl:723-780`): from August to November (and after
+    /// Epiphany) a week's file of the Sundays after Pentecost takes the sections of its
+    /// monthday file (`Tempora/083-1` for the Monday of August's third week), the
+    /// Scripture of those weeks. The monthday file's section wins when it has one.
+    func monthdayMerged(_ path: String, section: String, matins: MatinsDay, resolver: SectionResolver) -> String {
+        guard Self.participatesInMonthdayMerge(office: path),
+            let key = Computus.monthday(day: matins.day, month: matins.month, year: matins.year, tomorrow: false)
+        else { return path }
+        let monthdayPath = "Tempora/\(key)"
+        return resolver.sectionExists(path: monthdayPath, section: section) ? monthdayPath : path
+    }
+
+    /// `&Gloria1` (the *Gloria Patri* alone) and `&Gloria2` (with *Sicut erat*): in
+    /// Passiontide, outside saints' offices, the small note *Gloria omittitur* instead
+    /// (`horas.pl:303-311`).
+    func gloriaLines(_ name: String, matins: MatinsDay, resolver: SectionResolver) -> [String] {
+        func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
+        if has(matins.rule, "Requiem gloria") { return resolver.expandMacroLine("$Requiem").split(separator: "\n").map(String.init) }
+        if has(name, "Gloria[12]"), has(matins.weekName, "Quad[56]"), !matins.office.hasPrefix("Sancti"), !has(matins.rule, "Gloria responsory") {
+            let note = resolver.resolve(path: "Psalterium/Common/Translate", section: "Gloria omittitur")
+                .split(separator: "\n").first.map(String.init) ?? "Gloria omittitur"
+            return ["!" + note]
+        }
+        let section = name == "Gloria1" ? "Gloria1" : "Gloria"
+        return resolver.expandMacroLine("$" + section).split(separator: "\n").map(String.init)
     }
 
     static func unbracketingReferences(_ text: String) -> String {

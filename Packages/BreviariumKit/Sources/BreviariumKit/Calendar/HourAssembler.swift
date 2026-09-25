@@ -157,7 +157,7 @@ public struct HourAssembler {
             }
             switch group.name {
             case "Incipit":
-                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit") else { continue }
+                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit", atMatins: hour == .matutinum) else { continue }
                 sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Psalmi" where hour == .laudes:
                 sections.append(assembleLaudsPsalmodia(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
@@ -2895,8 +2895,9 @@ public struct HourAssembler {
     /// has no rendered text to check at all, so a wrongly-omitted section produces zero
     /// mismatch entries regardless. Found by reading `specials.pl`'s own Omit-handling
     /// logic directly, not by a sweep diff.
-    static func ruleOmits(rule: String, keyword: String) -> Bool {
-        guard rule.range(of: "Omit ad Matutinum", options: .caseInsensitive) == nil else { return false }
+    static func ruleOmits(rule: String, keyword: String, atMatins: Bool = false) -> Bool {
+        // `specials.pl:94`: an "Omit ad Matutinum …" rule applies at Matins only (Epiphany).
+        guard atMatins || rule.range(of: "Omit ad Matutinum", options: .caseInsensitive) == nil else { return false }
         for line in rule.split(separator: "\n", omittingEmptySubsequences: false) {
             guard let omitRange = line.range(of: "Omit", options: .caseInsensitive) else { continue }
             if line[omitRange.upperBound...].range(of: " \(keyword)", options: .caseInsensitive) != nil { return true }

@@ -131,6 +131,10 @@ public enum LatinOrthography {
         }
         result = result.replacingOccurrences(of: "er eúmdem", with: "er eúndem")
         result = result.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
-        return result.replacingOccurrences(of: #"(?<=[,;:])\s+‡\s+(.*?)\*\s*"#, with: " * $1", options: .regularExpression)
+        // Never across a verse reference: text joined from many verses (a whole DO row, in
+        // the oracle audits) must not carry one verse's ‡ to the next verse's asterisk.
+        return result.replacingOccurrences(
+            of: #"(?<=[,;:])\s+‡\s+((?:(?!\d{1,3}:\d{1,3}\s).)*?)\*\s*"#, with: " * $1", options: .regularExpression
+        )
     }
 }

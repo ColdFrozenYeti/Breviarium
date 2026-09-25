@@ -20,7 +20,12 @@ func latinContentMisses(hour: Hour, rows: [BilingualRow]) -> [(Section.Kind, Str
     for section in [Section(kind: .introductio, units: hour.prelude)] + hour.sections {
         for unit in section.units {
             for piece in oracleComparisonTexts(unit).map({ collapsedWhitespace(LatinOrthography.normalize($0)) }) where !piece.isEmpty {
-                if !column.contains(piece) { misses.append((section.kind, piece)) }
+                if !column.contains(piece) {
+                    misses.append((section.kind, piece))
+                    if ProcessInfo.processInfo.environment["BREVIARIUM_DEBUG_MISS"] != nil, let r = column.range(of: String(piece.prefix(12))) {
+                        print("MISS piece: \(piece)\nMISS column: \(column[r.lowerBound...].prefix(piece.count + 20))")
+                    }
+                }
             }
         }
     }

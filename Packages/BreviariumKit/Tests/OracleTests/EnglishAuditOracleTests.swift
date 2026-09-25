@@ -83,6 +83,9 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"\bAt the Nocturn\b"#),
     try! Regex(#"\bNocturn I{1,3}\b"#),
     try! Regex(#"\bReading \d+\b"#),
+    try! Regex(#"\bTe Deum\s*$"#),
+    // A Matins lesson's verse numbers, which DO prints small and the app leaves out.
+    try! Regex(#"(?:^|\s)\d{1,3}(?=\s|$)"#),
 ]
 
 /// The same for DO's Latin cells: headings and titles the app sets as its own fixed
@@ -115,6 +118,9 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"\bAd Nocturnum\b"#),
     try! Regex(#"\bNocturnus I{1,3}\b"#),
     try! Regex(#"\bLectio \d+\b"#),
+    try! Regex(#"\bTe Deum\s*$"#),
+    // A Matins lesson's verse numbers, which DO prints small and the app leaves out.
+    try! Regex(#"(?:^|\s)\d{1,3}(?=\s|$)"#),
 ]
 
 /// What's left of each cell once every piece we render, and the chrome, is removed:
