@@ -834,26 +834,7 @@ final class ParallelPager: NSObject, UIPageViewControllerDataSource, UIPageViewC
         report()
     }
 
-    /// Adds pages when the last no longer reaches the end of the hour. The text can reflow
-    /// after `paginate()` (page 1's header settles once it is on screen), and a fixed page
-    /// count then lost the end of the hour (25 September 2026: Compline stopped
-    /// mid-collect, on "Page 11 of 11").
-    private func extendIfNeeded() {
-        guard let last = containers.last else { return }
-        var range = layoutManager.glyphRange(for: last)
-        let size = pageTextSize
-        while NSMaxRange(range) < layoutManager.numberOfGlyphs, containers.count < 1000 {
-            let container = NSTextContainer(size: size)
-            container.lineFragmentPadding = 0
-            layoutManager.addTextContainer(container)
-            containers.append(container)
-            range = layoutManager.glyphRange(for: container)
-            if range.length == 0 { break }
-        }
-    }
-
     private func report() {
-        extendIfNeeded()
         let current = currentIndex + 1
         let total = max(1, layout?.pages.count ?? 1)
         Task { @MainActor [weak self] in self?.parent.onPageChange(current, total) }
