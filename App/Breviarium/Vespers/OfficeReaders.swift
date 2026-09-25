@@ -302,6 +302,11 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             container.lineFragmentPadding = 0
             layoutManager.addTextContainer(container)
             containers.append(container)
+            // The page's text view is bound before its lines are measured: binding one
+            // changes the shared layout, so pages measured without it were counted on a
+            // layout the reader never sees (25 September 2026: None's chapter reference
+            // left alone at a page's foot, Compline's end past the last page).
+            _ = pageController(containers.count - 1)
             var range = layoutManager.glyphRange(for: container)
             if NSMaxRange(range) >= layoutManager.numberOfGlyphs || range.length == 0 { break }
             // A heading or psalm title at the foot of the page moves to the next one,
@@ -404,6 +409,7 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
             container.lineFragmentPadding = 0
             layoutManager.addTextContainer(container)
             containers.append(container)
+            _ = pageController(containers.count - 1)
             range = layoutManager.glyphRange(for: container)
             if range.length == 0 { break }
         }
