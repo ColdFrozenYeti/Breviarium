@@ -301,7 +301,8 @@ The audit found these, each now ported and cited in the code:
 - `cujus_q` reads the whole `[Rank]` line, Commune included (*ipsa* for St Anne's `ex
   C7a`; *ipse* for St Gabriel's `vide C5` despite *Virgine* in his title);
 - `Special Lectio 3` is read from the Commune's rule (Mount Carmel on a Saturday);
-- `Lectio1 OctNat` (29 December to 5 January);
+- `Lectio1 OctNat` (29 December to 5 January), and `StJamesRule` on Ss. Philip and James
+  (the occurring Scripture when it is already St James's, 11 May 2034 and 2039);
 - at Matins, the office's own `[Oratio Matutinum]` (the Triduum's collect alone);
 - hymn mute vowels `Patr[e]` show plain; `r.` marks a large first letter; a stray `_` at a
   verse's end is dropped; `parenthesised_text` keeps a long aside's brackets in English.

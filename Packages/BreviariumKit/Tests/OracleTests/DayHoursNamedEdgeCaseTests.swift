@@ -84,6 +84,7 @@ let dayHourNamedCases: [DayHourCase] = [
     DayHourCase(hour: .matutinum, date: "2028-02-29", what: "Leap-year February"),
     DayHourCase(hour: .matutinum, date: "2038-04-25", what: "The latest Easter"),
     DayHourCase(hour: .matutinum, date: "2025-07-26", what: "St Anne: ipsa in the blessing"),
+    DayHourCase(hour: .matutinum, date: "2034-05-11", what: "Ss. Philip and James: StJamesRule reads St James from the Scripture"),
 ]
 
 /// The title block for 16 September 2026 (`CLAUDE.md`'s example), and the line DO shows

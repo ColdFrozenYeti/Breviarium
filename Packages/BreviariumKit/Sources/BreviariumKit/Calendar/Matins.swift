@@ -859,6 +859,19 @@ extension HourAssembler {
                 if contractScripture(num, matins: matins), let third = section(commune, "Lectio3") { text = c + "\n" + third }
             }
         }
+        var stJames = false    // only `Lectio<n>` is replaced: the responsories stay the saint's
+        // `StJamesRule` (`:858-866`, `:1745-1776`), the saint's side: on Ss. Philip and James
+        // (and St John before the Latin Gate) the occurring Scripture is read when it is
+        // already from that Apostle (11 May 2034). Our Latin is I-spelled: `StIamesRule=Ias`.
+        if num < 4, let match = rule.firstMatch(of: /(?i)St[JI]amesRule=((?:1 )?[a-z,|á]+)\s/),
+            has(matins.winner.winningRank.title, "[JI]acobi|[JI]oannis"), let scriptura = matins.scriptura,
+            let first = section(scriptura, "Lectio1"), has(first, "!.*?(\(match.1)) "),
+            let s = section(scriptura, "Lectio\(num)")
+        {
+            text = s
+            source = scriptura
+            stJames = true
+        }
         // The occurring Scripture for the first nocturn (`:949-976`).
         var hashPath = office
         if text == nil, num < 4, let scriptura = matins.scriptura, let s = section(scriptura, "Lectio\(num)") {
@@ -935,6 +948,7 @@ extension HourAssembler {
                 source = c10
             }
         }
+        if stJames { source = office }
         var responsoryNumber = num
         if let (path, lesson) = transferredResponsory {
             // `tferifile`: the transferred book's responsory when it brings its own.
