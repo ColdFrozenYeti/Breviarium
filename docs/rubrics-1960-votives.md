@@ -77,8 +77,12 @@ DO reads it as a section of Prime (`#Martyrologium` in `Ordinarium/Prima.txt`), 
 4. Then the entries, one per line, and the conclusion (`Conclmart`: *Et álibi aliórum
    plurimórum …* with *Deo grátias*).
 
-DO omits the Martyrology on some days (*Martyrologium{omittitur}*, e.g. Holy Saturday);
-which days, and what the app shows then, is settled in B4-M4 against the Prime fixtures.
+DO omits the Martyrology where the office's rule says *Omit … Martyrologium*
+(`specials.pl:83-96`): the three days of the Triduum, whose Prime fixtures show
+*Martyrologium{omittitur}*. The app then shows the red rubric *Martyrologium omittitur.*
+under the heading (B4-M4). The date announced comes from tomorrow's `get_sday` key, so
+the leap day reads `02-29`; the moon's age is DO's `_luna_table`, ported exactly; a
+`/: … :/` line is a rubric, and Christmas's inline *Hic vox elevatur…* an inline rubric.
 
 **English**: none for the 1960 Martyrology; the app shows it in Latin only (decision 3).
 
@@ -99,3 +103,37 @@ which days, and what the app shows then, is settled in B4-M4 against the Prime f
   Matins, Lauds and Vespers of 2026; 2044 as hold-out; both psalters), audited like every
   other hour.
 - The Martyrology: the Martyrology section of every Prime fixture, 2025–2040 and 2044.
+
+## 7. What the engine had to add (B4-M3, B4-M4)
+
+Found against the fixtures, each cited to the pinned commit:
+
+- **The swap follows concurrence.** At Vespers and Compline DO swaps the votive in after
+  concurrence, so on the eve of a Sunday of Advent or of the Annunciation the Little
+  Office already takes that form, and `$vespera` stays.
+- **The Little Office's Commune is always `C11` (`ex`)**, `C12N` included, whose own
+  `[Rank]` names none; and on Our Lady's own feasts (the day's Commune is `C11`) *no Te
+  Deum* becomes *Feria Te Deum* (the Purification after Septuagesima, the Annunciation).
+- **`C9` has no `[Rank]`.** It keeps the day's rank, raised to 6 below 3, is its own
+  Commune, always has three nocturns (`gettype1960` skips it), and reads its ninth
+  responsory from `Responsory91`.
+- **The season still counts where DO reads `$dayname[0]`**: the suppressed and bracketed
+  alleluias, *Benedicamus Domino, allelúia, allelúia* in the Easter octave, the Passiontide
+  *Gloria omittitur*, and the Greater Litanies (for the Office of the Dead only, from the
+  day's office it keeps as a commemoration, and in April). What `alleluia_required`
+  decides (the added alleluias) stays excluded.
+- **The Office of the Dead's *Requiem* comes before the Triduum's *Gloria omittitur***
+  (`horas.pl:297-311`).
+- **Small ones**: the Little Office's own `[Capitulum Vespera]` at Vespers
+  (`capitulis.pl:13`); Perl's `\u` in a substitution (the English `C12` responsory); the
+  special hours' `#` headings as section kinds; inline alleluias in special hours.
+- **On All Souls** DO renders the Office of the Dead chosen as the office differently
+  from the day's own office: `C9`'s lessons from Job 10 and 13 against All Souls' own,
+  and the plain conclusion against *Conclusio specialis*. The engine follows DO in both.
+
+## 8. The colour dot (B4-M4)
+
+The day's own office's colour, DO's `liturgical_color` on its title, checked against the
+colour DO gives the title on its own Lauds page for seven dates. Two changes for the
+calendar: Our Lady's feasts, which DO marks blue, show white, their liturgical colour;
+and Gaudete and Laetare Sundays, violet in DO, show rose.
