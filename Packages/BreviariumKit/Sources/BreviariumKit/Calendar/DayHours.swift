@@ -213,7 +213,7 @@ extension HourAssembler {
             if let equals = text.range(of: #"^.*?=\s*"#, options: .regularExpression) { text.removeSubrange(equals) }
             text = text.components(separatedBy: ";;").first ?? text
             text = text.trimmingCharacters(in: .whitespaces)
-            text = Self.applyingSeasonalAlleluia(to: text, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: english)
+            text = Self.applyingSeasonalAlleluia(to: text, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: english, season: macroContext.seasonWeekName)
             return substituteName(in: text, office: office, resolver: resolver, isAntiphon: true)
         }
         // `psalmi.pl:275-281`: "Minores sine Antiphona" (Easter week).
@@ -416,7 +416,9 @@ extension HourAssembler {
         _ text: String, resolver: SectionResolver, winner: OccurrenceResult, macroContext: MacroContext, english: Bool
     ) -> [String] {
         let weekName = macroContext.weekName
-        let gloria1Omitted = weekName.range(of: "Quad[56]", options: .regularExpression) != nil
+        // `$dayname[0]`, the season's even in a votive office.
+        let seasonWeekName = macroContext.seasonWeekName.isEmpty ? weekName : macroContext.seasonWeekName
+        let gloria1Omitted = seasonWeekName.range(of: "Quad[56]", options: .regularExpression) != nil
             && !winner.winningPath.contains("Sancti") && !Self.matches(macroContext.winningRule, "Gloria responsory")
         var lines: [String] = []
         for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
@@ -539,7 +541,7 @@ extension HourAssembler {
             // `horas.pl:568`): Easter week's *Hæc dies*.
             let lines = text.split(separator: "\n").map { String($0).components(separatedBy: ";;").first ?? String($0) }
             let open = lines.first.map {
-                Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: english)
+                Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: english, season: macroContext.seasonWeekName)
             } ?? ""
             return (open, lines.count > 1 ? lines[1] : Self.closingAntiphon(open))
         }
@@ -672,7 +674,7 @@ extension HourAssembler {
             if let heading = chunk.heading {
                 if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
                 units = []
-                kind = heading.lowercased().hasPrefix("oratio") ? .oratio : heading.lowercased().hasPrefix("conclusio") ? .conclusio : kind
+                kind = Self.specialHourKind(heading) ?? kind
             } else if let psalm = chunk.psalm {
                 psalmNumber += 1
                 let (title, content) = psalmUnits(number: psalm, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
@@ -680,11 +682,34 @@ extension HourAssembler {
                 units.append(.psalmTitle(Self.numberedPsalmTitle(title, Int(base).map { $0 > 150 } == true ? nil : psalmNumber)))
                 units.append(contentsOf: content)
             } else {
-                units.append(contentsOf: Self.unitsFromLines(chunk.lines, english: pairEnglish ? english?[index].lines : nil))
+                // `process_inline_alleluias` runs over everything DO shows (the Little
+                // Office's Annunciation antiphon, "… Ioseph. (Allelúia.)").
+                let season = macroContext.seasonWeekName.isEmpty ? macroContext.weekName : macroContext.seasonWeekName
+                let paschal = season.range(of: "Pasc", options: .caseInsensitive) != nil
+                // And `suppress_alleluia` from Septuagesima (`webdia.pl:684-685`).
+                let suppressed = Self.isAlleluiaSuppressed(weekName: season, isFirstVespers: macroContext.isFirstVespers)
+                func processed(_ line: String) -> String {
+                    let line = Self.processingInlineAlleluias(line, paschal: paschal)
+                    guard suppressed, !line.hasPrefix("&"), !line.hasPrefix("$") else { return line }
+                    return line.replacingOccurrences(of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive])
+                }
+                let englishLines = pairEnglish ? english?[index].lines.map(processed) : nil
+                units.append(contentsOf: Self.unitsFromLines(chunk.lines.map(processed), english: englishLines))
             }
         }
         if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
         return Hour(sections: sections)
+    }
+
+    /// The section a `#Heading` of a special hour opens, by its first word.
+    static func specialHourKind(_ heading: String) -> Section.Kind? {
+        let word = heading.lowercased()
+        let kinds: [(String, Section.Kind)] = [
+            ("incipit", .introductio), ("hymnus", .hymnus), ("psalmi", .psalmodia), ("capitulum", .capitulum),
+            ("lectio brevis", .lectioBrevis), ("versus", .versus), ("canticum", .canticum), ("oratio", .oratio),
+            ("conclusio", .conclusio), ("antiphona finalis", .antiphonaFinalis),
+        ]
+        return kinds.first { word.hasPrefix($0.0) }?.1
     }
 
     // MARK: - Omitted and replaced sections
@@ -901,7 +926,7 @@ extension HourAssembler {
                 if paschalAlleluia { antiphon = index == 0 ? alleluiaAntiphon(resolver: resolver) : "" }
                 antiphon = antiphon.trimmingCharacters(in: .whitespaces)
                 if !antiphon.isEmpty {
-                    antiphon = Self.applyingSeasonalAlleluia(to: antiphon, weekName: weekName, isFirstVespers: false, english: english)
+                    antiphon = Self.applyingSeasonalAlleluia(to: antiphon, weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName)
                     antiphon = substituteName(in: antiphon, office: office, resolver: resolver, isAntiphon: true)
                 }
                 result.append((antiphon, psalms.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }))
@@ -1003,7 +1028,7 @@ extension HourAssembler {
             let texts = bothTexts(path: versumLocation.path, section: versumLocation.section, resolver: resolver, englishResolver: englishResolver)
             func lines(_ text: String, english: Bool) -> [String] {
                 text.split(separator: "\n", omittingEmptySubsequences: false)
-                    .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: weekName, isFirstVespers: false, english: english) }
+                    .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName) }
             }
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(lines(texts.latin, english: false), english: texts.english.map { lines($0, english: true) })))
         }
@@ -1038,7 +1063,7 @@ extension HourAssembler {
             let texts = bothTexts(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
             func first(_ text: String, english: Bool) -> String {
                 let line = text.split(separator: "\n").first.map { String($0).components(separatedBy: ";;").first ?? String($0) } ?? ""
-                let alleluia = Self.applyingSeasonalAlleluia(to: line, weekName: weekName, isFirstVespers: false, english: english)
+                let alleluia = Self.applyingSeasonalAlleluia(to: line, weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName)
                 return substituteName(in: alleluia, office: winner.winningPath, resolver: english ? (englishResolver ?? resolver) : resolver, isAntiphon: true)
             }
             antiphons = (first(texts.latin, english: false), texts.english.map { first($0, english: true) })

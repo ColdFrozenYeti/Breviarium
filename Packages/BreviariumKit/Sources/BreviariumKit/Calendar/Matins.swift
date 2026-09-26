@@ -25,6 +25,9 @@ extension HourAssembler {
         var dayname1: String
         /// `$dayname[0]`.
         var weekName: String
+        /// The season's `$dayname[0]`, which a votive office keeps for the checks that
+        /// don't exclude votives (the Passiontide *Gloria omittitur*); `weekName` otherwise.
+        var seasonWeekName: String
         var dayOfWeek: Int
         var day: Int
         var month: Int
@@ -52,6 +55,8 @@ extension HourAssembler {
     static func matinsLessonType(dayname1: String, rank: Double, office: String, rule: String) -> MatinsLessonType {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         var type = MatinsLessonType.defaultType
+        // The Office of the Dead said as a votive keeps the default: three nocturns.
+        if office == "Commune/C9" { return type }
         if has(dayname1, "post Nativitatem") {
             type = .octaveII
         } else if rank < 2 || has(dayname1, "(feria|vigilia|die)") {
@@ -80,8 +85,9 @@ extension HourAssembler {
         let reference = winner.winningRank.communeReference
         let commune = reference.isEmpty ? nil : Self.paschalCommuneFallbackPath(reference, weekName: macroContext.weekName, resolver: resolver)
         return MatinsDay(
-            winner: winner, rule: rule, rank: rank, dayname1: dayname1, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek,
-            day: day, month: month, year: year, scriptura: scriptura,
+            winner: winner, rule: rule, rank: rank, dayname1: dayname1, weekName: macroContext.weekName,
+            seasonWeekName: macroContext.seasonWeekName.isEmpty ? macroContext.weekName : macroContext.seasonWeekName,
+            dayOfWeek: macroContext.dayOfWeek, day: day, month: month, year: year, scriptura: scriptura,
             lessonType: Self.matinsLessonType(dayname1: dayname1, rank: rank, office: office, rule: rule),
             commune: commune, communeIsEx: reference.lowercased().hasPrefix("ex") || office.hasPrefix("Commune/C10"),
             communeRule: commune.map { resolver.resolve(path: $0, section: "Rule") } ?? "",
@@ -130,7 +136,7 @@ extension HourAssembler {
             }
             if let equals = text.range(of: #"^.*?=\s*"#, options: .regularExpression) { text.removeSubrange(equals) }
             text = text.trimmingCharacters(in: .whitespaces)
-            text = Self.applyingSeasonalAlleluia(to: text, weekName: matins.weekName, isFirstVespers: false, english: english)
+            text = Self.applyingSeasonalAlleluia(to: text, weekName: matins.weekName, isFirstVespers: false, english: english, season: matins.seasonWeekName)
             return substituteName(in: text, office: matins.office, resolver: resolver, isAntiphon: true)
         }
 
@@ -414,6 +420,13 @@ extension HourAssembler {
                 versLatin = [3, 4].compactMap { $0 < latin.count ? latin[$0] : nil }
                 versEnglish = english.map { eng in [3, 4].compactMap { $0 < eng.count ? eng[$0] : nil } }
             }
+            // `Votive nocturn` (`:446-453`), the Little Office: the three psalms of the
+            // weekday's nocturn (Monday and Thursday the first, Tuesday and Friday the
+            // second, Wednesday and Saturday the third, Sunday the first).
+            if has(matins.rule, "votive nocturn") {
+                let first = (vn - 1) * 5
+                psalmIndices = [first, first + 1, first + 2]
+            }
             var units = nocturnUnits(
                 latin: latin, english: english, psalmIndices: psalmIndices, versumLatin: versLatin, versumEnglish: versEnglish,
                 matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver, psalmNumber: &psalmNumber
@@ -512,7 +525,7 @@ extension HourAssembler {
             var antiphon = parts[0].trimmingCharacters(in: .whitespaces)
             let psalms = parts.count > 1 ? parts[1] : ""
             if !antiphon.isEmpty {
-                antiphon = Self.applyingSeasonalAlleluia(to: antiphon, weekName: matins.weekName, isFirstVespers: false, english: english)
+                antiphon = Self.applyingSeasonalAlleluia(to: antiphon, weekName: matins.weekName, isFirstVespers: false, english: english, season: matins.seasonWeekName)
                 antiphon = substituteName(in: antiphon, office: matins.office, resolver: english ? (englishResolver ?? resolver) : resolver, isAntiphon: true)
             }
             let list = psalms.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -1036,6 +1049,11 @@ extension HourAssembler {
             found = own1960
         } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
             found = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
+        } else if matins.office.contains("C9"), number == 9 {
+            // The Office of the Dead as winner reads its ninth responsory from
+            // `Responsory91` (`specmatins.pl:1300-1308`: the winner's own `Responsory9`
+            // clears the text, then `$na = 91`).
+            found = find(matins.office, "Responsory91")
         } else {
             found = find(matins.office, name) ?? find(source.responsoryPath, name) ?? find(matins.commune, name)
         }
@@ -1202,7 +1220,7 @@ extension HourAssembler {
     func gloriaLines(_ name: String, matins: MatinsDay, resolver: SectionResolver) -> [String] {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         if has(matins.rule, "Requiem gloria") { return resolver.expandMacroLine("$Requiem").split(separator: "\n").map(String.init) }
-        if has(name, "Gloria[12]"), has(matins.weekName, "Quad[56]"), !matins.office.hasPrefix("Sancti"), !has(matins.rule, "Gloria responsory") {
+        if has(name, "Gloria[12]"), has(matins.seasonWeekName, "Quad[56]"), !matins.office.hasPrefix("Sancti"), !has(matins.rule, "Gloria responsory") {
             let note = resolver.resolve(path: "Psalterium/Common/Translate", section: "Gloria omittitur")
                 .split(separator: "\n").first.map(String.init) ?? "Gloria omittitur"
             return ["!" + note]

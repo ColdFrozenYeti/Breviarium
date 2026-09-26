@@ -433,6 +433,15 @@ public struct SectionResolver {
         var result = ""
         let chars = Array(replacement)
         var i = 0
+        // Perl's `\u`/`\l` change the case of the next character produced, literal or
+        // captured (the English Little Office's `R. \u$2`, `Commune/C12`'s Responsory7).
+        var caseNext: Character?
+        func append(_ text: some StringProtocol) {
+            guard let mode = caseNext, let first = text.first else { result += text; return }
+            result += mode == "u" ? first.uppercased() : first.lowercased()
+            result += text.dropFirst()
+            caseNext = nil
+        }
         while i < chars.count {
             if chars[i] == "$", i + 1 < chars.count, chars[i + 1].isNumber {
                 var j = i + 1
@@ -444,7 +453,7 @@ public struct SectionResolver {
                 if let groupIndex = Int(numberText), groupIndex < match.output.count,
                     let captured = match.output[groupIndex].substring
                 {
-                    result += captured
+                    append(captured)
                 }
                 i = j
             } else if chars[i] == "\\", i + 1 < chars.count {
@@ -452,13 +461,14 @@ public struct SectionResolver {
                 // `s/V\. .*/V. Spíritus Paráclitus, allelúja.\nR. …/s`), `\t` a tab, and any
                 // other escaped character itself.
                 switch chars[i + 1] {
-                case "n": result.append("\n")
-                case "t": result.append("\t")
-                default: result.append(chars[i + 1])
+                case "n": append("\n")
+                case "t": append("\t")
+                case "u", "l": caseNext = chars[i + 1]
+                default: append(String(chars[i + 1]))
                 }
                 i += 2
             } else {
-                result.append(chars[i])
+                append(String(chars[i]))
                 i += 1
             }
         }

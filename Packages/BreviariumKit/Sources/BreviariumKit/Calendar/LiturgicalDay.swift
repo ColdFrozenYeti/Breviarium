@@ -58,6 +58,26 @@ public struct LiturgicalCalendarEngine {
 
     /// The day as a given hour shows it (Beta 2): Vespers and Compline follow
     /// `vespersDay`; the other hours the day's own office, with its monthday suffix.
+    public func day(for hour: CanonicalHour, day: Int, month: Int, year: Int, officium: Officium) -> LiturgicalDay? {
+        guard officium != .diei else { return self.day(for: hour, day: day, month: month, year: year) }
+        // A votive office (Beta 4) is titled by its own Commune, with no line under it.
+        // At Vespers and Compline the form follows concurrence (`HourAssembler.assembleUnmarked`).
+        let concurrence = hour.followsConcurrence
+            ? Concurrence(corpus: corpus, context: context, calendar: sanctoralCalendar).resolve(day: day, month: month, year: year) : nil
+        let seasonDate = concurrence?.isFirstVespersOfTomorrow == true
+            ? Computus.addDays(1, day: day, month: month, year: year) : (day: day, month: month, year: year)
+        guard let dayOffice = concurrence?.vespersOffice
+                ?? Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar).resolve(day: day, month: month, year: year),
+            let path = officium.votivePath(
+                hour: hour, day: day, month: month, year: year,
+                weekName: TemporalCycle.weekName(day: seasonDate.day, month: seasonDate.month, year: seasonDate.year), dayWinnerPath: dayOffice.winningPath
+            ),
+            let rank = Officium.votiveRank(path: path, resolver: SectionResolver(corpus: corpus, context: context), dayRank: nil)
+        else { return nil }
+        let votive = OccurrenceResult(sanctoralWins: false, winningPath: path, winningRank: rank, isSunday: dayOffice.isSunday)
+        return Self.liturgicalDay(day: day, month: month, year: year, occurrence: votive, titleSuffix: "")
+    }
+
     public func day(for hour: CanonicalHour, day: Int, month: Int, year: Int) -> LiturgicalDay? {
         if hour.followsConcurrence { return vespersDay(day: day, month: month, year: year) }
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)

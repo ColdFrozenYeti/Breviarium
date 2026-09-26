@@ -55,13 +55,14 @@ jobs:
 
       # The full-range audits (vespersFullRange*: content, commemorations, psalmody and
       # English over every day 2025-2040, in both psalters; dayHoursFullRange*, every
-      # day hour over the same range) run in their own workflow,
+      # day hour over the same range; votive*, the Little Office and the Office of the
+      # Dead) run in their own workflow,
       # oracle-audits.yml, alongside this one on every pull request and main push: with
       # the English audit they take far longer than this fast suite (docs/PLAN.md, B1-M4,
       # CI budget). Every other test runs here, the 2044 hold-out included.
       - name: swift test
         working-directory: Packages/BreviariumKit
-        run: swift test --skip "vespersFullRange|dayHoursFullRange"
+        run: swift test --skip "vespersFullRange|dayHoursFullRange|votive"
 
       # Runs BreviariumData against the real pinned DO checkout -- the actual M2
       # deliverable (docs/PLAN.md): a real bundle, with a real size report, not just
