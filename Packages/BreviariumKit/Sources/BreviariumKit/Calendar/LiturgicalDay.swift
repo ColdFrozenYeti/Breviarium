@@ -12,6 +12,12 @@ public struct TitleBlock: Equatable, Sendable {
     /// transferred feast, as DO prints it for the hour (`LiturgicalCalendarEngine.headLine`);
     /// `nil` at Vespers and Compline and when there is none.
     public var commemorationLine: String?
+
+    public init(classisLine: String?, nameLine: String, commemorationLine: String?) {
+        self.classisLine = classisLine
+        self.nameLine = nameLine
+        self.commemorationLine = commemorationLine
+    }
 }
 
 /// The fully-resolved result for one calendar day: which office wins (`Occurrence`),

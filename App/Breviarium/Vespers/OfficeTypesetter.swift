@@ -259,6 +259,7 @@ struct OfficeTypesetter {
         case .nocturnusII: "NOCTURNUS II"
         case .nocturnusIII: "NOCTURNUS III"
         case .teDeum: "TE DEUM"
+        case .martyrologium: "MARTYROLOGIUM"
         }
     }
 
