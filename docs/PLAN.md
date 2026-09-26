@@ -3977,3 +3977,62 @@ included). The user tried the IPA on the phone and asked to merge and publish on
 September; Beta 3 is published as a pre-release with `Breviarium-Beta-3.ipa`. The same
 day the user added a small dot of the day's liturgical colour in the calendar to Beta 4
 (`roadmap.md`, decision 7).
+
+## Beta 4 (plan: [`Beta_4_plan.md`](Beta_4_plan.md))
+
+Planned and approved on 26 September 2026, with seven decisions (the office as a setting
+under *Ritus Romanus*, the traditional Martyrology read on the eve, Latin only, the
+colour dot, inline directions as rubrics, no title line at Vespers and Compline, a
+missing hour opening the previous one). Run without stopping at the milestone gates.
+
+### B4-M0 — Housekeeping and inline rubrics
+
+`InlineRubrics` marks DO's small-print directions (*Fit reverentia*, *genuflectitur*,
+*Sequens versus dicitur flexis genibus*, the English *bow head* …) with two private-use
+characters; `OfficeTypesetter` draws them in rubric red and drops them with rubrics off.
+The oracle comparison removes the marks.
+
+### B4-M1 — Understand the three offices
+
+[`rubrics-1960-votives.md`](rubrics-1960-votives.md): DO builds both votives as ordinary
+hours with the Commune swapped in after occurrence; the Martyrology is Prime's
+`martyrologium`.
+
+### B4-M2 — Fixtures
+
+`generate-fixture-set.sh` takes DO's `votive=` as a fifth argument. The Little Office
+(2026-2027, every hour) and the Office of the Dead (2026, its three hours), both
+psalters, and 2044 hold-outs with the priest off and on: 27 MB (`data/SOURCE.md`).
+
+### B4-M3 — The two votive offices in the engine
+
+`HourAssembler.assemble(_:…, officium:)` and `LiturgicalCalendarEngine.day(for:…,
+officium:)`; `Officium` lists each office's hours and picks the Little Office's form.
+What the fixtures taught, in order of how many dates each fixed, is §7 of the votives
+doc: the swap after concurrence, `C11` as the Little Office's Commune, `C9`'s missing
+`[Rank]`, the season kept for what DO reads from `$dayname[0]`, Perl's `\u`, and the
+rest. Every hour of both offices is at zero in Latin, English and the Pius XII psalter
+over the fixture years, and in the 2044 hold-outs with the priest on and off. Eight named
+edge cases (`VotiveEdgeCaseTests`); one of them corrected the plan: DO renders the Office
+of the Dead on All Souls differently from the day's office (its own lessons), so the test
+checks each against DO rather than against each other.
+
+The votive audits run in two new Oracle audits jobs, not Kit CI.
+
+### B4-M4 — The Martyrology and the colour
+
+`MartyrologyAssembler` ports `martyrologium`, `_luna_table` and `_luna_day`, reading the
+now-bundled `Martyrologium1960` (1.5 MB of source). It equals the Martyrology on every
+Prime fixture, 2025-2040 and 2044, on the first full run but one (Christmas's inline
+direction). `CalendarColor` gives the calendar dot, checked on 14 dates and against DO's
+own title colour on seven.
+
+### B4-M5 — The app
+
+Settings → *Romanus* → *Officium*; the picker (`OfficeHour`) lists the office's hours
+and *Martyrologium*; `OfficeHour.shown(in:)` applies the missing-hour rule, at launch
+and whenever the office changes. *Jump to date* became `MonthCalendarView`, since the
+system date picker can't mark days. New UI tests capture every Little Office hour, the
+Office of the Dead, the Martyrology (ordinary day, Easter, Holy Saturday, Christmas Eve
+with rubrics on and off), three months of colours and the *Te Deum* with rubrics on and
+off.
