@@ -161,6 +161,6 @@ report for you to confirm.
 7. **A missing hour opens the previous one** (answered 2026-09-26). The clock picks the hour
    as for the day's office; if the chosen office hasn't it, the app opens the nearest
    earlier hour it has. For the Office of the Dead: Matins until 05:00, Lauds from 05:00
-   to 20:00 (Terce, Sext and None fall back to Lauds), and Vespers from 17:00 on
+   to 17:00 (Terce, Sext and None fall back to Lauds), and Vespers from 17:00 on
    (Compline falls back to Vespers). The picker lists only the office's own hours, so
    the Dead shows Matins, Lauds and Vespers and no Terce.
