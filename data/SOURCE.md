@@ -162,6 +162,19 @@ Generated 2026-09-25 with the same script and hour field (`Matutinum`, DO's
 the largest single archive is about 6 MB. Matins is the longest hour by far: a
 nine-lesson day renders to about 75 KB of text.
 
+### Beta 3 additions to the bundled data
+
+- **`Tabulae/Stransfer/*.txt`**, the Scripture (initia) transfer tables that DO's
+  `initiarule` reads, are bundled alongside `Tabulae/Transfer` in the same map, under an
+  `S:` key prefix. Filtered to the 1960 tag, they hold one entry that matters for
+  Matins: `01-12=Epi1-0a` in letter-`f` years.
+- **Borrowed Monastic and Dominican files.** A few Roman offices reference files in
+  `SanctiM/`, `CommuneM/`, `SanctiOP/`, `TemporaOP/` and the like (the Baptism of the
+  Lord's `@SanctiM/01-06:AntMatutinumM:2`). `OfficeCorpusWalker.referencedSiblings`
+  follows those references at build time and bundles just those files and what they
+  reference in turn, in Latin and English. The rest of those folders stay out until the
+  Dominican rite (Beta 5).
+
 Generated 2026-09-16 against the pinned commit above: 6,228 renders, zero empty/failed
 outputs, ~11.5 MB compressed total. Re-run `scripts/generate-oracle-fixtures.sh` (needs
 Docker Desktop running) whenever the DO pin moves or the covered/spot-check set changes,

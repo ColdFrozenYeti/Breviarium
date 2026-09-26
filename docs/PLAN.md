@@ -3906,3 +3906,65 @@ Findings that shape the engine:
   …*.
 - **No labels:** the *Absolutio.*/*Benedictio.* labels are dropped, as at the other
   hours since Beta 2's phone test.
+
+### B3-M2 — Fixtures
+
+Matins fixtures for 2025–2040 in both psalters and the 2044 hold-out, recorded in
+`data/SOURCE.md` (137 MB in all). `OracleFixture` reads them like the other hours, and
+`.matutinum` joined the arguments of the full-range, Pius XII and hold-out audits.
+
+### B3-M3 — Matins in the engine
+
+`Calendar/Matins.swift` ports `specmatins.pl`'s 1960 Roman paths: the invitatory, the
+hymn, `psalmi_matutinum` with `nocturn`, the absolutions and blessings, `lectio` with its
+diversions and the 1960 contraction, the responsories with `responsory_gloria`, and
+`tedeum_required`. `Hour.swift` gained one unit, `.lesson`, and the Matins section kinds.
+
+Worked audit-first on 2026, then the whole range. The 2026 Latin misses went from 1,311
+distinct texts to zero, the English with them. What the audit found, each fixed at the
+cause and cited in the code (`rubrics-1960-matins.md` §12 lists them):
+- **Resolver order.** An inclusion's `s///` applies to the raw section before its own
+  `@` lines are resolved (the Rosary's hymn); Perl escapes in a replacement (Pentecost
+  Tuesday's versicle).
+- **Data we hadn't bundled.** Fifteen Monastic and Dominican files Roman offices borrow
+  from, found by following references at build time, with DO's fall-back to the Roman
+  file for a missing one; and the `Stransfer` initia tables.
+- **Lesson sources.** Our Lady on Saturday's third lesson from C10 by month (read from
+  the Commune's rule, so Mount Carmel on a Saturday keeps it); `Lectio1 OctNat`;
+  `resolveitable` for 12 January 2030; monthday Scripture merged into the Pentecost and
+  Epiphany weeks.
+- **Responsories.** `Responsory<n> 1960` from the winning office, not the lesson's source
+  (Ss. John and Paul, 2025); the Scripture's when the rule says so; the contracted third.
+- **Blessings.** `cujus_q` reads the whole `[Rank]` line (St Anne *ipsa*, St Gabriel
+  *ipse*).
+- **Text details.** Hymn mute vowels, `r.` initials, a stray `_`, `parenthesised_text`'s
+  length rule, inline alleluias in versicles and English responsories, Gloria macros in
+  Passiontide, Epiphany's Psalm 94 antiphon, the Triduum's `[Oratio Matutinum]`.
+
+Two Swift 6.1 on Linux problems were worked around: printing a `Unit` by reflection
+crashed (it now has its own `description`), and a local enum captured by a nested function
+miscompiled and corrupted arrays in `lessonPieces` (rewritten with plain loops).
+
+**The title block's third line.** `LiturgicalCalendarEngine.headLine` ports DO's
+`$officename[2]` for Matins to None and fills `TitleBlock.commemorationLine`, which had
+always been `nil`. A new fast audit, `dayHoursFullRangeHeadLineAudit`, compares it with
+every fixture's page head for six hours over 16 years: zero differences. Vespers and
+Compline show none, deliberately (§10 of the Matins doc).
+
+Named edge cases: 25 Matins dates joined `dayHourNamedCases` (Christmas, the octave
+Sunday, Epiphany, 12 January 2030, Tenebræ, Easter Monday, Pentecost Tuesday, All Souls,
+Our Lady on Saturday, Mount Carmel on a Saturday, the transferred Annunciation, leap-year
+February, the latest Easter, St Anne …), and `sixteenthSeptember2026HeadLines` checks
+`CLAUDE.md`'s title block. All pass.
+
+### B3-M4 — Matins in the app
+
+- *Ad Matutinum* heads the picker; the app opens on it from 00:00 to 05:00.
+- `OfficeTypesetter` sets `.lesson` as one prose paragraph (its verses joined), stacked
+  with its English in portrait and side by side in landscape, like the chapter. The
+  Matins headings are INVITATORIUM, AD NOCTURNUM, NOCTURNUS I–III and TE DEUM.
+- `ContentBlock`: no psalm separator between the invitatory's repeated antiphons, and a
+  responsory's verses don't alternate italic as a psalm's do.
+- `testMatinsSnapshots`: page 1 and 2, each nocturn's first pages, the *Te Deum* and the
+  last page for a feria, a I class feast and Holy Thursday; the second nocturn with
+  English in portrait and landscape.

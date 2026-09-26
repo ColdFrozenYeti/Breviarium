@@ -209,7 +209,7 @@ Homilies start with:
   - It replaces that lesson's responsory (`&teDeum`, `Psalterium/Common/Prayers`), and
     the responsory before it gets the Gloria.
 
-## 9. Proposed section headings and typography (for approval)
+## 9. Section headings and typography (as built, B3-M4)
 
 **Sections** (`Section.Kind`, all capitals like the other hours):
 
@@ -223,60 +223,85 @@ Homilies start with:
 | ORATIO | the collect |
 | CONCLUSIO | the conclusion |
 
-The table of contents lists these sections, so a jump to "Nocturnus II" lands on its
-first psalm. **Lessons are not sections.** Each takes a smaller italic line, *Lectio i*
-… *Lectio ix* (Beta 3, decision 4), in lower-case Roman numerals as in the printed
-breviary, marked keep-with-next like a psalm title.
+The table of contents lists these sections. **Lessons are not sections** (decision 4):
+each starts with a smaller grey italic line, *Lectio i* … *Lectio ix*, the psalm-title
+style, marked keep-with-next.
 
-**Units** (the existing typographic system; new treatments marked "new"):
+**Units.** The engine reuses the existing units wherever it can; one is new.
 
-| Element | Treatment |
+| Element | Unit and treatment |
 |---|---|
-| Invitatory antiphon (whole or half) | the antiphon style, as at the other hours |
-| Invitatory psalm strophes | prose paragraphs, one per strophe (new). DO's strophes are not verse pairs. `(genuflectitur)` is an inline rubric, red and hidden with rubrics off. |
-| Nocturn psalms, antiphons, versicle | exactly as at the other hours |
-| *Pater noster dicitur secreto …*, *Reliqua omittuntur …* | rubrics (red, hidden with rubrics off) |
-| *Pater noster* (the aloud ending), absolution, *Iube, Dómine*, blessing | versicle/response pairs: the *Amen* and *Sed líbera nos a malo* italic and indented. No *Absolutio*/*Benedictio* labels. |
-| *Lectio i* | new: italic, body size, keep-with-next |
-| Lesson heading (*De libro Iob*, *Homilía sancti Gregórii Papæ*, the Gospel heading) and reference (`Iob 31:1-6`) | the grey italic reference style that chapters use (Beta 2), keep-with-next, reference above the text |
-| Lesson text | prose. Verse numbers are dropped, as the psalms show none in the app; the Lamentations' Hebrew letters (*Heth.*, *Lamed.*) are text and stay. |
-| *Tu autem* / *Deo grátias* | versicle/response |
-| Responsory | new: the respond in regular type, with `*` attached as in psalm verses. The verse and the *Glória Patri* in italic, indented 23 pt. The repeated second half in regular type, indented 23 pt. Kept together across a page break like a versicle and response. |
-| *Te Deum* | its lines as verses, with the half-verse break DO gives |
+| Invitatory antiphon (whole or half) | `.antiphon`, as at the other hours; no psalm separator between its repeats |
+| Invitatory psalm strophes | `.prose`, one paragraph per strophe; `(genuflectitur)` stays inline |
+| Nocturn psalms, antiphons, versicle | as at the other hours |
+| *Pater noster* rubrics, *Reliqua omittuntur …* | `.rubric` (red, hidden with rubrics off) |
+| *Pater noster*, absolution, *Iube, Dómine*, blessing | `.versicleResponse`: the response italic and indented; no labels |
+| *Lectio i* | `.psalmTitle` (grey italic, keep-with-next) |
+| Lesson heading and reference | `.psalmTitle`, reference above the text |
+| Lesson text | **new `.lesson`**: its verses run on as one prose paragraph (verse numbers dropped, each verse capitalised as DO sets it); one unit per `_` paragraph |
+| *Tu autem* / *Deo grátias* | `.versicleResponse` |
+| Responsory | the respond is a `.verse` (its `*` half-split), each `V.`/`R.` a `.versicleResponse`, the *Glória Patri* likewise. Responsory verses don't alternate italic as psalm verses do. |
+| *Te Deum* | `.verse` lines with DO's half-verse breaks |
 
-**English on:** lessons and homilies are prose, stacked in portrait (Latin then English).
-Responsories, the invitatory's antiphons and the versicles are paired side by side. The
-psalms follow the psalter setting, as at the other hours.
+**English on:** lessons are stacked in portrait (Latin then English) and side by side in
+landscape, like the chapter and collect. Responsories, antiphons and versicles are paired.
 
-## 10. The title block's commemoration line (carried over)
+## 10. The title block's third line (as built)
 
 DO heads each hour with `$officename[0] ~ $officename[1]` and, when there is one,
-`$officename[2]` (`horascommon.pl:538-830`). The last is the line the app shows under the
-day's name. What DO puts there **depends on the hour**:
+`$officename[2]` (`horascommon.pl:536-800`, cleaned up at `:1680-1736`). The app shows it
+under the day's name. What DO puts there **depends on the hour**:
 
 | Hour | 16 September 2026 |
 |---|---|
 | Matins | *Tempora: Feria Quarta infra Hebdomadam XVI post Octavam Pentecostes II. Septembris* |
-| Lauds, Prime | *Commemoratio ad Laudes tantum: Ss. Euphemiæ, Luciæ et Geminiani Martyrum* |
-| Compline | (none) |
+| Lauds to None | *Commemoratio ad Laudes tantum: Ss. Euphemiæ, Luciæ et Geminiani Martyrum* |
+| Vespers, Compline | (none) |
 
-- **At Matins** (`:622-660`): when a saint of rank below 7 wins and the Tempora has
-  lessons, the line is `Tempora: <temporal day>`. With a displaced initium it is
-  `Tempora: … (Scriptura ut in: …)`, and `Scriptura: …` in the Monastic cases.
-- **At the other hours** the line names the commemoration:
-  - `Commemoratio: …`;
-  - `Commemoratio ad Laudes tantum: …` in 1960 (`:606`);
-  - `… ad Laudes & Matutinum: …` on Rogation Monday and the Vigil of the Ascension
-    (`:547`, `:577`);
-  - the transfer and vigil forms (`:740-790`).
+`LiturgicalCalendarEngine.headLine(for:day:month:year:)` ports the 1960 branches:
+- a saint wins: the season commemorated (`Commemoratio: …`, *ad Laudes & Matutinum* on
+  Rogation Monday and the Ascension vigil, *ad Laudes tantum* in the September Ember
+  days), else the next saint (*ad Laudes tantum* below I class), else a feast moved away
+  (`Transfer: …`), else the saint's own `[Commemoratio]`; then, at Matins or when nothing
+  else is said, `Tempora: …`, with *Scriptura ut in …* at Matins when the initia table
+  moves the Scripture (12 January 2030);
+- the season wins: the saint (`climit1960`, *ad Laudes tantum* or *ad Missam tantum*),
+  else the next saint, else `Transfer: …`;
+- the clean-up: *Tempora none*, *No Sunday commemoratio*, two *Festum Domini*, the
+  28 June vigil on a Sunday; then `Scriptura: …` for Our Lady on Saturday.
 
-The engine's `DayTitle.commemorationLine` is filled from the same branches, per hour, and
-audited against the header row of every fixture, for every hour.
+**Vespers and Compline show none.** DO's line there is its concurrence note, and at
+Compline it sometimes leaves the morning's *Scriptura: …* (18 April 2026 shows the
+Saturday's Scripture under the next day's Sunday title). This is a deliberate difference
+from DO's page head, not from its office.
+
+`dayHoursFullRangeHeadLineAudit` checks the line against every fixture's page head, Matins
+to None, 2025–2040: zero differences.
 
 ## 11. Data the engine needs
 
-Everything under `horas/Latin/{Tempora,Sancti,Commune,Psalterium}` is already bundled.
-That includes `Psalterium/Invitatorium.txt`, `Psalmi/Psalmi matutinum.txt`,
-`Benedictions.txt`, `Special/Matutinum Special.txt`, and every `Lectio<n>` and
-`Responsory<n>`. **New:** the `Tabulae/Stransfer/*.txt` initia tables, read with the same
-year-letter and Easter logic as `Tabulae/Transfer` (`TransferTableReader`).
+Everything under `horas/Latin/{Tempora,Sancti,Commune,Psalterium}` was already bundled.
+**New in Beta 3:**
+- the `Tabulae/Stransfer/*.txt` initia tables, read like `Tabulae/Transfer` and kept in the
+  same map under an `S:` prefix (`SanctoralCalendar.scriptureTransfer`). Under the 1960
+  rubrics they hold one entry that matters, `01-12=Epi1-0a` in letter-`f` years;
+- the few Monastic and Dominican files that Roman offices borrow from
+  (`@SanctiM/01-06:AntMatutinumM:2` for the Baptism of the Lord, and 14 others, found by
+  following references at build time). A reference to one that doesn't exist falls back
+  to the Roman file, as DO's `checklatinfile` does (`@TemporaM/Pent01-3` on 6 July 2026).
+
+## 12. Porting notes found by the audit
+
+The audit found these, each now ported and cited in the code:
+- an `@`-inclusion's `s///` applies to the included section's *raw* text, before its own
+  `@` lines are resolved (the Rosary's Matins hymn drops its mid-hymn doxology this way);
+  Perl escapes (`\n`) in the replacement are honoured (Pentecost Tuesday's versicle);
+- the 1960 responsory (`Responsory<n> 1960`) is looked up in the winning office, not in
+  the file the lesson came from (Ss. John and Paul, 26 June 2025);
+- `cujus_q` reads the whole `[Rank]` line, Commune included (*ipsa* for St Anne's `ex
+  C7a`; *ipse* for St Gabriel's `vide C5` despite *Virgine* in his title);
+- `Special Lectio 3` is read from the Commune's rule (Mount Carmel on a Saturday);
+- `Lectio1 OctNat` (29 December to 5 January);
+- at Matins, the office's own `[Oratio Matutinum]` (the Triduum's collect alone);
+- hymn mute vowels `Patr[e]` show plain; `r.` marks a large first letter; a stray `_` at a
+  verse's end is dropped; `parenthesised_text` keeps a long aside's brackets in English.

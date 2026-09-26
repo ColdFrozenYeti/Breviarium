@@ -113,17 +113,17 @@ func assembleDayHour(
 @Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_AUDIT_HOURS=Prima,Laudes` runs only those (several processes in parallel).
-    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return
     }
     guard let bundle = RealCorpus.bundle, try await OracleFixture.shared.hourYear(hour: hour, year: 2040) != nil else { return }
     let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
     let english = bundle.makeEnglishCorpus()
     let calendar = bundle.makeSanctoralCalendar()
-    let onlyYear = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_YEAR"].flatMap(Int.init)
+    let years = auditYears
 
     var report = DayHourAuditReport()
-    for year in 2025...2040 where onlyYear == nil || onlyYear == year {
+    for year in years {
         guard let archive = try await OracleFixture.shared.hourYear(hour: hour, year: year) else { continue }
         var (day, month, y) = (1, 1, year)
         var offset = 0
@@ -145,7 +145,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
             (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
         }
     }
-    let expectedDays = onlyYear == nil ? 5_800 / auditStride : 360 / auditStride
+    let expectedDays = years.count * 362 / auditStride
     #expect(report.daysChecked > expectedDays, "\(hour): checked \(report.daysChecked)")
     #expect(report.text.isEmpty, "\n\(hour):\n\(report.text)")
 }
@@ -202,7 +202,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
 /// checks as `dayHoursFullRangeAudit` on a year the engine was never tuned against.
 @Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
-    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return
     }
     guard let bundle = RealCorpus.bundle, let archive = try await OracleFixture.shared.hourHoldout(hour: hour, year: 2044) else { return }
@@ -235,3 +235,15 @@ func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
 
 /// How much of a missed text an audit report quotes: `BREVIARIUM_AUDIT_PREFIX`, 140 by default.
 let auditPrefix = Int(ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_PREFIX"] ?? "") ?? 140
+
+/// The years a full-range audit covers: 2025-2040, or `BREVIARIUM_AUDIT_YEAR=2026`, or
+/// `BREVIARIUM_AUDIT_YEARS=2025-2028` (Oracle audits splits Matins across jobs that way).
+let auditYears: ClosedRange<Int> = {
+    let env = ProcessInfo.processInfo.environment
+    if let year = env["BREVIARIUM_AUDIT_YEAR"].flatMap(Int.init) { return year...year }
+    if let range = env["BREVIARIUM_AUDIT_YEARS"] {
+        let bounds = range.split(separator: "-").compactMap { Int($0) }
+        if bounds.count == 2, bounds[0] <= bounds[1] { return bounds[0]...bounds[1] }
+    }
+    return 2025...2040
+}()

@@ -142,7 +142,7 @@ identifier does that automatically: every re-sign and every rebuilt `.ipa` reuse
 *same* App ID (`com.epavone.breviarium`), so ordinary weekly use never registers a new
 one. It would only matter if the bundle ID ever changed, which `CLAUDE.md` now rules out.
 
-## 7. After installing: the on-device check (alpha M6, Beta 1, Beta 2)
+## 7. After installing: the on-device check (alpha M6, Betas 1 to 3)
 
 A few minutes on the phone after each fresh install, to confirm the build works end to end.
 Every item has a matching automated UI test on CI; this is the on-device confirmation.
@@ -194,6 +194,23 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
    - **Dates with the picker:** move a day on with the chevrons; the hour you picked stays.
    - **Settings still apply** to every hour: English, the psalter, priest, rubrics, text
      size, scrolling and page turn.
+10. **Matins (Beta 3).**
+   - **The icon.** The Home Screen shows the illuminated B.
+   - **Launch hour.** Between midnight and 05:00 the app opens on *Ad Matutinum*; it heads
+     the hour picker.
+   - **The shape.** The invitatory (the antiphon repeated through Psalm 94), the hymn,
+     then *Nocturnus I*, *II* and *III* on a I or II class day (e.g. 1 November), or one
+     *Ad Nocturnum* on a feria or III class day, and the *Te Deum* when said.
+   - **Lessons.** Each starts with a small grey *Lectio i* line and its source, then the
+     text as one paragraph; the responsory follows. The table of contents jumps to each
+     nocturn, and no *Lectio* line or reference is left alone at the foot of a page.
+   - **English.** Portrait: the lessons show Latin, then English below; landscape: side
+     by side. The responsories are paired.
+   - **Tenebræ.** Holy Thursday to Holy Saturday: no invitatory or hymn, and the collect
+     alone at the end, *sub silentio*.
+   - **The line under the title.** On a day with a commemoration, Lauds shows e.g.
+     *Commemoratio ad Laudes tantum: …* and Matins *Tempora: …*; Vespers and Compline
+     show none.
 
 ## Sources
 

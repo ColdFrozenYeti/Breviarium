@@ -58,7 +58,54 @@ let dayHourNamedCases: [DayHourCase] = [
     DayHourCase(hour: .laudes, date: "2038-04-25", what: "The latest Easter"),
     DayHourCase(hour: .completorium, date: "2035-03-25", what: "An early Easter"),
     DayHourCase(hour: .laudes, date: "2033-06-23", what: "The Baptist's vigil suppressed by the Sacred Heart"),
+    // Beta 3: Matins.
+    DayHourCase(hour: .matutinum, date: "2026-12-25", what: "Christmas: three nocturns, the Te Deum"),
+    DayHourCase(hour: .matutinum, date: "2029-12-30", what: "Sunday in the Christmas octave: Lectio1 OctNat"),
+    DayHourCase(hour: .matutinum, date: "2027-01-06", what: "Epiphany: no invitatory, Psalm 94 in the third nocturn"),
+    DayHourCase(hour: .matutinum, date: "2030-01-12", what: "12 January 2030: the Scripture transfer table"),
+    DayHourCase(hour: .matutinum, date: "2026-01-13", what: "The Baptism of the Lord"),
+    DayHourCase(hour: .matutinum, date: "2025-02-16", what: "Septuagesima Sunday"),
+    DayHourCase(hour: .matutinum, date: "2025-03-05", what: "Ash Wednesday: the homily"),
+    DayHourCase(hour: .matutinum, date: "2026-04-02", what: "Holy Thursday: Tenebræ"),
+    DayHourCase(hour: .matutinum, date: "2026-04-03", what: "Good Friday: Tenebræ"),
+    DayHourCase(hour: .matutinum, date: "2026-04-04", what: "Holy Saturday: Tenebræ"),
+    DayHourCase(hour: .matutinum, date: "2026-04-06", what: "Easter Monday: one nocturn"),
+    DayHourCase(hour: .matutinum, date: "2026-05-26", what: "Pentecost Tuesday: the substituted versicle"),
+    DayHourCase(hour: .matutinum, date: "2025-06-19", what: "Corpus Christi"),
+    DayHourCase(hour: .matutinum, date: "2026-06-12", what: "Sacred Heart: hymn elisions"),
+    DayHourCase(hour: .matutinum, date: "2025-10-26", what: "Christ the King"),
+    DayHourCase(hour: .matutinum, date: "2025-11-01", what: "All Saints"),
+    DayHourCase(hour: .matutinum, date: "2026-11-02", what: "All Souls"),
+    DayHourCase(hour: .matutinum, date: "2026-09-16", what: "16 September 2026: Tempora in the title"),
+    DayHourCase(hour: .matutinum, date: "2026-01-03", what: "Our Lady on Saturday: the month's third lesson"),
+    DayHourCase(hour: .matutinum, date: "2033-07-16", what: "Mount Carmel on a Saturday"),
+    DayHourCase(hour: .matutinum, date: "2030-12-08", what: "Immaculate Conception on an Advent Sunday"),
+    DayHourCase(hour: .matutinum, date: "2027-04-05", what: "Annunciation transferred"),
+    DayHourCase(hour: .matutinum, date: "2028-02-29", what: "Leap-year February"),
+    DayHourCase(hour: .matutinum, date: "2038-04-25", what: "The latest Easter"),
+    DayHourCase(hour: .matutinum, date: "2025-07-26", what: "St Anne: ipsa in the blessing"),
 ]
+
+/// The title block for 16 September 2026 (`CLAUDE.md`'s example), and the line DO shows
+/// at Matins instead.
+@Test func sixteenthSeptember2026HeadLines() throws {
+    let bundle = try #require(RealCorpus.bundle)
+    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
+    let calendar = bundle.makeSanctoralCalendar()
+    func day(_ hour: CanonicalHour) -> LiturgicalDay? {
+        let context = ConditionalContextBuilder.build(
+            day: 16, month: 9, year: 2026, ad: hour.doName, rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        )
+        return LiturgicalCalendarEngine(corpus: corpus, context: context, sanctoralCalendar: calendar).day(for: hour, day: 16, month: 9, year: 2026)
+    }
+    let lauds = try #require(day(.laudes)).titleBlock
+    #expect(lauds.classisLine == "III. classis")
+    #expect(lauds.nameLine == "Ss. Cornelii Papæ et Cypriani Episcopi, Martyrum")
+    #expect(lauds.commemorationLine == "Commemoratio ad Laudes tantum: Ss. Euphemiæ, Luciæ et Geminiani Martyrum")
+    #expect(try #require(day(.matutinum)).titleBlock.commemorationLine
+        == "Tempora: Feria Quarta infra Hebdomadam XVI post Octavam Pentecostes II. Septembris")
+    #expect(try #require(day(.vesperae)).titleBlock.commemorationLine == nil)
+}
 
 @Test(arguments: dayHourNamedCases)
 func dayHourNamedEdgeCase(_ testCase: DayHourCase) async throws {
