@@ -158,6 +158,9 @@ report for you to confirm.
    small-print `/: :/` directions inside a text: red, and hidden with rubrics off.
 6. **No line under the title at Vespers and Compline**, as in Beta 3.
 
-**My judgement call, for you to confirm in the morning report:** when the chosen office
-hasn't the hour the clock would open (the Office of the Dead has no Terce), the app opens
-Matins until 05:00, Lauds until 12:00, and Vespers after that.
+7. **A missing hour opens the previous one** (answered 2026-09-26). The clock picks the hour
+   as for the day's office; if the chosen office hasn't it, the app opens the nearest
+   earlier hour it has. For the Office of the Dead: Matins until 05:00, Lauds from 05:00
+   to 20:00 (Terce, Sext and None fall back to Lauds), and Vespers from 17:00 on
+   (Compline falls back to Vespers). The picker lists only the office's own hours, so
+   the Dead shows Matins, Lauds and Vespers and no Terce.

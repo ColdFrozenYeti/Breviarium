@@ -62,7 +62,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Settings (Universalis-style toggles)
 
 - **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
-  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists the chosen office's hours, plus the *Martyrologium* row.
+  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers), plus the *Martyrologium* row. When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
