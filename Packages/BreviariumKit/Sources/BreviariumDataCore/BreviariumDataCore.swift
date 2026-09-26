@@ -39,6 +39,9 @@ public enum BreviariumDataPipeline {
             topLevelFolders: latinTopLevelFolders,
             applyLatinOrthography: true
         )
+        latin += try OfficeCorpusWalker.referencedSiblings(
+            languageRoot: horasRoot.appendingPathComponent("Latin"), of: latin, applyLatinOrthography: true
+        )
         latin += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: true
         )
@@ -52,11 +55,19 @@ public enum BreviariumDataPipeline {
             topLevelFolders: englishTopLevelFolders,
             applyLatinOrthography: false
         )
+        english += try OfficeCorpusWalker.referencedSiblings(
+            languageRoot: horasRoot.appendingPathComponent("English"), of: english, applyLatinOrthography: false
+        )
         english += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
         )
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
-        let transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))
+        var transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))
+        // The Scripture transfer tables (`Tabulae/Stransfer`, DO's `initiarule`), kept in the
+        // same map under an `S:` prefix: `SanctoralCalendar.scriptureTransfer`.
+        for (key, table) in try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Stransfer")) {
+            transferTable["S:" + key] = table
+        }
         let temporaRedirect = try TemporaRedirectReader.read(temporaRoot: tabulaeRoot.appendingPathComponent("Tempora"))
 
         return DataBundle(

@@ -15,7 +15,7 @@ can be checked that way, and whatever it lacks cannot.
 | Beta | Contents | In DO? | Depends on |
 |---|---|---|---|
 | **Beta 3** | **Matins**: the three nocturns, lessons and responsories, the *Te Deum*, and the 1960 rules for shortening Matins. **The new app icon**, designed by the user (specs in [`icon-spec.md`](icon-spec.md)). **The title block's commemoration line** (*Commemoratio ad Laudes tantum: …*), carried over from Beta 2. | Yes | Nothing |
-| **Beta 4** | **The Little Office of Our Lady** (Roman), **the Office of the Dead**, and **the Martyrology** as an "hour" of its own in the picker. | Yes, with English | Matins, for their Matins |
+| **Beta 4** | **The Little Office of Our Lady** (Roman), **the Office of the Dead**, and **the Martyrology** as an "hour" of its own in the picker; a small dot of the day's **liturgical colour** in the calendar. | Yes, with English | Matins, for their Matins |
 | **Beta 5** | **The Dominican rite**: DO's *Ordo Prædicatorum - 1962*, with its own calendar, saints and commons. *Ritus: Dominicanus* becomes selectable. | Yes | Matins; the rite plug-in, built here for the first time on a rite that can be checked |
 | **Beta 6** | **The Ambrosian rite** (pre-conciliar), from an online text source still to be chosen. | **No** | The source; the rite plug-in, proven in Beta 5 |
 | **Beta 7** | **The Little Office of Our Lady** (Ambrosian). | No | Beta 6, and its source |
@@ -44,6 +44,10 @@ can be checked that way, and whatever it lacks cannot.
    in Latin only.
 5. **The next release is 1.0**, at the end of the table above.
 6. **The icon** is designed by the user, to the specs in [`icon-spec.md`](icon-spec.md).
+7. **The liturgical colour in the calendar** (added 26 September 2026, for Beta 4): each
+   day in the *Jump to date* calendar gets a small dot of its liturgical colour. The
+   engine already classifies the colour (`LiturgicalColorClassifier`); Beta 4's plan
+   settles the exact colours on black and which office's colour a day shows.
 
 ## Open questions for later plans
 

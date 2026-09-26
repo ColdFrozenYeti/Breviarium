@@ -10,6 +10,12 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "Beta 3", notes: [
+            "Matins: the invitatory, the hymn, the nocturns with their lessons and responsories, and the Te Deum, as the 1960 rubrics order them.",
+            "Ad Matutinum is first in the hour picker, and the app opens on it between midnight and five in the morning.",
+            "Matins is checked against Divinum Officium for every day from 2025 to 2040, like the other hours.",
+            "A new app icon: an illuminated B.",
+        ]),
         Release(name: "Beta 2", notes: [
             "The day hours: Lauds, Prime, Terce, Sext, None and Compline, alongside Vespers.",
             "The app opens on the hour for the time of day; tap the hour's name at the top to switch hours.",

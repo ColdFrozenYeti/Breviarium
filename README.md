@@ -7,31 +7,36 @@ option), and an optional parallel English translation. The app computes the offi
 itself for any date. It is fully offline, night mode only, and for private
 use. It is installed by sideloading with a free Apple ID.
 
-## Status: Beta 2
+## Status: Beta 3
 
-Beta 2 is the **Roman diurnal**: Lauds, Prime, Terce, Sext, None, Vespers and Compline,
-in Latin with an optional English translation, in either psalter.
+Beta 3 adds **Matins**, so the whole Roman office is here: Matins, Lauds, Prime, Terce,
+Sext, None, Vespers and Compline, in Latin with an optional English translation, in
+either psalter.
 
 - **The office is right.** For every day from 2025 to 2040, each hour is checked against
   [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium)'s own output:
   - everything the engine shows is on DO's page, and nothing on DO's page is missing, in
     Latin and in English, with each Latin-English pair in the same row;
   - each psalm's title and verse list, in both psalters;
-  - the day title, including evenings that already belong to the next day's office;
+  - the day title, including evenings that already belong to the next day's office, and
+    the line under it (the commemoration, the season's Scripture, a transferred feast);
   - Vespers' commemorations, and at Lauds those said at Lauds only.
 
   All of 2044 is checked too, with the priest form on and off, as an out-of-sample year
   the engine was never tuned against. So are `CLAUDE.md`'s named edge cases, hour by
-  hour: the Triduum's own forms, All Souls, Our Lady on Saturday, the Greater Litanies
-  on St Mark, transferred feasts and the rest.
-- **The app** opens on the hour for the time of day (Lauds until 09:00, Terce until 12:00,
+  hour: Tenebræ, All Souls, Our Lady on Saturday, the Greater Litanies on St Mark,
+  transferred feasts and the rest.
+- **Matins** has its invitatory, hymn, nocturns with their lessons and responsories, and
+  the *Te Deum*, as the 1960 rubrics order them: nine lessons on I and II class days,
+  three on the rest.
+- **The app** opens on the hour for the time of day (Matins until 05:00, Lauds until 09:00, Terce until 12:00,
   Sext until 15:00, None until 17:00, Vespers until 20:00, then Compline). Tapping the
   hour's name at the top opens the list of hours. Every hour reads the same way:
   - The office reads like a book: pages turn sideways (a slide or a page curl) and the
     text flows line by line from one page to the next. A continuous vertical scroll is
     available instead.
-  - With English on, Latin and English run side by side, with the chapter and collect
-    stacked in portrait. With the Pius XII psalter, each psalm's English is shown whole
+  - With English on, Latin and English run side by side, with the chapter, collect and
+    lessons stacked in portrait. With the Pius XII psalter, each psalm's English is shown whole
     beside it.
   - The layout follows `design/reference/`: the date line, day title, table of contents,
     section headings, and a *Page N of M* footer.
@@ -49,18 +54,20 @@ in Latin with an optional English translation, in either psalter.
 The build log, with every decision and every bug traced to the Divinum Officium source
 it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong,
 and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md),
-[`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md) and
-[`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md). Beta 2's plan is
-[`docs/Beta_2_plan.md`](docs/Beta_2_plan.md), and how each day hour is put together is in
-[`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md).
+[`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md),
+[`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md) and
+[`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md). Beta 3's plan is
+[`docs/Beta_3_plan.md`](docs/Beta_3_plan.md); how each day hour is put together is in
+[`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md), and Matins in
+[`docs/rubrics-1960-matins.md`](docs/rubrics-1960-matins.md).
 
 ## Roadmap
 
-![Roadmap: Alpha, Beta 1 and Beta 2 released; Beta 3 Matins and the new icon; Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha and Betas 1 to 3 released; Beta 4 the Little Office of Our Lady, the Office of the Dead, the Martyrology and the liturgical colour in the calendar; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
 
 Why it's in this order, and what each beta depends on, is in
-[`docs/roadmap.md`](docs/roadmap.md). The icon is being designed to
-[`docs/icon-spec.md`](docs/icon-spec.md).
+[`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was
+made to [`docs/icon-spec.md`](docs/icon-spec.md).
 
 ## Installing on the iPhone
 
@@ -70,8 +77,8 @@ and is renewed weekly.
 
 1. Get the `.ipa`:
    - **a release:** download it from the repository's
-     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 2 is
-     `Breviarium-Beta-2.ipa`);
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 3 is
+     `Breviarium-Beta-3.ipa`);
    - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
      workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
      CLI). Given a release tag and a notes file, the same workflow publishes the build as

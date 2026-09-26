@@ -118,7 +118,13 @@ public struct SanctoralCalendar: Sendable {
     /// ... `426.txt`) only ever carries March/April Annunciation-adjacent keys, never a
     /// January/February one, so it can't affect this gap either way; left for a future
     /// pass if a real fixture ever needs it.
-    private func transferSource(targetKey: String, year: Int) -> String? {
+    /// `initiarule` (`specmatins.pl:1611-1624`): the Scripture transfer entry for the date
+    /// (`Tabulae/Stransfer`), e.g. `Epi1-0a` for 12 January under letter `f` (2030).
+    public func scriptureTransfer(day: Int, month: Int, year: Int) -> String? {
+        transferSource(targetKey: Computus.sanctoralKey(day: day, month: month, year: year), year: year, prefix: "S:")
+    }
+
+    private func transferSource(targetKey: String, year: Int, prefix: String = "") -> String? {
         guard !transferTable.isEmpty else { return nil }
 
         let easter = Computus.easter(year: year)
@@ -132,12 +138,12 @@ public struct SanctoralCalendar: Sendable {
 
         var source: String?
         if !(isLeap && isJanOrEarlyFeb) {
-            if let letterFile = transferTable[letterKey], let value = letterFile[targetKey] { source = value }
+            if let letterFile = transferTable[prefix + letterKey], let value = letterFile[targetKey] { source = value }
         }
-        if let numericFile = transferTable[numericKey], let value = numericFile[targetKey] { source = value }
+        if let numericFile = transferTable[prefix + numericKey], let value = numericFile[targetKey] { source = value }
         if isLeap, isJanOrEarlyFeb {
             let extraLetterKey = letters[(letterIndex + 1) % 7]
-            if let extraLetterFile = transferTable[extraLetterKey], let value = extraLetterFile[targetKey] { source = value }
+            if let extraLetterFile = transferTable[prefix + extraLetterKey], let value = extraLetterFile[targetKey] { source = value }
         }
         return source?.isEmpty == false ? source : nil
     }

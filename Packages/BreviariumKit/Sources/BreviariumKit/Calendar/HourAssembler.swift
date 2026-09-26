@@ -146,6 +146,8 @@ public struct HourAssembler {
         } ?? [:]
 
         var sections: [Section] = []
+        let matins = hour == .matutinum
+            ? matinsDay(winner: winner, macroContext: macroContext, resolver: resolver, day: day, month: month, year: year) : nil
         for group in groups {
             if hour != .vesperae, skipsGroup(
                 group.name, hour: hour, winner: winner, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext,
@@ -155,7 +157,7 @@ public struct HourAssembler {
             }
             switch group.name {
             case "Incipit":
-                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit") else { continue }
+                guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit", atMatins: hour == .matutinum) else { continue }
                 sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
             case "Psalmi" where hour == .laudes:
                 sections.append(assembleLaudsPsalmodia(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
@@ -200,10 +202,14 @@ public struct HourAssembler {
                 // office-then-Commune order (not a simple indexed-then-plain fallback).
                 let ind = hour == .vesperae ? (macroContext.isFirstVespers ? 1 : 3) : 2
                 let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
-                let oratioLocation = oratioLocation(
-                    office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver,
-                    weekName: macroContext.weekName
-                )
+                // `orationes.pl:70-71`: at Matins the office's own `[Oratio Matutinum]` first
+                // (the Triduum's collect, without the Lauds preamble).
+                let oratioLocation = hour == .matutinum && resolver.sectionExists(path: winner.winningPath, section: "Oratio Matutinum")
+                    ? (path: winner.winningPath, section: "Oratio Matutinum")
+                    : oratioLocation(
+                        office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver,
+                        weekName: macroContext.weekName
+                    )
                 if let oratioLocation {
                     let collect = Self.withoutAddedCommemoration(
                         resolver.resolve(path: oratioLocation.path, section: oratioLocation.section), hour: hour
@@ -346,6 +352,25 @@ public struct HourAssembler {
                     office: winner.winningPath, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
                     dayOfWeek: macroContext.dayOfWeek
                 ))
+            case "Invitatorium" where hour == .matutinum:
+                if let matins, let section = assembleInvitatorium(
+                    matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ) {
+                    sections.append(section)
+                }
+            case "Hymnus" where hour == .matutinum:
+                if let matins, let section = assembleMatinsHymn(
+                    matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ) {
+                    sections.append(section)
+                }
+            case "Psalmi cum lectionibus":
+                if let matins {
+                    sections.append(contentsOf: assembleMatinsPsalmi(
+                        matins: matins, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                        trailing: group.lines, englishTrailing: englishGroups[group.name]?.lines
+                    ))
+                }
             case "Hymnus":
                 sections.append(contentsOf: assembleMinorHymn(
                     hour: hour, winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
@@ -463,8 +488,9 @@ public struct HourAssembler {
             } else {
                 // Inline small print keeps its words ("/:(percutit sibi pectus):/"), and
                 // `+++` is DO's ✙︎ (`webdia.pl:492-502`, `setcross`).
+                // `++` is DO's plain red cross (`webdia.pl:498-502`): *Dómine, lábia + mea*.
                 text = text.replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
-                    .replacingOccurrences(of: " +++ ", with: " ✙︎ ")
+                    .replacingOccurrences(of: " +++ ", with: " ✙︎ ").replacingOccurrences(of: " ++ ", with: " + ")
             }
             return text
         }
@@ -487,7 +513,12 @@ public struct HourAssembler {
             let line = nonBlank[i]
             let englishLine = english?[i]
             if DOMarkers.isRubricLine(line) {
-                units.append(.rubric(DOMarkers.stripRubricMarkers(line), english: englishLine.map(DOMarkers.stripRubricMarkers)))
+                // `%Laudes%` is DO's link to another hour (`webdia.pl`), shown as the word.
+                func tidy(_ text: String) -> String {
+                    DOMarkers.stripRubricMarkers(text).replacingOccurrences(of: "%", with: "")
+                        .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+                }
+                units.append(.rubric(tidy(line), english: englishLine.map(tidy)))
                 i += 1
             } else if line.hasPrefix("V.") && i + 1 < nonBlank.count && nonBlank[i + 1].hasPrefix("R.") {
                 units.append(.versicleResponse(
@@ -2144,7 +2175,16 @@ public struct HourAssembler {
         if let range {
             title += "(\(range.startVerse)\(range.startLetter.map(String.init) ?? "")-\(range.endVerse)\(range.endLetter.map(String.init) ?? ""))"
         }
-        let lines = fileText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        var lines = fileText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        // Psalm 9 is two Hebrew psalms (`:586-590`): from verse 22 its second title (B)
+        // applies, 21 lines in, and after verse 22 none (Matins, Pius XII).
+        if baseNumber == "9", let range, range.startVerse > 21, lines.count > 21 {
+            guard range.startVerse == 22 else { return title }
+            lines = Array(lines[21...])
+            guard let first = lines.first, first.hasPrefix("("), first.hasSuffix(")") else { return title }
+            let subtitle = first.dropFirst().dropLast()
+            return "\(title) — \(subtitle.split(whereSeparator: { $0.isWhitespace }).joined(separator: " "))"
+        }
         guard let first = lines.first, first.hasPrefix("("), first.hasSuffix(")") else { return title }
         if let range, let firstVerse = lines.dropFirst().lazy.compactMap({ Self.leadingVerseNumber(of: $0) }).first,
             range.startVerse > firstVerse
@@ -2868,8 +2908,9 @@ public struct HourAssembler {
     /// has no rendered text to check at all, so a wrongly-omitted section produces zero
     /// mismatch entries regardless. Found by reading `specials.pl`'s own Omit-handling
     /// logic directly, not by a sweep diff.
-    static func ruleOmits(rule: String, keyword: String) -> Bool {
-        guard rule.range(of: "Omit ad Matutinum", options: .caseInsensitive) == nil else { return false }
+    static func ruleOmits(rule: String, keyword: String, atMatins: Bool = false) -> Bool {
+        // `specials.pl:94`: an "Omit ad Matutinum …" rule applies at Matins only (Epiphany).
+        guard atMatins || rule.range(of: "Omit ad Matutinum", options: .caseInsensitive) == nil else { return false }
         for line in rule.split(separator: "\n", omittingEmptySubsequences: false) {
             guard let omitRange = line.range(of: "Omit", options: .caseInsensitive) else { continue }
             if line[omitRange.upperBound...].range(of: " \(keyword)", options: .caseInsensitive) != nil { return true }
@@ -2952,6 +2993,9 @@ public struct HourAssembler {
             lines[firstContentIndex] = DOMarkers.stripLineLabel(lines[firstContentIndex])
         }
         lines = lines.map(DOMarkers.stripSmallFontMarkers)
+        // A mute vowel in brackets, "Patr[e]", is shown plain (DO sets it in italic,
+        // `horas.pl:193`).
+        lines = lines.map { $0.replacingOccurrences(of: #"\[([æaeiou]m?)\]"#, with: "$1", options: .regularExpression) }
         // A `!`-marked line mid-hymn is DO's own real "red line" rubric convention
         // (`horas.pl:167-172`'s `s/^\!(.*)/setfont($redfont, $1)/`) — a genuflection
         // direction between two stanzas, not the whole-hymn-opening kind

@@ -8,10 +8,9 @@ public struct TitleBlock: Equatable, Sendable {
     public var classisLine: String?
     /// The feast or feria name, e.g. `"Ss. Cornelii Papæ et Cypriani Episcopi, Martyrum"`.
     public var nameLine: String
-    /// A commemoration line, when one applies. **Always `nil` in this pass** —
-    /// `Occurrence` doesn't build the commemoration list yet (see its doc comment);
-    /// this field exists so the shape is right for when that lands, rather than bolting
-    /// it on as a breaking change later.
+    /// The line below the name (Beta 3): a commemoration, the season's Scripture, or a
+    /// transferred feast, as DO prints it for the hour (`LiturgicalCalendarEngine.headLine`);
+    /// `nil` at Vespers and Compline and when there is none.
     public var commemorationLine: String?
 }
 
@@ -64,7 +63,9 @@ public struct LiturgicalCalendarEngine {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar)
         guard let occurrence = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
         let suffix = HourAssembler.monthdayTitleSuffix(office: occurrence.winningPath, day: day, month: month, year: year, tomorrow: false)
-        return Self.liturgicalDay(day: day, month: month, year: year, occurrence: occurrence, titleSuffix: suffix)
+        var result = Self.liturgicalDay(day: day, month: month, year: year, occurrence: occurrence, titleSuffix: suffix)
+        result.titleBlock.commemorationLine = headLine(for: hour, day: day, month: month, year: year)
+        return result
     }
 
     public func day(day: Int, month: Int, year: Int) -> LiturgicalDay? {

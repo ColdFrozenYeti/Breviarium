@@ -56,7 +56,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - The engine must let a second rite plug in without rewriting the Roman one.
 - **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`). Matins comes in Beta 3. The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
 - **The hour picker** lists only the office's own hours (*Ad Laudes* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24).
-- **Beta 4 (decided 2026-09-25):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24).
+- **Beta 4 (decided 2026-09-25):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
 - **Later:** votive offices where the rubrics permit, and possibly the Monastic office, after 1.0.
 
 ## Settings (Universalis-style toggles)

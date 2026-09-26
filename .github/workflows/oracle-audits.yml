@@ -3,7 +3,8 @@ name: Oracle audits
 # The full-range oracle audits: every day 2025-2040 against Divinum Officium's own
 # rendering, for content, commemorations, psalmody (both psalters) and the English
 # (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests), and from Beta 2 the
-# day hours (dayHoursFullRangeAudit, one job of its own). Split out of Kit CI in
+# day hours (dayHoursFullRangeAudit, one job of its own), and from Beta 3 Matins, split
+# by years across four jobs since it alone takes over an hour. Split out of Kit CI in
 # Beta 1 (docs/PLAN.md, B1-M4) because together they take several times longer than the
 # fast suite; they still run on every pull request and main push, in parallel with Kit
 # CI, and on demand. Linux only, like Kit CI.
@@ -31,8 +32,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        filter: [vespersFullRange, dayHoursFullRange]
-    name: audits (${{ matrix.filter }})
+        include:
+          - name: vespers
+            filter: vespersFullRange
+          # Every day-hour audit (content, Pius XII, 2044 hold-out, title line) except
+          # Matins' content audits, which the jobs below run.
+          - name: day hours
+            filter: dayHoursFullRange
+            hours: Completorium,Tertia,Sexta,Nona,Prima,Laudes
+          - name: matins 2025-2028 and 2044
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit|dayHoursFullRangeHoldout2044"
+            hours: Matutinum
+            years: 2025-2028
+          - name: matins 2029-2032
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2029-2032
+          - name: matins 2033-2036
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2033-2036
+          - name: matins 2037-2040
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2037-2040
+    name: audits (${{ matrix.name }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -51,4 +75,7 @@ jobs:
 
       - name: Full-range oracle audits
         working-directory: Packages/BreviariumKit
-        run: swift test --skip-build --filter ${{ matrix.filter }}
+        env:
+          BREVIARIUM_AUDIT_HOURS: ${{ matrix.hours }}
+          BREVIARIUM_AUDIT_YEARS: ${{ matrix.years }}
+        run: swift test --skip-build --filter "${{ matrix.filter }}"

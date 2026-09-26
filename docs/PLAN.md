@@ -3865,3 +3865,115 @@ icon specs are in [`icon-spec.md`](icon-spec.md). Divinum Officium, at the pinne
 turned out to contain the Dominican office (*Ordo Prædicatorum - 1962*), with English for
 its seasonal texts but not its saints, and the Little Office of Our Lady (Commune C12),
 with its English. It does not contain the Ambrosian office.
+
+## Beta 3
+
+The plan is [`Beta_3_plan.md`](Beta_3_plan.md), approved on 25 September 2026 with its six
+answers. It runs overnight, with no stops at the milestone gates.
+
+### B3-M0 — Housekeeping and the icon
+
+- **Baseline** on `main` at the Beta 2 merge: the fast suite passes all 348 tests
+  (`swift test --skip "vespersFullRange|dayHoursFullRange"`, 201 s). Every full-range
+  audit was at zero on the merged head (Oracle audits run 36129053936). The engine has
+  not changed since.
+- **The icon:** the user's illuminated B.
+  - `design/Icon.png` on `main`: 1024 × 1024, 8-bit RGB, no alpha, which meets
+    `icon-spec.md`.
+  - It's copied to `AppIcon.appiconset/icon-1024.png`.
+  - A WebP of it, converted, stood in for an hour until the original arrived.
+  - `testHomeScreenIcon` captures it on the simulator's Home Screen.
+- The Release notes screen has a "Beta 3" section.
+
+### B3-M1 — Understand Matins
+
+[`rubrics-1960-matins.md`](rubrics-1960-matins.md), cited to the pinned commit. It is
+based on reading all of `specmatins.pl` and the Matins parts of `specials.pl` and
+`horascommon.pl`, and on DO's renders of five dates.
+
+Findings that shape the engine:
+- **The 1960 lesson types** decide the structure. I and II class feasts get three
+  nocturns and nine lessons. Sundays, III class feasts and ferias get one nocturn of nine
+  psalms and three lessons, with the 1960 contraction of lessons 2 and 3 on Sundays and
+  III class feasts.
+- **The occurring Scripture** (`$scriptura`) is new state: the temporal office whose
+  lessons a saint's day reads in its first nocturn. The engine needs it from
+  `Occurrence`.
+- **The initia tables** (`Tabulae/Stransfer`) are new data, in the same format as
+  `Tabulae/Transfer`.
+- **The commemoration line differs per hour.** At Matins, 16 September 2026 reads
+  *Tempora: Feria Quarta …*, while Lauds and Prime read *Commemoratio ad Laudes tantum:
+  …*.
+- **No labels:** the *Absolutio.*/*Benedictio.* labels are dropped, as at the other
+  hours since Beta 2's phone test.
+
+### B3-M2 — Fixtures
+
+Matins fixtures for 2025–2040 in both psalters and the 2044 hold-out, recorded in
+`data/SOURCE.md` (137 MB in all). `OracleFixture` reads them like the other hours, and
+`.matutinum` joined the arguments of the full-range, Pius XII and hold-out audits.
+
+### B3-M3 — Matins in the engine
+
+`Calendar/Matins.swift` ports `specmatins.pl`'s 1960 Roman paths: the invitatory, the
+hymn, `psalmi_matutinum` with `nocturn`, the absolutions and blessings, `lectio` with its
+diversions and the 1960 contraction, the responsories with `responsory_gloria`, and
+`tedeum_required`. `Hour.swift` gained one unit, `.lesson`, and the Matins section kinds.
+
+Worked audit-first on 2026, then the whole range. The 2026 Latin misses went from 1,311
+distinct texts to zero, the English with them. What the audit found, each fixed at the
+cause and cited in the code (`rubrics-1960-matins.md` §12 lists them):
+- **Resolver order.** An inclusion's `s///` applies to the raw section before its own
+  `@` lines are resolved (the Rosary's hymn); Perl escapes in a replacement (Pentecost
+  Tuesday's versicle).
+- **Data we hadn't bundled.** Fifteen Monastic and Dominican files Roman offices borrow
+  from, found by following references at build time, with DO's fall-back to the Roman
+  file for a missing one; and the `Stransfer` initia tables.
+- **Lesson sources.** Our Lady on Saturday's third lesson from C10 by month (read from
+  the Commune's rule, so Mount Carmel on a Saturday keeps it); `Lectio1 OctNat`;
+  `resolveitable` for 12 January 2030; monthday Scripture merged into the Pentecost and
+  Epiphany weeks.
+- **Responsories.** `Responsory<n> 1960` from the winning office, not the lesson's source
+  (Ss. John and Paul, 2025); the Scripture's when the rule says so; the contracted third.
+- **Blessings.** `cujus_q` reads the whole `[Rank]` line (St Anne *ipsa*, St Gabriel
+  *ipse*).
+- **Text details.** Hymn mute vowels, `r.` initials, a stray `_`, `parenthesised_text`'s
+  length rule, inline alleluias in versicles and English responsories, Gloria macros in
+  Passiontide, Epiphany's Psalm 94 antiphon, the Triduum's `[Oratio Matutinum]`.
+
+Two Swift 6.1 on Linux problems were worked around: printing a `Unit` by reflection
+crashed (it now has its own `description`), and a local enum captured by a nested function
+miscompiled and corrupted arrays in `lessonPieces` (rewritten with plain loops).
+
+**The title block's third line.** `LiturgicalCalendarEngine.headLine` ports DO's
+`$officename[2]` for Matins to None and fills `TitleBlock.commemorationLine`, which had
+always been `nil`. A new fast audit, `dayHoursFullRangeHeadLineAudit`, compares it with
+every fixture's page head for six hours over 16 years: zero differences. Vespers and
+Compline show none, deliberately (§10 of the Matins doc).
+
+Named edge cases: 25 Matins dates joined `dayHourNamedCases` (Christmas, the octave
+Sunday, Epiphany, 12 January 2030, Tenebræ, Easter Monday, Pentecost Tuesday, All Souls,
+Our Lady on Saturday, Mount Carmel on a Saturday, the transferred Annunciation, leap-year
+February, the latest Easter, St Anne …), and `sixteenthSeptember2026HeadLines` checks
+`CLAUDE.md`'s title block. All pass.
+
+### B3-M4 — Matins in the app
+
+- *Ad Matutinum* heads the picker; the app opens on it from 00:00 to 05:00.
+- `OfficeTypesetter` sets `.lesson` as one prose paragraph (its verses joined), stacked
+  with its English in portrait and side by side in landscape, like the chapter. The
+  Matins headings are INVITATORIUM, AD NOCTURNUM, NOCTURNUS I–III and TE DEUM.
+- `ContentBlock`: no psalm separator between the invitatory's repeated antiphons, and a
+  responsory's verses don't alternate italic as a psalm's do.
+- `testMatinsSnapshots`: page 1 and 2, each nocturn's first pages, the *Te Deum* and the
+  last page for a feria, a I class feast and Holy Thursday; the second nocturn with
+  English in portrait and landscape.
+
+### B3-M5 — Release
+
+Pull request with every check green: Kit CI, App CI (with `testMatinsSnapshots`) and the
+six Oracle audit jobs (Vespers, the day hours, and Matins in four year ranges, 2044
+included). The user tried the IPA on the phone and asked to merge and publish on 26
+September; Beta 3 is published as a pre-release with `Breviarium-Beta-3.ipa`. The same
+day the user added a small dot of the day's liturgical colour in the calendar to Beta 4
+(`roadmap.md`, decision 7).

@@ -67,4 +67,34 @@ public enum OfficeCorpusWalker {
 
         return results.sorted { $0.path < $1.path }    // Deterministic bundle output.
     }
+
+    /// The files of the other rites' folders (`SanctiM/`, `CommuneOP/`, …) that the walked
+    /// files reference, and those they reference in turn: a few Roman offices borrow from
+    /// them (the Baptism of the Lord's Matins antiphons, `@SanctiM/01-06:AntMatutinumM:2`).
+    public static func referencedSiblings(
+        languageRoot: URL, of files: [RawOfficeFile], applyLatinOrthography: Bool
+    ) throws -> [RawOfficeFile] {
+        let sibling = /@((?:Sancti|Tempora|Commune)(?:M|OP|Cist)\/[^:\n]+?)(?=:|\n|$)/
+        var have = Set(files.map(\.path))
+        var pending = files
+        var added: [RawOfficeFile] = []
+        while let file = pending.popLast() {
+            var texts = file.sections.flatMap(\.body)
+            if let base = file.baseFile { texts.append("@" + base.file) }
+            for text in texts {
+                for match in text.matches(of: sibling) {
+                    let path = String(match.1).trimmingCharacters(in: .whitespaces)
+                    guard !have.contains(path) else { continue }
+                    have.insert(path)
+                    let url = languageRoot.appendingPathComponent(path + ".txt")
+                    guard let raw = try? String(contentsOf: url, encoding: .utf8) else { continue }
+                    let normalized = applyLatinOrthography ? LatinOrthography.normalize(raw) : raw
+                    let parsed = RawSectionParser.parse(fileText: normalized, path: path)
+                    added.append(parsed)
+                    pending.append(parsed)
+                }
+            }
+        }
+        return added.sorted { $0.path < $1.path }
+    }
 }

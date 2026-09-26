@@ -20,7 +20,12 @@ func latinContentMisses(hour: Hour, rows: [BilingualRow]) -> [(Section.Kind, Str
     for section in [Section(kind: .introductio, units: hour.prelude)] + hour.sections {
         for unit in section.units {
             for piece in oracleComparisonTexts(unit).map({ collapsedWhitespace(LatinOrthography.normalize($0)) }) where !piece.isEmpty {
-                if !column.contains(piece) { misses.append((section.kind, piece)) }
+                if !column.contains(piece) {
+                    misses.append((section.kind, piece))
+                    if ProcessInfo.processInfo.environment["BREVIARIUM_DEBUG_MISS"] != nil, let r = column.range(of: String(piece.prefix(12))) {
+                        print("MISS piece: \(piece)\nMISS column: \(column[r.lowerBound...].prefix(piece.count + 20))")
+                    }
+                }
             }
         }
     }
@@ -39,11 +44,11 @@ struct DayHourAuditReport {
 
     mutating func add(hour: Hour, rows: [BilingualRow], title: String?, date: String) {
         daysChecked += 1
-        for (kind, text) in latinContentMisses(hour: hour, rows: rows) { latinMissing["[\(kind)] \(text.prefix(140))", default: []].append(date) }
+        for (kind, text) in latinContentMisses(hour: hour, rows: rows) { latinMissing["[\(kind)] \(text.prefix(auditPrefix))", default: []].append(date) }
         let result = englishAudit(hour: hour, rows: rows)
-        for (kind, text) in result.missingFromDO { englishMissing["[\(kind)] \(text.prefix(140))", default: []].append(date) }
-        for text in result.uncovered { uncovered[String(text.prefix(140)), default: []].append(date) }
-        for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(140)), default: []].append(date) }
+        for (kind, text) in result.missingFromDO { englishMissing["[\(kind)] \(text.prefix(auditPrefix))", default: []].append(date) }
+        for text in result.uncovered { uncovered[String(text.prefix(auditPrefix)), default: []].append(date) }
+        for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(auditPrefix)), default: []].append(date) }
         for text in result.mispaired { mispaired[text, default: []].append(date) }
         if let title, let expected = rows.first.flatMap({ fixtureTitle($0.latin) }), collapsedWhitespace(title) != expected {
             titles["DO \(expected) | engine \(collapsedWhitespace(title))", default: []].append(date)
@@ -105,20 +110,20 @@ func assembleDayHour(
 
 /// Every date 2025-2040 (every `BREVIARIUM_AUDIT_STRIDE`th), one hour. Skipped when the
 /// hour's fixtures aren't there yet.
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_AUDIT_HOURS=Prima,Laudes` runs only those (several processes in parallel).
-    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return
     }
     guard let bundle = RealCorpus.bundle, try await OracleFixture.shared.hourYear(hour: hour, year: 2040) != nil else { return }
     let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
     let english = bundle.makeEnglishCorpus()
     let calendar = bundle.makeSanctoralCalendar()
-    let onlyYear = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_YEAR"].flatMap(Int.init)
+    let years = auditYears
 
     var report = DayHourAuditReport()
-    for year in 2025...2040 where onlyYear == nil || onlyYear == year {
+    for year in years {
         guard let archive = try await OracleFixture.shared.hourYear(hour: hour, year: year) else { continue }
         var (day, month, y) = (1, 1, year)
         var offset = 0
@@ -129,6 +134,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english, calendar: calendar
                 )
                 if let assembled {
+                    if ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_TRACE"] != nil { FileHandle.standardError.write(Data("DATE \(date)\n".utf8)) }
                     let rows = withoutMartyrology(OracleFixture.rows(text))
                     report.add(hour: assembled, rows: rows, title: title, date: date)
                 } else {
@@ -139,7 +145,7 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
             (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
         }
     }
-    let expectedDays = onlyYear == nil ? 5_800 / auditStride : 360 / auditStride
+    let expectedDays = years.count * 362 / auditStride
     #expect(report.daysChecked > expectedDays, "\(hour): checked \(report.daysChecked)")
     #expect(report.text.isEmpty, "\n\(hour):\n\(report.text)")
 }
@@ -171,6 +177,16 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
     var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
     if page == nil { page = try await OracleFixture.shared.hourYear(hour: hour, year: parts[0])?["\(parts[0])/\(date)_priestN_bilingual.tsv"] }
+    if env["BREVIARIUM_DEBUG_NOAUDIT"] != nil { page = nil }
+    if env["BREVIARIUM_DEBUG_PIECES"] != nil, let assembled {
+        for section in assembled.sections {
+            for unit in section.units {
+                print("PIECE \(section.kind) \(String(describing: unit).prefix(60))")
+                let pieces = oracleComparisonTexts(unit)
+                print("  -> \(pieces.count)")
+            }
+        }
+    }
     if let text = page {
         out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
         if let assembled {
@@ -184,9 +200,9 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
 
 /// The out-of-sample year (`holdout/2044-<Hour>.tar.gz`), priest off and on: the same
 /// checks as `dayHoursFullRangeAudit` on a year the engine was never tuned against.
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
-    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return
     }
     guard let bundle = RealCorpus.bundle, let archive = try await OracleFixture.shared.hourHoldout(hour: hour, year: 2044) else { return }
@@ -216,3 +232,18 @@ func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
     #expect(report.daysChecked == 732, "expected 366 dates twice, checked \(report.daysChecked)")
     #expect(report.text.isEmpty, "\n\(hour) 2044:\n\(report.text)")
 }
+
+/// How much of a missed text an audit report quotes: `BREVIARIUM_AUDIT_PREFIX`, 140 by default.
+let auditPrefix = Int(ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_PREFIX"] ?? "") ?? 140
+
+/// The years a full-range audit covers: 2025-2040, or `BREVIARIUM_AUDIT_YEAR=2026`, or
+/// `BREVIARIUM_AUDIT_YEARS=2025-2028` (Oracle audits splits Matins across jobs that way).
+let auditYears: ClosedRange<Int> = {
+    let env = ProcessInfo.processInfo.environment
+    if let year = env["BREVIARIUM_AUDIT_YEAR"].flatMap(Int.init) { return year...year }
+    if let range = env["BREVIARIUM_AUDIT_YEARS"] {
+        let bounds = range.split(separator: "-").compactMap { Int($0) }
+        if bounds.count == 2, bounds[0] <= bounds[1] { return bounds[0]...bounds[1] }
+    }
+    return 2025...2040
+}()

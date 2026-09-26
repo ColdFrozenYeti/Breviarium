@@ -58,11 +58,12 @@ struct ContentView: View {
         }
     }
 
-    /// The hour for the time of day (decided 2026-09-24): Lauds until 09:00, Terce until
-    /// 12:00, Sext until 15:00, None until 17:00, Vespers until 20:00, then Compline.
-    /// Prime is reached from the picker.
+    /// The hour for the time of day (decided 2026-09-24; Matins added in Beta 3): Matins
+    /// until 05:00, Lauds until 09:00, Terce until 12:00, Sext until 15:00, None until
+    /// 17:00, Vespers until 20:00, then Compline. Prime is reached from the picker.
     static func hourForTimeOfDay(_ date: Date, calendar: Calendar = .current) -> CanonicalHour {
         switch calendar.component(.hour, from: date) {
+        case ..<5: .matutinum
         case ..<9: .laudes
         case ..<12: .tertia
         case ..<15: .sexta

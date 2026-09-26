@@ -722,7 +722,7 @@ extension HourAssembler {
         }
         let keyword = name.split(separator: " ").first.map(String.init) ?? name
         let versum2KeepsChapter = name.contains("Capitulum") && hour == .laudes && Self.capitulumVersum2Qualifier(rule: rule) != nil
-        return Self.ruleOmits(rule: rule, keyword: keyword) && !versum2KeepsChapter
+        return Self.ruleOmits(rule: rule, keyword: keyword, atMatins: hour == .matutinum) && !versum2KeepsChapter
     }
 
     // MARK: - Prime

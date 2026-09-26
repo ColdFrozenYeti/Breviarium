@@ -1,7 +1,8 @@
 /// The day hours of the Roman office (Beta 2), named as DO names them: `$hora`, the
 /// `pray<Hour>` command (`officium.pl:142-144`) and the skeleton file under
-/// `Ordinarium/`. Matins (`Matutinum`) is Beta 4.
+/// `Ordinarium/`. Matins (`Matutinum`) joined in Beta 3.
 public enum CanonicalHour: String, CaseIterable, Sendable, Codable {
+    case matutinum = "Matutinum"
     case laudes = "Laudes"
     case prima = "Prima"
     case tertia = "Tertia"
@@ -25,6 +26,7 @@ public enum CanonicalHour: String, CaseIterable, Sendable, Codable {
     /// The page and navigation title, as DO heads the page (`Ad Tertiam`, …).
     public var title: String {
         switch self {
+        case .matutinum: "Ad Matutinum"
         case .laudes: "Ad Laudes"
         case .prima: "Ad Primam"
         case .tertia: "Ad Tertiam"

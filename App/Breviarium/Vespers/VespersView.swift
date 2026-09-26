@@ -309,7 +309,7 @@ struct HourPickerView: View {
     let current: CanonicalHour
     let onSelect: (CanonicalHour) -> Void
 
-    private static let hours: [CanonicalHour] = [.laudes, .prima, .tertia, .sexta, .nona, .vesperae, .completorium]
+    private static let hours: [CanonicalHour] = [.matutinum, .laudes, .prima, .tertia, .sexta, .nona, .vesperae, .completorium]
 
     var body: some View {
         NavigationStack {

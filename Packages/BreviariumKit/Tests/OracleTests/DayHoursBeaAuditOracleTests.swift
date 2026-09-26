@@ -24,7 +24,11 @@ func dayHourFixturePsalms(_ fixtureText: String) -> [RenderedPsalm] {
         let nextTitle = index + 1 < titles.count ? titles[index + 1].range.lowerBound : rest.endIndex
         // Compline's Nunc dimittis is titled without a number ("Canticum Simeonis Luc. …").
         let canticle = rest.range(of: " Canticum ")?.lowerBound ?? rest.endIndex
-        let end = min(rest.range(of: " Ant. ")?.lowerBound ?? rest.endIndex, nextTitle, canticle)
+        // The antiphon after the *Glória Patri*: Epiphany's Psalm 94 repeats its antiphon
+        // between verses (Matins, Beta 3).
+        let gloria = rest[..<nextTitle].range(of: " Glória Patri")?.upperBound ?? rest.startIndex
+        let antiphon = rest[gloria...].range(of: " Ant. ")?.lowerBound ?? rest.range(of: " Ant. ")?.lowerBound
+        let end = min(antiphon ?? rest.endIndex, nextTitle, canticle)
         let references = (" " + rest[..<end]).matches(of: verseReference).map { String($0.output[1].substring ?? "") }
         psalms.append(RenderedPsalm(title: String(text[match.range]), references: references))
     }
@@ -54,9 +58,9 @@ func dayHourRenderedPsalms(_ hour: Hour) -> [RenderedPsalm] {
     return psalms
 }
 
-@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes])
+@Test(arguments: [CanonicalHour.completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dayHoursFullRangeBeaAudit(hour: CanonicalHour) async throws {
-    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.split(separator: ",").contains(Substring(hour.rawValue)) {
+    if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
         return
     }
     guard let bundle = RealCorpus.bundle, try await OracleFixture.shared.hourYear(set: "hours-bea", hour: hour, year: 2040) != nil else { return }
@@ -67,7 +71,7 @@ func dayHoursFullRangeBeaAudit(hour: CanonicalHour) async throws {
     var psalmody: [String: [String]] = [:]
     var failed: [String] = []
     var daysChecked = 0
-    for year in 2025...2040 {
+    for year in auditYears {
         guard let archive = try await OracleFixture.shared.hourYear(set: "hours-bea", hour: hour, year: year) else { continue }
         var (day, month, y) = (1, 1, year)
         while y == year {
@@ -106,6 +110,6 @@ func dayHoursFullRangeBeaAudit(hour: CanonicalHour) async throws {
         report("Latin we render that DO doesn't show", content),
         report("Psalmody", psalmody),
     ].filter { !$0.isEmpty }.joined(separator: "\n\n")
-    #expect(daysChecked > 5_800, "expected the full 2025-2040 range, checked \(daysChecked)")
+    #expect(daysChecked > auditYears.count * 362, "expected \(auditYears), checked \(daysChecked)")
     #expect(text.isEmpty, "\n\(hour) (Pius XII):\n\(text)")
 }
