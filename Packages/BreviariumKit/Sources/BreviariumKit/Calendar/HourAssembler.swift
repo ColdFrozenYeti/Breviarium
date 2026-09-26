@@ -202,10 +202,14 @@ public struct HourAssembler {
                 // office-then-Commune order (not a simple indexed-then-plain fallback).
                 let ind = hour == .vesperae ? (macroContext.isFirstVespers ? 1 : 3) : 2
                 let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
-                let oratioLocation = oratioLocation(
-                    office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver,
-                    weekName: macroContext.weekName
-                )
+                // `orationes.pl:70-71`: at Matins the office's own `[Oratio Matutinum]` first
+                // (the Triduum's collect, without the Lauds preamble).
+                let oratioLocation = hour == .matutinum && resolver.sectionExists(path: winner.winningPath, section: "Oratio Matutinum")
+                    ? (path: winner.winningPath, section: "Oratio Matutinum")
+                    : oratioLocation(
+                        office: oratioOffice, communeReference: winner.winningRank.communeReference, ind: ind, resolver: resolver,
+                        weekName: macroContext.weekName
+                    )
                 if let oratioLocation {
                     let collect = Self.withoutAddedCommemoration(
                         resolver.resolve(path: oratioLocation.path, section: oratioLocation.section), hour: hour
@@ -2980,6 +2984,9 @@ public struct HourAssembler {
             lines[firstContentIndex] = DOMarkers.stripLineLabel(lines[firstContentIndex])
         }
         lines = lines.map(DOMarkers.stripSmallFontMarkers)
+        // A mute vowel in brackets, "Patr[e]", is shown plain (DO sets it in italic,
+        // `horas.pl:193`).
+        lines = lines.map { $0.replacingOccurrences(of: #"\[([æaeiou]m?)\]"#, with: "$1", options: .regularExpression) }
         // A `!`-marked line mid-hymn is DO's own real "red line" rubric convention
         // (`horas.pl:167-172`'s `s/^\!(.*)/setfont($redfont, $1)/`) — a genuflection
         // direction between two stanzas, not the whole-hymn-opening kind

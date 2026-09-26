@@ -102,8 +102,14 @@ extension HourAssembler {
         }
         let proper = proprium("Invit", flag: true, winner: matins.winner, resolver: resolver, weekName: matins.weekName)
 
+        // The English office's own `[Invit]` wins, as DO reads it from the English winner
+        // (`%winner2`): St Jane Frances's, St Raphael's.
+        let englishProper = englishResolver.flatMap {
+            proprium("Invit", flag: true, winner: matins.winner, resolver: $0, weekName: matins.weekName)
+        }
         func antiphon(_ resolver: SectionResolver, english: Bool) -> String {
             var text: String
+            let proper = english ? (englishProper ?? proper) : proper
             if let proper, resolver.sectionExists(path: proper.path, section: proper.section) {
                 text = resolver.resolve(path: proper.path, section: proper.section).split(separator: "\n").first.map(String.init) ?? ""
             } else {
@@ -541,7 +547,8 @@ extension HourAssembler {
         // The versicle, one alleluia in Paschaltide.
         func versum(_ lines: [String], english: Bool) -> [String] {
             lines.map { line in
-                matins.paschal ? Self.ensuringSingleAlleluia(line, alleluia: english ? "Alleluia" : "Allelúia") : line
+                let line = Self.processingInlineAlleluias(line, paschal: matins.paschal)
+                return matins.paschal ? Self.ensuringSingleAlleluia(line, alleluia: english ? "Alleluia" : "Allelúia") : line
             }
         }
         if versumLatin.count >= 2 {
@@ -828,7 +835,7 @@ extension HourAssembler {
             source = scriptura
         }
         if var t = text, contractScripture(num, matins: matins), source != matins.commune {
-            if let underscore = t.range(of: "\n_") { t = String(t[..<underscore.lowerBound]) }
+            if let underscore = t.range(of: "_") { t = String(t[..<underscore.lowerBound]) }    // `(.*?)\_`, the first one
             if let third = section(source, "Lectio3") { t += "\n" + third }
             text = t
         }
@@ -850,6 +857,14 @@ extension HourAssembler {
                     joined += "\n" + next
                 }
                 text = joined
+            }
+        }
+        // `Special Lectio N` (`:1015-1020`): Our Lady on Saturday reads the month's lesson from C10.
+        if has(rule, "Special Lectio \(requested)\\b") {
+            let c10 = "Commune/C10"
+            if let marian = section(c10, String(format: "Lectio M%02d", matins.month)) {
+                text = marian
+                source = c10
             }
         }
         var responsoryNumber = num
@@ -884,7 +899,10 @@ extension HourAssembler {
         let isLast = teDeumRequired(lesson: lesson, matins: matins)
         if !isLast {
             let latin = responsoryLines(lesson, source: source, matins: matins, resolver: resolver)
-            let english = englishResolver.map { responsoryLines(lesson, source: englishSource ?? source, matins: matins, resolver: $0) }
+            // The responsory is part of DO's lesson text, so its asides are unbracketed too.
+            let english = englishResolver.map {
+                responsoryLines(lesson, source: englishSource ?? source, matins: matins, resolver: $0).map(Self.unbracketingReferences)
+            }
             units.append(contentsOf: responsoryUnits(latin, english: english, matins: matins, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext))
         }
         return units
@@ -912,21 +930,21 @@ extension HourAssembler {
         }
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         let name = "Responsory\(number)"
-        var text: String?
+        var found: String?
         // `:1262-1305`: the lesson source's own 1960 responsory; by rule, the occurring
         // Scripture's; else the winner's own before the lesson source's, then the Commune's.
         if let own1960 = find(source.responsoryPath, "\(name) 1960") {
-            text = own1960
+            found = own1960
         } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
-            text = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
+            found = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
         } else {
-            text = find(matins.office, name) ?? find(source.responsoryPath, name) ?? find(matins.commune, name)
+            found = find(matins.office, name) ?? find(source.responsoryPath, name) ?? find(matins.commune, name)
         }
-        if text == nil {
+        if found == nil {
             let winnerName = matins.office.contains("C9") && number == 9 ? "Responsory91" : name
-            text = find(matins.office, winnerName) ?? find(matins.commune, name)
+            found = find(matins.office, winnerName) ?? find(matins.commune, name)
         }
-        let text = text ?? ""
+        let text = found ?? ""
         // `process_inline_alleluias`: "(Allelúia.)" is kept, unbracketed, in Paschaltide and
         // dropped outside it (`LanguageTextTools.pm:55-73`).
         var lines = text.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -934,7 +952,7 @@ extension HourAssembler {
         if matins.paschal {
             // `matins_lectio_responsory_alleluia`: one alleluia on the respond's end, the
             // verse's repeat and the last line.
-            let alleluia = "Allelúia"
+            let alleluia = resolver.isEnglish ? "Alleluia" : "Allelúia"
             for index in [1, 3, lines.count - 1] where index >= 0 && index < lines.count && !lines[index].hasPrefix("V.") {
                 lines[index] = Self.ensuringSingleAlleluia(lines[index], alleluia: alleluia)
             }
@@ -952,8 +970,10 @@ extension HourAssembler {
             for line in lines {
                 if line.hasPrefix("&Gloria") {
                     result.append(contentsOf: gloriaLines(String(line.dropFirst()), matins: matins, resolver: resolver))
-                } else if line.hasPrefix("*"), let last = result.last, last.hasPrefix("R.") {
-                    // The respond's second half on its own line.
+                } else if let last = result.last, last.hasPrefix("R."),
+                    line.hasPrefix("*") || line.range(of: #"^[\p{Ll}]"#, options: .regularExpression) != nil
+                {
+                    // The respond's second half, or a continuation, on its own line.
                     result[result.count - 1] = last + " " + line
                 } else {
                     result.append(line)
@@ -1021,7 +1041,10 @@ extension HourAssembler {
     static func lessonPieces(_ text: String) -> [(isReference: Bool, texts: [String])] {
         var lines: [String] = []
         for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            lines.append(String(line).trimmingCharacters(in: .whitespaces))
+            var line = String(line).trimmingCharacters(in: .whitespaces)
+            // A stray `_` on the end of a verse (the English `Tempora/Pasc1-4`) isn't shown.
+            if line.count > 1, line.hasSuffix("_") { line.removeLast() }
+            lines.append(line)
         }
         var result: [(isReference: Bool, texts: [String])] = []
         var paragraph: [String] = []
@@ -1047,7 +1070,7 @@ extension HourAssembler {
                 continue
             }
             var body = line
-            if body.hasPrefix("v. ") { body = String(body.dropFirst(3)) }
+            if let label = body.firstMatch(of: /^[vr]\.\s*/) { body = String(body[label.range.upperBound...]) }    // `v.` initial, `r.` large first letter (`horas.pl:178-185`)
             // A verse number goes, and the verse starts with a capital, as DO sets it
             // (`lectio`, `:1325-1330`, `s/^./\u$&/`).
             if let number = body.range(of: #"^[0-9]+\s+"#, options: .regularExpression) {
@@ -1090,7 +1113,12 @@ extension HourAssembler {
     }
 
     static func unbracketingReferences(_ text: String) -> String {
-        text.replacingOccurrences(of: #"\(([^(]*?[.,\d][^(]*?)\)"#, with: "$1", options: .regularExpression)
+        // `parenthesised_text` (`:1398-1403`): only a short or numbered one; a longer
+        // aside keeps its brackets.
+        text.replacing(/\(([^(]*?[.,\d][^(]*?)\)/) { match in
+            let inner = String(match.1)
+            return inner.count < 20 || inner.contains(/[0-9][.,]/) ? inner : "(\(inner))"
+        }
     }
 
     static func romanNumeral(_ number: Int) -> String {

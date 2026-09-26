@@ -44,11 +44,11 @@ struct DayHourAuditReport {
 
     mutating func add(hour: Hour, rows: [BilingualRow], title: String?, date: String) {
         daysChecked += 1
-        for (kind, text) in latinContentMisses(hour: hour, rows: rows) { latinMissing["[\(kind)] \(text.prefix(140))", default: []].append(date) }
+        for (kind, text) in latinContentMisses(hour: hour, rows: rows) { latinMissing["[\(kind)] \(text.prefix(auditPrefix))", default: []].append(date) }
         let result = englishAudit(hour: hour, rows: rows)
-        for (kind, text) in result.missingFromDO { englishMissing["[\(kind)] \(text.prefix(140))", default: []].append(date) }
-        for text in result.uncovered { uncovered[String(text.prefix(140)), default: []].append(date) }
-        for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(140)), default: []].append(date) }
+        for (kind, text) in result.missingFromDO { englishMissing["[\(kind)] \(text.prefix(auditPrefix))", default: []].append(date) }
+        for text in result.uncovered { uncovered[String(text.prefix(auditPrefix)), default: []].append(date) }
+        for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(auditPrefix)), default: []].append(date) }
         for text in result.mispaired { mispaired[text, default: []].append(date) }
         if let title, let expected = rows.first.flatMap({ fixtureTitle($0.latin) }), collapsedWhitespace(title) != expected {
             titles["DO \(expected) | engine \(collapsedWhitespace(title))", default: []].append(date)
@@ -232,3 +232,6 @@ func dayHoursFullRangeHoldout2044(hour: CanonicalHour) async throws {
     #expect(report.daysChecked == 732, "expected 366 dates twice, checked \(report.daysChecked)")
     #expect(report.text.isEmpty, "\n\(hour) 2044:\n\(report.text)")
 }
+
+/// How much of a missed text an audit report quotes: `BREVIARIUM_AUDIT_PREFIX`, 140 by default.
+let auditPrefix = Int(ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_PREFIX"] ?? "") ?? 140

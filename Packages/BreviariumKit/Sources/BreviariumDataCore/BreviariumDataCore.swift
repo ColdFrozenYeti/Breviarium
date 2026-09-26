@@ -39,6 +39,9 @@ public enum BreviariumDataPipeline {
             topLevelFolders: latinTopLevelFolders,
             applyLatinOrthography: true
         )
+        latin += try OfficeCorpusWalker.referencedSiblings(
+            languageRoot: horasRoot.appendingPathComponent("Latin"), of: latin, applyLatinOrthography: true
+        )
         latin += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: true
         )
@@ -51,6 +54,9 @@ public enum BreviariumDataPipeline {
             languageRoot: horasRoot.appendingPathComponent("English"),
             topLevelFolders: englishTopLevelFolders,
             applyLatinOrthography: false
+        )
+        english += try OfficeCorpusWalker.referencedSiblings(
+            languageRoot: horasRoot.appendingPathComponent("English"), of: english, applyLatinOrthography: false
         )
         english += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false

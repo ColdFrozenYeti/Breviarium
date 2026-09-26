@@ -171,6 +171,14 @@ func englishAudit(hour: Hour, rows: [BilingualRow]) -> EnglishAuditResult {
                 let latinRow = latinRows[rowCursor...].firstIndex(where: { $0.contains(latinPiece) }),
                 let englishRow = englishRows[rowCursor...].firstIndex(where: { $0.contains(englishPiece) })
             {
+                // A text said more than once (a psalm's refrain) may first match another row:
+                // it is paired if some later row holds both.
+                if latinRow != englishRow,
+                    let shared = latinRows.indices[rowCursor...].first(where: { latinRows[$0].contains(latinPiece) && englishRows[$0].contains(englishPiece) })
+                {
+                    rowCursor = shared
+                    continue
+                }
                 if latinRow != englishRow {
                     result.mispaired.append("[\(section.kind)] Latin row \(latinRow), English row \(englishRow): \(englishPiece.prefix(80))")
                 }
@@ -219,9 +227,9 @@ func englishAudit(hour: Hour, rows: [BilingualRow]) -> EnglishAuditResult {
         {
             daysChecked += 1
             let result = englishAudit(hour: hour, rows: rows)
-            for (kind, text) in result.missingFromDO { missing["[\(kind)] \(text.prefix(140))", default: []].append(dateLabel) }
-            for text in result.uncovered { uncovered[String(text.prefix(140)), default: []].append(dateLabel) }
-            for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(140)), default: []].append(dateLabel) }
+            for (kind, text) in result.missingFromDO { missing["[\(kind)] \(text.prefix(auditPrefix))", default: []].append(dateLabel) }
+            for text in result.uncovered { uncovered[String(text.prefix(auditPrefix)), default: []].append(dateLabel) }
+            for text in result.uncoveredLatin { uncoveredLatin[String(text.prefix(auditPrefix)), default: []].append(dateLabel) }
             for text in result.mispaired { mispaired[text, default: []].append(dateLabel) }
             for (kind, _) in result.latinOnly { latinOnly["\(kind)", default: 0] += 1 }
         }

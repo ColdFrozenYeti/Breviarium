@@ -125,7 +125,18 @@ public struct SectionResolver {
     private func resolvingBaseChain(from path: String, section: String, depth: Int = 0) -> String {
         guard depth < Self.maxInclusionDepth else { return path }
         if !corpus.rawSections(path: path, name: section).isEmpty { return path }
-        guard let base = corpus.baseFile(path: path), Self.baseFileApplies(base, context: context) else { return path }
+        guard let base = corpus.baseFile(path: path), Self.baseFileApplies(base, context: context) else {
+            // `checklatinfile` (`SetupString.pl:824-844`): a Monastic or Dominican file the
+            // bundle doesn't have falls back to the Roman one. `Tempora/Pent06-1`'s
+            // `@TemporaM/Pent01-3:Responsory2` reads `Tempora/Pent01-3`.
+            if depth == 0, let match = path.firstMatch(of: /^(Sancti|Tempora|Commune)(?:M|OP)\//) {
+                let roman = String(match.1) + "/" + path[match.range.upperBound...]
+                if !corpus.rawSections(path: roman, name: section).isEmpty || corpus.baseFile(path: roman) != nil {
+                    return resolvingBaseChain(from: roman, section: section, depth: depth + 1)
+                }
+            }
+            return path
+        }
         return resolvingBaseChain(from: base.file, section: section, depth: depth + 1)
     }
 
@@ -264,11 +275,18 @@ public struct SectionResolver {
                     let iSpelling = section.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
                     if sectionExists(path: path, section: iSpelling) { section = iSpelling }
                 }
-                var included = resolveSection(path: path, section: section, depth: depth + 1)
-                if let subs = inclusion.substitutions {
-                    included = applySubstitutions(subs, to: included)
+                // DO applies an inclusion's substitutions to the section's own text, its
+                // `@` lines still unresolved (`get_loadtime_inclusion` reads the cached,
+                // unresolved file), and resolves them afterwards. The Rosary's Matins
+                // hymn, `@Sancti/10-07:Hymnus Vespera:s/\@Psalterium.*//s`, drops the
+                // doxology that way.
+                if let subs = inclusion.substitutions, let winner = winningVariant(path: path, section: section) {
+                    let raw = ConditionalLineProcessor.resolve(lines: winner.body, context: context).joined(separator: "\n")
+                    let substituted = applySubstitutions(subs, to: raw)
+                    resolvedLines.append(resolveInclusionsAndMacros(in: substituted, depth: depth + 1, callerPath: path))
+                } else {
+                    resolvedLines.append(resolveSection(path: path, section: section, depth: depth + 1))
                 }
-                resolvedLines.append(included)
             } else if line.first == "$" {
                 // DO's `expand` trims the line first (`webdia.pl`, `s/\s+$//`): the English
                 // `Sancti/02-24` ends its collect with `$Per Dominum ` (trailing space),
@@ -429,6 +447,16 @@ public struct SectionResolver {
                     result += captured
                 }
                 i = j
+            } else if chars[i] == "\\", i + 1 < chars.count {
+                // Perl's escapes in a replacement: `\n` is a newline (Pentecost Tuesday's
+                // `s/V\. .*/V. Spíritus Paráclitus, allelúja.\nR. …/s`), `\t` a tab, and any
+                // other escaped character itself.
+                switch chars[i + 1] {
+                case "n": result.append("\n")
+                case "t": result.append("\t")
+                default: result.append(chars[i + 1])
+                }
+                i += 2
             } else {
                 result.append(chars[i])
                 i += 1
