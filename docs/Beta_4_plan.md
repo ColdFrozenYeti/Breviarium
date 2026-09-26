@@ -60,8 +60,8 @@ ordinary text today. The Benedicite has *(Fit reverentia:)* in its own text
 
 ## Architecture changes
 
-- **An office choice beside the hour.** `HourAssembler.assemble` gains an
-  `officium: .diei | .parvumBMV | .defunctorum` parameter. For the two votives the winner is
+- **An office choice beside the hour** (a setting, decision 1). `HourAssembler.assemble`
+  gains an `officium: .diei | .parvumBMV | .defunctorum` parameter. For the two votives the winner is
   the votive Commune, as DO sets it, and everything else (conditionals, psalter, English)
   is unchanged. The Kit decides which hours each office has.
 - **The Martyrology** is its own assembler in the Kit (`Martyrology.swift`): the next day's
@@ -91,7 +91,7 @@ ordinary text today. The Benedicite has *(Fit reverentia:)* in its own text
 ### B4-M0 — Housekeeping (small)
 - `CLAUDE.md` refreshed for Beta 3 (done with this plan).
 - Baseline: the fast suite and every Oracle audit job green on `main`.
-- *(Fit reverentia)* and the other inline directions as red rubrics (question 5), with a
+- *(Fit reverentia)* and the other inline directions as red rubrics (decision 5), with a
   snapshot of the *Te Deum*.
 
 ### B4-M1 — Understand the three offices (document, no code)
@@ -112,13 +112,14 @@ The sets above, and `OracleFixture` reading them.
 
 ### B4-M4 — The Martyrology and the colour in the engine
 - `Martyrology.swift`, audited against the Martyrology in every Prime fixture 2025–2040 and
-  2044, Latin and English.
+  2044, in Latin (decision 3).
 - The day's colour for the calendar, with unit tests and a check against DO's raw HTML
   for a sample of dates across every colour.
 
 ### B4-M5 — The app
-- The hour picker with the offices (question 1) and the Martyrology row.
-- The colour dot in *Jump to date* (question 4).
+- *Officium* in Settings under *Ritus Romanus*; the picker lists the chosen office's hours
+  and the Martyrology row (decision 1).
+- The colour dot in *Jump to date* (decision 4).
 - Snapshots: the picker; each Little Office hour's page 1; the Dead's Matins, Lauds and
   Vespers; the Martyrology for an ordinary day and Easter Sunday; the calendar in a month
   with every colour; the *Te Deum* with rubrics on and off.
@@ -138,27 +139,25 @@ ID can't sign. From the Beta 3 retrospective: commit and push after every green 
 build errors before reading an audit report, and put any judgement call at the top of the
 report for you to confirm.
 
-## Open questions
+## Decisions (answered 2026-09-26, plan approved)
 
-1. **The picker.** I propose one list in three groups: *Officium diei* (Ad Matutinum … Ad
-   Completorium), *Officium parvum B.M.V.* (its eight hours) and *Officium defunctorum*
-   (Matins, Lauds, Vespers), then *Martyrologium* as its own row. The app always opens on
-   the day's office at the hour for the time of day. Or would you rather choose the office
-   in Settings?
-2. **Which day's Martyrology?** DO reads it at Prime, so the entry shown for a date is the
-   **next** day's, headed with that day's date (*Quintodecimo Kalendas Octobris …*). I
-   propose to match DO: the Martyrology for 16 September shows 17 September's entry, as
-   read on the 16th. Or should a date show its own entry?
-3. **English Martyrology.** DO has no 1960 English, and its older English doesn't always
-   match the 1960 Latin (new saints, changed ranks). Show DO's English as it is, or Latin
-   only for the Martyrology?
-4. **The colour dot.** Which colours on black, and which office for a day with two? I
-   propose the day's own office (the one Lauds shows); white as a white dot, black as a
-   grey ring (black on black is invisible), rose, violet, red and green as their usual
-   liturgical tones, sampled to read well on `#000000`.
-5. **Inline rubrics.** Beyond *(Fit reverentia)*: make *(genuflectitur)* in the invitatory
-   and the Benedicite's *(Fit reverentia:)* red rubrics too, and every other small-print
-   `/: :/` direction inside a text? I propose yes, all of them, hidden with rubrics off.
-6. **The title line at Vespers and Compline.** In Beta 3 I chose to show no line under
-   the day's title at Vespers and Compline, where DO's line is its concurrence note. Keep
-   that, or show DO's line there too?
+1. **The office is a setting, under the rite.** Settings → *Ritus* → *Romanus* gives the
+   choice of *Officium*: *Officium diei* (the default), *Officium parvum B.M.V.* and
+   *Officium defunctorum*. The hour picker then lists that office's hours: all eight for
+   the day's office and the Little Office, Matins, Lauds and Vespers for the Dead. The
+   *Martyrologium* is its own row in the picker under every office.
+2. **The Martyrology follows the traditional system**, as DO does: it is read at Prime on
+   the eve, so a date shows the next day's entry, announced with that day's date and the
+   moon's age.
+3. **The Martyrology is Latin only**, with or without English on (DO has no 1960 English).
+4. **The colour dot** takes the day's own office (the one Lauds shows): white as a white
+   dot, black as a grey ring, and rose, violet, red and green in tones that read well on
+   black.
+5. **Every inline direction becomes a rubric**: *(Fit reverentia)* in the *Te Deum*, the
+   Benedicite's *(Fit reverentia:)*, *(genuflectitur)* in the invitatory, and the other
+   small-print `/: :/` directions inside a text: red, and hidden with rubrics off.
+6. **No line under the title at Vespers and Compline**, as in Beta 3.
+
+**My judgement call, for you to confirm in the morning report:** when the chosen office
+hasn't the hour the clock would open (the Office of the Dead has no Terce), the app opens
+Matins until 05:00, Lauds until 12:00, and Vespers after that.

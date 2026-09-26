@@ -19,7 +19,7 @@ Read this file at the start of every session. If a decision here conflicts with 
   - no Mass propers, Rosary, or Angelus.
 
   This is a breviary in a phone.
-- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on.
+- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
 - **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time.
 
 ## Development environment: there is no Mac
@@ -62,6 +62,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Settings (Universalis-style toggles)
 
 - **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
+  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists the chosen office's hours, plus the *Martyrologium* row.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
@@ -69,7 +70,8 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Release notes** and **About**: plain screens opened from Settings; release notes list what each release added, newest first (added 2026-09-25).
-- **Later:** the Martyrology, as a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24), and a votive office picker.
+- **The Martyrology** is a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24). It follows the traditional system: read on the eve, so a date shows the next day's entry. It is Latin only (decided 2026-09-26).
+- **Later:** a votive office picker (votive offices where the rubrics permit).
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 
 ## Texts and orthography
