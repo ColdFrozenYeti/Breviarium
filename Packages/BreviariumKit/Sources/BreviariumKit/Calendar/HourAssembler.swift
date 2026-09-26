@@ -2175,7 +2175,16 @@ public struct HourAssembler {
         if let range {
             title += "(\(range.startVerse)\(range.startLetter.map(String.init) ?? "")-\(range.endVerse)\(range.endLetter.map(String.init) ?? ""))"
         }
-        let lines = fileText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        var lines = fileText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        // Psalm 9 is two Hebrew psalms (`:586-590`): from verse 22 its second title (B)
+        // applies, 21 lines in, and after verse 22 none (Matins, Pius XII).
+        if baseNumber == "9", let range, range.startVerse > 21, lines.count > 21 {
+            guard range.startVerse == 22 else { return title }
+            lines = Array(lines[21...])
+            guard let first = lines.first, first.hasPrefix("("), first.hasSuffix(")") else { return title }
+            let subtitle = first.dropFirst().dropLast()
+            return "\(title) — \(subtitle.split(whereSeparator: { $0.isWhitespace }).joined(separator: " "))"
+        }
         guard let first = lines.first, first.hasPrefix("("), first.hasSuffix(")") else { return title }
         if let range, let firstVerse = lines.dropFirst().lazy.compactMap({ Self.leadingVerseNumber(of: $0) }).first,
             range.startVerse > firstVerse

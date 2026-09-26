@@ -24,7 +24,11 @@ func dayHourFixturePsalms(_ fixtureText: String) -> [RenderedPsalm] {
         let nextTitle = index + 1 < titles.count ? titles[index + 1].range.lowerBound : rest.endIndex
         // Compline's Nunc dimittis is titled without a number ("Canticum Simeonis Luc. …").
         let canticle = rest.range(of: " Canticum ")?.lowerBound ?? rest.endIndex
-        let end = min(rest.range(of: " Ant. ")?.lowerBound ?? rest.endIndex, nextTitle, canticle)
+        // The antiphon after the *Glória Patri*: Epiphany's Psalm 94 repeats its antiphon
+        // between verses (Matins, Beta 3).
+        let gloria = rest[..<nextTitle].range(of: " Glória Patri")?.upperBound ?? rest.startIndex
+        let antiphon = rest[gloria...].range(of: " Ant. ")?.lowerBound ?? rest.range(of: " Ant. ")?.lowerBound
+        let end = min(antiphon ?? rest.endIndex, nextTitle, canticle)
         let references = (" " + rest[..<end]).matches(of: verseReference).map { String($0.output[1].substring ?? "") }
         psalms.append(RenderedPsalm(title: String(text[match.range]), references: references))
     }
