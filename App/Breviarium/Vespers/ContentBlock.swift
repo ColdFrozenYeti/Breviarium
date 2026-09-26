@@ -64,10 +64,19 @@ enum ContentBlock: Identifiable {
             blocks.append(.sectionStart(section.kind))
             var verseCount = 0
             var previousWasAntiphon = false
+            // Matins: a responsory (after a lesson) is not a psalm, so its verses don't
+            // alternate; and the invitatory's antiphon, said twice, is not two psalms.
+            var inResponsory = false
+            let separatesPsalms = section.kind != .invitatorium
             let units = section.units
             for (localIndex, unit) in units.enumerated() {
+                switch unit {
+                case .lesson: inResponsory = true
+                case .antiphon, .psalmTitle: inResponsory = false
+                default: break
+                }
                 if case .antiphon = unit {
-                    if previousWasAntiphon {
+                    if previousWasAntiphon, separatesPsalms {
                         // Guaranteed by construction: `previousWasAntiphon` is only ever
                         // set right after appending exactly this shape of block.
                         if case .unit(let previousIndex, let previousUnit, let previousAlternate, _) = blocks[blocks.count - 1] {
@@ -80,7 +89,7 @@ enum ContentBlock: Identifiable {
                     verseCount = 0
                 }
                 var alternateVerse = false
-                if case .verse = unit {
+                if case .verse = unit, !inResponsory {
                     alternateVerse = verseCount.isMultiple(of: 2)
                     verseCount += 1
                 }

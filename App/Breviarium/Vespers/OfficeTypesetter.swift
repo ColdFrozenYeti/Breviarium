@@ -201,7 +201,7 @@ struct OfficeTypesetter {
                     continue
                 }
                 let englishText = build { appendUnit(english, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
-                if case .prose = unit, currentKind != .hymnus, !landscape {
+                if Self.isProse(unit), currentKind != .hymnus, !landscape {
                     rows.append(.full(latin, keepWithNext: false))
                     rows.append(.full(englishText, keepWithNext: false))
                 } else {
@@ -225,7 +225,16 @@ struct OfficeTypesetter {
         case .verse(let reference, _, _, let first, let second): first.map { .verse(reference: reference, firstHalf: $0, secondHalf: second ?? "") }
         case .antiphon(_, let english): english.map { .antiphon($0) }
         case .prose(_, let english): english.map { .prose($0) }
+        case .lesson(let paragraph): paragraph.english.map { .lesson(LessonParagraph(lines: $0)) }
         case .psalmTitle, .englishPsalm: nil
+        }
+    }
+
+    /// Prose (a chapter, a collect, a lesson) is stacked, Latin then English, in portrait.
+    static func isProse(_ unit: BreviariumKit.Unit) -> Bool {
+        switch unit {
+        case .prose, .lesson: true
+        default: false
         }
     }
 
@@ -244,6 +253,12 @@ struct OfficeTypesetter {
         case .antiphonaFinalis: "ANTIPHONA FINALIS"
         case .officiumCapituli: "DE OFFICIO CAPITULI"
         case .litaniae: "LITANIÆ"
+        case .invitatorium: "INVITATORIUM"
+        case .adNocturnum: "AD NOCTURNUM"
+        case .nocturnusI: "NOCTURNUS I"
+        case .nocturnusII: "NOCTURNUS II"
+        case .nocturnusIII: "NOCTURNUS III"
+        case .teDeum: "TE DEUM"
         }
     }
 
@@ -361,6 +376,13 @@ struct OfficeTypesetter {
             )
         case .prose(let text, _):
             appendParagraph(liturgical(text, font: regular, color: textColor), to: output, style: paragraphStyle(after: gap))
+        case .lesson(let paragraph):
+            // A lesson reads as prose: its verses run on as one paragraph, with a little
+            // room before the next paragraph or the *Tu autem*.
+            appendParagraph(
+                liturgical(paragraph.lines.joined(separator: " "), font: regular, color: textColor),
+                to: output, style: paragraphStyle(after: metrics.bodySize * 0.4)
+            )
         case .psalmTitle(let text, _):
             appendParagraph(
                 liturgical(text, font: italic, color: chromeColor), to: output,

@@ -435,7 +435,7 @@ final class BreviariumUITests: XCTestCase {
     // MARK: Beta 2: the day hours
 
     private static let titles = [
-        "Laudes": "Ad Laudes", "Prima": "Ad Primam", "Tertia": "Ad Tertiam", "Sexta": "Ad Sextam", "Nona": "Ad Nonam",
+        "Matutinum": "Ad Matutinum", "Laudes": "Ad Laudes", "Prima": "Ad Primam", "Tertia": "Ad Tertiam", "Sexta": "Ad Sextam", "Nona": "Ad Nonam",
         "Vespera": "Ad Vesperas", "Completorium": "Ad Completorium",
     ]
 
@@ -476,8 +476,48 @@ final class BreviariumUITests: XCTestCase {
         captureChapterAndLastPage(date: "2026-09-25", hour: "Nona", english: true, name: "0925-Nona-en")
     }
 
+    /// Matins (Beta 3): page 1 and 2, the first lesson, the second nocturn and the last
+    /// page, for a three-lesson feria, a nine-lesson feast and Maundy Thursday; the lesson
+    /// page with English on in portrait and landscape; the hour picker's first row.
+    func testMatinsSnapshots() {
+        for (date, name) in [("2027-04-12", "feria"), ("2026-11-01", "feast"), ("2026-04-02", "holythursday")] {
+            captureTwoPages(date: date, hour: "Matutinum", name: "matins-\(name)")
+            for section in ["adNocturnum", "nocturnusI", "nocturnusII"] {
+                let app = launchApp(date: date, section: section, hour: "Matutinum")
+                Thread.sleep(forTimeInterval: 0.6)
+                // The section's first page, then the one after (the first lesson).
+                for step in 0..<2 {
+                    let shot = XCTAttachment(screenshot: app.screenshot())
+                    shot.name = "matins-\(name)-\(section)-\(step)"
+                    shot.lifetime = .keepAlways
+                    add(shot)
+                    app.swipeLeft()
+                    Thread.sleep(forTimeInterval: 0.4)
+                }
+                app.terminate()
+            }
+            captureChapterAndLastPage(date: date, hour: "Matutinum", english: false, name: "matins-\(name)")
+        }
+        let app = launchApp(date: "2026-11-01", section: "nocturnusII", english: true, hour: "Matutinum")
+        Thread.sleep(forTimeInterval: 0.6)
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.4)
+        let portrait = XCTAttachment(screenshot: app.screenshot())
+        portrait.name = "matins-feast-english-portrait"
+        portrait.lifetime = .keepAlways
+        add(portrait)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 1.0)
+        let landscape = XCTAttachment(screenshot: app.screenshot())
+        landscape.name = "matins-feast-english-landscape"
+        landscape.lifetime = .keepAlways
+        add(landscape)
+        XCUIDevice.shared.orientation = .portrait
+        app.terminate()
+    }
+
     private func captureChapterAndLastPage(date: String, hour: String, english: Bool, name: String) {
-        let chapterSection = hour == "Completorium" ? "lectioBrevis" : "capitulum"
+        let chapterSection = hour == "Completorium" ? "lectioBrevis" : hour == "Matutinum" ? "teDeum" : "capitulum"
         var app = launchApp(date: date, section: chapterSection, english: english, hour: hour)
         Thread.sleep(forTimeInterval: 0.6)
         let chapter = XCTAttachment(screenshot: app.screenshot())

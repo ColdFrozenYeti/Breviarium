@@ -37,6 +37,12 @@ extension HourAssembler {
         /// `%commune`'s path (`vide` or `ex`) and whether it's `ex`.
         var commune: String?
         var communeIsEx: Bool
+        /// `$commune{Rule}` (Latin).
+        var communeRule: String
+        /// `initiarule`: the Scripture transfer for the date, and `$initia`, whether the
+        /// day's own Scripture begins a book (`horascommon.pl:187`).
+        var scriptureTransfer: String?
+        var initia: Bool
 
         var office: String { winner.winningPath }
         var paschal: Bool { weekName.range(of: "Pasc", options: .caseInsensitive) != nil }
@@ -77,7 +83,13 @@ extension HourAssembler {
             winner: winner, rule: rule, rank: rank, dayname1: dayname1, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek,
             day: day, month: month, year: year, scriptura: scriptura,
             lessonType: Self.matinsLessonType(dayname1: dayname1, rank: rank, office: office, rule: rule),
-            commune: commune, communeIsEx: reference.lowercased().hasPrefix("ex") || office.hasPrefix("Commune/C10")
+            commune: commune, communeIsEx: reference.lowercased().hasPrefix("ex") || office.hasPrefix("Commune/C10"),
+            communeRule: commune.map { resolver.resolve(path: $0, section: "Rule") } ?? "",
+            scriptureTransfer: calendar.scriptureTransfer(day: day, month: month, year: year),
+            initia: resolver.resolve(
+                path: Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context),
+                section: "Lectio1"
+            ).range(of: #"!.*? 1:1-"#, options: .regularExpression) != nil
         )
     }
 
@@ -634,7 +646,10 @@ extension HourAssembler {
         let absolutions = lines("Absolutiones")
         let evangelica = lines("Evangelica")
         let office = matins.office
-        let rankTitle = matins.winner.winningRank.title
+        // DO tests the whole `[Rank]` line (`$winner{Rank}`), its Commune too: St Anne's
+        // `ex C7a` makes her blessing *ipsa*.
+        let rank = matins.winner.winningRank
+        let rankTitle = "\(rank.title);;\(rank.degreeLabel);;\(rank.numericPrecedence);;\(rank.communeReference)"
         let commune = matins.commune ?? ""
         var blessings: [String]
         if nocturn > 0, has(matins.rule, "9 lectiones") {
@@ -780,6 +795,7 @@ extension HourAssembler {
         let nocturn = (num - 1) / 3 + 1
         var source = office
         var text: String?
+        var transferredResponsory: (path: String, lesson: Int)?
 
         // `scriptura1960` (`:831-848`).
         if num < 3, has(rule, "scriptura1960"), let scriptura = matins.scriptura, let s = section(scriptura, "Lectio\(num)") {
@@ -789,6 +805,16 @@ extension HourAssembler {
                 var joined = s
                 if let underscore = joined.range(of: "_") { joined = String(joined[..<underscore.lowerBound]) }
                 text = joined + third
+            }
+        }
+        // `Lectio1 OctNat` / `TempNat` (`:780-808`), 29 December to 5 January: the first
+        // nocturn from the day's own `Tempora/NatDD` (before the 29th, Christmas Day's).
+        if text == nil, nocturn == 1, has(rule, "Lectio1 (Oct|Temp)Nat") {
+            let file = matins.month == 12 && matins.day < 29 ? "Sancti/12-25" : String(format: "Tempora/Nat%02d", matins.day)
+            if let own = section(file, "Lectio\(num)") {
+                text = own
+                source = file
+                if contractScripture(num, matins: matins), let third = section(file, "Lectio3") { text = own + "\n" + third }
             }
         }
         // Our Lady on Saturday (`:872-877`): lessons 1-3 of its own office.
@@ -844,6 +870,40 @@ extension HourAssembler {
             source = commune
             if contractScripture(num, matins: matins), let third = section(commune, "Lectio3") { text = c + "\n" + third }
         }
+        // The Scripture transfer table (`resolveitable`, `:848-856`, `:1629-1690`), for the
+        // single transfer the 1960 tables hold (`01-12=Epi1-0a` under letter `f`): the
+        // transferred book's lessons from the first, or, when the day's own Scripture
+        // already begins a book, its incipit in the third place (12 January 2030).
+        if nocturn == 1, num <= 3, !has(office, "C12"), var file = matins.scriptureTransfer,
+            file.range(of: "~B$", options: .regularExpression) == nil || !matins.initia
+        {
+            let replace = file.hasSuffix("~R")
+            file = file.replacingOccurrences(of: "~[ABR]$", with: "", options: .regularExpression)
+            let pieces = file.split(separator: "~").map(String.init)
+            var start = 1
+            if matins.initia, !replace {
+                start = pieces.count < 2 ? 3 : 2
+                if !has(rule, "(9|12) lectiones"), office.hasPrefix("Sancti") { start = 1 }
+            }
+            // Slot `start`... take the files' first lessons, then the last file's next ones.
+            var slots: [Int: (file: String, lesson: Int)] = [:]
+            var slot = start
+            for piece in pieces.prefix(3) where slot <= 3 {
+                slots[slot] = ("Tempora/\(piece)", 1)
+                slot += 1
+            }
+            var next = 2
+            while slot <= 3, let last = pieces.last {
+                slots[slot] = ("Tempora/\(last)", next)
+                slot += 1
+                next += 1
+            }
+            if let (path, lesson) = slots[num], let transferred = section(path, "Lectio\(lesson)") {
+                text = transferred
+                source = path
+                transferredResponsory = (path, lesson)
+            }
+        }
         // The III class feast's legend (`:1215-1234`): `Lectio94`, else lessons 4, 5, 6 joined.
         if lessonType == .sanctoral, num == 4 {
             if let legend = section(office, "Lectio94") {
@@ -860,7 +920,9 @@ extension HourAssembler {
             }
         }
         // `Special Lectio N` (`:1015-1020`): Our Lady on Saturday reads the month's lesson from C10.
-        if has(rule, "Special Lectio \(requested)\\b") {
+        // DO reads it in the Commune's rule (`$commune{Rule}`): Mount Carmel on a Saturday,
+        // `Sancti/07-16sab`, has only "Special Benedictio" in its own.
+        if has(rule, "Special Lectio \(requested)\\b") || has(matins.communeRule, "Special Lectio \(requested)\\b") {
             let c10 = "Commune/C10"
             if let marian = section(c10, String(format: "Lectio M%02d", matins.month)) {
                 text = marian
@@ -868,6 +930,16 @@ extension HourAssembler {
             }
         }
         var responsoryNumber = num
+        if let (path, lesson) = transferredResponsory {
+            // `tferifile`: the transferred book's responsory when it brings its own.
+            let rule = resolver.resolve(path: path, section: "Rule")
+            if section(path, "Responsory\(lesson)") != nil,
+                has(rule, "Initia cum Responsory") || has(resolver.resolveRank(path: path), "Dominica")
+            {
+                return LectioSource(text: text ?? "", responsoryPath: path, responsoryNumber: lesson)
+            }
+            source = office
+        }
         if lessonType != .defaultType || (office.hasPrefix("Sancti") && matins.rank < 2), num > 2 { responsoryNumber = 3 }
         return LectioSource(text: text ?? "", responsoryPath: source, responsoryNumber: responsoryNumber)
     }
@@ -931,9 +1003,11 @@ extension HourAssembler {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         let name = "Responsory\(number)"
         var found: String?
-        // `:1262-1305`: the lesson source's own 1960 responsory; by rule, the occurring
-        // Scripture's; else the winner's own before the lesson source's, then the Commune's.
-        if let own1960 = find(source.responsoryPath, "\(name) 1960") {
+        // `:1262-1305`: the office's own 1960 responsory (`%w`, the winner with its
+        // monthday merge, not the file the lesson came from: Ss. John and Paul keep theirs
+        // over the Scripture's); by rule, the occurring Scripture's; else the winner's own
+        // before the lesson source's, then the Commune's.
+        if let own1960 = find(matins.office, "\(name) 1960") {
             found = own1960
         } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
             found = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
