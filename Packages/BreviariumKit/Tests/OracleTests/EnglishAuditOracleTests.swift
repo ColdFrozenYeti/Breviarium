@@ -78,6 +78,12 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Canticle of [\p{L} .]+? [\p{L}.]+\s*-?\d*(, ?\d+)?"#),
     // Beta 3, Matins: its group headings, and the nocturns' and lessons' own headings,
     // which the app sets as its own (NOCTURNUS I, *Lectio i*).
+    // Beta 4, the Little Office's seasonal little hours (`C12N`, `C12A`, `C12Q`): a bare
+    // "Capitulum" group heading, and "Prayer" set inside that row.
+    try! Regex(#"^\s*Capitulum\b"#),
+    try! Regex(#"\bPrayer\b"#),
+    // DO keeps the Latin heading of the final antiphon in the English column there.
+    try! Regex(#"^\s*Antiphona finalis B\. ?M\. ?V\."#),
     try! Regex(#"^\s*Invitatory\b"#),
     try! Regex(#"\bwith lections\b"#),
     try! Regex(#"\bAt the Nocturn\b"#),
@@ -113,6 +119,10 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     // once the verse numbers are gone.
     try! Regex(#"Canticum [\p{L} .]+? \[\d+\] [\p{L}\d.]+( [\p{L}.]+)?\s*-?\d*(, ?\d+)?"#),
     // Beta 3, Matins' headings.
+    // Beta 4, the Little Office's seasonal little hours: "Capitulum" alone, and "Oratio"
+    // set inside that row.
+    try! Regex(#"^\s*Capitulum\b"#),
+    try! Regex(#"\bOratio\b"#),
     try! Regex(#"^\s*Invitatorium\b"#),
     try! Regex(#"\bcum lectionibus\b"#),
     try! Regex(#"\bAd Nocturnum\b"#),

@@ -186,7 +186,7 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
    - **Lauds:** the psalms, the Benedictus with its antiphon, and any commemorations after
      the collect.
    - **Prime:** the Athanasian Creed on Trinity Sunday, and *Pretiosa* and *De Officio
-     Capituli*. There is no Martyrology; it becomes an hour of its own in a later beta.
+     Capituli*. The Martyrology is an hour of its own (Beta 4).
    - **Terce, Sext and None:** the hymn, three psalms under one antiphon, the chapter with
      its short responsory, and the collect.
    - **Compline:** the short lesson, the psalms, the Nunc dimittis, the collect *Visita*
@@ -211,6 +211,25 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
    - **The line under the title.** On a day with a commemoration, Lauds shows e.g.
      *Commemoratio ad Laudes tantum: …* and Matins *Tempora: …*; Vespers and Compline
      show none.
+11. **The Little Office, the Office of the Dead and the Martyrology (Beta 4).**
+   - **The office.** Settings → *Ritus* → *Romanus* shows *Officium diei* (ticked),
+     *Officium parvum B.M.V.* and *Officium defunctorum*.
+   - **The Little Office.** Choose it: every hour is titled *Officium parvum Beatæ Mariæ
+     Virginis*; Matins has one nocturn and three lessons from Sirach, and a *Te Deum*
+     outside Septuagesima and Lent. In Advent the title says *tempore Adventus*.
+   - **The Office of the Dead.** Choose it: the picker lists only *Ad Matutinum*, *Ad
+     Laudes* and *Ad Vesperas*, with no Martyrology. Every psalm ends *Réquiem ætérnam*;
+     Matins has three nocturns and nine lessons from Job. Opening the app mid-morning or
+     after None lands on Lauds; after 17:00 on Vespers.
+   - **The Martyrology.** In the day's office, the row after *Ad Primam*; the Little
+     Office has no Martyrology row either. It opens on tomorrow's date in the
+     Roman calendar with the moon's age (*… Luna quinta. Anno Dómini 2026*), the entries,
+     and *Et álibi aliórum plurimórum…* On Christmas Eve, *Hic vox elevatur…* is red.
+   - **Colours.** Jump to date (tap the short date in the footer) is a black sheet, edge to
+     edge, with a month grid and a dot under each day: white, red, green, violet, rose on Gaudete and Laetare Sundays,
+     and a grey ring for black (All Souls, Good Friday).
+   - **Inline rubrics.** In the *Te Deum*, *(Fit reverentia)* and *(Sequens versus dicitur
+     flexis genibus)* are red; turning *Rubricæ* off removes them.
 
 ## Sources
 

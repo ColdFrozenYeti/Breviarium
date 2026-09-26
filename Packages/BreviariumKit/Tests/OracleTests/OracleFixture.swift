@@ -147,7 +147,7 @@ actor OracleFixture {
         return spotCheckCache?["spot-check/\(filename)"]
     }
 
-    private static func extractAndRead(archive: URL) throws -> [String: String] {
+    static func extractAndRead(archive: URL) throws -> [String: String] {
         let dest = FileManager.default.temporaryDirectory.appendingPathComponent("breviarium-oracle-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
 

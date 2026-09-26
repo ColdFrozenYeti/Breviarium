@@ -4,7 +4,8 @@ name: Oracle audits
 # rendering, for content, commemorations, psalmody (both psalters) and the English
 # (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests), and from Beta 2 the
 # day hours (dayHoursFullRangeAudit, one job of its own), and from Beta 3 Matins, split
-# by years across four jobs since it alone takes over an hour. Split out of Kit CI in
+# by years across four jobs since it alone takes over an hour, and from Beta 4 the Little
+# Office and the Office of the Dead (votive*). Split out of Kit CI in
 # Beta 1 (docs/PLAN.md, B1-M4) because together they take several times longer than the
 # fast suite; they still run on every pull request and main push, in parallel with Kit
 # CI, and on demand. Linux only, like Kit CI.
@@ -56,6 +57,14 @@ jobs:
             filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
             hours: Matutinum
             years: 2037-2040
+          # Beta 4: the Little Office (every hour, 2026-2027) and the Office of the Dead
+          # (Matins, Lauds, Vespers, 2026), both psalters and the 2044 hold-outs.
+          - name: little office
+            filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
+            votives: C12
+          - name: office of the dead
+            filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
+            votives: C9
     name: audits (${{ matrix.name }})
     runs-on: ubuntu-latest
     steps:
@@ -78,4 +87,5 @@ jobs:
         env:
           BREVIARIUM_AUDIT_HOURS: ${{ matrix.hours }}
           BREVIARIUM_AUDIT_YEARS: ${{ matrix.years }}
+          BREVIARIUM_AUDIT_VOTIVES: ${{ matrix.votives }}
         run: swift test --skip-build --filter "${{ matrix.filter }}"

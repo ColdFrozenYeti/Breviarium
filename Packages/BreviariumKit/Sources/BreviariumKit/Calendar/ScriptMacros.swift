@@ -23,6 +23,9 @@ public struct MacroContext: Sendable {
     public var hour: CanonicalHour
     /// `$day`/`$month` as DO has them while rendering: the office's own date, tomorrow's
     /// on first Vespers (and the Compline after it).
+    /// The season's own week when `weekName` has been neutralised for a votive office
+    /// (Beta 4): the Incipit's *Allelúia* or *Laus tibi* still follows the season.
+    public var seasonWeekName: String = ""
     public var officeDay: Int = 0
     public var officeMonth: Int = 0
     /// The calendar date asked for, whatever office wins.
@@ -106,9 +109,10 @@ public enum ScriptMacros {
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia")
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
+        let weekName = context.seasonWeekName.isEmpty ? context.weekName : context.seasonWeekName
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
-        let usesLausTibi = context.weekName.range(of: "Quad", options: .caseInsensitive) != nil && !isSeptuagesimaVespers
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && weekName.hasPrefix("Quadp1")
+        let usesLausTibi = weekName.range(of: "Quad", options: .caseInsensitive) != nil && !isSeptuagesimaVespers
 
         let index = usesLausTibi ? 1 : 0
         return index < lines.count ? lines[index] : text
@@ -179,9 +183,11 @@ public enum ScriptMacros {
     private static func benedicamusDomino(context: MacroContext, resolver: SectionResolver) -> String {
         let text = resolver.resolve(path: SectionResolver.prayersPath, section: "Benedicamus Domino")
 
+        // `$dayname[0]`: the season's, in a votive office too.
+        let weekName = context.seasonWeekName.isEmpty ? context.weekName : context.seasonWeekName
         let isSeptuagesimaVespers =
-            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && context.weekName.hasPrefix("Quadp1")
-        let isPaschalOctave = context.weekName.range(of: "Pasc0", options: .caseInsensitive) != nil
+            context.dayOfWeek == 6 && context.hour == .vesperae && context.isFirstVespers && weekName.hasPrefix("Quadp1")
+        let isPaschalOctave = weekName.range(of: "Pasc0", options: .caseInsensitive) != nil
 
         // Only at Lauds and Vespers (`horasscripts.pl:167`, `$hora =~ /(Laudes|Vespera)/`).
         guard context.hour.isMajor, isPaschalOctave || isSeptuagesimaVespers else { return text }

@@ -66,8 +66,16 @@ public struct HourAssembler {
     /// `(sed ad …)` conditionals against `$hora`. Vespers and Compline belong to the office
     /// whose Vespers is said that evening (`Concurrence`); the other hours to the day's own
     /// office (`Occurrence`).
-    public func assemble(_ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool) -> Hour? {
-        let result: ConcurrenceResult
+    public func assemble(
+        _ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, officium: Officium = .diei
+    ) -> Hour? {
+        guard officium.hours.contains(hour) else { return nil }
+        return assembleUnmarked(hour, day: day, month: month, year: year, priest: priest, officium: officium).map(InlineRubrics.marking)
+    }
+
+    /// The hour as DO's text gives it, before `InlineRubrics` marks its inline directions.
+    func assembleUnmarked(_ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, officium: Officium = .diei) -> Hour? {
+        var result: ConcurrenceResult
         if hour.followsConcurrence {
             guard let concurrence = Concurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
             else { return nil }
@@ -76,6 +84,29 @@ public struct HourAssembler {
             guard let occurrence = Occurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
             else { return nil }
             result = ConcurrenceResult(isFirstVespersOfTomorrow: false, vespersOffice: occurrence)
+        }
+        // A votive office (Beta 4) takes the day's place after occurrence has run
+        // (`horascommon.pl:1770-1830`): its Commune wins, with its own rule and rank, and
+        // nothing of the day is commemorated.
+        var dayCommuneReference: String?
+        let dayWinnerPath = result.vespersOffice.winningPath
+        // At Vespers and Compline the votive follows concurrence, as DO swaps it in after
+        // concurrence has run: on first Vespers of tomorrow, tomorrow's season picks the
+        // Little Office's form (Advent's from the Saturday before, the Annunciation's on
+        // its eve), and the office keeps `$vespera`.
+        let seasonDate = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year) : (day: day, month: month, year: year)
+        if let path = officium.votivePath(
+            hour: hour, day: day, month: month, year: year,
+            weekName: TemporalCycle.weekName(day: seasonDate.0, month: seasonDate.1, year: seasonDate.2), dayWinnerPath: dayWinnerPath
+        ) {
+            dayCommuneReference = result.vespersOffice.winningRank.communeReference
+            let resolver = SectionResolver(corpus: corpus, context: context)
+            guard let rank = Officium.votiveRank(path: path, resolver: resolver, dayRank: result.vespersOffice.winningRank.numericPrecedence)
+            else { return nil }
+            let votive = OccurrenceResult(
+                sanctoralWins: false, winningPath: path, winningRank: rank, isSunday: Computus.dayOfWeek(day: day, month: month, year: year) == 0
+            )
+            result = ConcurrenceResult(isFirstVespersOfTomorrow: result.isFirstVespersOfTomorrow, vespersOffice: votive)
         }
         let winner = result.vespersOffice
 
@@ -92,7 +123,7 @@ public struct HourAssembler {
         // verse ("Hoc Passiónis témpore"), which only a `tempore` of `"Passionis"` (from
         // 6 April, Passion Sunday) rather than `"Quadragesimæ"` (from 5 April, still
         // Lent's 4th week) selects via the hymn's own `(sed tempore Passionis)` line.
-        let weekName: String
+        var weekName: String
         var contentContext = context
         if result.isFirstVespersOfTomorrow {
             let tomorrow = Computus.addDays(1, day: day, month: month, year: year)
@@ -107,7 +138,21 @@ public struct HourAssembler {
             weekName = TemporalCycle.weekName(day: day, month: month, year: year)
         }
 
-        let winningRule = SectionResolver(corpus: corpus, context: contentContext).resolve(path: winner.winningPath, section: "Rule")
+        // A votive office takes nothing from the season the week names: DO's
+        // `alleluia_required` is false for both (`horas.pl:731-735`), and its Paschaltide
+        // and Advent branches of Matins exclude them (`specmatins.pl:288, 371, 407, 421`).
+        // The conditionals still see the season, through `contentContext`, and so does the
+        // Incipit's *Allelúia* (`MacroContext.seasonWeekName`).
+        let seasonWeekName = weekName
+        if officium != .diei { weekName = "Votiva" }
+
+        var winningRule = SectionResolver(corpus: corpus, context: contentContext).resolve(path: winner.winningPath, section: "Rule")
+        // On Our Lady's own feasts (the day's Commune is `C11`) a votive keeps the *Te Deum*
+        // (`horascommon.pl`: `$rule =~ s/no Te Deum/Feria Te Deum/ if $commune =~ /C11/`),
+        // e.g. the Little Office on the Purification and the Annunciation.
+        if let dayCommuneReference, dayCommuneReference.contains("C11") {
+            winningRule = winningRule.replacingOccurrences(of: "no Te Deum", with: "Feria Te Deum")
+        }
         var macroContext = MacroContext(
             weekName: weekName, dayOfWeek: Computus.dayOfWeek(day: day, month: month, year: year), priest: priest,
             winningRank: winner.winningRank, winningRule: winningRule, isFirstVespers: result.isFirstVespersOfTomorrow,
@@ -116,6 +161,7 @@ public struct HourAssembler {
         macroContext.officeDay = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year).day : day
         macroContext.officeMonth = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year).month : month
         (macroContext.day, macroContext.month) = (day, month)
+        macroContext.seasonWeekName = seasonWeekName
         let resolver = SectionResolver(corpus: corpus, context: contentContext, macroContext: macroContext)
 
         // `specials.pl:36-37`: an office's own `[Special <hour>]` replaces the whole hour
@@ -251,7 +297,7 @@ public struct HourAssembler {
                     }
                     oratioUnits.append(contentsOf: Self.unitsFromResolvedText(named, english: englishCollect))
                     // Commemorations only at the major hours (`orationes.pl`, `$horamajor`).
-                    if hour.isMajor, !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Commemoratio") {
+                    if hour.isMajor, officium == .diei, !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Commemoratio") {
                         oratioUnits.append(contentsOf: assembleCommemorations(
                             day: day, month: month, year: year, winningRank: winner.winningRank, resolver: resolver, macroContext: macroContext,
                             englishResolver: englishResolver, winnerPath: winner.winningPath
@@ -259,8 +305,13 @@ public struct HourAssembler {
                     }
                     sections.append(Section(kind: .oratio, units: oratioUnits))
                 }
-            case "Conclusio" where hour == .laudes && isLitaniaeMajores(day: day, month: month, year: year, macroContext: macroContext, winnerPath: winner.winningPath):
+            case "Conclusio" where hour == .laudes && isLitaniaeMajores(
+                day: day, month: month, year: year, macroContext: macroContext, winnerPath: winner.winningPath,
+                officium: officium, dayWinnerPath: dayWinnerPath
+            ):
                 sections.append(contentsOf: assembleLitaniae(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
+                // The Office of the Dead's own conclusion follows the Litanies (`specials.pl:378`).
+                if macroContext.winningRule.range(of: "Special Conclusio", options: .caseInsensitive) != nil { fallthrough }
             case "Conclusio":
                 // `specials.pl:378-383`'s own "Special conclusions, e.g. on All Souls'
                 // day": when the winning office's own `[Rule]` says `"Special
@@ -527,6 +578,14 @@ public struct HourAssembler {
                     responseEnglish: english.map { DOMarkers.stripLineLabel($0[i + 1]) }
                 ))
                 i += 2
+            } else if line.hasPrefix("Ant. ") {
+                // An antiphon, as a special hour writes it out (the Little Office's little
+                // hours, `Commune/C12`'s `[Special Prima]`): set as an antiphon, not a verse.
+                func text(_ line: String) -> String {
+                    String(line.dropFirst(line.hasPrefix("Ant. ") ? 5 : 0)).trimmingCharacters(in: .whitespaces)
+                }
+                units.append(.antiphon(text(line), english: englishLine.map(text)))
+                i += 1
             } else if line.contains(" * ") {
                 let (first, second) = Psalm.splitHalves(DOMarkers.stripLineLabel(line))
                 let englishSplit = englishLine.map { Psalm.splitHalves(DOMarkers.stripLineLabel($0)) }
@@ -907,8 +966,25 @@ public struct HourAssembler {
     /// `specials.pl:342-351`: the Greater Litanies follow Lauds on 25 April (on the 26th
     /// when the 25th is Easter Monday, under 1960), or in April when the office's rule
     /// says "Laudes Litania" (a saint's only on the 25th).
-    func isLitaniaeMajores(day: Int, month: Int, year: Int, macroContext: MacroContext, winnerPath: String) -> Bool {
+    ///
+    /// A votive office has none of its own: the Litanies come only from the rule of the
+    /// day's office it keeps as a commemoration (the Office of the Dead's) or of the
+    /// occurring temporal office (`$commemoratio{Rule}`, `$scriptura{Rule}`;
+    /// `horascommon.pl:1786-1808`), and in April only.
+    func isLitaniaeMajores(
+        day: Int, month: Int, year: Int, macroContext: MacroContext, winnerPath: String, officium: Officium = .diei, dayWinnerPath: String? = nil
+    ) -> Bool {
         guard month == 4 else { return false }
+        if officium != .diei {
+            let resolver = SectionResolver(corpus: corpus, context: context)
+            func litany(_ path: String) -> Bool {
+                resolver.sectionExists(path: path, section: "Rule")
+                    && resolver.resolve(path: path, section: "Rule").range(of: "Laudes Litania", options: .caseInsensitive) != nil
+            }
+            let dayWinner = dayWinnerPath ?? winnerPath
+            let temporal = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
+            return (officium == .defunctorum && litany(dayWinner)) || (temporal != dayWinner && litany(temporal))
+        }
         let week = macroContext.weekName
         let dow = macroContext.dayOfWeek
         if day == 25, !week.hasPrefix("Pasc0") || dow > 1 { return true }
@@ -1777,12 +1853,12 @@ public struct HourAssembler {
         pairs = pairs.map {
             (
                 antiphon: Self.applyingSeasonalAlleluia(
-                    to: $0.antiphon, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers
+                    to: $0.antiphon, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, season: macroContext.seasonWeekName
                 ), psalmNumber: $0.psalmNumber
             )
         }
         englishAntiphons = englishAntiphons.map {
-            $0.map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true) }
+            $0.map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true, season: macroContext.seasonWeekName) }
         }
 
         var units: [Unit] = []
@@ -2270,8 +2346,9 @@ public struct HourAssembler {
     /// every one of the real fixture's five psalms and the Magnificat itself end "Gloria
     /// omittitur" with no doxology text at all.
     func gloriaUnits(resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Unit] {
-        if Self.isTriduumGloriaOmitted(
-            weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek, isFirstVespers: macroContext.isFirstVespers
+        // `horas.pl:297-301`: *Requiem gloria* (the Office of the Dead) comes first.
+        if macroContext.winningRule.range(of: "Requiem gloria", options: .caseInsensitive) == nil, Self.isTriduumGloriaOmitted(
+            weekName: macroContext.seasonWeekName.isEmpty ? macroContext.weekName : macroContext.seasonWeekName, dayOfWeek: macroContext.dayOfWeek, isFirstVespers: macroContext.isFirstVespers
         ) {
             // `Psalterium/Common/Translate.txt`'s own `[Gloria omittitur]` entry —
             // hardcoded here, matching this project's existing convention for DO's fixed
@@ -2379,7 +2456,7 @@ public struct HourAssembler {
             let text = resolver.resolve(path: location.path, section: location.section)
             let antiphon = text.split(separator: "\n", omittingEmptySubsequences: false).first
                 .map { String($0).components(separatedBy: ";;").first ?? String($0) }
-                .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
+                .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, season: macroContext.seasonWeekName) }
                 .map { substituteName(in: $0, office: office, resolver: resolver, isAntiphon: true) }
             if let antiphon, !antiphon.isEmpty {
                 let english: String? = englishResolver.flatMap { eng in
@@ -2387,7 +2464,7 @@ public struct HourAssembler {
                     let englishText = eng.resolve(path: englishLocation.path, section: englishLocation.section)
                     return englishText.split(separator: "\n", omittingEmptySubsequences: false).first
                         .map { String($0).components(separatedBy: ";;").first ?? String($0) }
-                        .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true) }
+                        .map { Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true, season: macroContext.seasonWeekName) }
                         .map { substituteName(in: $0, office: office, resolver: eng, isAntiphon: true) }
                 }
                 units.append(.antiphon(antiphon, english: english))
@@ -2595,14 +2672,15 @@ public struct HourAssembler {
         // general "prefer the indexed key" rule: `$name = 'Capitulum Vespera 1' if
         // $winner =~ /12-25/ && $vespera == 1;` and separately `$name = 'Capitulum
         // Vespera' if $winner =~ /C12/ && $hora eq 'Vespera';` (the not-yet-implemented
-        // votive office, left as the existing plain fallback below). Confirmed real for
+        // Little Office, ported in Beta 4). Confirmed real for
         // 24 December 2025 (first Vespers of Christmas): `Sancti/12-25.txt`'s own
         // `[Capitulum Vespera 1]` is "Titus 3:4-5" ("Appáruit benígnitas..."), the real
         // fixture's own text — trying `"Capitulum Laudes"` first (this project's own
         // earlier, un-special-cased version) found `[Capitulum Laudes]` instead
         // ("Heb 1:1-2", the *second* Vespers/Lauds text) since that key exists in the
         // same file and was tried unconditionally first.
-        let capitulumSection = office.hasSuffix("12-25") && macroContext.isFirstVespers ? "Capitulum Vespera 1" : "Capitulum Laudes"
+        let capitulumSection = office.hasSuffix("12-25") && macroContext.isFirstVespers ? "Capitulum Vespera 1"
+            : office.contains("C12") && macroContext.hour == .vesperae ? "Capitulum Vespera" : "Capitulum Laudes"
         if let capitulum = lookup(capitulumSection) ?? lookup("Capitulum Vespera") {
             sections.append(Section(kind: .capitulum, units: Self.capitulumUnits(latin: capitulum.latin, english: capitulum.english)))
         }
@@ -2686,9 +2764,9 @@ public struct HourAssembler {
             // / "Dóminus tecum." with no "(Allelúja.)" at all — this project's engine
             // rendered the office's own literal parenthetical unstripped.
             let latinLines = versus.latin.split(separator: "\n", omittingEmptySubsequences: false)
-                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers) }
+                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, season: macroContext.seasonWeekName) }
             let englishLines = versus.english?.split(separator: "\n", omittingEmptySubsequences: false)
-                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true) }
+                .map { Self.applyingSeasonalAlleluia(to: String($0), weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: true, season: macroContext.seasonWeekName) }
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(latinLines, english: englishLines)))
         }
         return sections
@@ -2826,11 +2904,16 @@ public struct HourAssembler {
     ///
     /// `english`: the added word is the column's own, `lc(alleluia($lang))` (`LanguageText
     /// Tools.pm:28-33`, `:92-94`): English `[Alleluia]` is "v. Alleluia.", so "alleluia".
-    static func applyingSeasonalAlleluia(to text: String, weekName: String, isFirstVespers: Bool, english: Bool = false) -> String {
+    ///
+    /// `season`: `$dayname[0]` when it differs from `weekName`, in a votive office (whose
+    /// `weekName` is neutral, since `alleluia_required` excludes votives from the added
+    /// alleluia): the bracketed and suppressed alleluias still follow the season.
+    static func applyingSeasonalAlleluia(to text: String, weekName: String, isFirstVespers: Bool, english: Bool = false, season: String = "") -> String {
         guard !text.isEmpty else { return text }
         var result = text
+        let seasonName = season.isEmpty ? weekName : season
         let paschal = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
-        if paschal {
+        if seasonName.range(of: "Pasc", options: .caseInsensitive) != nil {
             result = result.replacingOccurrences(
                 of: #"\((allel[uú][ij]a[^)]*)\)"#, with: " $1 ", options: [.regularExpression, .caseInsensitive]
             )
@@ -2839,7 +2922,7 @@ public struct HourAssembler {
                 of: #"\(allel[uú][ij]a[^)]*\)"#, with: "", options: [.regularExpression, .caseInsensitive]
             )
         }
-        if Self.isAlleluiaSuppressed(weekName: weekName, isFirstVespers: isFirstVespers) {
+        if Self.isAlleluiaSuppressed(weekName: seasonName, isFirstVespers: isFirstVespers) {
             result = result.replacingOccurrences(
                 of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive]
             )

@@ -23,10 +23,14 @@
 #        scripts/generate-fixture-set.sh hours 2025 2040 Laudes
 set -euo pipefail
 
-set_name="${1:?usage: $0 vulgate|bilingual|holdout|hours|hours-bea|hours-holdout <first-year> <last-year> [hour]}"
+set_name="${1:?usage: $0 vulgate|bilingual|holdout|hours|hours-bea|hours-holdout <first-year> <last-year> [hour] [votive]}"
 first="${2:?first year}"
 last="${3:?last year}"
 hour="${4:-Vespera}"
+# Beta 4: DO's votive office, C12 (the Little Office of Our Lady) or C9 (the Office of the
+# Dead). The hours and hours-bea sets then go to votives/<votive>/<hour> and
+# votives-bea/<votive>/<hour>, and the hold-out to holdout/<year>-<votive>-<hour>.
+votive="${5:-}"
 lang1=Latin
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
@@ -40,13 +44,21 @@ case "$set_name" in
   hours-holdout) lang2=English; format=rows; suffix=bilingual.tsv; priests="0 1"; dest=holdout ;;
   *) echo "unknown set: $set_name" >&2; exit 2 ;;
 esac
+if [ -n "$votive" ]; then
+  case "$set_name" in
+    hours)     dest="votives/$votive/$hour" ;;
+    hours-bea) dest="votives-bea/$votive/$hour" ;;
+    hours-holdout) ;;
+    *) echo "votive only with hours, hours-bea or hours-holdout" >&2; exit 1 ;;
+  esac
+fi
 
-raw_dir="data/oracle-fixtures/raw-$set_name-$hour"
+raw_dir="data/oracle-fixtures/raw-$set_name-$hour${votive:+-$votive}"
 rm -rf "$raw_dir"
 mkdir -p "$raw_dir" "data/oracle-fixtures/$dest"
 
 perl -e '
-  my ($first, $last, $lang1, $lang2, $format, $suffix, $hour, @priests) = @ARGV;
+  my ($first, $last, $lang1, $lang2, $format, $suffix, $hour, $votive, @priests) = @ARGV;
   for my $y ($first .. $last) {
     my $leap = ($y % 4 == 0 && $y % 100 != 0) || $y % 400 == 0;
     my @dim = (31, $leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
@@ -55,12 +67,12 @@ perl -e '
         my $iso = sprintf("%04d-%02d-%02d", $y, $m, $d);
         for my $p (@priests) {
           my $tag = $p ? "priestY" : "priestN";
-          print "$m-$d-$y\t$p\t$lang2\t$y/${iso}_${tag}_$suffix\t$lang1\t$format\t$hour\n";
+          print "$m-$d-$y\t$p\t$lang2\t$y/${iso}_${tag}_$suffix\t$lang1\t$format\t$hour\t$votive\n";
         }
       }
     }
   }
-' "$first" "$last" "$lang1" "$lang2" "$format" "$suffix" "$hour" $priests > "$raw_dir/manifest.tsv"
+' "$first" "$last" "$lang1" "$lang2" "$format" "$suffix" "$hour" "$votive" $priests > "$raw_dir/manifest.tsv"
 echo "==> $(wc -l < "$raw_dir/manifest.tsv") renders ($set_name, $first-$last)"
 
 DO_ROOT="$repo_root/data/divinum-officium" ORACLE_RAW="$raw_dir" \
@@ -75,7 +87,7 @@ fi
 for year in $(seq "$first" "$last"); do
   name="$year"
   [ "$set_name" = holdout ] && name="$year-bilingual"
-  [ "$set_name" = hours-holdout ] && name="$year-$hour"
+  [ "$set_name" = hours-holdout ] && name="$year-${votive:+$votive-}$hour"
   # Sorted names and a fixed mtime keep the archives byte-identical across runs.
   tar -C "$raw_dir" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - "$year" \
     | gzip -n > "data/oracle-fixtures/$dest/$name.tar.gz"

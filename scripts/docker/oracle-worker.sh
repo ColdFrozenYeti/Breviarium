@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs *inside* the divinum-officium container (see docker-compose.yml's volume mount).
 # Takes one tab-separated job line:
-#   date<TAB>priest<TAB>lang2<TAB>outfile-relative-to-/oracle-raw[<TAB>lang1[<TAB>format[<TAB>hour]]]
+#   date<TAB>priest<TAB>lang2<TAB>outfile-relative-to-/oracle-raw[<TAB>lang1[<TAB>format[<TAB>hour[<TAB>votive]]]]
 # lang1 defaults to Latin-Bea (the alpha's psalter) so existing manifests keep working;
 # Latin is the Vulgate (docs/psalters-and-english.md section 1). format is "flat" (the
 # default: the whole page as one whitespace-collapsed line) or "rows" (one line per table
@@ -9,7 +9,8 @@
 # use "rows" so the Latin and English columns stay apart: J-to-I applies to the Latin
 # cell only, and pairing can be checked row by row. hour is DO's name for the hour
 # (Laudes, Prima, Tertia, Sexta, Nona, Vespera, Completorium; officium.pl's "pray<Hour>"
-# command, :142-144) and defaults to Vespera.
+# command, :142-144) and defaults to Vespera. votive (Beta 4) is DO's votive office: C12
+# for the Little Office of Our Lady, C9 for the Office of the Dead; empty for the day's.
 #
 # Renders one Vespers page via officium.pl invoked directly as a Perl CLI script (data/
 # SOURCE.md explains why: this is what DO's own regress/scripts/generate-diff.sh does,
@@ -20,7 +21,7 @@
 # all and stays runnable purely from this container.
 set -euo pipefail
 
-IFS=$'\t' read -r date_param priest lang2 outfile lang1 format hour <<< "$1"
+IFS=$'\t' read -r date_param priest lang2 outfile lang1 format hour votive <<< "$1"
 lang1="${lang1:-Latin-Bea}"
 format="${format:-flat}"
 hour="${hour:-Vespera}"
@@ -41,6 +42,9 @@ mkdir -p "$(dirname "$out_path")"
 args=(version="Rubrics 1960" "command=pray${hour}" "date=${date_param}" "lang1=${lang1}" "lang2=${lang2}" content=1)
 if [ "$priest" = "1" ]; then
   args+=(priest=1)
+fi
+if [ -n "${votive:-}" ]; then
+  args+=("votive=${votive}")
 fi
 
 render() {

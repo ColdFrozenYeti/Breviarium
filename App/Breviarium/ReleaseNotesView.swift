@@ -10,6 +10,14 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "Beta 4", notes: [
+            "The Little Office of Our Lady, all eight hours, in its forms for Advent, Christmastide, Septuagesima to Easter and the rest of the year.",
+            "The Office of the Dead: Matins, Lauds and Vespers.",
+            "Choose the office in Settings, under Ritus, Romanus: the office of the day, the Little Office or the Office of the Dead. The hour picker lists that office's own hours.",
+            "The Martyrology, an hour of its own after Prime in the day's office: the next day's entry, as read at Prime on the eve, in Latin.",
+            "Jump to date shows a small dot of each day's liturgical colour.",
+            "Directions such as (Fit reverentia) in the Te Deum are red rubrics, hidden with the rubrics.",
+        ]),
         Release(name: "Beta 3", notes: [
             "Matins: the invitatory, the hymn, the nocturns with their lessons and responsories, and the Te Deum, as the 1960 rubrics order them.",
             "Ad Matutinum is first in the hour picker, and the app opens on it between midnight and five in the morning.",

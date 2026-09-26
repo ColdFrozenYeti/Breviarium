@@ -19,7 +19,7 @@ Read this file at the start of every session. If a decision here conflicts with 
   - no Mass propers, Rosary, or Angelus.
 
   This is a breviary in a phone.
-- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on.
+- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
 - **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time.
 
 ## Development environment: there is no Mac
@@ -54,14 +54,15 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Ambrosian office (pre-conciliar):** Beta 6, and its Little Office of Our Lady in Beta 7.
   - Divinum Officium does **not** contain the Ambrosian office. The source is still to be chosen, and will probably be an online text source. It is bundled at build time, so the app stays offline, and its licence must allow that.
   - The engine must let a second rite plug in without rewriting the Roman one.
-- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`). Matins comes in Beta 3. The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
-- **The hour picker** lists only the office's own hours (*Ad Laudes* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24).
+- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), and Beta 3 added Matins (`docs/Beta_3_plan.md`). The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
+- **The hour picker** lists only the office's own hours (*Ad Matutinum* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24): Matins until 05:00, then Lauds, Terce, Sext, None, Vespers and Compline (the schedule is in `ContentView.hourForTimeOfDay`).
 - **Beta 4 (decided 2026-09-25):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
 - **Later:** votive offices where the rubrics permit, and possibly the Monastic office, after 1.0.
 
 ## Settings (Universalis-style toggles)
 
 - **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
+  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
@@ -69,7 +70,8 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Release notes** and **About**: plain screens opened from Settings; release notes list what each release added, newest first (added 2026-09-25).
-- **Later:** the Martyrology, as a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24), and a votive office picker.
+- **The Martyrology** is a separate "hour" of its own in the picker, listed right after Prime, rather than a section of Prime (decided 2026-09-24). It follows the traditional system: read on the eve, so a date shows the next day's entry. It is Latin only (decided 2026-09-26).
+- **Later:** a votive office picker (votive offices where the rubrics permit).
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 
 ## Texts and orthography
@@ -117,7 +119,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 3. **Day title block**, left-aligned. Wrapped lines take a **hanging indent** of about 38 pt. For 16 September 2026 it reads:
    - `III. classis`: serif, regular weight, body size, just above the name;
    - `Ss. Cornelii Papæ et Cypriani Episcopi, Martyrum`: serif **black/heaviest weight**, about 1.3× body size, as in the screenshot's bold title;
-   - `Commemoratio ad Laudes tantum: Ss. Euphemiæ, Luciæ et Geminiani Martyrum`: serif, regular weight, body size, below the name. Omit this line when there is no commemoration.
+   - `Commemoratio ad Laudes tantum: Ss. Euphemiæ, Luciæ et Geminiani Martyrum`: serif, regular weight, body size, below the name. Omit this line when there is no commemoration. Since Beta 3 this line is what Divinum Officium prints for the hour (a commemoration, *Tempora: …* at Matins, *Scriptura: …*, *Transfer: …*); see `docs/rubrics-1960-matins.md` §10.
 4. **Table-of-contents button**, right-aligned below the title: a list icon in `#FF4D33`. It opens a list of the hour's sections and jumps to the chosen page.
 5. **Hour title**, centred, serif regular, about 1.5× body size (e.g. *Ad Vesperas*). There is no music note and no subtitle.
 6. **Opening rubric**, if any: serif *italic*, `#FF8080`, left-aligned. It is hidden when rubrics are off.
@@ -198,7 +200,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - every DO syntax feature the parser meets.
 - **Oracle tests** are the main correctness check.
   - Run Divinum Officium in Docker at the **same pinned commit**.
-  - Retrieve its rendered Vespers (`Rubrics 1960 - 1960`, for both psalters: Vulgate by default, Pius XII as an option; Beta 1's exact fixture scope is in `docs/Beta_1_plan.md`) for **every day from 2025-01-01 to 2040-12-31**, with priest on and off, in Latin and English.
+  - Retrieve its rendered hours (Vespers from the alpha, the day hours from Beta 2, Matins from Beta 3; `Rubrics 1960 - 1960`, for both psalters: Vulgate by default, Pius XII as an option; Beta 1's exact fixture scope is in `docs/Beta_1_plan.md`) for **every day from 2025-01-01 to 2040-12-31**, with priest on and off, in Latin and English.
   - Normalise the output (strip HTML, collapse whitespace, apply the same J→I rule) and store it compressed as golden fixtures.
   - `swift test` diffs engine output against the fixtures, per date and per section.
   - Discover how DO is invoked by reading its CGI scripts and `regress/` tooling, not by guessing URL parameters.
@@ -216,7 +218,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - leap-year February;
   - the latest Easter (2038) and an early one (2035);
   - 16 September 2026, whose title block is given in the visual specification.
-- **Snapshot tests** run on CI. They cover the Vespers page 1 and a psalmody page for:
+- **Snapshot tests** run on CI. Every hour has its own captures (page 1 and 2, and for Matins each nocturn, the *Te Deum* and the last page). The Vespers matrix covers page 1 and a psalmody page for:
   - a ferial day;
   - a day with a commemoration;
   - a I class feast;

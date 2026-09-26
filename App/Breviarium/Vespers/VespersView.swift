@@ -17,9 +17,11 @@ import SwiftUI
 struct VespersView: View {
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
-    /// The hour shown, and the hour picker's choice (Beta 2).
-    let canonicalHour: CanonicalHour
-    let onSelectHour: (CanonicalHour) -> Void
+    /// The hour shown (Beta 2), or the Martyrology (Beta 4), and the hour picker's choice.
+    let selection: OfficeHour
+    let onSelectHour: (OfficeHour) -> Void
+    /// Each day's colour for a month of the *Jump to date* calendar (Beta 4).
+    let calendarColors: @MainActor (_ year: Int, _ month: Int) -> [Int: CalendarColor]
     /// Date navigation lives one level up in `ContentView`, which owns the displayed date
     /// -- this view only ever asks for a move, never computes one itself.
     let onPreviousDay: () -> Void
@@ -44,12 +46,12 @@ struct VespersView: View {
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
     /// The day and the hour: either changing starts the reader at the top.
-    private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)|\(canonicalHour.rawValue)" }
+    private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)|\(selection.key)" }
 
     /// Everything the typeset text depends on.
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
-            + "|\(settings.psalter.rawValue)|\(settings.showEnglish)"
+            + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)"
     }
 
     /// The hour's sections in order, for the table of contents.
@@ -216,7 +218,7 @@ struct VespersView: View {
             SettingsView(settings: settings)
         }
         .sheet(isPresented: $showingHourPicker) {
-            HourPickerView(current: canonicalHour) { hour in
+            HourPickerView(current: selection, officium: settings.officium) { hour in
                 showingHourPicker = false
                 onSelectHour(hour)
             }
@@ -279,26 +281,27 @@ struct VespersView: View {
 
     private var datePickerSheet: some View {
         NavigationStack {
-            DatePicker(
-                "Date",
-                selection: Binding(
-                    get: { SimpleDate(day: content.day.day, month: content.day.month, year: content.day.year).asDate },
-                    set: { newDate in
-                        showingDatePicker = false
-                        onJump(SimpleDate(newDate))
-                    }
-                ),
-                displayedComponents: .date
-            )
-            .datePickerStyle(.graphical)
+            MonthCalendarView(
+                selected: SimpleDate(day: content.day.day, month: content.day.month, year: content.day.year),
+                colors: calendarColors
+            ) { date in
+                showingDatePicker = false
+                onJump(date)
+            }
             .padding()
+            // Black to the sheet's edges, under the title bar too, as the hour picker is:
+            // the padding sat outside the calendar's own black, in the sheet's grey.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
             .navigationTitle("Jump to date")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { showingDatePicker = false }
                 }
             }
         }
+        .presentationBackground(Theme.background)
         .preferredColorScheme(.dark)
     }
 }
@@ -306,14 +309,17 @@ struct VespersView: View {
 /// The hour picker (Beta 2), modelled on `design/reference/Hours Picker.png` and reduced to
 /// the office's own hours (`CLAUDE.md`): one row per hour, the current one checked.
 struct HourPickerView: View {
-    let current: CanonicalHour
-    let onSelect: (CanonicalHour) -> Void
+    let current: OfficeHour
+    /// The office chosen in Settings: the picker lists only its own hours (decided
+    /// 2026-09-26).
+    let officium: Officium
+    let onSelect: (OfficeHour) -> Void
 
-    private static let hours: [CanonicalHour] = [.matutinum, .laudes, .prima, .tertia, .sexta, .nona, .vesperae, .completorium]
+    private var rows: [OfficeHour] { OfficeHour.rows(for: officium) }
 
     var body: some View {
         NavigationStack {
-            List(Self.hours, id: \.self) { hour in
+            List(rows, id: \.self) { hour in
                 Button {
                     onSelect(hour)
                 } label: {
@@ -330,7 +336,7 @@ struct HourPickerView: View {
                     .padding(.vertical, 6)
                 }
                 .listRowBackground(Theme.background)
-                .accessibilityIdentifier("hour-\(hour.rawValue)")
+                .accessibilityIdentifier("hour-\(hour.key)")
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
