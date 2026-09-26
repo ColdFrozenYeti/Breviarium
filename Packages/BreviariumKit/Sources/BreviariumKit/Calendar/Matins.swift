@@ -771,6 +771,10 @@ extension HourAssembler {
         /// Where the responsory is looked up first, and under which number.
         var responsoryPath: String?
         var responsoryNumber: Int
+        /// The file DO's `%w` is at this point: the winner, or the occurring Scripture
+        /// when the lesson falls back to it (`:958-968`, `%w = %scriptura`). Its
+        /// `Responsory<n> 1960` comes first.
+        var hashPath: String? = nil
     }
 
     func lectioSource(_ requested: Int, matins: MatinsDay, resolver: SectionResolver) -> LectioSource {
@@ -856,9 +860,11 @@ extension HourAssembler {
             }
         }
         // The occurring Scripture for the first nocturn (`:949-976`).
+        var hashPath = office
         if text == nil, num < 4, let scriptura = matins.scriptura, let s = section(scriptura, "Lectio\(num)") {
             text = s
             source = scriptura
+            hashPath = scriptura
         }
         if var t = text, contractScripture(num, matins: matins), source != matins.commune {
             if let underscore = t.range(of: "_") { t = String(t[..<underscore.lowerBound]) }    // `(.*?)\_`, the first one
@@ -936,12 +942,12 @@ extension HourAssembler {
             if section(path, "Responsory\(lesson)") != nil,
                 has(rule, "Initia cum Responsory") || has(resolver.resolveRank(path: path), "Dominica")
             {
-                return LectioSource(text: text ?? "", responsoryPath: path, responsoryNumber: lesson)
+                return LectioSource(text: text ?? "", responsoryPath: path, responsoryNumber: lesson, hashPath: hashPath)
             }
             source = office
         }
         if lessonType != .defaultType || (office.hasPrefix("Sancti") && matins.rank < 2), num > 2 { responsoryNumber = 3 }
-        return LectioSource(text: text ?? "", responsoryPath: source, responsoryNumber: responsoryNumber)
+        return LectioSource(text: text ?? "", responsoryPath: source, responsoryNumber: responsoryNumber, hashPath: hashPath)
     }
 
     /// The lesson as units: its heading (*Lectio i*), its title and reference lines, the
@@ -1007,7 +1013,7 @@ extension HourAssembler {
         // monthday merge, not the file the lesson came from: Ss. John and Paul keep theirs
         // over the Scripture's); by rule, the occurring Scripture's; else the winner's own
         // before the lesson source's, then the Commune's.
-        if let own1960 = find(matins.office, "\(name) 1960") {
+        if let own1960 = find(source.hashPath ?? matins.office, "\(name) 1960") {
             found = own1960
         } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
             found = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
