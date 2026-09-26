@@ -444,6 +444,11 @@ extension HourAssembler {
             text.split(separator: "\n").map { line in
                 var text = String(line).trimmingCharacters(in: .whitespaces)
                 if text.hasPrefix("v. ") { text = String(text.dropFirst(3)) }
+                // A direction before the verse's words, `/:(Fit reverentia):/` or the
+                // English `/:bow head:/`, is an inline rubric (Beta 4).
+                if let match = text.firstMatch(of: /^\/:(.+?):\/\s+(\S.*)$/), !match.2.hasPrefix("~") {
+                    text = "\(InlineRubrics.start)\(match.1)\(InlineRubrics.end) \(match.2)"
+                }
                 return text
             }.filter { !$0.isEmpty }
         }

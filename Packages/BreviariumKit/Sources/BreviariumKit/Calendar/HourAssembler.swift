@@ -67,6 +67,11 @@ public struct HourAssembler {
     /// whose Vespers is said that evening (`Concurrence`); the other hours to the day's own
     /// office (`Occurrence`).
     public func assemble(_ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool) -> Hour? {
+        assembleUnmarked(hour, day: day, month: month, year: year, priest: priest).map(InlineRubrics.marking)
+    }
+
+    /// The hour as DO's text gives it, before `InlineRubrics` marks its inline directions.
+    func assembleUnmarked(_ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool) -> Hour? {
         let result: ConcurrenceResult
         if hour.followsConcurrence {
             guard let concurrence = Concurrence(corpus: corpus, context: context, calendar: calendar).resolve(day: day, month: month, year: year)
