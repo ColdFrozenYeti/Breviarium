@@ -570,9 +570,19 @@ final class BreviariumUITests: XCTestCase {
     }
 
     /// Settings -> Romanus chooses the office; the hour picker then lists that office's
-    /// hours and the Martyrology (decided 2026-09-26).
+    /// hours (decided 2026-09-26). The Martyrology follows Prime, in the day's office only.
     func testOfficiumSettingAndHourPicker() {
         let app = launchApp(date: "2026-09-16", hour: "Laudes")
+        app.staticTexts["hourPickerButton"].tap()
+        let prima = app.buttons["hour-Prima"]
+        XCTAssertTrue(prima.waitForExistence(timeout: 5))
+        let martyrology = app.buttons["hour-martyrologium"]
+        XCTAssertTrue(martyrology.exists)
+        XCTAssertLessThan(prima.frame.minY, martyrology.frame.minY)
+        XCTAssertLessThan(martyrology.frame.minY, app.buttons["hour-Tertia"].frame.minY)
+        capture(app, "b4-hour-picker-diei")
+        app.buttons["hour-Laudes"].tap()
+
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         app.buttons["ritusRomanus"].tap()
@@ -587,11 +597,9 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(app.buttons["hour-Matutinum"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["hour-Laudes"].exists)
         XCTAssertTrue(app.buttons["hour-Vespera"].exists)
-        XCTAssertTrue(app.buttons["hour-martyrologium"].exists)
+        XCTAssertFalse(app.buttons["hour-martyrologium"].exists)
         XCTAssertFalse(app.buttons["hour-Tertia"].exists)
         capture(app, "b4-hour-picker-defunctorum")
-        app.buttons["hour-martyrologium"].tap()
-        XCTAssertTrue(app.staticTexts["Martyrologium"].waitForExistence(timeout: 5))
     }
 
     /// The Little Office: page 1 of every hour (16 September 2026), and Lauds in Advent.

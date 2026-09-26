@@ -62,7 +62,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Settings (Universalis-style toggles)
 
 - **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
-  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers), plus the *Martyrologium* row. When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
+  - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
 - **English translation:** on or off (parallel text).
@@ -70,7 +70,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Psalterium:** Vulgate (default) / Pius XII. The final label wording is open question 1 in `docs/Beta_1_plan.md`, settled in B1-M5.
 - **Scrolling:** horizontal pages / vertical scroll; **Page turn:** slide / page curl (see *Paging*).
 - **Release notes** and **About**: plain screens opened from Settings; release notes list what each release added, newest first (added 2026-09-25).
-- **The Martyrology** is a separate "hour" of its own in the picker rather than a section of Prime (decided 2026-09-24). It follows the traditional system: read on the eve, so a date shows the next day's entry. It is Latin only (decided 2026-09-26).
+- **The Martyrology** is a separate "hour" of its own in the picker, listed right after Prime, rather than a section of Prime (decided 2026-09-24). It follows the traditional system: read on the eve, so a date shows the next day's entry. It is Latin only (decided 2026-09-26).
 - **Later:** a votive office picker (votive offices where the rubrics permit).
 - **English translation is deferred to beta** (decided 2026-09-24): the toggle stays visible but disabled, and the alpha snapshot matrix is English off only.
 

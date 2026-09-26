@@ -289,6 +289,10 @@ struct VespersView: View {
                 onJump(date)
             }
             .padding()
+            // Black to the sheet's edges, under the title bar too, as the hour picker is:
+            // the padding sat outside the calendar's own black, in the sheet's grey.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
             .navigationTitle("Jump to date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -297,6 +301,7 @@ struct VespersView: View {
                 }
             }
         }
+        .presentationBackground(Theme.background)
         .preferredColorScheme(.dark)
     }
 }
@@ -306,11 +311,11 @@ struct VespersView: View {
 struct HourPickerView: View {
     let current: OfficeHour
     /// The office chosen in Settings: the picker lists only its own hours (decided
-    /// 2026-09-26), then the Martyrology.
+    /// 2026-09-26).
     let officium: Officium
     let onSelect: (OfficeHour) -> Void
 
-    private var rows: [OfficeHour] { officium.hours.map(OfficeHour.hour) + [.martyrologium] }
+    private var rows: [OfficeHour] { OfficeHour.rows(for: officium) }
 
     var body: some View {
         NavigationStack {

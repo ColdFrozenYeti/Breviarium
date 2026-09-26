@@ -14,7 +14,7 @@ struct ReleaseNotesView: View {
             "The Little Office of Our Lady, all eight hours, in its forms for Advent, Christmastide, Septuagesima to Easter and the rest of the year.",
             "The Office of the Dead: Matins, Lauds and Vespers.",
             "Choose the office in Settings, under Ritus, Romanus: the office of the day, the Little Office or the Office of the Dead. The hour picker lists that office's own hours.",
-            "The Martyrology, an hour of its own at the foot of the picker: the next day's entry, as read at Prime on the eve, in Latin.",
+            "The Martyrology, an hour of its own after Prime in the day's office: the next day's entry, as read at Prime on the eve, in Latin.",
             "Jump to date shows a small dot of each day's liturgical colour.",
             "Directions such as (Fit reverentia) in the Te Deum are red rubrics, hidden with the rubrics.",
         ]),

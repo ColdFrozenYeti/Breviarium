@@ -218,14 +218,15 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
      Virginis*; Matins has one nocturn and three lessons from Sirach, and a *Te Deum*
      outside Septuagesima and Lent. In Advent the title says *tempore Adventus*.
    - **The Office of the Dead.** Choose it: the picker lists only *Ad Matutinum*, *Ad
-     Laudes* and *Ad Vesperas* (and the Martyrology). Every psalm ends *Réquiem ætérnam*;
+     Laudes* and *Ad Vesperas*, with no Martyrology. Every psalm ends *Réquiem ætérnam*;
      Matins has three nocturns and nine lessons from Job. Opening the app mid-morning or
      after None lands on Lauds; after 17:00 on Vespers.
-   - **The Martyrology.** The last row of the picker. It opens on tomorrow's date in the
+   - **The Martyrology.** In the day's office, the row after *Ad Primam*; the Little
+     Office has no Martyrology row either. It opens on tomorrow's date in the
      Roman calendar with the moon's age (*… Luna quinta. Anno Dómini 2026*), the entries,
      and *Et álibi aliórum plurimórum…* On Christmas Eve, *Hic vox elevatur…* is red.
-   - **Colours.** Jump to date (tap the short date in the footer) is a month grid with a
-     dot under each day: white, red, green, violet, rose on Gaudete and Laetare Sundays,
+   - **Colours.** Jump to date (tap the short date in the footer) is a black sheet, edge to
+     edge, with a month grid and a dot under each day: white, red, green, violet, rose on Gaudete and Laetare Sundays,
      and a grey ring for black (All Souls, Good Friday).
    - **Inline rubrics.** In the *Te Deum*, *(Fit reverentia)* and *(Sequens versus dicitur
      flexis genibus)* are red; turning *Rubricæ* off removes them.
