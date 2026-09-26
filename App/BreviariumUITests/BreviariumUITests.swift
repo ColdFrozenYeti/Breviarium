@@ -164,7 +164,8 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(releaseNotes.waitForExistence(timeout: 5))
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Beta 2"].exists || app.staticTexts["BETA 2"].exists)
+        // The newest release heads the list.
+        XCTAssertTrue(app.staticTexts["Beta 4"].waitForExistence(timeout: 5) || app.staticTexts["BETA 4"].exists)
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways

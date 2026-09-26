@@ -578,6 +578,14 @@ public struct HourAssembler {
                     responseEnglish: english.map { DOMarkers.stripLineLabel($0[i + 1]) }
                 ))
                 i += 2
+            } else if line.hasPrefix("Ant. ") {
+                // An antiphon, as a special hour writes it out (the Little Office's little
+                // hours, `Commune/C12`'s `[Special Prima]`): set as an antiphon, not a verse.
+                func text(_ line: String) -> String {
+                    String(line.dropFirst(line.hasPrefix("Ant. ") ? 5 : 0)).trimmingCharacters(in: .whitespaces)
+                }
+                units.append(.antiphon(text(line), english: englishLine.map(text)))
+                i += 1
             } else if line.contains(" * ") {
                 let (first, second) = Psalm.splitHalves(DOMarkers.stripLineLabel(line))
                 let englishSplit = englishLine.map { Psalm.splitHalves(DOMarkers.stripLineLabel($0)) }

@@ -137,7 +137,7 @@ final class OfficeDataStore {
     }
 
     /// The Martyrology read on a date (Beta 4): tomorrow's entry, Latin only, the same
-    /// under every office. Titled *Martyrologium*, with no rank line.
+    /// under every office. The title block is the day's, as at Prime, where it is read.
     func martyrologyContent(day: Int, month: Int, year: Int) -> VespersContent? {
         guard let latinCorpus, let sanctoralCalendar else { return nil }
         let context = ConditionalContextBuilder.build(
@@ -145,13 +145,12 @@ final class OfficeDataStore {
         )
         guard let hour = MartyrologyAssembler(corpus: latinCorpus, context: context, calendar: sanctoralCalendar)
             .assemble(day: day, month: month, year: year),
-            var liturgicalDay = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-            .day(day: day, month: month, year: year)
+            let liturgicalDay = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
+            .day(for: .prima, day: day, month: month, year: year)
         else {
             loadDiagnostic = "the Martyrology could not be assembled for \(year)-\(month)-\(day)"
             return nil
         }
-        liturgicalDay.titleBlock = TitleBlock(classisLine: nil, nameLine: "Martyrologium", commemorationLine: nil)
         let displayDate = Self.utcCalendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
         return VespersContent(
             hour: hour, day: liturgicalDay, hourTitle: "Martyrologium",

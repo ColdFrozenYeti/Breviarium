@@ -694,7 +694,19 @@ extension HourAssembler {
                     return line.replacingOccurrences(of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive])
                 }
                 let englishLines = pairEnglish ? english?[index].lines.map(processed) : nil
-                units.append(contentsOf: Self.unitsFromLines(chunk.lines.map(processed), english: englishLines))
+                if kind == .hymnus {
+                    // A hymn in stanzas, as the psalter's hymns are (the Little Office's
+                    // *Meménto, rerum Cónditor*): each stanza's `v.`/`r.` opening goes.
+                    func stanzas(_ lines: [String]) -> [String] {
+                        Self.hymnStanzas(
+                            lines.map { $0.replacingOccurrences(of: #"^\s*[vr]\.\s+"#, with: "", options: .regularExpression) }
+                                .joined(separator: "\n").replacingOccurrences(of: #"\*\s*"#, with: "", options: .regularExpression)
+                        ).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                    }
+                    units.append(contentsOf: Self.pairedStanzas(latin: stanzas(chunk.lines.map(processed)), english: englishLines.map(stanzas)))
+                } else {
+                    units.append(contentsOf: Self.unitsFromLines(chunk.lines.map(processed), english: englishLines))
+                }
             }
         }
         if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
