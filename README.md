@@ -63,7 +63,7 @@ and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retr
 
 ## Roadmap
 
-![Roadmap: Alpha and Betas 1 to 3 released; Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha and Betas 1 to 3 released; Beta 4 the Little Office of Our Lady, the Office of the Dead, the Martyrology and the liturgical colour in the calendar; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
 
 Why it's in this order, and what each beta depends on, is in
 [`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was
@@ -77,8 +77,8 @@ and is renewed weekly.
 
 1. Get the `.ipa`:
    - **a release:** download it from the repository's
-     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 2 is
-     `Breviarium-Beta-2.ipa`);
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 3 is
+     `Breviarium-Beta-3.ipa`);
    - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
      workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
      CLI). Given a release tag and a notes file, the same workflow publishes the build as

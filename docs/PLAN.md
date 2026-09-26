@@ -3968,3 +3968,12 @@ February, the latest Easter, St Anne …), and `sixteenthSeptember2026HeadLines`
 - `testMatinsSnapshots`: page 1 and 2, each nocturn's first pages, the *Te Deum* and the
   last page for a feria, a I class feast and Holy Thursday; the second nocturn with
   English in portrait and landscape.
+
+### B3-M5 — Release
+
+Pull request with every check green: Kit CI, App CI (with `testMatinsSnapshots`) and the
+six Oracle audit jobs (Vespers, the day hours, and Matins in four year ranges, 2044
+included). The user tried the IPA on the phone and asked to merge and publish on 26
+September; Beta 3 is published as a pre-release with `Breviarium-Beta-3.ipa`. The same
+day the user added a small dot of the day's liturgical colour in the calendar to Beta 4
+(`roadmap.md`, decision 7).

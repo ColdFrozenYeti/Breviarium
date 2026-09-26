@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="784" viewBox="0 0 880 784" role="img" aria-labelledby="t d">
 <title id="t">Breviarium roadmap</title>
-<desc id="d">Alpha and Betas 1 to 3 are released. Next: Beta 4, the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5, the Dominican rite; Beta 6, the Ambrosian rite, which needs a source; Beta 7, the Ambrosian Little Office; then 1.0. The Monastic office is possible after 1.0.</desc>
+<desc id="d">Alpha and Betas 1 to 3 are released. Next: Beta 4, the Little Office of Our Lady, the Office of the Dead, the Martyrology and the liturgical colour in the calendar; Beta 5, the Dominican rite; Beta 6, the Ambrosian rite, which needs a source; Beta 7, the Ambrosian Little Office; then 1.0. The Monastic office is possible after 1.0.</desc>
 <rect width="880" height="784" rx="18" fill="#000000"/>
 <text x="40" y="52" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#FFFFFF" letter-spacing="1.5">ROADMAP</text>
 <text x="840" y="52" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-style="italic" fill="#FF8080">Alpha to 1.0</text>
@@ -32,7 +32,7 @@
 <circle cx="64" cy="382" r="4.5" fill="#FF4D33"/>
 <text x="96" y="384" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 4</text>
 <text x="840" y="383" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FF4D33">NEXT</text>
-<text x="96" y="407" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Little Office of Our Lady (Roman) · Office of the Dead · the Martyrology</text>
+<text x="96" y="407" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Little Office of Our Lady (Roman) · Office of the Dead · Martyrology · colour dots</text>
 <circle cx="64" cy="448" r="10" fill="#000000" stroke="#B2B2B2" stroke-width="2"/>
 <text x="96" y="450" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">Beta 5</text>
 <text x="840" y="449" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">PLANNED</text>
