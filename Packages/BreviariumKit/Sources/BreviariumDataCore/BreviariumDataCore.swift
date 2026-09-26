@@ -10,7 +10,9 @@ public enum BreviariumDataPipeline {
     /// This project's Roman secular subset of the Latin corpus — excludes the
     /// Monastic/Cistercian/Dominican sibling folders (`*M`/`*Cist`/`*OP`) and non-office
     /// content (`Martyrologium`, `Regula`, `Necrologium`, `Appendix`); see `do-format.md`.
-    public static let latinTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium"]
+    /// Beta 4 adds `Martyrologium1960`, the 1960 Martyrology (Latin only, decision 3 of
+    /// `docs/Beta_4_plan.md`).
+    public static let latinTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium", "Martyrologium1960"]
 
     /// `Latin-Bea/` contains only a `Psalterium/` overlay (`do-format.md`'s Psalter
     /// option finding).
