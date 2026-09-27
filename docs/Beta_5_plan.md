@@ -1,7 +1,7 @@
 # Breviarium — Beta 5 Implementation Plan (draft)
 
-**Status: a draft for your approval.** Nothing in it has started. The questions at the
-end need your answers before B5-M1.
+**Status: approved on 27 September 2026**, with the answers in *Decisions* at the end.
+B5-M0 (CI) is under way.
 
 ## Context
 
@@ -66,12 +66,15 @@ hour-assembly branches.
 
 ## Oracle fixtures
 
-A proposal, see question 2:
-- `version=Ordo Praedicatorum - 1962`, every hour, **2026–2029**, Latin and English,
-  priest off. Four years cover each Easter class and weekday letter, which is where
-  Beta 3's Matins found its date-specific bugs.
+As decided (2 and 3 below):
+- `version=Ordo Praedicatorum - 1962`, every hour, **every day 2025–2040**, Latin and
+  English, priest off, as for the Roman office.
 - A **2044 hold-out**, priest off and on.
-- **Vulgate only** (question 3).
+- The **Pius XII psalter** too, if DO renders it under `OP1962`.
+- The **Little Office** (`CommuneOP/C12`) and, if DO has one for the rite, the **Office
+  of the Dead**, as Beta 4's sets: two years and one year, and the hold-out.
+- The Dominican audits run in Oracle audits jobs split by years from the start, so each
+  stays under 20 minutes.
 - `generate-fixture-set.sh` takes the version as an argument; sizes and hashes go in
   `data/SOURCE.md`.
 
@@ -149,26 +152,22 @@ As in Beta 4, with the Beta 4 retrospective's carry-forward:
   its audit.
 - Docs pushes are held while a pull request's checks run.
 
-## Questions for you
+## Decisions (answered 2026-09-27, plan approved)
 
-1. **The Dominican Little Office and Office of the Dead.** DO has a Dominican Little
-   Office (`CommuneOP/C12`); for the Dead it seems to fall back to the Roman one. Should *Dominicanus* get an *Officium* setting in Beta 5, like *Romanus*, or
-   should Beta 5 have the Dominican office of the day only, with the votives later?
-   *Suggested:* the office of the day only. The votives would come as a small follow-up
-   once the rite is at zero.
-2. **Fixture years.** 2026–2029 plus the 2044 hold-out, or the full 2025–2040 as for the
-   Roman office? *Suggested:* four years plus 2044. The full range quadruples the
-   fixtures and the audit time for little extra coverage, since the Roman engine
-   underneath is already checked over 16 years.
-3. **The psalter.** Should *Psalterium: Pii XII* apply to the Dominican office? DO allows
-   it for any version, but I haven't checked what the Dominican books of 1962 used.
-   *Suggested:* the Vulgate only for Dominicanus at first, with the psalter setting
-   disabled under that rite, unless you know the Pius XII psalter was used.
-4. **The Martyrology under Dominicanus.** B5-M1 will find what DO reads at Dominican
-   Prime. If it has Dominican entries, they're shown. If it reads the Roman
-   Martyrology, should the app show that, or leave the Martyrology out under
-   Dominicanus?
-5. **English that only partly matches.** Where a Dominican text differs from the Roman
-   one by a few words (a saint's name in a collect), should it get the Roman English with
-   the name changed, or be Latin only? *Suggested:* Latin only. The roadmap's decision 4
-   allows the Roman English only where the texts match exactly.
+1. **The Dominican Little Office and Office of the Dead come in Beta 5.** *Dominicanus*
+   gets an *Officium* setting like *Romanus*. The Office of the Dead is included if DO
+   has it for the rite: B5-M1 checks whether DO renders `votive=C9` under `OP1962`.
+2. **The fixtures cover every day from 2025 to 2040**, as for the Roman office ("the
+   length is necessary for all the bugs to be ironed out"), plus the 2044 hold-out.
+3. **The Pius XII psalter** is offered under *Dominicanus* if DO has it for the rite.
+   If it doesn't, the *Psalterium* setting is fixed to the Vulgate under *Dominicanus*,
+   in Settings itself.
+4. **The Martyrology:** the Dominican Martyrology where DO's differs from the Roman one,
+   otherwise the Roman one.
+5. **English:** DO's Dominican English where it exists. Where a Dominican text matches
+   a Roman one exactly, the Roman English. Where it differs a little (a saint's name in a
+   collect), the Roman English with a disclaimer. Where there is no Roman counterpart,
+   Latin only.
+6. **The disclaimer** (answered 2026-09-27): a small line in the chrome grey
+   (`#B2B2B2`) under that English text: *Roman text; the Dominican Latin differs.* It is
+   the one exception to "no explanatory text in the office".
