@@ -96,15 +96,15 @@ func withoutMartyrology(_ rows: [BilingualRow]) -> [BilingualRow] {
 /// One hour, one date: assembled as the app assembles it.
 func assembleDayHour(
     _ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, bundle: DataBundle, corpus: OfficeCorpus, english: OfficeCorpus?,
-    calendar: SanctoralCalendar
+    calendar: SanctoralCalendar, officium: Officium = .diei
 ) -> (Hour?, String?) {
     let context = ConditionalContextBuilder.build(
         day: day, month: month, year: year, ad: hour.doName, rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
     )
     let assembled = HourAssembler(corpus: corpus, context: context, calendar: calendar, englishCorpus: english)
-        .assemble(hour, day: day, month: month, year: year, priest: priest)
+        .assemble(hour, day: day, month: month, year: year, priest: priest, officium: officium)
     let title = LiturgicalCalendarEngine(corpus: corpus, context: context, sanctoralCalendar: calendar)
-        .day(for: hour, day: day, month: month, year: year)?.titleBlock.nameLine
+        .day(for: hour, day: day, month: month, year: year, officium: officium)?.titleBlock.nameLine
     return (assembled, title)
 }
 
@@ -160,9 +160,12 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     let parts = date.split(separator: "-").compactMap { Int($0) }
     let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
     let calendar = bundle.makeSanctoralCalendar()
+    // `BREVIARIUM_DEBUG_VOTIVE=C12` or `C9` (Beta 4) assembles the votive office and reads its fixtures.
+    let votive = env["BREVIARIUM_DEBUG_VOTIVE"] ?? ""
+    let officium: Officium = votive == "C12" ? .parvumBMV : votive == "C9" ? .defunctorum : .diei
     let (assembled, title) = assembleDayHour(
         hour, day: parts[2], month: parts[1], year: parts[0], priest: false, bundle: bundle, corpus: corpus, english: bundle.makeEnglishCorpus(),
-        calendar: calendar
+        calendar: calendar, officium: officium
     )
     var out = "TITLE: \(title ?? "-")\n"
     let debugContext = ConditionalContextBuilder.build(
@@ -176,7 +179,11 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     }
     // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
     var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
-    if page == nil { page = try await OracleFixture.shared.hourYear(hour: hour, year: parts[0])?["\(parts[0])/\(date)_priestN_bilingual.tsv"] }
+    if page == nil {
+        page = try await OracleFixture.shared.hourYear(set: votive.isEmpty ? "hours" : "votives/\(votive)", hour: hour, year: parts[0])?[
+            "\(parts[0])/\(date)_priestN_bilingual.tsv"
+        ]
+    }
     if env["BREVIARIUM_DEBUG_NOAUDIT"] != nil { page = nil }
     if env["BREVIARIUM_DEBUG_PIECES"] != nil, let assembled {
         for section in assembled.sections {

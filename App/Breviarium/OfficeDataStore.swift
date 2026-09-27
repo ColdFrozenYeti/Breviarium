@@ -27,6 +27,7 @@ final class OfficeDataStore {
     private let latinCorpora: [Psalter: OfficeCorpus]
     private let englishCorpus: OfficeCorpus?
     private let sanctoralCalendar: SanctoralCalendar?
+    private var colorCache: [Int: [Int: CalendarColor]] = [:]
 
     /// What happened while loading the bundle, for the fallback UI to show verbatim --
     /// temporary, diagnostic-only scaffolding while the bundling pipeline is still being
@@ -97,7 +98,8 @@ final class OfficeDataStore {
     /// wrong day through a timezone (`BreviariumApp`'s `BREVIARIUM_SNAPSHOT_DATE`). `nil`
     /// when the bundled data failed to load, or the date can't be resolved to an office.
     func content(
-        for canonicalHour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false
+        for canonicalHour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false,
+        officium: Officium = .diei
     ) -> VespersContent? {
         guard let latinCorpus = latinCorpora[psalter] ?? latinCorpus, let englishCorpus, let sanctoralCalendar else { return nil }
 
@@ -112,13 +114,13 @@ final class OfficeDataStore {
         let assembler = HourAssembler(
             corpus: latinCorpus, context: context, calendar: sanctoralCalendar, englishCorpus: english ? englishCorpus : nil
         )
-        guard let hour = assembler.assemble(canonicalHour, day: day, month: month, year: year, priest: priest) else {
+        guard let hour = assembler.assemble(canonicalHour, day: day, month: month, year: year, priest: priest, officium: officium) else {
             loadDiagnostic = "assemble(\(canonicalHour)) returned nil for \(year)-\(month)-\(day)"
             return nil
         }
 
         let calendarEngine = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-        guard let liturgicalDay = calendarEngine.day(for: canonicalHour, day: day, month: month, year: year) else {
+        guard let liturgicalDay = calendarEngine.day(for: canonicalHour, day: day, month: month, year: year, officium: officium) else {
             loadDiagnostic = "LiturgicalCalendarEngine.day(for:) returned nil for \(year)-\(month)-\(day)"
             return nil
         }
@@ -132,5 +134,48 @@ final class OfficeDataStore {
             dateLine: LatinDateLine.format(day: day, month: month, year: year),
             shortDate: Self.shortDateFormatter.string(from: displayDate)
         )
+    }
+
+    /// The Martyrology read on a date (Beta 4): tomorrow's entry, Latin only, the same
+    /// under every office. The title block is the day's, as at Prime, where it is read.
+    func martyrologyContent(day: Int, month: Int, year: Int) -> VespersContent? {
+        guard let latinCorpus, let sanctoralCalendar else { return nil }
+        let context = ConditionalContextBuilder.build(
+            day: day, month: month, year: year, ad: "Prima", rubrica: rubrica, corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
+        )
+        guard let hour = MartyrologyAssembler(corpus: latinCorpus, context: context, calendar: sanctoralCalendar)
+            .assemble(day: day, month: month, year: year),
+            let liturgicalDay = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
+            .day(for: .prima, day: day, month: month, year: year)
+        else {
+            loadDiagnostic = "the Martyrology could not be assembled for \(year)-\(month)-\(day)"
+            return nil
+        }
+        let displayDate = Self.utcCalendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
+        return VespersContent(
+            hour: hour, day: liturgicalDay, hourTitle: "Martyrologium",
+            dateLine: LatinDateLine.format(day: day, month: month, year: year),
+            shortDate: Self.shortDateFormatter.string(from: displayDate)
+        )
+    }
+
+    /// The colour of each day of a month, for the *Jump to date* calendar (Beta 4),
+    /// computed once per month.
+    func calendarColors(year: Int, month: Int) -> [Int: CalendarColor] {
+        let key = year * 100 + month
+        if let cached = colorCache[key] { return cached }
+        guard let latinCorpus, let sanctoralCalendar else { return [:] }
+        var colors: [Int: CalendarColor] = [:]
+        var (day, m, y) = (1, month, year)
+        while m == month, y == year {
+            let context = ConditionalContextBuilder.build(
+                day: day, month: m, year: y, ad: "Laudes", rubrica: rubrica, corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
+            )
+            colors[day] = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
+                .calendarColor(day: day, month: m, year: y)
+            (day, m, y) = Computus.addDays(1, day: day, month: m, year: y)
+        }
+        colorCache[key] = colors
+        return colors
     }
 }

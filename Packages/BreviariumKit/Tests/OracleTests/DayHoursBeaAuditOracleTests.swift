@@ -28,7 +28,10 @@ func dayHourFixturePsalms(_ fixtureText: String) -> [RenderedPsalm] {
         // between verses (Matins, Beta 3).
         let gloria = rest[..<nextTitle].range(of: " Glória Patri")?.upperBound ?? rest.startIndex
         let antiphon = rest[gloria...].range(of: " Ant. ")?.lowerBound ?? rest.range(of: " Ant. ")?.lowerBound
-        let end = min(antiphon ?? rest.endIndex, nextTitle, canticle)
+        // The Little Office's Compline has no antiphon on its psalms: its last psalm ends
+        // at the chapter (Beta 4).
+        let chapter = rest.range(of: " Capitulum ")?.lowerBound ?? rest.endIndex
+        let end = min(antiphon ?? rest.endIndex, nextTitle, canticle, chapter)
         let references = (" " + rest[..<end]).matches(of: verseReference).map { String($0.output[1].substring ?? "") }
         psalms.append(RenderedPsalm(title: String(text[match.range]), references: references))
     }

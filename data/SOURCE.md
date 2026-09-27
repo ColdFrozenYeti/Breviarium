@@ -162,6 +162,24 @@ Generated 2026-09-25 with the same script and hour field (`Matutinum`, DO's
 the largest single archive is about 6 MB. Matins is the longest hour by far: a
 nine-lesson day renders to about 75 KB of text.
 
+### Beta 4 sets: the Little Office and the Office of the Dead
+
+Generated 2026-09-26 with the same script, which takes DO's votive as a fifth argument
+(`scripts/generate-fixture-set.sh <set> <first> <last> <Hour> C12|C9`, passed on as
+`votive=C12|C9`), against the pinned commit above. None empty.
+
+| Set | Path | Content | Size |
+|---|---|---|---|
+| Little Office | `votives/C12/<Hour>/<year>.tar.gz`, 2026-2027, all eight hours | Vulgate Latin + English, priest off, rows | 2.6 MB |
+| Little Office, Pius XII | `votives-bea/C12/<Hour>/<year>.tar.gz`, 2026-2027 | Pius XII Latin, priest off, flat | 1.4 MB |
+| Office of the Dead | `votives/C9/<Hour>/2026.tar.gz`, Matins, Lauds, Vespers | Vulgate Latin + English, priest off, rows | 6.7 MB |
+| Office of the Dead, Pius XII | `votives-bea/C9/<Hour>/2026.tar.gz` | Pius XII Latin, priest off, flat | 0.2 MB |
+| Hold-outs | `holdout/2044-C12-<Hour>.tar.gz`, `holdout/2044-C9-<Hour>.tar.gz` | Vulgate Latin + English, priest off and on, rows | 1.8 MB + 14 MB |
+
+27 MB in all. The Little Office's text changes only with the season and the weekday, so
+two years cover it; the Office of the Dead's changes only with the priest option. The
+Martyrology has no set of its own: every Prime fixture already contains it.
+
 ### Beta 3 additions to the bundled data
 
 - **`Tabulae/Stransfer/*.txt`**, the Scripture (initia) transfer tables that DO's

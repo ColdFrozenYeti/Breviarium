@@ -105,6 +105,8 @@ public struct Section: Equatable, Sendable {
         // Beta 3, Matins: the invitatory, the nocturns (three, or the single one) and the
         // Te Deum.
         case invitatorium, nocturnusI, nocturnusII, nocturnusIII, adNocturnum, teDeum
+        // Beta 4: the Martyrology, an "hour" of its own.
+        case martyrologium
     }
 
     public var kind: Kind

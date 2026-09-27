@@ -12,13 +12,20 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("Ritus") {
-                    HStack {
-                        Text("Romanus")
-                            .foregroundStyle(Theme.liturgicalText)
-                        Spacer()
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(Theme.icon)
+                    // The office is chosen under the rite (Beta 4, decided 2026-09-26).
+                    NavigationLink {
+                        OfficiumView(settings: settings)
+                    } label: {
+                        HStack {
+                            Text("Romanus")
+                                .foregroundStyle(Theme.liturgicalText)
+                            Spacer()
+                            Text(OfficiumView.label(for: settings.officium))
+                                .font(.footnote)
+                                .foregroundStyle(Theme.chrome)
+                        }
                     }
+                    .accessibilityIdentifier("ritusRomanus")
                     // Shown but not selectable until each rite is built.
                     ForEach(["Ambrosianus", "Dominicanus"], id: \.self) { rite in
                         HStack {
@@ -97,6 +104,45 @@ struct SettingsView: View {
         case .extraLarge: "XL"
         case .largest: "XXL"
         }
+    }
+}
+
+/// *Ritus Romanus*: the office said (Beta 4). The day's office is the default; the other
+/// two are the votive offices the Roman breviary provides.
+struct OfficiumView: View {
+    @ObservedObject var settings: SettingsStore
+
+    static func label(for officium: Officium) -> String {
+        switch officium {
+        case .diei: "Officium diei"
+        case .parvumBMV: "Officium parvum B.M.V."
+        case .defunctorum: "Officium defunctorum"
+        }
+    }
+
+    var body: some View {
+        List {
+            Section("Officium") {
+                ForEach(Officium.allCases, id: \.self) { officium in
+                    Button {
+                        settings.officium = officium
+                    } label: {
+                        HStack {
+                            Text(Self.label(for: officium))
+                                .foregroundStyle(Theme.liturgicalText)
+                            Spacer()
+                            if settings.officium == officium {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Theme.icon)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("officium-\(officium.rawValue)")
+                }
+            }
+        }
+        .navigationTitle("Romanus")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

@@ -1,3 +1,4 @@
+import BreviariumKit
 import SwiftUI
 import UIKit
 
@@ -12,6 +13,20 @@ enum Theme {
     static let icon = Color(red: 1.0, green: 0.302, blue: 0.200)        // #FF4D33
     /// Chrome text: navigation title, page footer.
     static let chrome = Color(red: 0.698, green: 0.698, blue: 0.698)    // #B2B2B2
+
+    /// The liturgical colour dots of the *Jump to date* calendar (Beta 4, decision 4):
+    /// red and green as in `design/reference/Calendar.png`, violet and rose lightened to
+    /// read on black; black days get a grey ring (`CalendarDot`).
+    static func liturgical(_ color: CalendarColor) -> Color {
+        switch color {
+        case .white: .white
+        case .red: Color(red: 1.0, green: 0.0, blue: 0.0)            // #FF0000
+        case .green: Color(red: 0.0, green: 0.784, blue: 0.0)        // #00C800
+        case .violet: Color(red: 0.627, green: 0.361, blue: 0.878)   // #A05CE0
+        case .rose: Color(red: 0.949, green: 0.553, blue: 0.698)     // #F28DB2
+        case .black: Color(red: 0.549, green: 0.549, blue: 0.549)    // #8C8C8C, a ring
+        }
+    }
 }
 
 /// The text-size setting `CLAUDE.md` lists under Settings -- scales every serif size and

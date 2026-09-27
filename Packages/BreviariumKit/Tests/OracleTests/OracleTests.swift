@@ -66,7 +66,8 @@ func collapsedWhitespace(_ text: String) -> String {
     // rendering substitutes the "✠" glyph. That substitution is a presentation-layer
     // choice (which glyph to actually draw), not liturgical content, so it's normalised
     // away here rather than replicated in the Kit's own text data.
-    text.replacingOccurrences(of: "✠", with: "+")
+    // Inline rubrics (Beta 4) carry markers DO's page doesn't have.
+    InlineRubrics.unmarked(text).replacingOccurrences(of: "✠", with: "+")
         .split(whereSeparator: { $0.isWhitespace })
         .joined(separator: " ")
 }

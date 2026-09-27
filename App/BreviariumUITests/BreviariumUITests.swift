@@ -20,7 +20,8 @@ final class BreviariumUITests: XCTestCase {
     @discardableResult
     private func launchApp(
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
-        section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera"
+        section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
+        officium: String = "diei", rubrics: Bool = true, expectedTitle: String? = nil
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -34,9 +35,10 @@ final class BreviariumUITests: XCTestCase {
         app.launchArguments += [
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
+            "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
         ]
         app.launch()
-        XCTAssertTrue(app.staticTexts[Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[expectedTitle ?? Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
         return app
     }
 
@@ -162,7 +164,8 @@ final class BreviariumUITests: XCTestCase {
         XCTAssertTrue(releaseNotes.waitForExistence(timeout: 5))
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Beta 2"].exists || app.staticTexts["BETA 2"].exists)
+        // The newest release heads the list.
+        XCTAssertTrue(app.staticTexts["Beta 4"].waitForExistence(timeout: 5) || app.staticTexts["BETA 4"].exists)
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -436,7 +439,7 @@ final class BreviariumUITests: XCTestCase {
 
     private static let titles = [
         "Matutinum": "Ad Matutinum", "Laudes": "Ad Laudes", "Prima": "Ad Primam", "Tertia": "Ad Tertiam", "Sexta": "Ad Sextam", "Nona": "Ad Nonam",
-        "Vespera": "Ad Vesperas", "Completorium": "Ad Completorium",
+        "Vespera": "Ad Vesperas", "Completorium": "Ad Completorium", "martyrologium": "Martyrologium",
     ]
 
     /// The hour picker opens from the title and switches the hour.
@@ -555,5 +558,127 @@ final class BreviariumUITests: XCTestCase {
         page2.lifetime = .keepAlways
         add(page2)
         app.terminate()
+    }
+
+    // MARK: Beta 4
+
+    private func capture(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// Settings -> Romanus chooses the office; the hour picker then lists that office's
+    /// hours (decided 2026-09-26). The Martyrology follows Prime, in the day's office only.
+    func testOfficiumSettingAndHourPicker() {
+        let app = launchApp(date: "2026-09-16", hour: "Laudes")
+        app.staticTexts["hourPickerButton"].tap()
+        let prima = app.buttons["hour-Prima"]
+        XCTAssertTrue(prima.waitForExistence(timeout: 5))
+        let martyrology = app.buttons["hour-martyrologium"]
+        XCTAssertTrue(martyrology.exists)
+        XCTAssertLessThan(prima.frame.minY, martyrology.frame.minY)
+        XCTAssertLessThan(martyrology.frame.minY, app.buttons["hour-Tertia"].frame.minY)
+        capture(app, "b4-hour-picker-diei")
+        app.buttons["hour-Laudes"].tap()
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.buttons["ritusRomanus"].tap()
+        let dead = app.buttons["officium-defunctorum"]
+        XCTAssertTrue(dead.waitForExistence(timeout: 5))
+        capture(app, "b4-officium-setting")
+        dead.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+
+        app.staticTexts["hourPickerButton"].tap()
+        XCTAssertTrue(app.buttons["hour-Matutinum"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["hour-Laudes"].exists)
+        XCTAssertTrue(app.buttons["hour-Vespera"].exists)
+        XCTAssertFalse(app.buttons["hour-martyrologium"].exists)
+        XCTAssertFalse(app.buttons["hour-Tertia"].exists)
+        capture(app, "b4-hour-picker-defunctorum")
+    }
+
+    /// The Little Office: page 1 of every hour (16 September 2026), and Lauds in Advent.
+    func testLittleOfficeSnapshots() {
+        for hour in ["Matutinum", "Laudes", "Prima", "Tertia", "Sexta", "Nona", "Vespera", "Completorium"] {
+            let app = launchApp(date: "2026-09-16", hour: hour, officium: "parvumBMV")
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-parvum-\(hour)-page1")
+            app.terminate()
+        }
+        captureTwoPages(date: "2026-12-02", hour: "Laudes", name: "b4-parvum-advent-Laudes")
+    }
+
+    /// The Office of the Dead: its three hours, and Terce opening Lauds (decided 2026-09-26).
+    func testOfficeOfTheDeadSnapshots() {
+        for hour in ["Matutinum", "Laudes", "Vespera"] {
+            let app = launchApp(date: "2026-09-16", hour: hour, officium: "defunctorum")
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-defunctorum-\(hour)-page1")
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-defunctorum-\(hour)-page2")
+            app.terminate()
+        }
+        let app = launchApp(date: "2026-09-16", hour: "Tertia", officium: "defunctorum", expectedTitle: "Ad Laudes")
+        app.terminate()
+    }
+
+    /// The Martyrology: an ordinary day, Easter Sunday, Christmas Eve (its inline rubric,
+    /// on and off) and Holy Saturday (omitted).
+    func testMartyrologySnapshots() {
+        for (date, name) in [("2026-09-16", "ordinary"), ("2026-04-05", "easter"), ("2026-04-04", "holysaturday")] {
+            let app = launchApp(date: date, hour: "martyrologium")
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-martyrology-\(name)")
+            app.terminate()
+        }
+        for rubrics in [true, false] {
+            let app = launchApp(date: "2026-12-24", hour: "martyrologium", rubrics: rubrics)
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-martyrology-christmas-page1-rubrics\(rubrics ? "On" : "Off")")
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-martyrology-christmas-page2-rubrics\(rubrics ? "On" : "Off")")
+            app.terminate()
+        }
+    }
+
+    /// The Jump to date calendar's colour dots: November 2026 (black, green, red, white,
+    /// violet), December (rose, violet, white, red) and March (rose, violet, white, red).
+    func testCalendarColourDots() {
+        let app = launchApp(date: "2026-11-02")
+        app.buttons["jumpToDateButton"].tap()
+        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["calendarDay-2"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.0)
+        XCTAssertEqual(app.buttons["calendarDay-2"].value as? String, "black")
+        capture(app, "b4-calendar-2026-11")
+        app.buttons["nextMonthButton"].tap()
+        Thread.sleep(forTimeInterval: 2.0)
+        XCTAssertEqual(app.buttons["calendarDay-13"].value as? String, "rose")
+        capture(app, "b4-calendar-2026-12")
+        for _ in 0..<9 { app.buttons["previousMonthButton"].tap() }
+        Thread.sleep(forTimeInterval: 2.0)
+        capture(app, "b4-calendar-2026-03")
+        app.buttons["calendarDay-15"].tap()
+        XCTAssertTrue(waitForLabel(app.buttons["jumpToDateButton"], "15-Mar-26"))
+    }
+
+    /// The Te Deum's inline directions, red with rubrics on and gone with them off.
+    func testTeDeumInlineRubrics() {
+        for rubrics in [true, false] {
+            let app = launchApp(date: "2026-11-01", section: "teDeum", hour: "Matutinum", rubrics: rubrics)
+            Thread.sleep(forTimeInterval: 0.6)
+            capture(app, "b4-tedeum-rubrics\(rubrics ? "On" : "Off")")
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b4-tedeum-rubrics\(rubrics ? "On" : "Off")-page2")
+            app.terminate()
+        }
     }
 }

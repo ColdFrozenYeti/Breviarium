@@ -259,6 +259,7 @@ struct OfficeTypesetter {
         case .nocturnusII: "NOCTURNUS II"
         case .nocturnusIII: "NOCTURNUS III"
         case .teDeum: "TE DEUM"
+        case .martyrologium: "MARTYROLOGIUM"
         }
     }
 
@@ -413,8 +414,27 @@ struct OfficeTypesetter {
     /// (the antiphon/first-verse dagger) in the rubric colour -- they are rubrical
     /// gestures inside otherwise ordinary text.
     private func liturgical(_ raw: String, font: UIFont, color: UIColor) -> NSMutableAttributedString {
-        let text = raw.replacingOccurrences(of: "+", with: "✠")
+        // Inline rubrics (Beta 4): a direction inside the text, *(Fit reverentia)*, is
+        // marked by the Kit; it's drawn in rubric red, or left out with rubrics off.
+        let marked = showRubrics ? raw : InlineRubrics.withoutRubrics(raw)
+        var rubricRanges: [NSRange] = []
+        var plain = ""
+        var rubricStart: Int?
+        for character in marked {
+            if character == InlineRubrics.start {
+                rubricStart = (plain as NSString).length
+            } else if character == InlineRubrics.end, let start = rubricStart {
+                rubricRanges.append(NSRange(location: start, length: (plain as NSString).length - start))
+                rubricStart = nil
+            } else {
+                plain.append(character)
+            }
+        }
+        let text = plain.replacingOccurrences(of: "+", with: "✠")
         let result = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: color])
+        for range in rubricRanges where NSMaxRange(range) <= result.length {
+            result.addAttribute(.foregroundColor, value: rubricColor, range: range)
+        }
         let nsText = text as NSString
         var searchRange = NSRange(location: 0, length: nsText.length)
         while searchRange.length > 0 {

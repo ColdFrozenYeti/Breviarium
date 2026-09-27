@@ -15,9 +15,10 @@ struct ContentView: View {
     let dateSource: DateSource
     /// A section to open at (UI tests only; see `BreviariumApp`).
     let initialSection: String?
-    /// The hour being shown: at launch the hour for the time of day (decided
-    /// 2026-09-24), or `BREVIARIUM_SNAPSHOT_HOUR` in UI tests; then the hour picker's.
-    @State private var canonicalHour: CanonicalHour
+    /// The hour chosen: at launch the hour for the time of day (decided 2026-09-24), or
+    /// `BREVIARIUM_SNAPSHOT_HOUR` in UI tests; then the hour picker's. What is shown is
+    /// that hour in the chosen office (`OfficeHour.shown(in:)`).
+    @State private var selection: OfficeHour
 
     private let dataStore = OfficeDataStore()
     @StateObject private var settings = SettingsStore()
@@ -26,10 +27,10 @@ struct ContentView: View {
     /// own doc comment covers why `SimpleDate`, not `Date`, is what those pass back).
     @State private var displayedDate: SimpleDate
 
-    init(dateSource: DateSource = .now, initialSection: String? = nil, initialHour: CanonicalHour? = nil) {
+    init(dateSource: DateSource = .now, initialSection: String? = nil, initialHour: OfficeHour? = nil) {
         self.dateSource = dateSource
         self.initialSection = initialSection
-        _canonicalHour = State(initialValue: initialHour ?? Self.hourForTimeOfDay(Date()))
+        _selection = State(initialValue: initialHour ?? .hour(Self.hourForTimeOfDay(Date())))
         switch dateSource {
         case .now: _displayedDate = State(initialValue: .today())
         case .fixed(let day, let month, let year): _displayedDate = State(initialValue: SimpleDate(day: day, month: month, year: year))
@@ -39,8 +40,9 @@ struct ContentView: View {
     var body: some View {
         if let content = vespersContent {
             VespersView(
-                content: content, settings: settings, canonicalHour: canonicalHour,
-                onSelectHour: { canonicalHour = $0 },
+                content: content, settings: settings, selection: shownHour,
+                onSelectHour: { selection = $0 },
+                calendarColors: { year, month in dataStore.calendarColors(year: year, month: month) },
                 onPreviousDay: { displayedDate = SimpleDate(Computus.addDays(-1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onNextDay: { displayedDate = SimpleDate(Computus.addDays(1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onJump: { newDate in displayedDate = newDate },
@@ -51,7 +53,7 @@ struct ContentView: View {
                 Theme.background.ignoresSafeArea()
                 // Includes OfficeDataStore's own diagnostic string -- temporary, while
                 // the bundling pipeline is still being shaken out (see its doc comment).
-                Text("\(canonicalHour.title) could not be loaded for this date.\n\(dataStore.loadDiagnostic)")
+                Text("\(shownHour.title) could not be loaded for this date.\n\(dataStore.loadDiagnostic)")
                     .foregroundStyle(Theme.chrome)
                     .padding()
             }
@@ -73,11 +75,18 @@ struct ContentView: View {
         }
     }
 
+    private var shownHour: OfficeHour { selection.shown(in: settings.officium) }
+
     private var vespersContent: VespersContent? {
-        dataStore.content(
-            for: canonicalHour, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent,
-            psalter: settings.psalter, english: settings.showEnglish
-        )
+        switch shownHour {
+        case .hour(let hour):
+            dataStore.content(
+                for: hour, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent,
+                psalter: settings.psalter, english: settings.showEnglish, officium: settings.officium
+            )
+        case .martyrologium:
+            dataStore.martyrologyContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)
+        }
     }
 }
 

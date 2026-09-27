@@ -46,6 +46,12 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(psalter.rawValue, forKey: Keys.psalter) }
     }
 
+    /// The office said under the Roman rite (Beta 4, decided 2026-09-26): the day's by
+    /// default, the Little Office of Our Lady, or the Office of the Dead.
+    @Published var officium: Officium {
+        didSet { defaults.set(officium.rawValue, forKey: Keys.officium) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -56,6 +62,7 @@ final class SettingsStore: ObservableObject {
         static let readingMode = "settings.readingMode"
         static let pageTurn = "settings.pageTurn"
         static let psalter = "settings.psalter"
+        static let officium = "settings.officium"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -73,5 +80,6 @@ final class SettingsStore: ObservableObject {
         readingMode = defaults.string(forKey: Keys.readingMode).flatMap(ReadingMode.init(rawValue:)) ?? .horizontal
         pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
         psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
+        officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
     }
 }
