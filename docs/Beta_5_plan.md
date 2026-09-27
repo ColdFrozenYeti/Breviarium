@@ -162,8 +162,15 @@ As in Beta 4, with the Beta 4 retrospective's carry-forward:
 3. **The Pius XII psalter** is offered under *Dominicanus* if DO has it for the rite.
    If it doesn't, the *Psalterium* setting is fixed to the Vulgate under *Dominicanus*,
    in Settings itself.
-4. **The Martyrology:** the Dominican Martyrology where DO's differs from the Roman one,
-   otherwise the Roman one.
+4. **The Martyrology:** the Dominican Martyrology where it differs from the Roman one,
+   otherwise the Roman one. DO has no Dominican Martyrology. Its Dominican Prime reads
+   its older, pre-1960 Roman text (`specprima.pl:145-149` picks `Martyrologium1960` only
+   when the version name contains "1960"). That text differs from the 1960 one on 71
+   days, mostly octaves the 1960 reform abolished. The user chose "whatever the
+   Dominican rite follows". The 1962 Dominican office follows the 1960 rubrics, so the
+   app shows the **1960 Roman Martyrology** under *Dominicanus*, and the audit records
+   those 71 days as a known DO divergence. This is a judgement call, to revisit if a
+   source for the Order's own Martyrology (with its Dominican additions) is found.
 5. **English:** DO's Dominican English where it exists. Where a Dominican text matches
    a Roman one exactly, the Roman English. Where it differs a little (a saint's name in a
    collect), the Roman English with a disclaimer. Where there is no Roman counterpart,
