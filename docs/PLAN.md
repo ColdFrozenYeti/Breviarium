@@ -4036,3 +4036,23 @@ system date picker can't mark days. New UI tests capture every Little Office hou
 Office of the Dead, the Martyrology (ordinary day, Easter, Holy Saturday, Christmas Eve
 with rubrics on and off), three months of colours and the *Te Deum* with rubrics on and
 off.
+
+### B4-M6 — Release
+
+Pull request with every check green: Kit CI, App CI and the eight Oracle audit jobs
+(Vespers, the day hours, Matins in four year ranges, the Little Office and the Office of
+the Dead). The first App CI snapshots found two layout bugs the text audits can't see
+(the special hours' hymn one line per paragraph and their antiphons set as verses; the
+Martyrology titled *Martyrologium* three times), fixed before the IPA.
+
+The user tried the IPA on the phone on 26 September and asked for three changes, made
+the same day:
+- the Martyrology row follows *Ad Primam* in the picker, where it is read;
+- the Little Office and the Office of the Dead don't list it: DO reads it from the
+  Ordinarium's Prime, which the Little Office replaces with its own and the Dead lacks;
+- *Jump to date* is black to the sheet's edges (the padding sat in the sheet's grey).
+
+The user then asked to merge and publish on 27 September; Beta 4 is published as a
+pre-release with `Breviarium-Beta-4.ipa`. The user also asked why CI had grown so long
+(about an hour a push); the answer and the fixes are B5-M0 in
+[`Beta_5_plan.md`](Beta_5_plan.md).

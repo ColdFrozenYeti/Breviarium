@@ -14,8 +14,8 @@ Lady**, **the Office of the Dead** and **the Martyrology**, with a dot of each d
 - **The Office of the Dead**: Matins (three nocturns, nine lessons from Job), Lauds and
   Vespers, with *Réquiem ætérnam* after every psalm.
 - **The Martyrology**, the row after *Ad Primam* in the day's office (the Little Office and
-  the Office of the Dead don't have it). It follows the
-  traditional use, read at Prime on the eve: a date shows the next day's entry, announced
+  the Office of the Dead don't have it). It follows the traditional use, read at Prime on
+  the eve: a date shows the next day's entry, announced
   with its date in the Roman calendar, the moon's age and the year, then the movable
   feast, the entries and *Et álibi…*. Latin only.
 - **Jump to date** is a month grid with a small dot of each day's liturgical colour.

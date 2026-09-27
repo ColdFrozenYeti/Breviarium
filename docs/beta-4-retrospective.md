@@ -56,9 +56,27 @@ will lay it out (units, not just text) before the audit, not after.
 so pushing docs mid-run cost an App CI cycle. Next time, batch docs commits until the
 checks on the code commit have finished.
 
+**Three things only the phone showed.** The Martyrology sat at the foot of the picker
+and under every office, and the calendar had a grey frame. The first two were a plan
+decision ("an hour of its own under every office") that nobody checked against where DO
+actually reads the Martyrology: at Prime of the day's office. The third was a padding
+applied outside the calendar's black; the snapshot showed it, but against the sheet's
+dark grey it wasn't obvious at simulator scale. Next time, place a new "hour" where the
+office itself says it is read, and compare a sheet's edges to the hour picker's.
+
+**CI grew to about an hour a push.** Two jobs set the length: the day-hours oracle audit
+(one job, about 60 minutes, never split as Matins was in Beta 3) and App CI's UI tests
+(36 tests, one simulator, about 32 minutes). Every push also runs every workflow, docs
+included. Nothing checked what a push costs as the suites grew. Beta 5's first
+milestone cuts it.
+
 ## Carry forward
 
 - Clean up scratch builds and old fixture extracts at the start of each beta.
 - Write a plan's "must equal" claims only after checking them against DO.
 - Look at the unit kinds for any new hour shape, not only its text.
 - Hold docs pushes while a pull request's checks are running.
+- Place anything read "at an hour" where the office reads it, under the offices that
+  read it.
+- Keep a full CI round under 30 minutes: split any audit job over 20 minutes, and run a
+  workflow only for the files that can change its result.

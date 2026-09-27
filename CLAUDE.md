@@ -54,9 +54,9 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Ambrosian office (pre-conciliar):** Beta 6, and its Little Office of Our Lady in Beta 7.
   - Divinum Officium does **not** contain the Ambrosian office. The source is still to be chosen, and will probably be an online text source. It is bundled at build time, so the app stays offline, and its licence must allow that.
   - The engine must let a second rite plug in without rewriting the Roman one.
-- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), and Beta 3 added Matins (`docs/Beta_3_plan.md`). The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
+- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), Beta 3 added Matins (`docs/Beta_3_plan.md`), and Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology (`docs/Beta_4_plan.md`, released 2026-09-27). Beta 5, the Dominican rite, is next (`docs/Beta_5_plan.md`, a draft awaiting approval). The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
 - **The hour picker** lists only the office's own hours (*Ad Matutinum* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24): Matins until 05:00, then Lauds, Terce, Sext, None, Vespers and Compline (the schedule is in `ContentView.hourForTimeOfDay`).
-- **Beta 4 (decided 2026-09-25):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
+- **Beta 4 (decided 2026-09-25, released 2026-09-27):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
 - **Later:** votive offices where the rubrics permit, and possibly the Monastic office, after 1.0.
 
 ## Settings (Universalis-style toggles)
@@ -231,5 +231,6 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 
 - Work milestone by milestone. At the end of each one, summarise what was built, show the test results (and snapshot images for UI work), and wait for approval.
 - Keep commits small and descriptive.
+- **CI costs about an hour per push** to a pull request (the day-hours audit and App CI's UI tests are the long jobs). Batch docs changes, and don't push while a pull request's checks are running unless the push fixes them (added 2026-09-27).
 - Code is in English, except for Latin identifiers where they are the natural domain terms (`Vesperae`, `Commemoratio`).
 - When liturgical correctness is uncertain, ask. Do not improvise rubrics.

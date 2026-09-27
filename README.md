@@ -7,11 +7,23 @@ option), and an optional parallel English translation. The app computes the offi
 itself for any date. It is fully offline, night mode only, and for private
 use. It is installed by sideloading with a free Apple ID.
 
-## Status: Beta 3
+## Status: Beta 4
 
-Beta 3 adds **Matins**, so the whole Roman office is here: Matins, Lauds, Prime, Terce,
-Sext, None, Vespers and Compline, in Latin with an optional English translation, in
-either psalter.
+The whole Roman office is here: Matins, Lauds, Prime, Terce, Sext, None, Vespers and
+Compline, in Latin with an optional English translation, in either psalter. Beta 4 adds
+the offices said beside it:
+
+- **The Little Office of Our Lady**, all eight hours, in its Advent, Christmas, Lenten
+  and ordinary forms.
+- **The Office of the Dead**: Matins, Lauds and Vespers.
+- **The Martyrology**, read at Prime on the eve, as an "hour" of its own after *Ad
+  Primam* in the day's office.
+- **The liturgical colour**: *Jump to date* is a month grid with a dot of each day's
+  colour.
+- Directions inside a text, such as *(Fit reverentia)*, are red rubrics.
+
+Settings → *Ritus* → *Romanus* chooses the office: the office of the day, the Little
+Office or the Office of the Dead.
 
 - **The office is right.** For every day from 2025 to 2040, each hour is checked against
   [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium)'s own output:
@@ -22,7 +34,8 @@ either psalter.
     the line under it (the commemoration, the season's Scripture, a transferred feast);
   - Vespers' commemorations, and at Lauds those said at Lauds only.
 
-  All of 2044 is checked too, with the priest form on and off, as an out-of-sample year
+  The Little Office (2026–2027) and the Office of the Dead (2026) are checked the same
+  way, and the Martyrology against every Prime page. All of 2044 is checked too, with the priest form on and off, as an out-of-sample year
   the engine was never tuned against. So are `CLAUDE.md`'s named edge cases, hour by
   hour: Tenebræ, All Souls, Our Lady on Saturday, the Greater Litanies on St Mark,
   transferred feasts and the rest.
@@ -48,22 +61,27 @@ either psalter.
   - Text size
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
-  - *Ritus*: Romanus, with Ambrosianus and Dominicanus listed as coming soon
+  - *Ritus*: Romanus, with its *Officium* (of the day, the Little Office or the Office
+    of the Dead); Ambrosianus and Dominicanus are listed as coming soon
   - Release notes, and About with the Divinum Officium licence
 
 The build log, with every decision and every bug traced to the Divinum Officium source
 it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right and wrong,
 and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md),
 [`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md),
-[`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md) and
-[`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md). Beta 3's plan is
-[`docs/Beta_3_plan.md`](docs/Beta_3_plan.md); how each day hour is put together is in
-[`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md), and Matins in
-[`docs/rubrics-1960-matins.md`](docs/rubrics-1960-matins.md).
+[`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md),
+[`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md) and
+[`docs/beta-4-retrospective.md`](docs/beta-4-retrospective.md). Beta 4's plan is
+[`docs/Beta_4_plan.md`](docs/Beta_4_plan.md), and the draft plan for Beta 5 is
+[`docs/Beta_5_plan.md`](docs/Beta_5_plan.md). How each day hour is put together is in
+[`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md), Matins in
+[`docs/rubrics-1960-matins.md`](docs/rubrics-1960-matins.md), and the Little Office, the
+Office of the Dead and the Martyrology in
+[`docs/rubrics-1960-votives.md`](docs/rubrics-1960-votives.md).
 
 ## Roadmap
 
-![Roadmap: Alpha and Betas 1 to 3 released; Beta 4 the Little Office of Our Lady, the Office of the Dead, the Martyrology and the liturgical colour in the calendar; Beta 5 the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha and Betas 1 to 4 released; next, Beta 5, the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
 
 Why it's in this order, and what each beta depends on, is in
 [`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was
@@ -77,8 +95,8 @@ and is renewed weekly.
 
 1. Get the `.ipa`:
    - **a release:** download it from the repository's
-     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 3 is
-     `Breviarium-Beta-3.ipa`);
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 4 is
+     `Breviarium-Beta-4.ipa`);
    - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
      workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
      CLI). Given a release tag and a notes file, the same workflow publishes the build as

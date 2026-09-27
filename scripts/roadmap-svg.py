@@ -10,9 +10,9 @@ rows = [
     ("done", "Alpha", "Released", "Roman Vespers under the 1960 rubrics, computed for any date"),
     ("done", "Beta 1", "Released", "The Vulgate psalter by default, and the parallel English"),
     ("done", "Beta 2", "Released", "The day hours, Lauds to Compline, and the hour picker"),
-    ("next", "Beta 3", "Next", "Matins · the new app icon · the title block’s commemoration line"),
-    ("plan", "Beta 4", "Planned", "Little Office of Our Lady (Roman) · Office of the Dead · the Martyrology"),
-    ("plan", "Beta 5", "Planned", "The Dominican rite (Ordo Prædicatorum, 1962)"),
+    ("done", "Beta 3", "Released", "Matins · the new app icon · the title block’s commemoration line"),
+    ("done", "Beta 4", "Released", "Little Office of Our Lady · Office of the Dead · Martyrology · colours"),
+    ("next", "Beta 5", "Next", "The Dominican rite (Ordo Prædicatorum, 1962)"),
     ("wait", "Beta 6", "Needs a source", "The Ambrosian rite, from a text source still to be chosen"),
     ("plan", "Beta 7", "Planned", "Little Office of Our Lady (Ambrosian)"),
     ("goal", "1.0", "Goal", "Phone checks, landscape and the largest text size, then a freeze"),
@@ -27,7 +27,7 @@ out = []
 a = out.append
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Breviarium roadmap</title>')
-a('<desc id="d">Alpha, Beta 1 and Beta 2 are released. Next: Beta 3, Matins and the new icon. Then Beta 4, the Little Office of Our Lady, the Office of the Dead and the Martyrology; Beta 5, the Dominican rite; Beta 6, the Ambrosian rite, which needs a source; Beta 7, the Ambrosian Little Office; then 1.0. The Monastic office is possible after 1.0.</desc>')
+a('<desc id="d">Alpha and Betas 1 to 4 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead and the Martyrology. Next: Beta 5, the Dominican rite; Beta 6, the Ambrosian rite, which needs a source; Beta 7, the Ambrosian Little Office; then 1.0. The Monastic office is possible after 1.0.</desc>')
 a(f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>')
 a(f'<text x="{X-24}" y="52" font-family="{serif}" font-size="30" font-weight="700" fill="{WHITE}" letter-spacing="1.5">ROADMAP</text>')
 a(f'<text x="{W-40}" y="52" text-anchor="end" font-family="{sans}" font-size="15" font-style="italic" fill="{RUBRIC}">Alpha to 1.0</text>')

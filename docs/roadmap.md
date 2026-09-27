@@ -1,6 +1,8 @@
 # Roadmap to 1.0
 
-Agreed on 25 September 2026, after Beta 2's release. The picture in the README is
+Agreed on 25 September 2026, after Beta 2's release. Beta 3 was released on 26
+September and Beta 4 on 27 September; Beta 5 is next, and its draft plan is
+[`Beta_5_plan.md`](Beta_5_plan.md). The picture in the README is
 [`images/roadmap.svg`](images/roadmap.svg), drawn by `scripts/roadmap-svg.py`. Each beta
 still gets its own plan document (`Beta_N_plan.md`) and approval before any work starts.
 
@@ -52,8 +54,11 @@ can be checked that way, and whatever it lacks cannot.
 ## Open questions for later plans
 
 - **Beta 5:** does DO's Dominican office have its own psalter distribution and hymn
-  texts, or does it borrow the Roman ones? It decides how much of the Roman provider can
-  be shared.
+  texts, or does it borrow the Roman ones? *Partly answered (27 September):* it has its
+  own calendar (`Kalendaria/OP1962.txt`) and its own Tempora, Sancti and Commune
+  (579 Latin files), but it reads the Roman psalter files, choosing `…OP` sections where
+  they exist, and DO runs it through the Roman engine with about 30 Dominican branches.
+  See [`Beta_5_plan.md`](Beta_5_plan.md).
 - **Beta 6:** which source and edition, and in what form. The source's licence must let
   us bundle its text, as DO's MIT licence does.
 - **Beta 7:** whether the Ambrosian source includes the Little Office, or it needs a
