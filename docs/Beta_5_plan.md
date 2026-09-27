@@ -80,13 +80,19 @@ A proposal, see question 2:
 ### B5-M0 — CI and housekeeping
 Answers "why have the CIs become so long" (26 September). The three changes proposed
 then:
-- **Path filters.** Oracle audits and Kit CI run only when the Kit, the data or their
-  fixtures change; App CI only when the app, the Kit or the data change. A docs-only
-  push then runs nothing heavy.
+- **Per-push change detection.** The workflows already have `paths:` filters, but on a
+  pull request GitHub applies them to the whole pull request's diff against `main`, so
+  once a pull request touches the Kit, every later push reran everything, a docs-only
+  push included. Each workflow now starts with a small `changes` job
+  (`scripts/ci-needs-run.sh`). It compares the head with the last commit on the branch
+  that passed that workflow, and skips the heavy jobs when nothing they check has
+  changed. It compares with the last *passing* commit, not the previous push, so a
+  cancelled run is never skipped over.
 - **Split the day-hours audit** into four jobs by year range, as Matins was. The longest
   audit job goes from about 60 minutes to about 15–20.
-- **Parallel UI tests.** Split `BreviariumUITests` into four classes (Vespers, day hours,
-  Matins, Beta 4) and run them with parallel testing on cloned simulators. App CI should
+- **Parallel UI tests.** Split `BreviariumUITests` into five classes (launch and
+  navigation, the Vespers matrix, the day hours, Matins, the votive offices) over a
+  shared `BreviariumUITestCase`, and run them on three cloned simulators. App CI should
   go from about 42 minutes to about 20–25.
 - **The target:** a full round under 30 minutes. The baseline times go in `PLAN.md`,
   before and after.

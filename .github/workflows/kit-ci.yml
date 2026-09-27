@@ -27,7 +27,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A push to a pull request runs the jobs below only if something they check changed
+  # since the last commit that passed this workflow (scripts/ci-needs-run.sh; GitHub's
+  # `paths:` alone looks at the whole pull request). Main pushes always run.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+        run: scripts/ci-needs-run.sh kit-ci.yml '^(Packages/BreviariumKit/|data/oracle-fixtures/|\.github/workflows/kit-ci\.yml)'
+
   build-and-test:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
