@@ -52,9 +52,12 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - Checked against DO like the Roman office.
   - English: DO's Dominican English where it exists; where it doesn't (DO has none for the Dominican saints), the Roman English for texts that match the Roman ones exactly; for texts that differ a little from the Roman (a saint's name in a collect), the Roman English with a small grey (`#B2B2B2`) line under it, *Roman text; the Dominican Latin differs.*; otherwise Latin only (decided 2026-09-27).
   - Beta 5 includes the Dominican *Officium* choice (the office of the day, the Little Office, and the Office of the Dead if DO has it for the rite), fixtures for every day 2025–2040 plus 2044, the Pius XII psalter if DO offers it for the rite (otherwise *Psalterium* is fixed to the Vulgate under *Dominicanus*), and the Dominican Martyrology where it differs from the Roman (decided 2026-09-27; `docs/Beta_5_plan.md`).
-- **Ambrosian office (pre-conciliar):** Beta 6, and its Little Office of Our Lady in Beta 7.
-  - Divinum Officium does **not** contain the Ambrosian office. The source is still to be chosen, and will probably be an online text source. It is bundled at build time, so the app stays offline, and its licence must allow that.
-  - The engine must let a second rite plug in without rewriting the Roman one.
+- **Ambrosian offices (pre-conciliar, 1957 recension):** revised 1 October 2026 after the user's source research (`docs/ambrosian-sources.md`, which governs this work).
+  - No complete Ambrosian breviary is available digitally, so the **full Ambrosian office is blocked** until a complete primary source is obtained. Its architecture may be prepared, but no missing content is invented.
+  - Beta 6: **Ambrosian Compline** and the **Ambrosian Office of the Dead**, each a standalone, precisely named office; Beta 7: the **Ambrosian Little Office**. Each starts only after its source's edition, completeness and rights are confirmed.
+  - **No Roman fallback**: no Roman text, psalm, psalter or rubric fills an Ambrosian gap unless an Ambrosian source says so; never the modern Ambrosian Liturgy of the Hours.
+  - Every Ambrosian text keeps its provenance (edition and page). Divinum Officium can't check them; tests come from the sources page by page, with negative tests that no Roman text slips in.
+  - The repository is public: raw Ambrosian sources (scans, PDFs, LaTeX) are **not committed** until their redistribution is confirmed.
 - **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), Beta 3 added Matins (`docs/Beta_3_plan.md`), and Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology (`docs/Beta_4_plan.md`, released 2026-09-27). Beta 5, the Dominican rite, is under way (`docs/Beta_5_plan.md`, approved 2026-09-27). The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
 - **The hour picker** lists only the office's own hours (*Ad Matutinum* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24): Matins until 05:00, then Lauds, Terce, Sext, None, Vespers and Compline (the schedule is in `ContentView.hourForTimeOfDay`).
 - **Beta 4 (decided 2026-09-25, released 2026-09-27):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
@@ -62,7 +65,8 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ## Settings (Universalis-style toggles)
 
-- **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
+- **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25). Under *Ambrosianus* the UI names only the offices that exist (e.g. *Completorium Ambrosianum*), never implying the full office (decided 2026-10-01).
+- **App icon:** the original or an alternative icon (added 2026-10-01; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`).
   - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.

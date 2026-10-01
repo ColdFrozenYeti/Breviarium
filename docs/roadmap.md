@@ -19,8 +19,9 @@ can be checked that way, and whatever it lacks cannot.
 | **Beta 3** | **Matins**: the three nocturns, lessons and responsories, the *Te Deum*, and the 1960 rules for shortening Matins. **The new app icon**, designed by the user (specs in [`icon-spec.md`](icon-spec.md)). **The title block's commemoration line** (*Commemoratio ad Laudes tantum: …*), carried over from Beta 2. | Yes | Nothing |
 | **Beta 4** | **The Little Office of Our Lady** (Roman), **the Office of the Dead**, and **the Martyrology** as an "hour" of its own in the picker; a small dot of the day's **liturgical colour** in the calendar. | Yes, with English | Matins, for their Matins |
 | **Beta 5** | **The Dominican rite**: DO's *Ordo Prædicatorum - 1962*, with its own calendar, saints and commons. *Ritus: Dominicanus* becomes selectable. | Yes | Matins; the rite plug-in, built here for the first time on a rite that can be checked |
-| **Beta 6** | **The Ambrosian rite** (pre-conciliar), from an online text source still to be chosen. | **No** | The source; the rite plug-in, proven in Beta 5 |
-| **Beta 7** | **The Little Office of Our Lady** (Ambrosian). | No | Beta 6, and its source |
+| **Beta 6** | **Ambrosian offices** (revised 1 October 2026): Ambrosian Compline and the Ambrosian Office of the Dead, each a standalone, precisely named office, with the provenance and coverage model ([`ambrosian-sources.md`](ambrosian-sources.md)). | **No** | The sources' audit (edition, completeness, rights); the rite plug-in, proven in Beta 5 |
+| **Beta 7** | **The Ambrosian Little Office of Our Lady**, from the LaTeX source, once it is tied to an edition. | No | Beta 6's model, and the source audit |
+| Blocked | **The full Ambrosian office** (the 1957 *Breviarium Ambrosianum*, four volumes, with its calendar). | No | A complete primary source, which isn't available digitally |
 | **1.0** | A release pass: check every hour and rite on the phone, verify landscape, add hyphenation at the largest text size, then freeze. | | Everything above |
 | After 1.0 | Possible: the Monastic office (DO's *Monastic - 1963*), and votive offices where the 1960 rubrics allow them. | Yes | |
 
@@ -59,7 +60,12 @@ can be checked that way, and whatever it lacks cannot.
   (579 Latin files), but it reads the Roman psalter files, choosing `…OP` sections where
   they exist, and DO runs it through the Roman engine with about 30 Dominican branches.
   See [`Beta_5_plan.md`](Beta_5_plan.md).
-- **Beta 6:** which source and edition, and in what form. The source's licence must let
-  us bundle its text, as DO's MIT licence does.
+- **Beta 6:** answered in part by the user's research (1 October 2026,
+  [`ambrosian-sources.md`](ambrosian-sources.md)). There is no complete pre-conciliar
+  Ambrosian breviary online. Three partial sources exist: Compline (a typeset PDF), the
+  Office of the Dead (inside a book with the Mass of the Dead; it needs OCR) and the Little
+  Office (LaTeX). Each one's edition, completeness and redistribution rights are still to
+  be confirmed. The repository is public, so no source is committed until its rights are
+  clear.
 - **Beta 7:** whether the Ambrosian source includes the Little Office, or it needs a
   second source.
