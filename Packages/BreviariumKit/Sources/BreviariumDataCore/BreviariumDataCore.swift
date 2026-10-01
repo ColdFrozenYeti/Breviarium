@@ -12,7 +12,11 @@ public enum BreviariumDataPipeline {
     /// content (`Martyrologium`, `Regula`, `Necrologium`, `Appendix`); see `do-format.md`.
     /// Beta 4 adds `Martyrologium1960`, the 1960 Martyrology (Latin only, decision 3 of
     /// `docs/Beta_4_plan.md`).
-    public static let latinTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium", "Martyrologium1960"]
+    public static let latinTopLevelFolders: Set<String> = [
+        "Tempora", "Sancti", "Commune", "Psalterium", "Martyrologium1960",
+        // Beta 5: the Dominican office (`docs/rubrics-op1962.md` §2).
+        "TemporaOP", "SanctiOP", "CommuneOP", "Regula",
+    ]
 
     /// `Latin-Bea/` contains only a `Psalterium/` overlay (`do-format.md`'s Psalter
     /// option finding).
@@ -21,7 +25,7 @@ public enum BreviariumDataPipeline {
     /// `English/` mirrors `Latin/`'s own top-level layout exactly (confirmed: `Tempora`,
     /// `Sancti`, `Commune`, `Psalterium` all present, plus the same excluded
     /// Monastic/Cistercian/Dominican siblings and non-office folders) — same subset.
-    public static let englishTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium"]
+    public static let englishTopLevelFolders: Set<String> = ["Tempora", "Sancti", "Commune", "Psalterium", "TemporaOP", "Regula"]
 
     /// `Ordinarium/` (the hour skeletons `HourAssembler` reads, e.g. `Vespera.txt`) sits
     /// directly under `web/www/horas`, a sibling of `Latin`/`Latin-Bea`/`English` rather
@@ -40,7 +44,7 @@ public enum BreviariumDataPipeline {
             languageRoot: horasRoot.appendingPathComponent("Latin"),
             topLevelFolders: latinTopLevelFolders,
             applyLatinOrthography: true
-        )
+        ).filter(Self.isWanted)
         latin += try OfficeCorpusWalker.referencedSiblings(
             languageRoot: horasRoot.appendingPathComponent("Latin"), of: latin, applyLatinOrthography: true
         )
@@ -56,7 +60,7 @@ public enum BreviariumDataPipeline {
             languageRoot: horasRoot.appendingPathComponent("English"),
             topLevelFolders: englishTopLevelFolders,
             applyLatinOrthography: false
-        )
+        ).filter(Self.isWanted)
         english += try OfficeCorpusWalker.referencedSiblings(
             languageRoot: horasRoot.appendingPathComponent("English"), of: english, applyLatinOrthography: false
         )
@@ -64,6 +68,7 @@ public enum BreviariumDataPipeline {
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
         )
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
+        let calendarOP = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot, rite: .dominicanus)
         var transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))
         // The Scripture transfer tables (`Tabulae/Stransfer`, DO's `initiarule`), kept in the
         // same map under an `S:` prefix: `SanctoralCalendar.scriptureTransfer`.
@@ -74,7 +79,14 @@ public enum BreviariumDataPipeline {
 
         return DataBundle(
             latin: latin, latinBea: latinBea, english: english, calendar: calendar,
-            transferTable: transferTable, temporaRedirect: temporaRedirect
+            transferTable: transferTable, temporaRedirect: temporaRedirect, calendarOP: calendarOP
         )
+    }
+
+    /// Of `Regula/`, only the Dominican Prime's Rule of St Augustine
+    /// (`monastic.pl:624`); the Benedictine Rule's daily readings belong to the Monastic
+    /// office, which this app doesn't have.
+    static func isWanted(_ file: RawOfficeFile) -> Bool {
+        !file.path.hasPrefix("Regula/") || file.path.hasPrefix("Regula/OrdoPraedicatorum")
     }
 }

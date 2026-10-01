@@ -14,6 +14,9 @@ public protocol OfficeCorpus: Sendable {
     /// of its own at all. Carries its own raw, unevaluated condition (see
     /// `BaseFileReference`) when the inclusion line is itself conditionally gated.
     func baseFile(path: String) -> BaseFileReference?
+
+    /// Whether the file at `path` exists (Beta 5: `Rite.path`, DO's `checklatinfile`).
+    func fileExists(path: String) -> Bool
 }
 
 /// A simple in-memory `OfficeCorpus`, backing both `BreviariumKit`'s loaded bundle and
@@ -31,6 +34,10 @@ public struct InMemoryOfficeCorpus: OfficeCorpus {
 
     public func baseFile(path: String) -> BaseFileReference? {
         filesByPath[Self.normalize(path)]?.baseFile
+    }
+
+    public func fileExists(path: String) -> Bool {
+        filesByPath[Self.normalize(path)] != nil
     }
 
     /// `@` references never carry a `.txt` extension, but a `RawOfficeFile.path` — its

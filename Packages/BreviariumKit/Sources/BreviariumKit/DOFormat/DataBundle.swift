@@ -51,6 +51,9 @@ public struct DataBundle: Codable, Sendable {
     /// computing (or transfer-overriding) the ordinary week-numbered path, for every hour
     /// of the day, not just Vespers.
     public var temporaRedirect: [String: String]
+    /// Beta 5: the Dominican calendar, `Kalendaria/OP1962.txt` flattened over the 1960
+    /// chain (`docs/rubrics-op1962.md` §1). `nil` in bundles made before Beta 5.
+    public var calendarOP: [String: String]?
 
     public init(
         formatVersion: Int = breviariumKitDataFormatVersion,
@@ -59,7 +62,8 @@ public struct DataBundle: Codable, Sendable {
         english: [RawOfficeFile],
         calendar: [String: String],
         transferTable: [String: [String: String]] = [:],
-        temporaRedirect: [String: String] = [:]
+        temporaRedirect: [String: String] = [:],
+        calendarOP: [String: String]? = nil
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
@@ -68,6 +72,7 @@ public struct DataBundle: Codable, Sendable {
         self.calendar = calendar
         self.transferTable = transferTable
         self.temporaRedirect = temporaRedirect
+        self.calendarOP = calendarOP
     }
 
     /// The Latin corpus `SectionResolver` should read from, for one psalter
@@ -94,8 +99,19 @@ public struct DataBundle: Codable, Sendable {
     /// (its initialiser defaults it to empty), which changed the rendered Vespers on 262
     /// dates in 2025-2040 relative to what the oracle tests verify -- Holy Saturday,
     /// weeks of Paschaltide, late June, among others.
-    public func makeSanctoralCalendar() -> SanctoralCalendar {
-        SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
+    public func makeSanctoralCalendar(rite: Rite = .romanus) -> SanctoralCalendar {
+        switch rite {
+        case .romanus:
+            return SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
+        case .dominicanus:
+            // The 1960 transfer tables (`data.txt`: transfer `1960`) and no Scripture
+            // transfers (`stransfer` `XXXX`).
+            return SanctoralCalendar(
+                entries: calendarOP ?? calendar,
+                transferTable: transferTable.filter { !$0.key.hasPrefix("S:") },
+                temporaRedirect: temporaRedirect
+            )
+        }
     }
 
     /// The English corpus: DO's English tree layered over plain Latin, section by
@@ -139,5 +155,9 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
             if let baseFile = layer.baseFile(path: path) { return baseFile }
         }
         return nil
+    }
+
+    public func fileExists(path: String) -> Bool {
+        layers.contains { $0.fileExists(path: path) }
     }
 }
