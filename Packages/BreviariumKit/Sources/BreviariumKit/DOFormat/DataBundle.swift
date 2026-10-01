@@ -105,11 +105,13 @@ public struct DataBundle: Codable, Sendable {
             return SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
         case .dominicanus:
             // The 1960 transfer tables (`data.txt`: transfer `1960`) and no Scripture
-            // transfers (`stransfer` `XXXX`).
+            // transfers (`stransfer` `XXXX`). No `Generale` redirect either: DO looks
+            // them up by the rite's own path (`TemporaOP/Quad6-0`, `horascommon.pl:141-147`),
+            // and the table has none for the Dominican folders.
             return SanctoralCalendar(
                 entries: calendarOP ?? calendar,
                 transferTable: transferTable.filter { !$0.key.hasPrefix("S:") },
-                temporaRedirect: temporaRedirect
+                temporaRedirect: [:]
             )
         }
     }
@@ -124,7 +126,33 @@ public struct DataBundle: Codable, Sendable {
     /// does in DO's own English column. The base is plain `Latin/` whichever psalter
     /// is chosen (`$baselang = 'Latin'`); there is no English Bea tree.
     public func makeEnglishCorpus() -> OfficeCorpus {
-        LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: english), InMemoryOfficeCorpus(files: latin)])
+        LayeredOfficeCorpus(layers: [OldHymnAliasingCorpus(base: InMemoryOfficeCorpus(files: english)), InMemoryOfficeCorpus(files: latin)])
+    }
+}
+
+/// `SetupString.pl:613-619`: in a language other than Latin, a file's `[Hymnus X]` also
+/// answers for `[HymnusM X]` when the file has no `[HymnusM X]` of its own, so the
+/// translation stands in for the older Latin text the Dominican office reads
+/// (`SectionResolver.oldHymnSection`) rather than the Latin showing through.
+public struct OldHymnAliasingCorpus: OfficeCorpus {
+    public var base: OfficeCorpus
+
+    public init(base: OfficeCorpus) {
+        self.base = base
+    }
+
+    public func rawSections(path: String, name: String) -> [RawSection] {
+        let own = base.rawSections(path: path, name: name)
+        guard own.isEmpty, name.hasPrefix("HymnusM ") else { return own }
+        return base.rawSections(path: path, name: "Hymnus " + name.dropFirst("HymnusM ".count))
+    }
+
+    public func baseFile(path: String) -> BaseFileReference? {
+        base.baseFile(path: path)
+    }
+
+    public func fileExists(path: String) -> Bool {
+        base.fileExists(path: path)
     }
 }
 

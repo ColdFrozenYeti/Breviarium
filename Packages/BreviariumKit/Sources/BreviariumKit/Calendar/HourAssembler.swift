@@ -2819,7 +2819,8 @@ public struct HourAssembler {
         // (`specials/hymni.pl:73-78`'s own separate `Hymnus major` branch) — two
         // different ordinary-time defaults sharing the same season detection.
         let capitulumOrVersumPrefix = seasonPrefix ?? (dayOfWeek == 0 ? "Dominica" : "Feria")
-        let hymnusPrefix = seasonPrefix ?? "Day\(dayOfWeek)"
+        // The Dominican office's is the Sunday's, save on Saturday (`horascommon.pl:2312`).
+        let hymnusPrefix = seasonPrefix ?? (context.rite == .dominicanus && dayOfWeek != 6 ? "Day0" : "Day\(dayOfWeek)")
 
         if section == "Capitulum Laudes" {
             let name = "\(capitulumOrVersumPrefix) Vespera"

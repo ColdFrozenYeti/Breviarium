@@ -191,3 +191,4 @@ from the Roman `Commune/C9` (§2). Its three hours are the Roman ones, with any
 | Date | Hour | What DO shows | Why it looks wrong |
 |---|---|---|---|
 | 13 February (St Catherine de' Ricci) | Lauds, collect | The common *Indulgéntiam… beáta N. Virgo et Martyr*, English likewise | The name is the placeholder "N.", and she was not a martyr |
+| Lent (Compline) | Responsory | none (`capitulis.pl:171-175` asks for `Responsory CompletoriumOP`, the file's section is `Responsory Completorium OP Quad`) | The Dominican Lenten responsory *In pace in idipsum* is never shown |

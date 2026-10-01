@@ -51,6 +51,7 @@ public struct SectionResolver {
 
     /// Resolves one section to its final text.
     public func resolve(path: String, section: String) -> String {
+        let section = oldHymnSection(path: path, section: section)
         // `horas.pl:117`: a line ending in `~` runs on into the next one as DO shows it
         // (Pent13-0's `[Ant 2]`, "Cum transíret ~" / "Iesus * quoddam castéllum…",
         // with a rubric-conditional alternative between them).
@@ -93,7 +94,18 @@ public struct SectionResolver {
     }
 
     public func sectionExists(path: String, section: String) -> Bool {
-        winningVariant(path: path, section: section) != nil
+        winningVariant(path: path, section: oldHymnSection(path: path, section: section)) != nil
+    }
+
+    /// `specials.pl:520-530`, `tryoldhymn`: in the Dominican rite (as in the Monastic and
+    /// 1570 ones) a hymn is read from the older text, `Hymnus… ` with an `M` after its
+    /// first word (`HymnusM Vespera`), when the file has one.
+    func oldHymnSection(path: String, section: String) -> String {
+        guard context.rite == .dominicanus, section.hasPrefix("Hymnus") else { return section }
+        let firstWord = section.prefix { $0 != " " }
+        guard !firstWord.hasSuffix("M") else { return section }
+        let old = String(firstWord) + "M" + String(section.dropFirst(firstWord.count))
+        return winningVariant(path: path, section: old) != nil ? old : section
     }
 
     /// Follows `path`'s `baseFile` chain to the first file (possibly `path` itself)
@@ -157,7 +169,19 @@ public struct SectionResolver {
     /// exception, the Feria/Sabbato/Vigilia/octave exclusions in `Concurrence` and
     /// `Commemorations`) depends on callers using this instead of a raw `resolve(path:
     /// section: "Rank")`.
-    public func resolveRank(path: String) -> String {
+    public func resolveRank(path: String, depth: Int = 0) -> String {
+        // `SetupString.pl:708-711`: a file's sections are built whole, its `[Officium]`
+        // written into its `[Rank]`, before another file includes them. So a `[Rank]`
+        // that is only `@Other/File` (the Dominican `TemporaOP/Pasc0-3`'s
+        // `@Tempora/Pasc0-3`) brings that file's title, unless this file names its own.
+        if depth < Self.maxInclusionDepth, !sectionExists(path: path, section: "Officium"),
+            let variant = winningVariant(path: path, section: "Rank"),
+            let only = variant.body.first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }),
+            variant.body.filter({ !$0.trimmingCharacters(in: .whitespaces).isEmpty }).count == 1,
+            let match = only.trimmingCharacters(in: .whitespaces).wholeMatch(of: /@([^:\s]+)(?::Rank)?/)
+        {
+            return resolveRank(path: String(match.1), depth: depth + 1)
+        }
         let rank = resolve(path: path, section: "Rank")
         // The real Perl's own `if (exists($sections{'Officium'}))` reads an
         // already-chain-resolved section hash, so a pure `@`-inclusion redirect file
