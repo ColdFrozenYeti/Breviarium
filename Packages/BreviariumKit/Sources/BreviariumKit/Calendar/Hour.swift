@@ -107,6 +107,8 @@ public struct Section: Equatable, Sendable {
         case invitatorium, nocturnusI, nocturnusII, nocturnusIII, adNocturnum, teDeum
         // Beta 4: the Martyrology, an "hour" of its own.
         case martyrologium
+        // Beta 5: the Dominican Prime's reading, the Rule of St Augustine or the Gospel.
+        case regulaVelEvangelium
     }
 
     public var kind: Kind

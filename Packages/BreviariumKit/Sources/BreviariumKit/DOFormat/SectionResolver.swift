@@ -22,6 +22,9 @@ public struct SectionResolver {
     /// literal spelling (`"Deus in adjutorium"`, with a `j` — English text is never
     /// touched by that normalisation pass).
     public var isEnglish: Bool
+    /// Beta 5: resolving a Gospel that DO loads from the Mass (`lectioE`'s `%missa`), whose
+    /// references it looks up in the Mass's tree first (`missaLocation`).
+    public var missaContext = false
 
     /// Where `$Name` macros resolve from (`do-format.md`).
     public static let prayersPath = "Psalterium/Common/Prayers.txt"
@@ -141,7 +144,10 @@ public struct SectionResolver {
             // `checklatinfile` (`SetupString.pl:824-844`): a Monastic or Dominican file the
             // bundle doesn't have falls back to the Roman one. `Tempora/Pent06-1`'s
             // `@TemporaM/Pent01-3:Responsory2` reads `Tempora/Pent01-3`.
-            if depth == 0, let match = path.firstMatch(of: /^(Sancti|Tempora|Commune)(?:M|OP)\//) {
+            // Only for a file that is missing, not for a section missing from a file that
+            // exists: `TemporaOP/Pasc3-1` has no `[Officium]`, and DO doesn't read the Roman
+            // file's ("De VI die infra Octavam S. Ioseph", 27 April 2026).
+            if depth == 0, !corpus.fileExists(path: path), let match = path.firstMatch(of: /^(Sancti|Tempora|Commune)(?:M|OP)\//) {
                 let roman = String(match.1) + "/" + path[match.range.upperBound...]
                 if !corpus.rawSections(path: roman, name: section).isEmpty || corpus.baseFile(path: roman) != nil {
                     return resolvingBaseChain(from: roman, section: section, depth: depth + 1)
@@ -150,6 +156,21 @@ public struct SectionResolver {
             return path
         }
         return resolvingBaseChain(from: base.file, section: section, depth: depth + 1)
+    }
+
+    /// `SetupString.pl:556-626`: where DO reads a file named in the Mass's context. A
+    /// numbered Common (`C4b`) always comes from the office's tree; any other file from the
+    /// Mass's when it is there. A translation the Mass's tree lacks is layered over the
+    /// Latin Mass file (its whole-file reference included: `Sancti/05-11r`'s
+    /// `@Sancti/05-01`, 11 May), so the Mass's tree still wins when its Latin exists. Only
+    /// a file the Mass's tree has in no language is read from the office's. The Common
+    /// C10a's `@Tempora/Adv3-3` is the Ember Wednesday Mass's Gospel (25 March); C4b's
+    /// `@Commune/Coronatio` is the Mass Common's, whose English the office's tree lacks
+    /// (29 June).
+    public func missaLocation(_ path: String) -> String {
+        let bare = path.hasPrefix("missa/") ? String(path.dropFirst("missa/".count)) : path
+        if bare.range(of: #"C\d"#, options: .regularExpression) != nil { return bare }
+        return corpus.fileExists(path: "missa/" + bare) ? "missa/" + bare : bare
     }
 
     private static func baseFileApplies(_ base: BaseFileReference, context: ConditionalContext) -> Bool {
@@ -294,7 +315,8 @@ public struct SectionResolver {
             if line.first == "@", let inclusion = parseInclusion(line) {
                 // As for `$` lines below: the header may carry the I spelling.
                 var section = inclusion.section
-                let path = paschalInclusionPath(inclusion.path, section: section, callerPath: callerPath)
+                var path = paschalInclusionPath(inclusion.path, section: section, callerPath: callerPath)
+                if missaContext { path = missaLocation(path) }
                 if !sectionExists(path: path, section: section) {
                     let iSpelling = section.replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
                     if sectionExists(path: path, section: iSpelling) { section = iSpelling }

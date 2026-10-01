@@ -67,6 +67,10 @@ public enum BreviariumDataPipeline {
         english += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
         )
+        // Beta 5: the Mass Gospels for the Dominican Prime (`docs/rubrics-op1962.md` §4).
+        let missaRoot = checkoutRoot.appendingPathComponent("web/www/missa")
+        latin += try OfficeCorpusWalker.walkMissaGospels(languageRoot: missaRoot.appendingPathComponent("Latin"), applyLatinOrthography: true)
+        english += try OfficeCorpusWalker.walkMissaGospels(languageRoot: missaRoot.appendingPathComponent("English"), applyLatinOrthography: false)
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
         let calendarOP = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot, rite: .dominicanus)
         var transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))

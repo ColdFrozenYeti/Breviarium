@@ -97,4 +97,34 @@ public enum OfficeCorpusWalker {
         }
         return added.sorted { $0.path < $1.path }
     }
+
+    /// Beta 5: the Mass Gospels the Dominican Prime reads on feasts (`monastic.pl:534-590`,
+    /// `lectioE`), from DO's `missa/<Language>/{Tempora,Sancti,Commune}` (its `Commune` has
+    /// only `Coronatio` and `Propaganda`; the numbered Commons are read from the office's
+    /// tree). Only the `[Evangelium…]` sections are kept, under a `missa/` path prefix
+    /// (`missa/Sancti/02-06`). A reference inside them points into the Mass's tree when
+    /// that file exists there; `SectionResolver.missaLocation` decides the rest when the
+    /// Gospel is read.
+    public static func walkMissaGospels(languageRoot: URL, applyLatinOrthography: Bool) throws -> [RawOfficeFile] {
+        let walked = try walk(languageRoot: languageRoot, topLevelFolders: ["Tempora", "Sancti", "Commune"], applyLatinOrthography: applyLatinOrthography)
+        let missaPaths = Set(walked.map(\.path))
+        func retarget(_ path: String) -> String {
+            missaPaths.contains(path) && !path.hasPrefix("Commune") ? "missa/" + path : path
+        }
+        let reference = /^@([^:\n]+)/
+        return walked.map { file in
+            let sections = file.sections.filter { $0.name.hasPrefix("Evangelium") }.map { section in
+                var section = section
+                section.body = section.body.map { line in
+                    guard let match = line.firstMatch(of: reference) else { return line }
+                    return "@" + retarget(String(match.1)) + line[match.range.upperBound...]
+                }
+                return section
+            }
+            // Every file is kept, with no sections if it has no Gospel: whether it exists
+            // decides which tree DO reads (`SectionResolver.missaContext`).
+            let base = file.baseFile.map { BaseFileReference(file: retarget($0.file), condition: $0.condition) }
+            return RawOfficeFile(path: "missa/" + file.path, sections: sections, baseFile: base)
+        }
+    }
 }

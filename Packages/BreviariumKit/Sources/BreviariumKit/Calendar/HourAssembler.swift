@@ -441,6 +441,16 @@ public struct HourAssembler {
                 if let pretiosa = assemblePretiosa(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver) {
                     sections.append(pretiosa)
                 }
+                // The Dominican Prime has no "De Officio Capituli" heading (it is `(rubrica
+                // 1960)` in the skeleton), so its lines follow the Pretiosa in this group.
+                let units = Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)
+                if !units.isEmpty {
+                    if let last = sections.last, last.kind == .officiumCapituli {
+                        sections[sections.count - 1].units.append(contentsOf: units)
+                    } else {
+                        sections.append(Section(kind: .officiumCapituli, units: units))
+                    }
+                }
             case "De Officio Capituli":
                 let units = Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)
                 if let last = sections.last, last.kind == .officiumCapituli {
@@ -448,6 +458,10 @@ public struct HourAssembler {
                 } else {
                     sections.append(Section(kind: .officiumCapituli, units: units))
                 }
+            case "Regula vel Evangelium":
+                sections.append(assembleRegulaVelEvangelium(
+                    winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                ))
             case "Lectio brevis" where hour == .prima:
                 sections.append(assemblePrimeLectio(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
             case "Capitulum Responsorium Versus", "Capitulum Versus":
@@ -771,7 +785,18 @@ public struct HourAssembler {
         // Vespers' own collect and its "Per eúndem..." ending. Previously rendered as
         // plain prose with the leading "!" shown literally, since this function (unlike
         // `unitsFromLines`) never checked `DOMarkers.isRubricLine`.
+        // A line wholly in `/:…:/` small print is a rubric too, as in `unitsFromLines`: the
+        // Dominican Holy Thursday's "Non dicitur «Qui tecum,» …" after the collect.
+        func smallPrint(_ line: String) -> String? {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("/:"), trimmed.hasSuffix(":/"), !trimmed.dropFirst(2).contains("/:") else { return nil }
+            return String(trimmed.dropFirst(2).dropLast(2)).replacingOccurrences(of: "«", with: "").replacingOccurrences(of: "»", with: "")
+                .trimmingCharacters(in: .whitespaces)
+        }
         return latinLines.enumerated().map { index, line in
+            if let rubric = smallPrint(line) {
+                return .rubric(rubric, english: (paired?[index]).map { smallPrint($0) ?? $0 })
+            }
             if DOMarkers.isRubricLine(line) {
                 return .rubric(DOMarkers.stripRubricMarkers(line), english: (paired?[index]).map(DOMarkers.stripRubricMarkers))
             }
@@ -1590,6 +1615,13 @@ public struct HourAssembler {
         guard let path = communeFallbackPath(reference, resolver: resolver) else { return nil }
         guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil, path.hasPrefix("Commune") else { return path }
         let paschalPath = "\(path)p"
+        // `horascommon.pl:1496-1499` looks for the file in the rite's own folder
+        // (`subdirname`), with no Roman fallback: the Dominican `CommuneOP` has no Paschal
+        // Commons, so its Commons keep their ordinary form (29 April 2026, the Gospel of C2).
+        if resolver.context.rite == .dominicanus {
+            let name = path.split(separator: "/").last.map(String.init) ?? path
+            return resolver.corpus.fileExists(path: "CommuneOP/\(name)p") ? "CommuneOP/\(name)p" : path
+        }
         // `C3ap` is a stub (`@Commune/C3p` and its own `[Oratio]`), with no `[Officium]`.
         return resolver.sectionExists(path: paschalPath, section: "Officium") || resolver.sectionExists(path: paschalPath, section: "Oratio")
             ? paschalPath : path

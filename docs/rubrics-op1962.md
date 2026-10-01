@@ -125,6 +125,26 @@ Dominican version.
     with its blessing.
 
   *Tu autem* and *Finita lectione* follow.
+  - DO decides "feria" from the day's name *with its rank* (`$dayname[1]`,
+    `horascommon.pl:675`): *Sabbato post Cineres Feria major* reads the Rule.
+  - The Gospel comes from the office's `[Evangelium]`, else the Mass's (`missa/`, bundled
+    for this: only the `[Evangelium…]` sections, Latin and English, about 1.3 MB), else
+    the Commune's. In the Mass's context DO reads a numbered Common from the office's
+    tree and any other file from the Mass's when it is there (`SetupString.pl:556-626`,
+    `SectionResolver.missaLocation`).
+- The office of the chapter has no *De Officio Capituli* heading: it is `(rubrica 1960)`
+  in `Ordinarium/Prima.txt`, so its lines follow the *Pretiosa*, and `(nisi rubrica
+  praedicatorum) &Gloria` drops the Gloria after *Réspice*. The closing blessing is
+  omitted.
+- Several 1960 tests are by version name (`1955|1960`), so the Dominican "1962" takes
+  the older branch:
+  - the bracketed fourth psalm is said with Lauds II (`psalmi.pl:276-282`);
+  - Lauds II on vigils too (`horascommon.pl:1873`);
+  - proper antiphons at the little hours on lower feasts with *Antiphonas horas*
+    (`specials.pl:550`, `psalmi.pl:225`);
+  - the chapter of ferias, *Pacem et veritátem* (`specprima.pl:64-72`), with the
+    Advent ferias from 17 December at rank 4.9 (`SetupString.pl:740`).
+- In Advent the little hours take `[AdvOP]` (`psalmi.pl:170`).
 - The Martyrology (§6).
 
 **The little hours**
@@ -144,6 +164,11 @@ Dominican version.
 - `specials.pl:73`: at Easter, a versicle in place of the chapter.
 - `specials.pl:316`: the final antiphon is always the *Salve Regina*, under the heading
   *Antiphonæ finales*.
+
+**Paschal Commons**: DO takes a Common's Paschal form (`C2ap`) only when the file exists
+in the rite's own folder (`horascommon.pl:1496-1499`), and `CommuneOP` has none, so the
+Dominican Commons keep their ordinary form in Eastertide (29 April, St Peter Martyr's
+Gospel from `C2`).
 
 **The Little Office** (`horascommon.pl:1781-1783`)
 - OP has no `C12Q` (no Lenten form).
@@ -191,4 +216,5 @@ from the Roman `Commune/C9` (§2). Its three hours are the Roman ones, with any
 | Date | Hour | What DO shows | Why it looks wrong |
 |---|---|---|---|
 | 13 February (St Catherine de' Ricci) | Lauds, collect | The common *Indulgéntiam… beáta N. Virgo et Martyr*, English likewise | The name is the placeholder "N.", and she was not a martyr |
+| 7 October (the Holy Rosary) | Prime, Gospel | "Sancti/9-12:Evangelium is missing!" in the Latin; the English has Luke 1:26-38 | `missa/Latin/Sancti/10-07.txt:37` reads `@Sancti/9-12`, a typo for `09-12`. The app shows what DO shows for now |
 | Lent (Compline) | Responsory | none (`capitulis.pl:171-175` asks for `Responsory CompletoriumOP`, the file's section is `Responsory Completorium OP Quad`) | The Dominican Lenten responsory *In pace in idipsum* is never shown |

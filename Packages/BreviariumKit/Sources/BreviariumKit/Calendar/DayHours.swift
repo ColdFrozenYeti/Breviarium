@@ -193,6 +193,11 @@ extension HourAssembler {
             if name == "Adv" {
                 name = macroContext.weekName
                 if macroContext.officeDay > 16, macroContext.officeDay < 24, dayOfWeek > 0 { name = "Adv4\(dayOfWeek + 1)" }
+                // `:170`: the Dominican Advent antiphons, `[AdvOP]` (1 December 2026, *Veni et
+                // líbera nos*).
+                if resolver.context.rite == .dominicanus {
+                    name = name.replacingOccurrences(of: #"\d+$"#, with: "OP", options: .regularExpression)
+                }
             }
             if name == "Pasch", !macroContext.weekName.hasPrefix("Pasc7") || hour == .completorium { seasonIndex = 0 }
             if !name.isEmpty, seasonIndex >= 0, resolver.sectionExists(path: psalterPath, section: name) {
@@ -204,7 +209,10 @@ extension HourAssembler {
         if hour != .completorium {
             var proper = proprium("Ant \(hour.doName)", flag: false, winner: winner, resolver: resolver, weekName: macroContext.weekName)
                 .map { (path: $0.path, section: $0.section, line: Int?.none) }
-            if proper == nil, !Self.matches(rule, Self.psalmiExPsalterio), !(rank < 6 && dayOfWeek > 0) {
+            // `:225-228` limits these to I class feasts by the version name `1955|1960`, so not
+            // in the Dominican office ("1962"; 10 August 2026, *Lauréntius ingréssus est*).
+            let limited = resolver.context.rite != .dominicanus && rank < 6 && dayOfWeek > 0
+            if proper == nil, !Self.matches(rule, Self.psalmiExPsalterio), !limited {
                 proper = laudsAntiphonForHour(hour: hour, winner: winner, rule: rule, communeRule: communeRule, rank: rank, resolver: resolver, weekName: macroContext.weekName)
             }
             if let proper { antiphonSource = proper }
@@ -234,8 +242,13 @@ extension HourAssembler {
 
         var psalms = psalmsLine.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         if hour == .prima {
-            // `:292-299`: 1960 drops Prime's bracketed psalm.
-            psalms = psalms.filter { !$0.hasPrefix("[") }
+            // `:276-282`: 1960 drops Prime's bracketed psalm. The test is by version name, so
+            // the Dominican office ("1962") says it with Lauds II (16 February 2026, Ps 46).
+            if resolver.context.rite == .dominicanus, laudesScheme(winner: winner, macroContext: macroContext) == 2 {
+                psalms = psalms.map { $0.replacingOccurrences(of: "[", with: "").replacingOccurrences(of: "]", with: "") }
+            } else {
+                psalms = psalms.filter { !$0.hasPrefix("[") }
+            }
             // `:122`: psalm 117 gives way to 53 with Lauds II, or by rule.
             if Self.matches(rule, "Prima=53") || laudesScheme(winner: winner, macroContext: macroContext) == 2 {
                 psalms = psalms.map { $0 == "117" ? "53" : $0 }
@@ -244,7 +257,7 @@ extension HourAssembler {
             // first psalm is 53.
             var feast = (Self.matches(rule, Self.psalmiDominica) || Self.matches(communeRule, Self.psalmiDominica))
                 && !Self.matches(rule, Self.psalmiExPsalterio) && !(rank < 6 && dayOfWeek > 0)
-            if rank < 6 { feast = false }
+            if rank < 6, resolver.context.rite != .dominicanus { feast = false }    // `/1955|1960/`, as above.
             if Self.matches(title, "Dominica"), !Self.matches(macroContext.weekName, "Nat|Pasc6") { feast = false }
             if feast, !psalms.isEmpty { psalms[0] = "53" }
             // `:309-323`: the Athanasian Creed, under 1960 only on Trinity Sunday.
@@ -285,7 +298,11 @@ extension HourAssembler {
     private func laudsAntiphonForHour(
         hour: CanonicalHour, winner: OccurrenceResult, rule: String, communeRule: String, rank: Double, resolver: SectionResolver, weekName: String
     ) -> (path: String, section: String, line: Int?)? {
-        guard Self.matches(rule, "Antiphonas horas") || Self.matches(communeRule, "Antiphonas horas"), rank >= 6 else { return nil }
+        // `specials.pl:550`: under 1960 only on I class feasts, by the version name, so not in
+        // the Dominican office ("1962").
+        guard Self.matches(rule, "Antiphonas horas") || Self.matches(communeRule, "Antiphonas horas"),
+            rank >= 6 || resolver.context.rite == .dominicanus
+        else { return nil }
         guard let location = proprium("Ant Laudes", flag: false, winner: winner, resolver: resolver, weekName: weekName) else { return nil }
         let count = resolver.resolve(path: location.path, section: location.section).split(separator: "\n")
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
@@ -463,13 +480,18 @@ extension HourAssembler {
         let gloria1Omitted = seasonWeekName.range(of: "Quad[56]", options: .regularExpression) != nil
             && !winner.winningPath.contains("Sancti") && !Self.matches(macroContext.winningRule, "Gloria responsory")
         var lines: [String] = []
+        // DO still has `&Gloria1` as a line when it adds the alleluias (`horas.pl:697-725`), so
+        // the Gloria's versicle doesn't start a "V. … R." pair there: the response after it
+        // is the first response with its alleluias, not "Allelúia, allelúia" (12 April 2026).
+        var gloriaLines = Set<Int>()
         for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line == "&Gloria" || line == "&Gloria1" {
                 // DO shows the omission (`horas.pl:303-311`), as for the psalms' Gloria.
                 guard !gloria1Omitted else { lines.append(english ? "!omit Glory be" : "!Gloria omittitur"); continue }
-                lines.append(contentsOf: resolver.resolve(path: SectionResolver.prayersPath, section: "Gloria1")
-                    .split(separator: "\n").map(String.init))
+                let gloria = resolver.resolve(path: SectionResolver.prayersPath, section: "Gloria1").split(separator: "\n").map(String.init)
+                gloriaLines.formUnion(lines.count..<(lines.count + gloria.count))
+                lines.append(contentsOf: gloria)
             } else if line.hasPrefix("&"), let macroContext = resolver.macroContext ?? Optional(macroContext),
                 let resolved = ScriptMacros.resolve(String(line.dropFirst()), context: macroContext, resolver: resolver, isEnglish: english)
             {
@@ -492,7 +514,7 @@ extension HourAssembler {
             let line = lines[index]
             if line.hasPrefix("R.br.") { inResponsory = true; rLines = 0; sawVersicle = false }
             if inResponsory {
-                if line.hasPrefix("V.") { sawVersicle = true }
+                if line.hasPrefix("V."), !gloriaLines.contains(index) { sawVersicle = true }
                 if line.hasPrefix("R."), !line.hasPrefix("R.br.") { rLines += 1 }
                 if sawVersicle, line.hasPrefix("R."), !line.hasPrefix("R.br.") {
                     lines[index] = "R. \(alleluiaDuplex)"
@@ -813,8 +835,12 @@ extension HourAssembler {
                 ) {
                     let texts = bothTexts(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
                     let firstLine = texts.latin.split(separator: "\n").first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                    if firstLine?.hasPrefix("V.") == true {
-                        func lines(_ text: String) -> [String] { text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) }
+                    // The Dominican Easter week's is "Allelúia." then "V. Hæc dies…" (11 April 2026).
+                    let hasVersicle = texts.latin.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("V.") }
+                    if firstLine?.hasPrefix("V.") == true || hasVersicle {
+                        func lines(_ text: String) -> [String] {
+                            text.split(separator: "\n", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+                        }
                         sections.append(Section(kind: .versus, units: Self.unitsFromLines(lines(texts.latin), english: texts.english.map(lines))))
                     } else {
                         sections.append(Section(kind: .versus, units: [
@@ -837,12 +863,18 @@ extension HourAssembler {
     /// Paschaltide), or by rule; Lauds I otherwise.
     func laudesScheme(winner: OccurrenceResult, macroContext: MacroContext) -> Int {
         let weekName = macroContext.weekName
+        let rite = context.rite
         let ember = isEmberDay(
             weekName: weekName, dayOfWeek: macroContext.dayOfWeek, month: macroContext.officeMonth, winningRankTitle: winner.winningRank.title
         )
         let penitential = (weekName.hasPrefix("Adv") && macroContext.dayOfWeek != 0) || weekName.contains("Quad") || (ember && !weekName.hasPrefix("Pasc"))
         let temporal = winner.winningPath.hasPrefix("Tempora") && !Self.matches(winner.winningRank.title, "(Beatæ|Sanctæ) Mariæ")
-        return (penitential && temporal) || Self.matches(macroContext.winningRule, "Laudes 2") ? 2 : 1
+        // `horascommon.pl:1873`: vigils too, except under 1955 and 1960 by the version name, so
+        // in the Dominican office ("1962"; the Vigil of Pentecost, 23 May 2026).
+        let vigil = winner.winningRank.title + ";;" + winner.winningRank.degreeLabel
+        let dominicanVigil = rite == .dominicanus && vigil.range(of: "vigil", options: .caseInsensitive) != nil
+            && !Self.matches(macroContext.winningRule, "Psalmi Dominica")
+        return (penitential && temporal) || Self.matches(macroContext.winningRule, "Laudes 2") || dominicanVigil ? 2 : 1
     }
 
     /// `specprima.pl:55-108`, `capitulum_prima`: under 1960 always the Sunday chapter,
@@ -854,7 +886,10 @@ extension HourAssembler {
     ) -> [Section] {
         let special = "Psalterium/Special/Prima Special"
         let deoGratias = bothTexts(path: SectionResolver.prayersPath, section: "Deo gratias", resolver: resolver, englishResolver: englishResolver)
-        let chapter = bothTexts(path: special, section: "Dominica", resolver: resolver, englishResolver: englishResolver)
+        let chapter = bothTexts(
+            path: special, section: Self.primeChapterKey(winner: winner, macroContext: macroContext, rite: resolver.context.rite),
+            resolver: resolver, englishResolver: englishResolver
+        )
         var units = Self.capitulumUnits(latin: chapter.latin, english: chapter.english, thanks: deoGratias)
 
         var key = Self.tempora(
@@ -889,6 +924,33 @@ extension HourAssembler {
         return [Section(kind: .capitulum, units: units)]
     }
 
+    /// `specprima.pl:64-72`: the chapter of Prime is `[Dominica]`'s, except on ferias and
+    /// vigils of a low rank outside Paschaltide, which take `[Feria]` (*Pacem et
+    /// veritátem*). The test excludes the 1960 rubrics by version name, so it applies only
+    /// to the Dominican office, whose version is "1962".
+    static func primeChapterKey(winner: OccurrenceResult, macroContext: MacroContext, rite: Rite) -> String {
+        let rank = winner.winningRank
+        let rankLine = rank.title + ";;" + rank.degreeLabel
+        guard rite == .dominicanus, macroContext.dayOfWeek > 0,
+            rankLine.range(of: "Feria|Vigilia", options: [.regularExpression, .caseInsensitive]) != nil,
+            rankLine.range(of: "Vigilia Epi", options: .caseInsensitive) == nil,
+            !rank.communeReference.contains("C10"), !winner.winningPath.contains("C10"),
+            Self.loadedRank(rank, day: macroContext.officeDay) < 3 || macroContext.weekName.contains("Quad6")
+                || winner.winningPath.contains("Quadp3-3"),
+            macroContext.weekName.range(of: "Pasc", options: .caseInsensitive) == nil
+        else { return "Dominica" }
+        return "Feria"
+    }
+
+    /// The rank as DO loads it (`SetupString.pl:740-741`, `officestring`): the Advent ferias
+    /// of the third and fourth weeks from 17 December are 4.9, not 2.1 (17 December 2026).
+    static func loadedRank(_ rank: OfficeRank, day: Int) -> Double {
+        guard day > 16, rank.numericPrecedence == 2.1,
+            (rank.title + ";;" + rank.degreeLabel).range(of: "Feria.*?(III|IV) Adv", options: [.regularExpression, .caseInsensitive]) != nil
+        else { return rank.numericPrecedence }
+        return 4.9
+    }
+
     /// `specials.pl:297-302`: the Martyrology itself is a separate "hour" in a later beta
     /// (decided 2026-09-24); the *Pretiosa* that DO says after it belongs to Prime and
     /// stays, as the start of "De Officio Capituli" (except in the Office of the Dead).
@@ -917,6 +979,151 @@ extension HourAssembler {
         units.append(contentsOf: Self.capitulumUnits(latin: lesson.latin, english: lesson.english))
         units.append(contentsOf: Self.unitsFromLines(lines(tuAutem.latin), english: tuAutem.english.map(lines)))
         return Section(kind: .lectioBrevis, units: units)
+    }
+
+    // MARK: - Dominican Prime
+
+    /// `monastic.pl:618-638`, `regula_vel_evangelium`: the Dominican Prime's reading, in
+    /// place of the short lesson. *Iube, domne*, then on feasts the Gospel of the day
+    /// (`lectioE`) after the *Divinum auxilium* blessing, or on ferias, vigils and octave
+    /// days the day's passage from the Rule of St Augustine after its own blessing; then
+    /// *Tu autem* and the Rule's *Finita lectione* (the commemoration of the Order's dead,
+    /// Psalm 116 and the collect *Actiónes nostras*).
+    func assembleRegulaVelEvangelium(
+        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+    ) -> Section {
+        let regula = "Regula/OrdoPraedicatorum"
+        func lines(_ text: String) -> [String] { text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) }
+        func part(_ latin: [String], _ english: [String]?) -> [Unit] { Self.unitsFromLines(latin, english: english) }
+        func macro(_ name: String, _ resolver: SectionResolver) -> [String] { lines(resolver.expandMacroLine("$" + name)) }
+
+        var units = part(macro("Jube domne", resolver), englishResolver.map { macro("Jube domne", $0) })
+        if Self.lectioERequired(winner: winner) {
+            func blessing(_ resolver: SectionResolver) -> [String] {
+                let first = lines(resolver.resolve(path: SectionResolver.prayersPath, section: "Divinum auxilium"))
+                    .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
+                return [first] + macro("Amen", resolver)
+            }
+            units += part(blessing(resolver), englishResolver.map(blessing))
+            let latin = primeGospel(winner: winner, resolver: resolver, macroContext: macroContext)
+            let english = englishResolver.map { primeGospel(winner: winner, resolver: $0, macroContext: macroContext) }
+            // The heading and its reference, then the text, each paired on its own.
+            units += part(Array(latin.prefix(2)), english.map { Array($0.prefix(2)) })
+            units += part(Array(latin.dropFirst(2)), english.map { Array($0.dropFirst(2)) })
+        } else {
+            func rule(_ resolver: SectionResolver) -> [String] {
+                lines(resolver.resolve(path: regula, section: "Benedictio")) + macro("Amen", resolver)
+            }
+            units += part(rule(resolver), englishResolver.map(rule))
+            let day = String(macroContext.dayOfWeek)
+            func reading(_ resolver: SectionResolver) -> [String] {
+                resolver.sectionExists(path: regula, section: day)
+                    ? ["v. " + resolver.resolve(path: regula, section: day).trimmingCharacters(in: .whitespacesAndNewlines)] : []
+            }
+            units += part(reading(resolver), englishResolver.map(reading))
+        }
+        units += part(macro("Tu autem", resolver), englishResolver.map { macro("Tu autem", $0) })
+
+        // `&psalm(116)` is set as a psalm, between the lines before and after it.
+        func finita(_ resolver: SectionResolver) -> (before: [String], after: [String]) {
+            let all = lines(resolver.resolve(path: regula, section: "Finita lectione"))
+            guard let index = all.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("&psalm(") }) else { return (all, []) }
+            return (Array(all[..<index]), Array(all[(index + 1)...]))
+        }
+        let latinFinita = finita(resolver)
+        let englishFinita = englishResolver.map(finita)
+        units += part(latinFinita.before, englishFinita?.before)
+        let (title, psalm) = psalmUnits(number: "116", resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
+        units.append(.psalmTitle(title, english: nil))
+        units += psalm
+        units += part(latinFinita.after, englishFinita?.after)
+        return Section(kind: .regulaVelEvangelium, units: units)
+    }
+
+    /// `monastic.pl:612-615`, `lectioE_required`: the Gospel is read unless the day is a
+    /// feria, a day within an octave or a vigil, except on Ash Wednesday, Holy Thursday,
+    /// Christmas Eve and All Souls.
+    static func lectioERequired(winner: OccurrenceResult) -> Bool {
+        // `$dayname[1]` is the title and the rank's name (`horascommon.pl:675`): "Sabbato post
+        // Cineres Feria major".
+        (winner.winningRank.title + " " + winner.winningRank.degreeLabel)
+            .range(of: "Feria|octavam|vigil|in albis", options: [.regularExpression, .caseInsensitive]) == nil
+            || winner.winningPath.range(of: "Quadp3-3|Quad6-4|12-24|11-02", options: .regularExpression) != nil
+    }
+
+    /// `monastic.pl:534-610`, `lectioE`, for the Dominican rite: the Gospel of the day from
+    /// the office's `[Evangelium]`, else its Mass (`missa/`), else its Commune; the
+    /// heading reduced to its last two words (*secúndum Matthǽum*), the reference, and
+    /// the text cut at the `¶` mark. Returned as DO's lines: heading, `!reference`, text.
+    func primeGospel(winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext) -> [String] {
+        var evangelium = "Evangelium"
+        if let match = macroContext.winningRule.firstMatch(of: /(?i)in 3 Nocturno Lectiones ex Commune in (\d+) loco/),
+            let place = Int(match.1), place > 1
+        {
+            evangelium += " in \(place) loco"
+        }
+        // The Mass's file, read as DO's `%missa` (`SectionResolver.missaLocation`). Its tree has
+        // no `M` or `OP` folders (`$win =~ s/(?:M|OP|Cist)//g`).
+        var missa = resolver
+        missa.missaContext = true
+        func missaFile(_ path: String) -> String {
+            missa.missaLocation(path.replacingOccurrences(of: #"M|OP|Cist"#, with: "", options: .regularExpression))
+        }
+        func body(_ resolver: SectionResolver, _ path: String, _ section: String) -> [String]? {
+            guard resolver.sectionExists(path: path, section: section) else { return nil }
+            return resolver.resolve(path: path, section: section).split(separator: "\n").map(String.init)
+        }
+
+        let office = winner.winningPath
+        let commune = winner.winningRank.communeReference.isEmpty ? nil
+            : Self.paschalCommuneFallbackPath(winner.winningRank.communeReference, weekName: macroContext.weekName, resolver: resolver)
+        var source: (resolver: SectionResolver, path: String, section: String)?
+        if resolver.sectionExists(path: office, section: "Evangelium") {
+            source = (resolver, office, "Evangelium")
+        } else if missa.sectionExists(path: missaFile(office), section: "Evangelium") {
+            source = (missa, missaFile(office), "Evangelium")
+        } else if let commune, resolver.sectionExists(path: commune, section: evangelium) {
+            source = (resolver, commune, evangelium)
+        } else if let commune, resolver.sectionExists(path: commune, section: "Evangelium") {
+            source = (resolver, commune, "Evangelium")
+        }
+        var gospel: [String] = []
+        // An office's `[Evangelium]` that is only a reference to another office (the
+        // Dominican Sundays after Easter, `@Tempora/Pasc2-0`) isn't resolved when DO loads
+        // the file; `lectioE` reads that office's own section, else its Mass.
+        if let source, !source.resolver.missaContext,
+            let first = source.resolver.unresolvedBody(path: source.path, section: source.section)?
+                .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }),
+            first.hasPrefix("@"), !first.contains("Commune")
+        {
+            let parts = first.dropFirst().split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+            let path = parts[0].isEmpty ? office : parts[0]
+            let section = parts.count > 1 && !parts[1].isEmpty ? parts[1].components(separatedBy: ":")[0] : "Evangelium"
+            gospel = body(resolver, path, section) ?? body(missa, missaFile(path), section) ?? []
+        } else if let source {
+            gospel = body(source.resolver, source.path, source.section) ?? []
+        }
+        gospel = gospel.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        if gospel.isEmpty {
+            gospel = body(resolver, office, "Evangelium") ?? body(missa, missaFile(office), "Evangelium")
+                ?? ["Sequéntia ++ sancti Evangélii secúndum /:...:/", "!...", "In illo témpore: /:...:/"]
+        }
+        guard gospel.count >= 2 else { return gospel }
+
+        // `$begin =~ s/.*\s+(\p{Letter}+.?)\s+(\p{Letter}+)\.?\s*$/\1 \2/m`: the heading's last
+        // two words.
+        var heading = gospel[0]
+        if let match = heading.firstMatch(of: /^.*\s+(\p{L}+.?)\s+(\p{L}+)\.?\s*$/) {
+            heading = "\(match.1) \(match.2)"
+        }
+        // DO's page drops the `_` block marks inside the joined text (Palm Sunday's Passion).
+        var text = gospel.dropFirst(2).filter { !$0.hasPrefix("!") && $0.trimmingCharacters(in: .whitespaces) != "_" }
+        guard !text.isEmpty else { return ["v. " + heading, gospel[1]] }
+        var first = text[text.startIndex]
+        if !first.hasPrefix("v. ") { first = "v. " + first }
+        if let cut = first.range(of: #"\s*¶"#, options: .regularExpression) { first = String(first[..<cut.lowerBound]) }
+        text[text.startIndex] = first
+        return ["v. " + heading, gospel[1], text.joined(separator: " ")]
     }
 
     // MARK: - Lauds
