@@ -775,7 +775,9 @@ extension HourAssembler {
         func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
         var lines = lines.map { $0.replacingOccurrences(of: #"&Gloria1?"#, with: "&Gloria1", options: .regularExpression) }
         if (lesson == 1 && has(matins.office, "(?:Adv1|Pasc0)-0")) || has(matins.rule, "requiem Gloria") { return lines }
-        let addsGloria = lesson % 3 == 0 || (lesson % 3 == 2 && teDeumRequired(lesson: lesson + 1, matins: matins))
+        // `:1501-1506`: not on the one before the last in the Dominican office.
+        let addsGloria = lesson % 3 == 0
+            || (lesson % 3 == 2 && teDeumRequired(lesson: lesson + 1, matins: matins) && context.rite != .dominicanus)
         if addsGloria {
             if !lines.contains(where: { $0.contains("&Gloria") }) {
                 while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty || last.trimmingCharacters(in: .whitespaces) == "_" {
@@ -1033,7 +1035,8 @@ extension HourAssembler {
             let english = englishResolver.map { $0.expandMacroLine("$Tu autem").split(separator: "\n").map(String.init) }
             units.append(contentsOf: Self.unitsFromLines(latin, english: english))
         }
-        let isLast = teDeumRequired(lesson: lesson, matins: matins)
+        // `:1250`: the Dominican office says the responsory even when the *Te Deum* follows.
+        let isLast = teDeumRequired(lesson: lesson, matins: matins) && resolver.context.rite != .dominicanus
         if !isLast {
             let latin = responsoryLines(lesson, source: source, matins: matins, resolver: resolver)
             // The responsory is part of DO's lesson text, so its asides are unbracketed too.
@@ -1072,9 +1075,12 @@ extension HourAssembler {
         // monthday merge, not the file the lesson came from: Ss. John and Paul keep theirs
         // over the Scripture's); by rule, the occurring Scripture's; else the winner's own
         // before the lesson source's, then the Commune's.
-        if let own1960 = find(source.hashPath ?? matins.office, "\(name) 1960") {
+        // The 1960 tests are by the version name (`/1955|1960/`, `/1960/`), so not for the
+        // Dominican "1962": no `Responsory… 1960`, no "scriptura1960" and no Commune.
+        let roman1960 = resolver.context.rite != .dominicanus
+        if roman1960, let own1960 = find(source.hashPath ?? matins.office, "\(name) 1960") {
             found = own1960
-        } else if has(matins.rule, "Responsory Feria") || (has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
+        } else if has(matins.rule, "Responsory Feria") || (roman1960 && has(matins.rule, "scriptura1960") && find(matins.office, name) == nil) {
             found = find(matins.scriptura, name) ?? find(matins.scriptura, "\(name) 1960")
         } else if matins.office.contains("C9"), number == 9 {
             // The Office of the Dead as winner reads its ninth responsory from
@@ -1082,11 +1088,11 @@ extension HourAssembler {
             // clears the text, then `$na = 91`).
             found = find(matins.office, "Responsory91")
         } else {
-            found = find(matins.office, name) ?? find(source.responsoryPath, name) ?? find(matins.commune, name)
+            found = find(matins.office, name) ?? find(source.responsoryPath, name) ?? (roman1960 ? find(matins.commune, name) : nil)
         }
         if found == nil {
             let winnerName = matins.office.contains("C9") && number == 9 ? "Responsory91" : name
-            found = find(matins.office, winnerName) ?? find(matins.commune, name)
+            found = find(matins.office, winnerName) ?? (roman1960 ? find(matins.commune, name) : nil)
         }
         let text = found ?? ""
         // `process_inline_alleluias`: "(Allelúia.)" is kept, unbracketed, in Paschaltide and
