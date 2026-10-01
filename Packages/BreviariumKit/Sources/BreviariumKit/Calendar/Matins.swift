@@ -1092,7 +1092,8 @@ extension HourAssembler {
         }
         if found == nil {
             let winnerName = matins.office.contains("C9") && number == 9 ? "Responsory91" : name
-            found = find(matins.office, winnerName) ?? (roman1960 ? find(matins.commune, name) : nil)
+            // `:1305-1313`, for every rite: the winner's, then the Commune's.
+            found = find(matins.office, winnerName) ?? find(matins.commune, name)
         }
         let text = found ?? ""
         // `process_inline_alleluias`: "(Allelúia.)" is kept, unbracketed, in Paschaltide and
