@@ -1223,7 +1223,10 @@ extension HourAssembler {
             let psalmLines = lines(psalmSource.0, psalmSource.1, resolver)
             let antiphonLines = antiphonSource.map { lines($0.path, $0.section, resolver) } ?? []
             var result: [(antiphon: String, psalms: [String])] = []
-            for index in 0..<5 {
+            // `psalmi.pl:555-558`: a single Dominican antiphon covers all the psalms (Easter week,
+            // "…;;92;99;62;210;148").
+            let underOneAntiphon = resolver.context.rite == .dominicanus && antiphonLines.count == 1
+            for index in 0..<(underOneAntiphon ? 1 : 5) {
                 let dayLine = index < psalmLines.count ? psalmLines[index] : ""
                 let dayParts = dayLine.components(separatedBy: ";;")
                 var antiphon = dayParts.first ?? ""
@@ -1318,7 +1321,10 @@ extension HourAssembler {
         if hymnLocation == nil {
             var name = "Hymnus \(season("Hymnus major")) Laudes"
             let suffix = Self.monthdayTitleSuffix(office: winner.winningPath, day: day, month: month, year: year, tomorrow: false)
-            if name.contains("Day0"), Self.matches(weekName, "Epi[2-6]|Quadp") || Self.matches(suffix, "Novembris|Octobris") {
+            // Never in the Dominican office (`hymni.pl:110`): its Sundays keep *Ecce iam noctis*.
+            if name.contains("Day0"), resolver.context.rite != .dominicanus,
+                Self.matches(weekName, "Epi[2-6]|Quadp") || Self.matches(suffix, "Novembris|Octobris")
+            {
                 name += " hiemalis"
             }
             hymnLocation = (special, name)
@@ -1346,6 +1352,35 @@ extension HourAssembler {
             sections.append(Section(kind: .versus, units: Self.unitsFromLines(lines(texts.latin, english: false), english: texts.english.map { lines($0, english: true) })))
         }
         return sections
+    }
+
+    /// `getantvers('Versum', 0)` for the Dominican versicle before Lauds: the office's
+    /// `[Versum 0]` (or its Commune's), else the psalter's `[… Versum 0]` for the season
+    /// (then `1`, `3`, `2`), with Paschaltide's *allelúia*.
+    func versiculumAnteLaudes(
+        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+    ) -> (latin: [String], english: [String]?) {
+        let special = "Psalterium/Special/Major Special"
+        let weekName = macroContext.weekName
+        var location = proprium("Versum 0", flag: true, winner: winner, resolver: resolver, weekName: weekName)
+        if location == nil {
+            let prefix = Self.tempora(
+                caller: "getfrompsalterium major", weekName: weekName, dayOfWeek: macroContext.dayOfWeek, day: macroContext.officeDay,
+                officeTitle: winner.winningRank.title, rite: resolver.context.rite, hour: .laudes
+            )
+            location = ["0", "1", "3", "2"].lazy.map { (special, "\(prefix) Versum \($0)") }
+                .first { resolver.sectionExists(path: $0.0, section: $0.1) }
+        }
+        guard let location else { return ([], nil) }
+        let texts = bothTexts(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
+        // `replaceNdot`: the saint's name for "N." (*Ora pro nobis, beáte Hilárium*, 14 January).
+        func lines(_ text: String, english: Bool) -> [String] {
+            text.split(separator: "\n", omittingEmptySubsequences: false).map {
+                let line = Self.applyingSeasonalAlleluia(to: String($0), weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName)
+                return substituteName(in: line, office: winner.winningPath, resolver: english ? (englishResolver ?? resolver) : resolver)
+            }
+        }
+        return (lines(texts.latin, english: false), texts.english.map { lines($0, english: true) })
     }
 
     /// `horas.pl:508-568`, `canticum`, at Lauds: the Benedictus (canticle 231) with

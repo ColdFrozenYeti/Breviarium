@@ -205,7 +205,18 @@ public struct HourAssembler {
             switch group.name {
             case "Incipit":
                 guard !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Incipit", atMatins: hour == .matutinum) else { continue }
-                sections.append(Section(kind: .introductio, units: Self.unitsFromLines(group.lines, english: englishGroups[group.name]?.lines)))
+                var latinLines = group.lines
+                var englishLines = englishGroups[group.name]?.lines
+                // `horasscripts.pl:150-156`, `versiculum_ante_laudes`: the Dominican Lauds
+                // open with the office's `[Versum 0]` (`getantvers('Versum', 0)`).
+                if let index = latinLines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "&versiculum_ante_laudes" }) {
+                    let versum = versiculumAnteLaudes(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
+                    latinLines.replaceSubrange(index...index, with: versum.latin)
+                    if let englishIndex = englishLines?.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "&versiculum_ante_laudes" }) {
+                        englishLines?.replaceSubrange(englishIndex...englishIndex, with: versum.english ?? versum.latin)
+                    }
+                }
+                sections.append(Section(kind: .introductio, units: Self.unitsFromLines(latinLines, english: englishLines)))
             case "Psalmi" where hour == .laudes:
                 sections.append(assembleLaudsPsalmodia(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
             case "Capitulum Hymnus Versus" where hour == .laudes:
