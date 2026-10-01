@@ -254,7 +254,11 @@ public struct SectionResolver {
 
     private func resolveSection(path: String, section: String, depth: Int) -> String {
         guard let winner = winningVariant(path: path, section: section) else {
-            return "\(path):\(section) is missing!"    // Mirrors get_loadtime_inclusion's own message.
+            // Mirrors get_loadtime_inclusion's own message. The Dominican office shows nothing
+            // instead (decided 1 October 2026): a few of DO's Dominican references name a section
+            // that doesn't exist, and the app never shows an error or a guessed text
+            // (`docs/rubrics-op1962.md` §8; St Agnes's Matins, 21 January).
+            return context.rite == .dominicanus ? "" : "\(path):\(section) is missing!"
         }
         let lines = ConditionalLineProcessor.resolve(lines: winner.body, context: context)
         let text = lines.joined(separator: "\n")
@@ -327,7 +331,17 @@ public struct SectionResolver {
                 // hymn, `@Sancti/10-07:Hymnus Vespera:s/\@Psalterium.*//s`, drops the
                 // doxology that way.
                 if let subs = inclusion.substitutions, let winner = winningVariant(path: path, section: section) {
-                    let raw = ConditionalLineProcessor.resolve(lines: winner.body, context: context).joined(separator: "\n")
+                    var raw = ConditionalLineProcessor.resolve(lines: winner.body, context: context).joined(separator: "\n")
+                    // Beta 5, a DO data error corrected (decided 1 October 2026,
+                    // `docs/rubrics-op1962.md` §8): the Dominican Apostles' `[Ant Vespera 3]` is
+                    // `@:Ant Laudes:1 s/$/;;109;…/` on a section that is itself only a reference
+                    // (`@:Ant Vespera`), so DO substitutes into the reference and prints
+                    // "Commune/C1:Ant Vespera". The reference is resolved first here, giving the
+                    // intended *Hoc est præcéptum meum* (St Matthias, 24 February 2026).
+                    let meaningful = raw.split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                    if context.rite == .dominicanus, meaningful.count == 1, meaningful[0].hasPrefix("@") {
+                        raw = resolveInclusionsAndMacros(in: raw, depth: depth + 1, callerPath: path)
+                    }
                     let substituted = applySubstitutions(subs, to: raw)
                     resolvedLines.append(resolveInclusionsAndMacros(in: substituted, depth: depth + 1, callerPath: path))
                 } else {
