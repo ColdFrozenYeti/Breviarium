@@ -128,7 +128,15 @@ extension HourAssembler {
         func antiphon(_ resolver: SectionResolver, english: Bool) -> String {
             var text: String
             let proper = english ? (englishProper ?? proper) : proper
-            if let proper, resolver.sectionExists(path: proper.path, section: proper.section) {
+            let office = matins.office
+            // `specmatins.pl:55-62`: on Eastertide weekdays the Dominican invitatory is
+            // "Allelúia, allelúia, * Allelúia".
+            if resolver.context.rite == .dominicanus, matins.dayOfWeek > 0, office.contains("Pasc"),
+                office.range(of: "Pasc[07]|Pasc5-4", options: .regularExpression) == nil
+            {
+                let duplex = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia Duplex").split(separator: "\n").first.map(String.init) ?? ""
+                return duplex.replacingOccurrences(of: #"(\S+), (\S+)\."#, with: "$1, $2, * $1", options: .regularExpression)
+            } else if let proper, resolver.sectionExists(path: proper.path, section: proper.section) {
                 text = resolver.resolve(path: proper.path, section: proper.section).split(separator: "\n").first.map(String.init) ?? ""
             } else {
                 let lines = resolver.resolve(path: special, section: name).split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -151,11 +159,14 @@ extension HourAssembler {
             var text = body.joined(separator: "\n")
             let rule = matins.rule
             func has(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
-            if has(rule, "Invit2") {
+            // The Dominican Sundays take the shortened form too (`:101`).
+            if has(rule, "Invit2") || (resolver.context.rite == .dominicanus && matins.dayOfWeek == 0 && !has(rule, "Invit5")) {
                 if let range = text.range(of: #"(?m) \*.*$"#, options: .regularExpression) {
                     text.replaceSubrange(range, with: " ")
                 }
-            } else if has(matins.weekName, "Quad[56]"), matins.office.hasPrefix("Tempora"), !has(rule, "Gloria responsory|Invit6") {
+            } else if has(matins.weekName, "Quad[56]"), matins.office.hasPrefix("Tempora"), !has(rule, "Gloria responsory|Invit6"),
+                resolver.context.rite != .dominicanus
+            {
                 text = text.replacingOccurrences(of: "&Gloria", with: "&Gloria2")
                 if let range = text.range(of: #"(?m)^(v\.)\s*.* \^ (.)"#, options: .regularExpression) {
                     let match = String(text[range])
@@ -259,7 +270,11 @@ extension HourAssembler {
                 officeTitle: matins.winner.winningRank.title
             )
             var section = season.isEmpty ? "Day\(matins.dayOfWeek) Hymnus" : "Hymnus \(season)"
-            if section == "Day0 Hymnus" {
+            // `specmatins.pl:182-191`: every Dominican weekday takes Sunday's hymn, and never its
+            // winter form.
+            let dominican = resolver.context.rite == .dominicanus
+            if dominican, section.range(of: "^Day[1-6] Hymnus$", options: .regularExpression) != nil { section = "Day0 Hymnus" }
+            if section == "Day0 Hymnus", !dominican {
                 let monthday = Computus.monthday(day: matins.day, month: matins.month, year: matins.year, tomorrow: false) ?? ""
                 if matins.month < 4 || monthday.range(of: #"^1[0-9][0-9]\-"#, options: .regularExpression) != nil { section += "1" }
             }
@@ -612,7 +627,8 @@ extension HourAssembler {
                 let latin = expanded(["$rubrica Pater secreto", "$Pater noster Et"], resolver)
                 let english = englishResolver.map { expanded(["$rubrica Pater secreto", "$Pater noster Et"], $0) }
                 units.append(contentsOf: Self.pairedLines(latin, english))
-                if let absolution = latinBlessings.first {
+                // `:669`: no absolution in the Dominican office.
+                if let absolution = latinBlessings.first, resolver.context.rite != .dominicanus {
                     units.append(.versicleResponse(
                         versicle: absolution, response: amen(resolver), versicleEnglish: englishBlessings?.first,
                         responseEnglish: englishResolver.map { amen($0) }
@@ -693,7 +709,7 @@ extension HourAssembler {
             }
             blessings.insert(nocturn - 1 < absolutions.count ? absolutions[nocturn - 1] : "", at: 0)
         } else if let match = office.firstMatch(of: /(C1[02])/) {
-            let file = "Commune/\(match.1)"
+            let file = resolver.context.rite.adjusted("Commune/\(match.1)", latin: resolver.corpus)
             blessings = resolver.resolve(path: file, section: "Benedictio").split(separator: "\n").map(String.init).filter { !$0.isEmpty }
         } else {
             blessings = lines("Nocturn 3")
@@ -999,11 +1015,20 @@ extension HourAssembler {
             englishSource?.text = Self.unbracketingReferences(text.split(separator: "\n", omittingEmptySubsequences: false)
                 .map { Self.processingInlineAlleluias(String($0), paschal: matins.paschal) }.joined(separator: "\n"))
         }
+        // `:1243`: an office with its own `[In Finem Lectio]` (the Dominican Lent: "Hæc dicit
+        // Dóminus Deus: Convertímini ad me…", then *Deo grátias*) ends each lesson with it,
+        // in the lesson's text, and says no *Tu autem*.
+        let inFinem = resolver.sectionExists(path: matins.office, section: "In Finem Lectio")
+        if inFinem {
+            func unlabelled(_ text: String) -> String { text.replacingOccurrences(of: #"(?m)^R\. "#, with: "", options: .regularExpression) }
+            source.text = unlabelled(source.text)
+            if let text = englishSource?.text { englishSource?.text = unlabelled(text) }
+        }
         var units: [Unit] = [.psalmTitle("Lectio \(Self.romanNumeral(lesson))")]
         units.append(contentsOf: Self.lessonUnits(source.text, english: englishSource?.text))
 
         let limit = has(matins.rule, "Limit.*?Benedictio")
-        if !limit {
+        if !limit, !inFinem {
             let latin = resolver.expandMacroLine("$Tu autem").split(separator: "\n").map(String.init)
             let english = englishResolver.map { $0.expandMacroLine("$Tu autem").split(separator: "\n").map(String.init) }
             units.append(contentsOf: Self.unitsFromLines(latin, english: english))

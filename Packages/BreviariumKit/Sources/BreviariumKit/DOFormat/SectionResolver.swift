@@ -104,10 +104,10 @@ public struct SectionResolver {
     /// 1570 ones) a hymn is read from the older text, `Hymnus… ` with an `M` after its
     /// first word (`HymnusM Vespera`), when the file has one.
     func oldHymnSection(path: String, section: String) -> String {
-        guard context.rite == .dominicanus, section.hasPrefix("Hymnus") else { return section }
-        let firstWord = section.prefix { $0 != " " }
-        guard !firstWord.hasSuffix("M") else { return section }
-        let old = String(firstWord) + "M" + String(section.dropFirst(firstWord.count))
+        // `$name1 =~ s/Hymnus\S*/$&M/`: the first word starting "Hymnus", wherever it is
+        // (Matins' psalter hymn is `Day0 Hymnus` → `Day0 HymnusM`, *Víribus totis*).
+        guard context.rite == .dominicanus, let word = section.firstMatch(of: /Hymnus\S*/) else { return section }
+        let old = section.replacingCharacters(in: word.range, with: String(word.output) + "M")
         return winningVariant(path: path, section: old) != nil ? old : section
     }
 
