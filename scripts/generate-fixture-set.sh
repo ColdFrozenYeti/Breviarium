@@ -23,7 +23,7 @@
 #        scripts/generate-fixture-set.sh hours 2025 2040 Laudes
 set -euo pipefail
 
-set_name="${1:?usage: $0 vulgate|bilingual|holdout|hours|hours-bea|hours-holdout <first-year> <last-year> [hour] [votive]}"
+set_name="${1:?usage: $0 vulgate|bilingual|holdout|hours|hours-bea|hours-holdout <first-year> <last-year> [hour] [votive] [rite]}"
 first="${2:?first year}"
 last="${3:?last year}"
 hour="${4:-Vespera}"
@@ -31,6 +31,14 @@ hour="${4:-Vespera}"
 # Dead). The hours and hours-bea sets then go to votives/<votive>/<hour> and
 # votives-bea/<votive>/<hour>, and the hold-out to holdout/<year>-<votive>-<hour>.
 votive="${5:-}"
+# Beta 5: the rite. Empty for the Roman office; "op" for DO's "Ordo Praedicatorum - 1962",
+# whose sets go under op/ with the same layout (op/hours/<Hour>, op/holdout, ...).
+rite="${6:-}"
+case "$rite" in
+  "")  do_version="Rubrics 1960" ; prefix="" ;;
+  op)  do_version="Ordo Praedicatorum - 1962" ; prefix="op/" ;;
+  *) echo "unknown rite: $rite" >&2; exit 2 ;;
+esac
 lang1=Latin
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
@@ -53,7 +61,8 @@ if [ -n "$votive" ]; then
   esac
 fi
 
-raw_dir="data/oracle-fixtures/raw-$set_name-$hour${votive:+-$votive}"
+dest="$prefix$dest"
+raw_dir="data/oracle-fixtures/raw-${rite:+$rite-}$set_name-$hour${votive:+-$votive}"
 rm -rf "$raw_dir"
 mkdir -p "$raw_dir" "data/oracle-fixtures/$dest"
 
@@ -75,7 +84,7 @@ perl -e '
 ' "$first" "$last" "$lang1" "$lang2" "$format" "$suffix" "$hour" "$votive" $priests > "$raw_dir/manifest.tsv"
 echo "==> $(wc -l < "$raw_dir/manifest.tsv") renders ($set_name, $first-$last)"
 
-DO_ROOT="$repo_root/data/divinum-officium" ORACLE_RAW="$raw_dir" \
+DO_ROOT="$repo_root/data/divinum-officium" ORACLE_RAW="$raw_dir" ORACLE_VERSION="$do_version" \
   xargs -d '\n' -P "$(nproc)" -I{} bash scripts/docker/oracle-worker.sh "{}" < "$raw_dir/manifest.tsv"
 
 empty_count=$(find "$raw_dir" -mindepth 2 -type f -empty | wc -l | tr -d ' ')
