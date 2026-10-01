@@ -26,6 +26,7 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
     let calendar = bundle.makeSanctoralCalendar(rite: .dominicanus)
 
     var report = DayHourAuditReport()
+    var corrected: [String] = []
     for year in auditYears {
         guard let archive = try await OracleFixture.shared.hourYear(set: "op/hours", hour: hour, year: year) else { continue }
         var (day, month, y) = (1, 1, year)
@@ -39,7 +40,29 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
                     calendar: calendar, rite: .dominicanus
                 )
                 if let assembled {
-                    report.add(hour: assembled, rows: withoutMartyrology(OracleFixture.rows(text)), title: title, date: date)
+                    let rows = withoutMartyrology(OracleFixture.rows(text))
+                    var single = DayHourAuditReport()
+                    single.add(hour: assembled, rows: rows, title: title, date: date)
+                    // A page that differs only by a correction of DO's data (`SectionResolver.
+                    // correctsDOErrors`) must match DO exactly with the corrections off.
+                    if !single.text.isEmpty {
+                        let (uncorrected, uncorrectedTitle) = SectionResolver.$correctsDOErrors.withValue(false) {
+                            assembleDayHour(
+                                hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english,
+                                calendar: calendar, rite: .dominicanus
+                            )
+                        }
+                        if let uncorrected {
+                            var check = DayHourAuditReport()
+                            check.add(hour: uncorrected, rows: rows, title: uncorrectedTitle, date: date)
+                            if check.text.isEmpty { corrected.append(date) }
+                        }
+                    }
+                    if corrected.last == date {
+                        report.daysChecked += 1
+                    } else {
+                        report.add(hour: assembled, rows: rows, title: title, date: date)
+                    }
                 } else {
                     report.failedToAssemble.append(date)
                 }
@@ -47,6 +70,7 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
             (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
         }
     }
+    if !corrected.isEmpty { print("Dominican \(hour): \(corrected.count) page(s) differ from DO only by a corrected DO error: \(corrected.prefix(20).joined(separator: ", "))") }
     #expect(report.daysChecked > auditYears.count * 362, "\(hour): checked \(report.daysChecked)")
     #expect(report.text.isEmpty, "\nDominican \(hour):\n\(report.text)")
 }

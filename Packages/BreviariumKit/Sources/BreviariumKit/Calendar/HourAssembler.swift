@@ -2939,7 +2939,7 @@ public struct HourAssembler {
         // DO's Ascension `[Responsory Vespera 1]` names no section (`@Tempora/Pasc5-4::…`), so DO
         // prints "… is missing!". The app shows no responsory rather than an error or a
         // guessed text (`docs/rubrics-op1962.md` §8, for the user to supply).
-        guard !raw.latin.contains("is missing!") else { return [] }
+        guard !raw.latin.contains("is missing!") || !SectionResolver.correctsDOErrors else { return [] }
         func prepared(_ text: String) -> String {
             var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
             while lines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeLast() }

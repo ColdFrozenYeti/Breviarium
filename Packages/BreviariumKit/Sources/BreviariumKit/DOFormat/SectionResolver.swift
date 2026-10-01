@@ -42,6 +42,12 @@ public struct SectionResolver {
         ("Preces ", "Psalterium/Special/Preces.txt"),
     ]
 
+    /// Beta 5 (decided 1 October 2026): the Dominican office corrects DO's data errors where
+    /// the intended text is certain, and shows nothing where DO prints an error. The oracle
+    /// audit turns this off to prove that a page differs from DO only by such a correction
+    /// (`docs/rubrics-op1962.md` §8).
+    @TaskLocal public static var correctsDOErrors = true
+
     /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
     private static let maxInclusionDepth = 6
 
@@ -258,7 +264,7 @@ public struct SectionResolver {
             // instead (decided 1 October 2026): a few of DO's Dominican references name a section
             // that doesn't exist, and the app never shows an error or a guessed text
             // (`docs/rubrics-op1962.md` §8; St Agnes's Matins, 21 January).
-            return context.rite == .dominicanus ? "" : "\(path):\(section) is missing!"
+            return context.rite == .dominicanus && Self.correctsDOErrors ? "" : "\(path):\(section) is missing!"
         }
         let lines = ConditionalLineProcessor.resolve(lines: winner.body, context: context)
         let text = lines.joined(separator: "\n")
@@ -339,7 +345,7 @@ public struct SectionResolver {
                     // "Commune/C1:Ant Vespera". The reference is resolved first here, giving the
                     // intended *Hoc est præcéptum meum* (St Matthias, 24 February 2026).
                     let meaningful = raw.split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                    if context.rite == .dominicanus, meaningful.count == 1, meaningful[0].hasPrefix("@") {
+                    if context.rite == .dominicanus, Self.correctsDOErrors, meaningful.count == 1, meaningful[0].hasPrefix("@") {
                         raw = resolveInclusionsAndMacros(in: raw, depth: depth + 1, callerPath: path)
                     }
                     let substituted = applySubstitutions(subs, to: raw)
