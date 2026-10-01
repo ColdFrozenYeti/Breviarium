@@ -180,6 +180,24 @@ Generated 2026-09-26 with the same script, which takes DO's votive as a fifth ar
 two years cover it; the Office of the Dead's changes only with the priest option. The
 Martyrology has no set of its own: every Prime fixture already contains it.
 
+### Beta 5 sets: the Dominican office (`op/`)
+
+Generated 2026-10-01 with the same script, which takes the rite as a sixth argument
+(`scripts/generate-fixture-set.sh <set> <first> <last> <Hour> [votive] op`, passed on as
+`version=Ordo Praedicatorum - 1962`), against the pinned commit above. Every set has the
+Roman layout under `op/`. None empty.
+
+| Set | Path | Content | Size |
+|---|---|---|---|
+| Hours | `op/hours/<Hour>/<year>.tar.gz`, 2025-2040, all eight hours | Vulgate Latin + English, priest off, rows | 212 MB |
+| Hours, Pius XII | `op/hours-bea/<Hour>/<year>.tar.gz`, 2025-2040 | Pius XII Latin, priest off, flat | 94 MB |
+| Hold-outs | `op/holdout/2044-<Hour>.tar.gz`, `2044-C12-<Hour>`, `2044-C9-<Hour>` | Vulgate Latin + English, priest off and on, rows | 34 MB |
+| Little Office | `op/votives/C12/<Hour>/<year>.tar.gz`, 2026-2027; Office of the Dead `op/votives/C9/<Hour>/2026.tar.gz` | Vulgate Latin + English, priest off, rows | 7.7 MB |
+| The same, Pius XII | `op/votives-bea/...` | Pius XII Latin, priest off, flat | 0.7 MB |
+
+347 MB in all, 313 archives, the largest under 50 MB. DO renders the Office of the Dead
+under the Dominican version from the Roman `Commune/C9` (`docs/rubrics-op1962.md` §5).
+
 ### Beta 3 additions to the bundled data
 
 - **`Tabulae/Stransfer/*.txt`**, the Scripture (initia) transfer tables that DO's
