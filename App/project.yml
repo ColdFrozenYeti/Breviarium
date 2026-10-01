@@ -64,6 +64,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium
         PRODUCT_NAME: Breviarium
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The second Home Screen icon, chosen in Settings (AppIconPicker.swift).
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconAlt
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         GENERATE_INFOPLIST_FILE: NO
 
   BreviariumUITests:

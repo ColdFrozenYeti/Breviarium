@@ -348,6 +348,25 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    /// The app icon choice in Settings (added 1 October 2026). The switch itself raises a
+    /// system alert outside the app, so the test checks the row and its choices only.
+    func testAppIconPicker() {
+        let app = launchApp(date: "2026-09-16")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        let picker = app.buttons["appIconPicker"]
+        scrollSettings(to: picker, in: app)
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        XCTAssertTrue(picker.isEnabled, "alternate icons should be supported")
+        picker.tap()
+        XCTAssertTrue(app.buttons["Alternative"].waitForExistence(timeout: 5) || app.staticTexts["Alternative"].exists)
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "app-icon-picker"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }
 
 /// Vespers' snapshot matrix (`CLAUDE.md`), English off and on, and the reading modes.

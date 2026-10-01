@@ -77,6 +77,10 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
+                Section("App icon") {
+                    AppIconPicker()
+                }
+
                 Section {
                     NavigationLink("Release notes") {
                         ReleaseNotesView()
