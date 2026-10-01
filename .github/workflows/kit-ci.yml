@@ -85,7 +85,7 @@ jobs:
       # CI budget). Every other test runs here, the 2044 hold-out included.
       - name: swift test
         working-directory: Packages/BreviariumKit
-        run: swift test --skip "vespersFullRange|dayHoursFullRange|votive"
+        run: swift test --skip "vespersFullRange|dayHoursFullRange|votive|dominicanFullRange"
 
       # Runs BreviariumData against the real pinned DO checkout -- the actual M2
       # deliverable (docs/PLAN.md): a real bundle, with a real size report, not just
