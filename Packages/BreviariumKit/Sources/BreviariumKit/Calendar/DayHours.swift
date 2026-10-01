@@ -85,8 +85,14 @@ extension HourAssembler {
         let reference = winner.winningRank.communeReference
         guard !reference.isEmpty, flag || reference.lowercased().hasPrefix("ex") else { return nil }
         var current = reference
-        for _ in 0..<5 {
-            guard let path = Self.paschalCommuneFallbackPath(current, weekName: weekName, resolver: resolver) else { return nil }
+        for hop in 0..<5 {
+            // A later hop to another saint's office (`ex Sancti/12-25`) reads the file as named,
+            // with no rite's folder (`specials.pl:502`): 2 January's Dominican Terce takes the
+            // Roman Christmas versicle, *Ipse invocábit me*.
+            let romanHop = hop > 0 && current.range(of: #"^(ex|vide)\s*Sancti/"#, options: [.regularExpression, .caseInsensitive]) != nil
+            guard let path = romanHop ? Self.communeFallbackPath(current)
+                : Self.paschalCommuneFallbackPath(current, weekName: weekName, resolver: resolver)
+            else { return nil }
             if resolver.sectionExists(path: path, section: section) { return (path, section) }
             if let substitute, path.hasPrefix("Commune"), resolver.sectionExists(path: path, section: substitute) {
                 return (path, substitute)
@@ -443,11 +449,22 @@ extension HourAssembler {
             ) {
                 // `$wr .= $vers` with no responsory of the office's own: the versicle alone.
                 append(versum, separator: false)
-            } else if resolver.sectionExists(path: special, section: "Responsory \(seasonName)") {
-                append((special, "Responsory \(seasonName)"), separator: false)
             } else {
-                append((special, "Responsory breve \(seasonName)"), separator: false)
-                append((special, "Versum \(seasonName)"), separator: true)
+                // `capitulis.pl:171-174`: in Lent the Dominican responsories are `…OP`
+                // sections, the third and fourth weeks sharing `Quad3` (22 February 2026).
+                var name = seasonName
+                if resolver.context.rite == .dominicanus, weekName.range(of: "^Quad\\d", options: .regularExpression) != nil {
+                    name += "OP"
+                    if weekName.range(of: "^Quad[34]", options: .regularExpression) != nil {
+                        name = name.replacingOccurrences(of: "Quad", with: "Quad3", options: .anchored)
+                    }
+                }
+                if resolver.sectionExists(path: special, section: "Responsory \(name)") {
+                    append((special, "Responsory \(name)"), separator: false)
+                } else {
+                    append((special, "Responsory breve \(name)"), separator: false)
+                    append((special, "Versum \(name)"), separator: true)
+                }
             }
         }
         let latinLines = shortResponsoryLines(latinResponsory, resolver: resolver, winner: winner, macroContext: macroContext, english: false)
@@ -501,12 +518,12 @@ extension HourAssembler {
             }
         }
         let paschal = weekName.range(of: "Pasc", options: .caseInsensitive) != nil
-        guard paschal || Self.matches(macroContext.winningRule, "Responsory Breve cum Alleluja") && macroContext.hour.isLittleHour
+        guard paschal || Self.matches(macroContext.winningRule, "Responsory Breve cum Allelu[ij]a") && macroContext.hour.isLittleHour
         else { return lines.map { Self.processingInlineAlleluias($0, paschal: paschal) } }
         let alleluiaDuplex = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia Duplex")
             .split(separator: "\n").first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? ""
         let alleluia = alleluiaDuplex.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? "Allelúia"
-        let cumAlleluia = Self.matches(macroContext.winningRule, "Responsory Breve cum Alleluja")
+        let cumAlleluia = Self.matches(macroContext.winningRule, "Responsory Breve cum Allelu[ij]a")
         var inResponsory = false
         var rLines = 0
         var sawVersicle = false
@@ -523,7 +540,7 @@ extension HourAssembler {
                     lines[index] = Self.ensuringDoubleAlleluia(line, alleluia: alleluia)
                 }
                 if line.hasPrefix("R."), !line.hasPrefix("R.br."), rLines >= 3 { inResponsory = false }
-            } else if (line.hasPrefix("V.") || line.hasPrefix("R.")), !cumAlleluia {
+            } else if (line.hasPrefix("V.") || line.hasPrefix("R.")), !cumAlleluia, !gloriaLines.contains(index) {
                 lines[index] = Self.ensuringSingleAlleluia(line, alleluia: alleluia)
             }
         }

@@ -502,6 +502,11 @@ public struct SectionResolver {
                     append(captured)
                 }
                 i = j
+            } else if chars[i] == "$", i + 1 < chars.count, chars[i + 1] == "&" {
+                // Perl's `$&`, the whole match (the Dominican Pentecost Terce chapter,
+                // "…domum, ubi $& Apóstoli", 24 May 2026).
+                append(match.output[0].substring ?? "")
+                i += 2
             } else if chars[i] == "\\", i + 1 < chars.count {
                 // Perl's escapes in a replacement: `\n` is a newline (Pentecost Tuesday's
                 // `s/V\. .*/V. Spíritus Paráclitus, allelúja.\nR. …/s`), `\t` a tab, and any

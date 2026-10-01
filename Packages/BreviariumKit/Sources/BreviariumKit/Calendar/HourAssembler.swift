@@ -295,7 +295,9 @@ public struct HourAssembler {
                     var oratioUnits: [Unit] = []
                     if macroContext.winningRule.range(of: "Limit.*?Oratio", options: [.regularExpression, .caseInsensitive]) == nil {
                         let precesSaid = sections.contains { $0.kind == .precesFeriales && !$0.units.isEmpty }
-                        oratioUnits = oratioPreamble(precesSaid: precesSaid, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext)
+                        oratioUnits = oratioPreamble(
+                            precesSaid: precesSaid, resolver: resolver, englishResolver: englishResolver, macroContext: macroContext, winner: winner
+                        )
                     }
                     oratioUnits.append(contentsOf: Self.unitsFromResolvedText(named, english: englishCollect))
                     // Commemorations only at the major hours (`orationes.pl`, `$horamajor`).
@@ -661,7 +663,8 @@ public struct HourAssembler {
     /// The alpha rendered only the collects here; B1-M4's coverage audit found DO's page
     /// shows these on every date, in both columns.
     func oratioPreamble(
-        precesSaid: Bool, resolver: SectionResolver, englishResolver: SectionResolver?, macroContext: MacroContext
+        precesSaid: Bool, resolver: SectionResolver, englishResolver: SectionResolver?, macroContext: MacroContext,
+        winner: OccurrenceResult? = nil
     ) -> [Unit] {
         func dominusLines(_ resolver: SectionResolver) -> [String] {
             resolver.resolve(path: SectionResolver.prayersPath, section: "Dominus")
@@ -670,6 +673,24 @@ public struct HourAssembler {
         let latin = dominusLines(resolver)
         let english = englishResolver.map(dominusLines)
         var units: [Unit] = []
+        // `orationes.pl:160-179`: the Dominican office says *Kýrie* and a silent *Pater
+        // noster* before the collect, at every hour, on days below III class and on vigils,
+        // except Christmas Eve, Eastertide and 2-5 January (2 January's office is
+        // `Tempora/Nat02`, so it has them).
+        if let winner, context.rite == .dominicanus {
+            let rank = winner.winningRank
+            let dayName = rank.title + " " + rank.degreeLabel
+            if Self.loadedRank(rank, day: macroContext.officeDay) < 3 || dayName.contains("Vigil"),
+                winner.winningPath.range(of: "12-24|Pasc|01-0[2-5]", options: .regularExpression) == nil
+            {
+                func lines(_ resolver: SectionResolver) -> [String] {
+                    ["$Kyrie", "$pater secreto"].flatMap {
+                        resolver.expandMacroLine($0).split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                    }
+                }
+                units.append(contentsOf: Self.unitsFromLines(lines(resolver), english: englishResolver.map(lines)))
+            }
+        }
         if !macroContext.priest && precesSaid {
             if latin.count >= 5 {
                 units.append(.rubric(Self.plainRubric(latin[4]), english: english.flatMap { $0.count >= 5 ? Self.plainRubric($0[4]) : nil }))
