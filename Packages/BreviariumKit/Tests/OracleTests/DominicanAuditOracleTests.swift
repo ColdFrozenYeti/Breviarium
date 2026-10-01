@@ -22,7 +22,10 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
         var (day, month, y) = (1, 1, year)
         while y == year {
             let date = String(format: "%04d-%02d-%02d", y, month, day)
-            if let text = archive["\(year)/\(date)_priestN_bilingual.tsv"] {
+            // Known DO divergence: DO's own Prime on 7 October shows "Sancti/9-12:Evangelium
+            // is missing!" (a typo in its Rosary Mass); the app reads the Gospel the
+            // reference means (`docs/rubrics-op1962.md` §8).
+            if let text = archive["\(year)/\(date)_priestN_bilingual.tsv"], !text.contains("Sancti/9-12:Evangelium is missing!") {
                 let (assembled, title) = assembleDayHour(
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english,
                     calendar: calendar, rite: .dominicanus

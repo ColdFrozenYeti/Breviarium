@@ -111,13 +111,19 @@ public enum OfficeCorpusWalker {
         func retarget(_ path: String) -> String {
             missaPaths.contains(path) && !path.hasPrefix("Commune") ? "missa/" + path : path
         }
+        // DO's Rosary Mass reads `@Sancti/9-12` for `09-12` (`missa/Latin/Sancti/10-07.txt:37`),
+        // so DO shows "Sancti/9-12:Evangelium is missing!"; corrected here, as the user
+        // decided on 1 October 2026 (`docs/rubrics-op1962.md` §8).
+        func corrected(_ path: String) -> String {
+            path.replacingOccurrences(of: #"^Sancti/(\d)-"#, with: "Sancti/0$1-", options: .regularExpression)
+        }
         let reference = /^@([^:\n]+)/
         return walked.map { file in
             let sections = file.sections.filter { $0.name.hasPrefix("Evangelium") }.map { section in
                 var section = section
                 section.body = section.body.map { line in
                     guard let match = line.firstMatch(of: reference) else { return line }
-                    return "@" + retarget(String(match.1)) + line[match.range.upperBound...]
+                    return "@" + retarget(corrected(String(match.1))) + line[match.range.upperBound...]
                 }
                 return section
             }

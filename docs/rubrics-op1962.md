@@ -216,5 +216,5 @@ from the Roman `Commune/C9` (§2). Its three hours are the Roman ones, with any
 | Date | Hour | What DO shows | Why it looks wrong |
 |---|---|---|---|
 | 13 February (St Catherine de' Ricci) | Lauds, collect | The common *Indulgéntiam… beáta N. Virgo et Martyr*, English likewise | The name is the placeholder "N.", and she was not a martyr |
-| 7 October (the Holy Rosary) | Prime, Gospel | "Sancti/9-12:Evangelium is missing!" in the Latin; the English has Luke 1:26-38 | `missa/Latin/Sancti/10-07.txt:37` reads `@Sancti/9-12`, a typo for `09-12`. The app shows what DO shows for now |
+| 7 October (the Holy Rosary) | Prime, Gospel | "Sancti/9-12:Evangelium is missing!" in the Latin; the English has Luke 1:26-38 | `missa/Latin/Sancti/10-07.txt:37` reads `@Sancti/9-12`, a typo for `09-12`. Decided 1 October 2026: the app shows the Gospel (Luke 1:26-38); the data tool corrects the reference and the audit skips DO's broken page |
 | Lent (Compline) | Responsory | none (`capitulis.pl:171-175` asks for `Responsory CompletoriumOP`, the file's section is `Responsory Completorium OP Quad`) | The Dominican Lenten responsory *In pace in idipsum* is never shown |
