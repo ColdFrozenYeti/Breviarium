@@ -112,6 +112,17 @@ public struct Concurrence {
             }
         }
 
+        // `horascommon.pl:1177`: Christmas and 1 January take first Vespers outright, unless
+        // the "nihil de sequenti" case before it holds (an I. classis today against a
+        // tomorrow below I. classis). The Dominican Christmas has rank 6.9, as its Vigil does
+        // (its 7 is `(rubrica 1960)`): 24 December 2026.
+        if tomorrow.winningPath.range(of: "12-25|01-01", options: .regularExpression) != nil {
+            let todayDayOfWeek = Computus.dayOfWeek(day: day, month: month, year: year)
+            let nihilDeSequenti = today.winningRank.numericPrecedence >= (todayDayOfWeek < 6 ? 6 : 7)
+                && tomorrow.winningRank.numericPrecedence < 6
+            if !nihilDeSequenti { return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow) }
+        }
+
         let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
         let tomorrowIsFestumDomini = tomorrowRule.range(of: "Festum Domini", options: .caseInsensitive) != nil
         // `horascommon.pl:976-977` keys the lower threshold off tomorrow's *title*

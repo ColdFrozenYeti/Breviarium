@@ -31,6 +31,7 @@ public struct MacroContext: Sendable {
     /// The calendar date asked for, whatever office wins.
     public var day: Int = 0
     public var month: Int = 0
+    public var year: Int = 0
 
     public init(
         weekName: String, dayOfWeek: Int, priest: Bool,
@@ -190,7 +191,11 @@ public enum ScriptMacros {
         let isPaschalOctave = weekName.range(of: "Pasc0", options: .caseInsensitive) != nil
 
         // Only at Lauds and Vespers (`horasscripts.pl:167`, `$hora =~ /(Laudes|Vespera)/`).
-        guard context.hour.isMajor, isPaschalOctave || isSeptuagesimaVespers else { return text }
+        // The Dominican office all Eastertide on days above III class (`horasscripts.pl:170`;
+        // its `$winner eq 'C10'` never holds, `$winner` being a path).
+        let dominicanEastertide = resolver.context.rite == .dominicanus && weekName.hasPrefix("Pasc")
+            && context.winningRank.numericPrecedence > 3
+        guard context.hour.isMajor, isPaschalOctave || isSeptuagesimaVespers || dominicanEastertide else { return text }
 
         let alleluiaDuplex = resolver.resolve(path: SectionResolver.prayersPath, section: "Alleluia Duplex")
         let firstLine = alleluiaDuplex.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""

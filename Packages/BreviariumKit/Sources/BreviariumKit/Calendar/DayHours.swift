@@ -172,7 +172,9 @@ extension HourAssembler {
         if hour == .completorium {
             if office.hasPrefix("Tempora"), dayOfWeek > 0, Self.matches(title, "Dominica"), rank < 6 {
                 // Keeps the day's psalms.
-            } else if Self.matches(rule, Self.psalmiDominica) || Self.matches(communeRule, Self.psalmiDominica), rank >= 6 {
+            } else if Self.matches(rule, Self.psalmiDominica) || Self.matches(communeRule, Self.psalmiDominica),
+                rank >= 6 || resolver.context.rite == .dominicanus    // `psalmi.pl:131`: by the version name `1960`.
+            {
                 antiphonSource = (psalterPath, hour.doName, 0)
                 psalmsLine = dayLines.count > 1 ? dayLines[1] : psalmsLine
             }
@@ -630,8 +632,9 @@ extension HourAssembler {
             let open = lines.first.map {
                 Self.applyingSeasonalAlleluia(to: $0, weekName: macroContext.weekName, isFirstVespers: macroContext.isFirstVespers, english: english, season: macroContext.seasonWeekName)
             } ?? ""
-            // `:536-539`: *Média vita* closes as it opened (its verse follows, below).
-            if dominicanSeason == " Quad3" { return (open, Self.closingAntiphon(open)) }
+            // `:536-539`: *Média vita* closes as it opened, asterisk and all, since DO sets
+            // it as `$ant2` (its verse follows, below).
+            if dominicanSeason == " Quad3" { return (open, open) }
             return (open, lines.count > 1 ? lines[1] : Self.closingAntiphon(open))
         }
         let latin = antiphons(texts.latin, english: false)
@@ -846,7 +849,10 @@ extension HourAssembler {
             let excluded = (Self.matches(qualifier, "ad Laudes tantum") && hour != .laudes)
                 || (Self.matches(qualifier, "ad Laudes et Vesperas") && !hour.isMajor)
             if !excluded {
-                if hour != .completorium, let location = resolvedLocation(
+                // Not at Compline, whose versicle comes later, except in the Dominican
+                // Easter week (`specials.pl:73`; Easter Sunday 2026, *Hæc dies*).
+                let dominicanEaster = resolver.context.rite == .dominicanus && winner.winningPath.contains("Pasc0")
+                if hour != .completorium || dominicanEaster, let location = resolvedLocation(
                     office: winner.winningPath, communeReference: winner.winningRank.communeReference, section: "Versum 2",
                     resolver: resolver, weekName: macroContext.weekName
                 ) {

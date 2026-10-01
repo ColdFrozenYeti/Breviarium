@@ -246,7 +246,9 @@ extension HourAssembler {
         let special = "Psalterium/Special/Matutinum Special"
         var name = "Hymnus"
         if !resolver.sectionExists(path: matins.office, section: "Hymnus Matutinum"),
-            matins.rule.range(of: "C[45]", options: .regularExpression) != nil
+            matins.rule.range(of: "C[45]", options: .regularExpression) != nil,
+            // `checkmtv`'s version-name test: not the Dominican "1962" without `;mtv`.
+            resolver.context.rite != .dominicanus || matins.rule.range(of: ";mtv", options: .caseInsensitive) != nil
         {
             name += "1"
         }

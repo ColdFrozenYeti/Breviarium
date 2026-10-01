@@ -90,6 +90,9 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*Regula vel Evangelium"#),
     // All Souls' Dominican Prime: DO's label "Incipit specialis" on its opening.
     try! Regex(#"^\s*(Incipit )?specialis\b"#),
+    // The Dominican first Vespers' "Hymn" label inside the chapter's row, after the
+    // responsory.
+    try! Regex(#"\bHymn\b(?= |$)"#),
     try! Regex(#"^\s*Invitatory\b"#),
     try! Regex(#"\bwith lections\b"#),
     try! Regex(#"\bAt the Nocturn\b"#),
@@ -116,6 +119,7 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*Versus \(In loco Capituli\)"#),
     try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis|Antiphonae finalis|Regula vel Evangelium)\b"#),
     try! Regex(#"^\s*(Incipit )?specialis\b"#),
+    try! Regex(#"\bHymnus\b(?= |$)"#),
     try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),
     try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
     // The blessing's and absolution's red label, which the app doesn't show.

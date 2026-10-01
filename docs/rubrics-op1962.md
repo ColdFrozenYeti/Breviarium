@@ -217,4 +217,7 @@ from the Roman `Commune/C9` (§2). Its three hours are the Roman ones, with any
 |---|---|---|---|
 | 13 February (St Catherine de' Ricci) | Lauds, collect | The common *Indulgéntiam… beáta N. Virgo et Martyr*, English likewise | The name is the placeholder "N.", and she was not a martyr |
 | 7 October (the Holy Rosary) | Prime, Gospel | "Sancti/9-12:Evangelium is missing!" in the Latin; the English has Luke 1:26-38 | `missa/Latin/Sancti/10-07.txt:37` reads `@Sancti/9-12`, a typo for `09-12`. Decided 1 October 2026: the app shows the Gospel (Luke 1:26-38); the data tool corrects the reference and the audit skips DO's broken page |
+| 24 February (St Matthias), and other Apostles under `CommuneOP/C1` | Vespers, antiphon | "Commune/C1:Ant Vespera" as the antiphon, then the five psalms | `CommuneOP/C1` `[Ant Vespera 3]` is `@:Ant Laudes:1 s/$/;;109;…;138/`; the Roman `[Ant Laudes]` it reaches is itself a reference (`@:Ant Vespera`), so the substitution lands on the reference and DO can't resolve it |
+| Ascension (13 May) | Vespers | a literal "&Gloria1" | the first Vespers responsory's Gloria isn't expanded |
+| 24 April | Terce, Sext, None | "Oratio missing" | no collect for the Dominican office of the day |
 | Lent (Compline) | Responsory | none (`capitulis.pl:171-175` asks for `Responsory CompletoriumOP`, the file's section is `Responsory Completorium OP Quad`) | The Dominican Lenten responsory *In pace in idipsum* is never shown |
