@@ -90,8 +90,9 @@ jobs:
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest"
 
-      # The UI tests are five classes (B5-M0); Xcode runs them on three cloned
-      # simulators at once. One after another they took about 32 minutes.
+      # The UI tests are five classes (B5-M0). They run one after another: on three
+      # cloned simulators at once (tried 27 September) the macOS runner was too small,
+      # nine tests timed out and the step took 56 minutes instead of 32.
       - name: Run UI tests
         working-directory: App
         run: |
@@ -99,8 +100,7 @@ jobs:
             -project Breviarium.xcodeproj \
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
-            -parallel-testing-enabled YES \
-            -parallel-testing-worker-count 3 \
+            -parallel-testing-enabled NO \
             -resultBundlePath TestResults.xcresult
 
       - name: Upload test results

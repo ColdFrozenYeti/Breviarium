@@ -4056,3 +4056,17 @@ The user then asked to merge and publish on 27 September; Beta 4 is published as
 pre-release with `Breviarium-Beta-4.ipa`. The user also asked why CI had grown so long
 (about an hour a push); the answer and the fixes are B5-M0 in
 [`Beta_5_plan.md`](Beta_5_plan.md).
+
+## Beta 5 (plan: [`Beta_5_plan.md`](Beta_5_plan.md))
+
+### B5-M0 — CI
+
+Measured on the PR's first full round (27 September, `1bf57f1`):
+- **Oracle audits: 24 minutes**, down from about 60. The day hours are now four jobs by
+  years (13–22 minutes each); the longest job sets the time.
+- **The `changes` jobs** take about 10 seconds each. With no earlier passing run on the
+  branch, all three correctly ran everything.
+- **Parallel UI tests didn't work.** On three cloned simulators the macOS runner was too
+  small: two app launches failed, nine tests that pass serially timed out, and the step
+  took 56 minutes instead of 32. Parallel testing is off again. The five test classes
+  stay, so the tests could later be split across separate runners instead.
