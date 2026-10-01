@@ -89,7 +89,7 @@ extension HourAssembler {
             seasonWeekName: macroContext.seasonWeekName.isEmpty ? macroContext.weekName : macroContext.seasonWeekName,
             dayOfWeek: macroContext.dayOfWeek, day: day, month: month, year: year, scriptura: scriptura,
             lessonType: Self.matinsLessonType(dayname1: dayname1, rank: rank, office: office, rule: rule),
-            commune: commune, communeIsEx: reference.lowercased().hasPrefix("ex") || office.hasPrefix("Commune/C10"),
+            commune: commune, communeIsEx: reference.lowercased().hasPrefix("ex") || (office.hasPrefix("Commune") && office.contains("/C10")),
             communeRule: commune.map { resolver.resolve(path: $0, section: "Rule") } ?? "",
             scriptureTransfer: calendar.scriptureTransfer(day: day, month: month, year: year),
             initia: resolver.resolve(

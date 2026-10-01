@@ -135,9 +135,10 @@ public struct Occurrence {
     public static func temporalPath(
         day: Int, month: Int, year: Int, calendar: SanctoralCalendar, corpus: OfficeCorpus, context: ConditionalContext
     ) -> String {
-        let ordinary = temporalPath(day: day, month: month, year: year, calendar: calendar)
+        let rite = context.rite
+        let ordinary = rite.adjusted(temporalPath(day: day, month: month, year: year, calendar: calendar), latin: corpus)
         guard let monthdayKey = Computus.monthday(day: day, month: month, year: year, tomorrow: false) else { return ordinary }
-        let monthdayPath = "Tempora/\(monthdayKey)"
+        let monthdayPath = rite.adjusted("Tempora/\(monthdayKey)", latin: corpus)
         let resolver = SectionResolver(corpus: corpus, context: context)
         return resolver.sectionExists(path: monthdayPath, section: "Officium") ? monthdayPath : ordinary
     }
@@ -161,7 +162,7 @@ public struct Occurrence {
         // branch only: on a Saturday the day hours are still All Souls'.
         let isVespersOrCompline = context.ad.range(of: "vesper|complet", options: [.regularExpression, .caseInsensitive]) != nil
         for candidate in calendar.candidates(day: day, month: month, year: year) {
-            let path = "Sancti/\(candidate)"
+            let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { continue }
             if isVespersOrCompline, Self.isAllSoulsSuppressedOnSaturday(title: rank.title, month: month, weekday: weekday) { continue }
             sanctoralPath = path
@@ -195,7 +196,7 @@ public struct Occurrence {
             if let bvm = OfficeRank(rankFieldValue: "Sanctæ Mariæ Sabbato;;Simplex;;1.3;;ex C10\(suffix)"),
                 (sanctoralRank?.numericPrecedence ?? 0) <= bvm.numericPrecedence
             {
-                return OccurrenceResult(sanctoralWins: false, winningPath: "Commune/C10\(suffix)", winningRank: bvm, isSunday: false)
+                return OccurrenceResult(sanctoralWins: false, winningPath: context.rite.adjusted("Commune/C10\(suffix)", latin: corpus), winningRank: bvm, isSunday: false)
             }
         }
 

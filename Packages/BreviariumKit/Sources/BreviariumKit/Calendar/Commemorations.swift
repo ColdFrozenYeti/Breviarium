@@ -190,7 +190,7 @@ public struct Commemorations {
         // (`Tempora/Nat30`, displaced by "Dominica Infra Octavam Nativitatis"): both real
         // fixtures read "Vespera de sequenti." with no commemoration at all.
         let displacedCandidates: [Commemoration]
-        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !result.vespersOffice.winningPath.hasPrefix("Sancti/")
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !result.vespersOffice.winningPath.hasPrefix("Sancti")
             && !result.vespersOffice.winningPath.contains("C10")
         if bothTemporal {
             let comrank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
@@ -336,7 +336,7 @@ public struct Commemorations {
         var results: [Commemoration] = []
         // `horascommon.pl:1681-1684`: a saint's "Tempora none" clears every commemoration
         // (Christmas Eve over the Advent feria). At Lauds (Beta 2).
-        if ind == 2, winnerPath.hasPrefix("Sancti/"),
+        if ind == 2, winnerPath.hasPrefix("Sancti"),
             resolver.resolve(path: winnerPath, section: "Rule").range(of: "Tempora none", options: .caseInsensitive) != nil
         {
             return []
@@ -352,9 +352,9 @@ public struct Commemorations {
         }
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
-        let winnerIsSanctoral = winnerPath.hasPrefix("Sancti/")
+        let winnerIsSanctoral = winnerPath.hasPrefix("Sancti")
         for candidate in calendar.candidates(day: day, month: month, year: year) {
-            let path = "Sancti/\(candidate)"
+            let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard path != winnerPath,
                 let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path))
             else { continue }
@@ -423,9 +423,9 @@ public struct Commemorations {
     private func droppingTemporaBeforeSunday(
         _ candidates: [Commemoration], day: Int, month: Int, year: Int, todayWinner: OccurrenceResult
     ) -> [Commemoration] {
-        guard todayWinner.winningPath.hasPrefix("Sancti/"),
+        guard todayWinner.winningPath.hasPrefix("Sancti"),
             !matches(todayWinner.winningRank.title, "infra octavam Nativitatis$"),
-            let first = candidates.first, first.path.hasPrefix("Tempora/")
+            let first = candidates.first, first.path.hasPrefix("Tempora")
         else { return candidates }
         let resolver = SectionResolver(corpus: corpus, context: context)
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
@@ -460,7 +460,7 @@ public struct Commemorations {
     /// under a I. classis one, and not the Sacred Heart under the Precious Blood. A plain
     /// Paschaltide feria (28 April 2025, S. Paul of the Cross) isn't.
     private func isTemporaCommemoratedUnderSaint(temporalRank: OfficeRank, winnerPath: String, resolver: SectionResolver) -> Bool {
-        guard winnerPath.hasPrefix("Sancti/"), let saint = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return true }
+        guard winnerPath.hasPrefix("Sancti"), let saint = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return true }
         let srank = saint.numericPrecedence
         let trank = temporalRank.numericPrecedence
         if matches(saint.title, "Sangu"), matches(temporalRank.title, "Cor[dp]") { return false }
@@ -470,7 +470,7 @@ public struct Commemorations {
     private func isTemporaDiscardedBySanctoral1960(
         day: Int, month: Int, year: Int, temporalRank: OfficeRank, winnerPath: String
     ) -> Bool {
-        guard winnerPath.hasPrefix("Sancti/") else { return false }
+        guard winnerPath.hasPrefix("Sancti") else { return false }
         let resolver = SectionResolver(corpus: corpus, context: context)
         guard let saintRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return false }
         let srank = saintRank.numericPrecedence
@@ -519,7 +519,7 @@ public struct Commemorations {
     /// the Maternity on a Sunday (1), and 16 July, Mount Carmel on a feria (2).
     static func climit1960(candidatePath: String, candidateRank: Double, winnerPath: String, resolver: SectionResolver) -> Int {
         if candidatePath.contains("7-16"), winnerPath.contains("C10") { return 0 }
-        guard winnerPath.hasPrefix("Tempora/") || winnerPath.contains("C10") else { return 1 }
+        guard winnerPath.hasPrefix("Tempora") || winnerPath.contains("C10") else { return 1 }
         if resolver.resolveRank(path: winnerPath).range(of: "Dominica", options: .caseInsensitive) != nil {
             return candidateRank >= 5 ? 1 : 0
         }
@@ -533,7 +533,7 @@ public struct Commemorations {
         else { return nil }
         let resolver = SectionResolver(corpus: corpus, context: context)
         guard let first = runnersUp(day: day, month: month, year: year, winnerPath: winner.winningPath, ind: 2).first else { return nil }
-        guard first.path.hasPrefix("Sancti/") else { return first }
+        guard first.path.hasPrefix("Sancti") else { return first }
         return Self.climit1960(candidatePath: first.path, candidateRank: first.rank.numericPrecedence, winnerPath: winner.winningPath, resolver: resolver) == 1
             ? first : nil
     }
@@ -574,7 +574,7 @@ public struct Commemorations {
             winnerIsOrdinary ? 2 : winnerRank.numericPrecedence >= 6 ? 4.2 : winnerRank.numericPrecedence >= 5 ? 2.1 : 2
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             if isTemporal, candidate.rank.numericPrecedence < 2, candidate.rank.numericPrecedence != 1.15 {
                 return false    // Feria minor has no Vespers once superseded.
             }
@@ -623,7 +623,7 @@ public struct Commemorations {
             : 2
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             if isTemporal, candidate.rank.numericPrecedence != 1.15 {
                 if candidate.rank.numericPrecedence < 2 { return false }    // Feria minor / vigils.
                 if matches(candidate.rank.title, "Rogatio|Quattuor.*Sept") { return false }
@@ -657,7 +657,7 @@ public struct Commemorations {
             winnerIsOrdinary ? 1.1 : winnerRank.numericPrecedence >= 6 ? 4.2 : winnerRank.numericPrecedence >= 5 ? 2.2 : 1.1
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             let isSunday = matches(candidate.rank.title, "Dominica")
             if (isTemporal || matches(candidate.rank.title, "infra octavam")), !isSunday { return false }
             guard isSunday else { return false }    // The 1960-specific reduction, above.

@@ -97,7 +97,8 @@ public struct HourAssembler {
         let seasonDate = result.isFirstVespersOfTomorrow ? Computus.addDays(1, day: day, month: month, year: year) : (day: day, month: month, year: year)
         if let path = officium.votivePath(
             hour: hour, day: day, month: month, year: year,
-            weekName: TemporalCycle.weekName(day: seasonDate.0, month: seasonDate.1, year: seasonDate.2), dayWinnerPath: dayWinnerPath
+            weekName: TemporalCycle.weekName(day: seasonDate.0, month: seasonDate.1, year: seasonDate.2), dayWinnerPath: dayWinnerPath,
+            rite: context.rite, latin: corpus
         ) {
             dayCommuneReference = result.vespersOffice.winningRank.communeReference
             let resolver = SectionResolver(corpus: corpus, context: context)
@@ -247,7 +248,8 @@ public struct HourAssembler {
                 // priority via `oratioLocation` -- see its own doc comment for the exact
                 // office-then-Commune order (not a simple indexed-then-plain fallback).
                 let ind = hour == .vesperae ? (macroContext.isFirstVespers ? 1 : 3) : 2
-                let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName) ?? winner.winningPath
+                let oratioOffice = oratioDominicaOffice(rule: macroContext.winningRule, weekName: macroContext.weekName)
+                    .map { context.rite.adjusted($0, latin: corpus) } ?? winner.winningPath
                 // `orationes.pl:70-71`: at Matins the office's own `[Oratio Matutinum]` first
                 // (the Triduum's collect, without the Lauds preamble).
                 let oratioLocation = hour == .matutinum && resolver.sectionExists(path: winner.winningPath, section: "Oratio Matutinum")
@@ -884,8 +886,8 @@ public struct HourAssembler {
         // exactly the real fixture's own text. Found via a full 2025-2040 content
         // audit: this gap alone left 24 real dates with *no* Oratio rendered at all
         // (a silently empty section, not a wrong one).
-        if office.hasPrefix("Tempora/") {
-            let sundayPath = "Tempora/\(weekName)-0"
+        if office.hasPrefix("Tempora") {
+            let sundayPath = context.rite.adjusted("Tempora/\(weekName)-0", latin: corpus)
             if resolver.sectionExists(path: sundayPath, section: "Oratio") { return (sundayPath, "Oratio") }
             if resolver.sectionExists(path: sundayPath, section: "Oratio 2") { return (sundayPath, "Oratio 2") }
         }
@@ -991,7 +993,7 @@ public struct HourAssembler {
         if day == 27, week.hasPrefix("Pasc0"), dow == 2 { return true }
         if day == 26, week.hasPrefix("Pasc0"), dow == 2 { return true }
         let rule = macroContext.winningRule
-        if rule.range(of: "Laudes Litania", options: .caseInsensitive) != nil { return !(winnerPath.hasPrefix("Sancti/") && day != 25) }
+        if rule.range(of: "Laudes Litania", options: .caseInsensitive) != nil { return !(winnerPath.hasPrefix("Sancti") && day != 25) }
         // `$commemoratio{Rule}`/`$scriptura{Rule}`: the day's temporal office under a
         // saint (Rogation Monday, 30 April 2035, under St Catherine of Siena).
         let resolver = SectionResolver(corpus: corpus, context: context)
@@ -1072,7 +1074,7 @@ public struct HourAssembler {
         if winningRank.numericPrecedence >= 6, !(macroContext.weekName.range(of: "Pasc[07]|Pent01", options: [.regularExpression, .caseInsensitive]) != nil) { return nil }
         if (macroContext.winningRule.range(of: "nocomm1960", options: [.regularExpression, .caseInsensitive]) != nil) { return nil }
         let section = resolver.sectionExists(path: winnerPath, section: "Commemoratio 2") ? "Commemoratio 2"
-            : winnerPath.hasPrefix("Tempora/") && resolver.sectionExists(path: winnerPath, section: "Commemoratio") ? "Commemoratio" : nil
+            : winnerPath.hasPrefix("Tempora") && resolver.sectionExists(path: winnerPath, section: "Commemoratio") ? "Commemoratio" : nil
         guard let section else { return nil }
         let text = resolver.unresolvedBody(path: winnerPath, section: section)?.joined(separator: "\n") ?? ""
         // `:305-312`: under 1960 an octave or a Sunday named in its heading is dropped
@@ -1084,7 +1086,7 @@ public struct HourAssembler {
         {
             return nil
         }
-        if heading.range(of: "Vigil", options: .caseInsensitive) != nil, winnerPath.hasPrefix("Sancti/"),
+        if heading.range(of: "Vigil", options: .caseInsensitive) != nil, winnerPath.hasPrefix("Sancti"),
             winnerPath.range(of: "08-14|06-23|06-28|08-09", options: .regularExpression) == nil
         {
             return nil
@@ -1230,7 +1232,7 @@ public struct HourAssembler {
         // At Lauds (`:776`, `$hora eq 'Laudes'`) only the 21st and 23rd are overridden, by
         // `[Adv Ant <day>L]` (21 December 2026, St Thomas: "Nolíte timére; quinta enim die…").
         let laudsAdvent: (path: String, section: String)? = ind == 2 && month == 12 && (day == 21 || day == 23)
-            && commemoration.path.hasPrefix("Tempora/") ? ("Psalterium/Special/Major Special", "Adv Ant \(day)L") : nil
+            && commemoration.path.hasPrefix("Tempora") ? ("Psalterium/Special/Major Special", "Adv Ant \(day)L") : nil
         let oAntiphon = ind == 2 ? laudsAdvent : Self.oAntiphonLocation(office: commemoration.path, day: day, month: month, resolver: resolver)
         // `getcommemoratio` reads the commemorated office through `officestring($lang,
         // $wday, $ind == 1)`, whose monthday merge (`SetupString.pl:723-780`) overwrites
@@ -1552,7 +1554,14 @@ public struct HourAssembler {
         // swiftlint:disable:next force_try
         try! Regex(#"^C[0-9]+[a-z]*-*[123]*$"#)
 
-    static func communeFallbackPath(_ reference: String) -> String? {
+    static func communeFallbackPath(_ reference: String, resolver: SectionResolver? = nil) -> String? {
+        let path = romanCommuneFallbackPath(reference)
+        // `extract_common` builds the path with `subdirname` (`horascommon.pl:1496-1514`).
+        guard let path, let resolver else { return path }
+        return resolver.context.rite.adjusted(path, latin: resolver.corpus)
+    }
+
+    private static func romanCommuneFallbackPath(_ reference: String) -> String? {
         var ref = reference
         for prefix in ["vide ", "ex "] where ref.hasPrefix(prefix) {
             ref.removeFirst(prefix.count)
@@ -1578,8 +1587,8 @@ public struct HourAssembler {
     /// `Commune/C2a-1p.txt`'s own chain (→ `C2ap` → `C2p` → `C1p`), not the ordinary
     /// `C2a-1` chain this project's engine used to follow instead.
     static func paschalCommuneFallbackPath(_ reference: String, weekName: String, resolver: SectionResolver) -> String? {
-        guard let path = communeFallbackPath(reference) else { return nil }
-        guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil, path.hasPrefix("Commune/") else { return path }
+        guard let path = communeFallbackPath(reference, resolver: resolver) else { return nil }
+        guard weekName.range(of: "Pasc", options: .caseInsensitive) != nil, path.hasPrefix("Commune") else { return path }
         let paschalPath = "\(path)p"
         // `C3ap` is a stub (`@Commune/C3p` and its own `[Oratio]`), with no `[Officium]`.
         return resolver.sectionExists(path: paschalPath, section: "Officium") || resolver.sectionExists(path: paschalPath, section: "Oratio")
@@ -1728,7 +1737,7 @@ public struct HourAssembler {
                 // festal default, having only ever checked the second-Vespers case.
                 let antiphons = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init).filter { !$0.isEmpty }
                 if antiphons.count == 5 {
-                    let communeRule = Self.communeFallbackPath(communeReference).map { resolver.resolve(path: $0, section: "Rule") }
+                    let communeRule = Self.communeFallbackPath(communeReference, resolver: resolver).map { resolver.resolve(path: $0, section: "Rule") }
                     let usesFestalSet =
                         macroContext.winningRule.range(of: "Psalmi Dominica", options: .caseInsensitive) != nil
                         || (communeRule?.range(of: "Psalmi Dominica", options: .caseInsensitive) != nil)
@@ -2493,7 +2502,7 @@ public struct HourAssembler {
     ) -> (path: String, section: String)? {
         guard Self.participatesInMonthdayMerge(office: office) else { return nil }
         guard let key = Computus.monthday(day: day, month: month, year: year, tomorrow: tomorrow) else { return nil }
-        let path = "Tempora/\(key)"
+        let path = resolver.context.rite.adjusted("Tempora/\(key)", latin: resolver.corpus)
         return resolver.sectionExists(path: path, section: section) ? (path, section) : nil
     }
 
@@ -2542,7 +2551,7 @@ public struct HourAssembler {
     static func oAntiphonLocation(
         office: String, day: Int, month: Int, resolver: SectionResolver
     ) -> (path: String, section: String)? {
-        guard office.hasPrefix("Tempora/") else { return nil }
+        guard office.hasPrefix("Tempora") else { return nil }
         guard month == 12, day > 16, day < 24 else { return nil }
         let path = "Psalterium/Special/Major Special"
         let section = "Adv Ant \(day)"
@@ -3199,7 +3208,7 @@ public struct HourAssembler {
     ///
     /// Confirmed against two real oracle fixtures: 16 September 2026 (a Wednesday, but
     /// a *Sancti* office wins — `"Preces Feriales{omittitur}"` in the real output,
-    /// matching the `!winner.winningPath.hasPrefix("Sancti/")` guard below) and 18
+    /// matching the `!winner.winningPath.hasPrefix("Sancti")` guard below) and 18
     /// February 2026 (Ash Wednesday, temporal Feria wins — real preces text present,
     /// including the literal, un-filled `"Papa nostro N."` DO itself never resolves,
     /// confirming there's no dynamic "who is the reigning Pope" data source to miss).
@@ -3223,7 +3232,7 @@ public struct HourAssembler {
     func shouldShowPrecesFeriales(
         winner: OccurrenceResult, weekName: String, dayOfWeek: Int, month: Int, rule: String, hour: CanonicalHour = .vesperae
     ) -> Bool {
-        guard !winner.winningPath.hasPrefix("Sancti/") else { return false }
+        guard !winner.winningPath.hasPrefix("Sancti") else { return false }
         guard rule.range(of: "Omit.*? Preces", options: [.regularExpression, .caseInsensitive]) == nil else { return false }
         guard weekName.range(of: "Pasc[67]", options: [.regularExpression, .caseInsensitive]) == nil else { return false }
 

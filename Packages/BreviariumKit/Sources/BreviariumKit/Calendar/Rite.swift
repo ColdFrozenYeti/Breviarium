@@ -34,4 +34,22 @@ public enum Rite: String, CaseIterable, Codable, Sendable {
         let own = "\(folder)\(folderSuffix)/\(name)"
         return latin.fileExists(path: own) ? own : "\(folder)/\(name)"
     }
+
+    /// A path DO builds with `subdirname` (`Tempora/…`, `Sancti/…`, `Commune/…`), in this
+    /// rite: `path(_:_:latin:)` on its folder and name. Any other path, and every path
+    /// in the Roman rite, is returned as it is.
+    public func adjusted(_ path: String, latin: OfficeCorpus) -> String {
+        guard !folderSuffix.isEmpty, let slash = path.firstIndex(of: "/") else { return path }
+        let folder = String(path[..<slash])
+        guard ["Tempora", "Sancti", "Commune"].contains(folder) else { return path }
+        return self.path(folder, String(path[path.index(after: slash)...]), latin: latin)
+    }
+}
+
+extension ConditionalContext {
+    /// The rite this context's version string names (`Rite.doVersion`); the Roman office
+    /// for any other version.
+    public var rite: Rite {
+        Rite.allCases.first { $0.doVersion == rubrica } ?? .romanus
+    }
 }

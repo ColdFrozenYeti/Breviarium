@@ -72,7 +72,7 @@ public struct Concurrence {
         // per year) that it can't affect any other date's own occurrence, including a
         // direct query of 24 December itself as "today" rather than reached via this
         // specific Dec-23 pre-emption check.
-        if day == 23, month == 12, tomorrow.winningPath.hasPrefix("Sancti/") {
+        if day == 23, month == 12, tomorrow.winningPath.hasPrefix("Sancti") {
             let temporalPath = Occurrence.temporalPath(
                 day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year, calendar: calendar, corpus: corpus, context: context
             )
@@ -105,7 +105,7 @@ public struct Concurrence {
         // 1960-conditioned rank (6) is numerically *lower* than today's own (6.9) --
         // the generic threshold cascade below (which requires tomorrow to strictly
         // *outrank* today) would otherwise wrongly keep today's own second Vespers.
-        if !today.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.contains("C10") {
+        if !today.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.contains("C10") {
             let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
             if todayRule.range(of: "No secunda vespera", options: .caseInsensitive) != nil {
                 return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
@@ -171,7 +171,7 @@ public struct Concurrence {
         day: Int, month: Int, year: Int, today: OccurrenceResult, tomorrow: OccurrenceResult,
         tomorrowIsDominica: Bool, tomorrowIsFestumDomini: Bool, resolver: SectionResolver
     ) -> Bool {
-        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !tomorrow.winningPath.hasPrefix("Sancti/")
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !tomorrow.winningPath.hasPrefix("Sancti")
             && !tomorrow.winningPath.contains("C10")
         guard !bothTemporal, tomorrowIsDominica || tomorrowIsFestumDomini else { return false }
         let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")

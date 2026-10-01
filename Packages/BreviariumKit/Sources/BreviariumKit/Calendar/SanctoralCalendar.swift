@@ -74,7 +74,7 @@ public struct SanctoralCalendar: Sendable {
     /// to the ordinary week-name computation (`TemporalCycle.weekName`).
     public func transferredTemporalPath(day: Int, month: Int, year: Int) -> String? {
         let key = Computus.sanctoralKey(day: day, month: month, year: year)
-        guard let source = transferSource(targetKey: key, year: year), source.hasPrefix("Tempora/"), !source.contains("~")
+        guard let source = transferSource(targetKey: key, year: year), source.hasPrefix("Tempora"), !source.contains("~")
         else { return nil }
         return source
     }
