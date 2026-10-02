@@ -132,10 +132,12 @@ public struct Concurrence {
         // `horascommon.pl:887-891`: before 1955 Ash Wednesday gave way at second Vespers to a
         // Duplex (`$rank = 2.99`), and `$version !~ /1960|1955/` keeps that for the Order's
         // "… - 1962": St Thomas Aquinas on the Thursday after (7 March 2030) takes first
-        // Vespers, Ash Wednesday commemorated. A feria tomorrow has no first Vespers.
+        // Vespers, Ash Wednesday commemorated. A feria tomorrow has no first Vespers,
         if context.rite == .dominicanus, TemporalCycle.weekName(day: day, month: month, year: year) == "Quadp3",
             Computus.dayOfWeek(day: day, month: month, year: year) == 3,
-            tomorrow.winningPath.hasPrefix("Sancti"), tomorrow.winningRank.numericPrecedence >= 2.99
+            // and only a feast with first Vespers: under `/196/` a I. classis one
+            // (`horascommon.pl:973-977`; St Matthias, II. classis, on 24 February 2039 has none).
+            tomorrow.winningPath.hasPrefix("Sancti"), tomorrow.winningRank.numericPrecedence >= 6
         {
             return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
         }

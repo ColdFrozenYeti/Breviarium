@@ -189,6 +189,12 @@ public struct Commemorations {
         // displaced by Pentecost's own first Vespers, `$crank` 7) and 30 December 2028
         // (`Tempora/Nat30`, displaced by "Dominica Infra Octavam Nativitatis"): both real
         // fixtures read "Vespera de sequenti." with no commemoration at all.
+        // `horascommon.pl:1199-1210`: on a Sunday's (or a Feast of the Lord's) first Vespers
+        // that leaves nothing of today, `@commemoentries` goes too, unless today's
+        // commemoration is a privileged one (1.15, 2.1, 2.99, 3.9): St Paul the Hermit,
+        // commemorated under Bl. Francis de Capillas, on Saturday 15 January 2033.
+        let todayCommemorationRank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
+        let keepsPrivilegedOnly = [1.15, 2.1, 2.99, 3.9].contains(todayCommemorationRank)
         let displacedCandidates: [Commemoration]
         let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !result.vespersOffice.winningPath.hasPrefix("Sancti")
             && !result.vespersOffice.winningPath.contains("C10")
@@ -201,8 +207,9 @@ public struct Commemorations {
             let keepsSaints = crank < 7 && crank != 6.5 && crank != 6 && comrank > 2 && !matches(tomorrowRule, "no commemoratio")
             displacedCandidates = keepsSaints ? todayRunnersUp : []
         } else {
-            displacedCandidates =
-                (precedingIsExcluded ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)]) + todayRunnersUp
+            displacedCandidates = precedingIsExcluded
+                ? (context.rite == .dominicanus && !keepsPrivilegedOnly ? [] : todayRunnersUp)
+                : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)] + todayRunnersUp
         }
         let displaced = displacedVespersCommemorations(
             candidates: displacedCandidates, displacedRank: today.winningRank, winnerRank: result.vespersOffice.winningRank

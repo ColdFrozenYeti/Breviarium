@@ -88,13 +88,16 @@ extension HourAssembler {
             let path = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
             if resolver.sectionExists(path: path, section: "Rank") {
                 scriptura = path
-            } else if context.rite == .dominicanus, Self.participatesInMonthdayMerge(office: path),
-                let key = Computus.monthday(day: day, month: month, year: year, tomorrow: false),
-                resolver.sectionExists(path: context.rite.adjusted("Tempora/\(key)", latin: corpus), section: "Lectio1")
+            } else if context.rite == .dominicanus, resolver.sectionExists(path: path, section: "Lectio1")
+                || (Self.participatesInMonthdayMerge(office: path)
+                    && Computus.monthday(day: day, month: month, year: year, tomorrow: false).map {
+                        resolver.sectionExists(path: context.rite.adjusted("Tempora/\($0)", latin: corpus), section: "Lectio1")
+                    } == true)
             {
-                // `officestring` (`SetupString.pl:748-780`) merges the month's week into a
-                // resumed Epiphany week whose file has no rank of its own: the Saturday in
-                // the fifth week of October reads Maccabees (6 November 2027).
+                // A resumed Epiphany week's file has no rank of its own, but its lessons
+                // (`TemporaOP/Epi4-6`, Galatians, under Our Lady on Saturday, 6 February
+                // 2038), or the month's week `officestring` merges into it
+                // (`SetupString.pl:748-780`: Maccabees on 6 November 2027).
                 scriptura = path
             }
         }

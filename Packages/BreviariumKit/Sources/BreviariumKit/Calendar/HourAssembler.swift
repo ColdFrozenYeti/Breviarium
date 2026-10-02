@@ -1050,6 +1050,10 @@ public struct HourAssembler {
         day: Int, month: Int, year: Int, winningRank: OfficeRank, resolver: SectionResolver, macroContext: MacroContext,
         englishResolver: SectionResolver? = nil, winnerPath: String? = nil
     ) -> [Unit] {
+        // `orationes.pl:256`, `if ($horamajor && $rank < 7)`: on a day of rank 7 no
+        // commemoration is said, whatever the title announces (Corpus Christi on 24 June
+        // 2038, St John the Baptist "de sequenti" but not said).
+        if context.rite == .dominicanus, winningRank.numericPrecedence >= 7 { return [] }
         let source = Commemorations(corpus: corpus, context: context, calendar: calendar)
         let own = macroContext.hour == .laudes ? winnersOwnCommemoration(winnerPath: winnerPath, winningRank: winningRank, macroContext: macroContext, resolver: resolver) : nil
         let commemorations = (macroContext.hour == .laudes
@@ -1063,6 +1067,9 @@ public struct HourAssembler {
                 (context.rite == .dominicanus && $0.ind == 1)
                     || !Self.isCommemorationSuppressedByRule(winningRule: macroContext.winningRule, commemorationPath: $0.path)
             }
+            // `horascommon.pl:991`: after 1 January, nothing of tomorrow (`$winner =~ /01-01/`
+            // drops `$cwinner`): the Holy Name on Sunday 2 January 2033.
+            .filter { !($0.ind == 1 && (winnerPath ?? "").range(of: "01-01$", options: .regularExpression) != nil) }
             // `orationes.pl:670-686`: "no commemoration of no privileged feria" (below
             // 2.1 and not 1.15). At Lauds (Beta 2): 11 January 2025, Our Lady on
             // Saturday, drops "Die Undecima Ianuarii" and keeps St Hyginus.

@@ -105,7 +105,16 @@ public enum DominicanEnglish {
     /// The unit without an English that repeats its Latin; its Latin; and whether it still
     /// has English.
     static func withoutRepeatedLatin(_ unit: Unit) -> (Unit, String, Bool) {
-        func same(_ latin: String, _ english: String?) -> Bool { english.map { key($0) == key(latin) } ?? false }
+        // The English column's Latin with its Paschal "alleluia" unaccented (St Mark's
+        // *Vos estis lux mundi… possidébitis ánimas vestras, alleluia*, 25 April 2033); a
+        // bare *Allelúia* stays a translation.
+        func same(_ latin: String, _ english: String?) -> Bool {
+            guard let english else { return false }
+            if key(english) == key(latin) { return true }
+            func unaccented(_ text: String) -> String { key(text).replacingOccurrences(of: #"allel[uú][ij]a"#, with: "alleluia", options: [.regularExpression, .caseInsensitive]) }
+            let words = latin.split(whereSeparator: \.isWhitespace).filter { $0.range(of: #"(?i)allel[uú][ij]a"#, options: .regularExpression) == nil }
+            return words.count >= 3 && unaccented(english) == unaccented(latin)
+        }
         // An English half that the Order's substitution, meant for the Latin, has left
         // as bare punctuation (".", the Advent Ember Friday's *Præcúrsor pro nobis*) is none.
         func text(_ english: String?) -> String? { english.flatMap { $0.contains(where: \.isLetter) ? $0 : nil } }

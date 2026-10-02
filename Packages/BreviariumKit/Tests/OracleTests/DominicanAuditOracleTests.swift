@@ -49,6 +49,10 @@ private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
     // Roman section's unexpanded `@:Responsory1_` and changes nothing, so it shows the
     // Roman versicle, *Convertímini ad eum…*, not the Order's *Et auférte deos…*.
     (.matutinum, ["Convertímini ad eum in toto corde vestro, et auférte deos"]),
+    // Our Lady on Saturday with Our Lady of Mount Carmel commemorated (16 July 2033 and
+    // 2039): DO follows the Common's third lesson with Carmel's own Elijah responsory
+    // (*Factum est, dum tólleret*), the app with the Common's; which one needs a source.
+    (.matutinum, ["Sanctæ Mariæ Sabbato", "Factum est, dum tólleret Dóminus Elíam"]),
     // Our Lady Mediatrix of All Graces (8 May 2025, in the second week after the Easter
     // octave): DO runs the Commune's versicles into the antiphons and says no psalms.
     (.matutinum, ["allelúiaV. Adiuvábit eam Deus"]),
@@ -154,8 +158,10 @@ private func dominicanBeaProblems(
             let date = String(format: "%04d-%02d-%02d", y, month, day)
             let monthday = String(format: "%02d-%02d", month, day)
             if let text = archive["\(year)/\(date)_priestN_latin.txt"] {
-                let divergence = officium == .diei && (knownDivergences.contains(where: text.contains)
-                    || hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(text.contains) }
+                // The Pius XII pages are spelt with I ("Iustórum"), the divergences as DO's J.
+                func has(_ part: String) -> Bool { text.contains(part) || text.contains(LatinOrthography.normalize(part)) }
+                let divergence = officium == .diei && (knownDivergences.contains(where: has)
+                    || hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(has) }
                     || dateDivergences.contains { ($0.hour == nil || $0.hour == hour) && $0.monthday == monthday })
                 if divergence {
                     daysChecked += 1
@@ -300,11 +306,12 @@ private let dominicanMistranslations: [(start: String, pattern: String)] = [
     // repeat doubled); the app says them in Latin alone. Christmas's *Descéndit de cælis*,
     // the Epiphany's *Stella quam víderant* and *Vidéntes stellam*, Job's *Utinam
     // appenderéntur* (September), and *Factus est mihi Dóminus* (24 January).
-    ("He came down from heaven: true God", #"(?s)He came down from heaven: true God.*?(?=℣\. Grant, Lord|$)"#),
-    ("The star which the wise men had seen in the East", #"(?s)The star which the wise men had seen in the East.*?(?=℣\. Grant, Lord|$)"#),
-    ("When the wise men saw the star, they rejoiced", #"(?s)When the wise men saw the star, they rejoiced.*?(?=℣\. Grant, Lord|$)"#),
-    ("O that my sins, whereby I have deserved wrath;and", #"(?s)O that my sins, whereby I have deserved wrath;and.*?(?=℣\. Grant, Lord|$)"#),
-    ("The Lord is my refuge. * And my God is the stay of my trust.", #"(?s)The Lord is my refuge\. \* And my God is the stay of my trust\..*?(?=℣\. Grant, Lord|$)"#),
+    ("He came down from heaven: true God", #"(?s)He came down from heaven: true God.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("The star which the wise men had seen in the East", #"(?s)The star which the wise men had seen in the East.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("When the wise men saw the star, they rejoiced", #"(?s)When the wise men saw the star, they rejoiced.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("O that my sins, whereby I have deserved wrath;and", #"(?s)O that my sins, whereby I have deserved wrath;and.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("Behold, the Virgin shall conceive, and bear a son, saith the Lord;and", #"(?s)Behold, the Virgin shall conceive, and bear a son, saith the Lord;and.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("The Lord is my refuge. * And my God is the stay of my trust.", #"(?s)The Lord is my refuge\. \* And my God is the stay of my trust\..*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
     // The Seven Sorrows at Lauds: the Roman doxology's English beside the Order's own fourth
     // stanza and doxology (the first three stanzas are the Roman ones, with their English).
     ("Jesus, who for us did die", #"(?s)Jesus, who for us did die,.*?Worship thee forevermore\.\s*Amen\."#),
@@ -388,9 +395,16 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
     // "1 Sam 5:4-11" for the Order's *1 Reg 4:3-4*): the app shows the Latin reference
     // alone (`DominicanEnglish.passage`). DO's English references that match none the app
     // shows in English are left out; the Latin ones are compared as ever.
-    let shownPassages = hour.sections.flatMap(\.units).compactMap { unit -> Set<String>? in
+    // (with a lesson's own first line, where its English writes the reference unmarked:
+    // "Gal 6:6-9 And let him…", 6 February 2038).
+    var shownPassages = hour.sections.flatMap(\.units).compactMap { unit -> Set<String>? in
         guard case .psalmTitle(_, let english?) = unit else { return nil }
         return DominicanEnglish.passage(english)
+    }
+    for text in englishShown {
+        if let lead = text.firstMatch(of: /^(?:\d )?[A-Z][a-z]+\.? \d+:[\d,\-]+(?:; ?\d+:[\d,\-]+)*/), let passage = DominicanEnglish.passage(String(lead.output)) {
+            shownPassages.append(passage)
+        }
     }
     let latinReferences = hour.sections.flatMap(\.units).contains { unit in
         if case .psalmTitle(let latin, nil) = unit { DominicanEnglish.passage(latin) != nil } else { false }
@@ -445,7 +459,8 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
     if responsoriesLatinOnly.contains(true), responsoryRows.count == responsoriesLatinOnly.count {
         for (index, row) in responsoryRows.enumerated() where responsoriesLatinOnly[index] {
             rows[row].english = rows[row].english.replacingOccurrences(
-                of: #"(?s)(Thanks be to God\.)\s*℟\.(?!br)(?!.*Thanks be to God\.\s*℟\.).*$"#, with: "$1", options: .regularExpression
+                // up to the *Te Deum* that may follow in the same row (29 December 2033).
+                of: #"(?s)(Thanks be to God\.)\s*℟\.(?!br)(?!.*Thanks be to God\.\s*℟\.).*?(?=\s*Te Deum\b|$)"#, with: "$1", options: .regularExpression
             )
         }
     }
