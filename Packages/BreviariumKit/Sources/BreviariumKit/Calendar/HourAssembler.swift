@@ -369,13 +369,17 @@ public struct HourAssembler {
                     oratioUnits.append(contentsOf: Self.unitsFromResolvedText(named, english: englishCollect))
                     // A psalm said within the prayers: the Order's Office of the Dead says Psalm
                     // 145 after the *Pater noster* at Vespers (`Commune/C9` `[Oratio_a_porta]`,
-                    // which 1960 omits), numbered on from the five: "Psalmus 145 [6]".
+                    // which 1960 omits) and Psalm 129 at Matins, numbered on from the hour's
+                    // psalms: "Psalmus 145 [6]", "Psalmus 129 [10]".
+                    let psalmsSaid = sections.flatMap(\.units).filter { unit in
+                        if case .psalmTitle(let title, _) = unit { title.hasPrefix("Psalmus") || title.hasPrefix("Canticum") } else { false }
+                    }.count
                     oratioUnits = oratioUnits.flatMap { unit -> [Unit] in
                         guard case .prose(let text, _) = unit, let match = text.firstMatch(of: /^&psalm\((\d+)\)$/) else { return [unit] }
                         let (title, content) = psalmUnits(
                             number: String(match.1), resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
                         )
-                        return [.psalmTitle(Self.numberedPsalmTitle(title, 6))] + content
+                        return [.psalmTitle(Self.numberedPsalmTitle(title, psalmsSaid + 1))] + content
                     }
                     // Commemorations only at the major hours (`orationes.pl`, `$horamajor`).
                     if hour.isMajor, officium == .diei, !Self.ruleOmits(rule: macroContext.winningRule, keyword: "Commemoratio") {
@@ -539,7 +543,10 @@ public struct HourAssembler {
                 }
             case "Regula vel Evangelium":
                 sections.append(assembleRegulaVelEvangelium(
-                    winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver
+                    winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver,
+                    psalmsSaid: sections.flatMap(\.units).filter { unit in
+                        if case .psalmTitle(let title, _) = unit { title.hasPrefix("Psalmus") || title.hasPrefix("Canticum") } else { false }
+                    }.count
                 ))
             case "Lectio brevis" where hour == .prima:
                 sections.append(assemblePrimeLectio(winner: winner, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
@@ -1057,7 +1064,28 @@ public struct HourAssembler {
                 macroContext.hour != .laudes || !(comm.rank.numericPrecedence < 2.1 && comm.rank.numericPrecedence != 1.15
                     && comm.rank.degreeLabel.range(of: "Feria", options: .caseInsensitive) != nil)
             }
-        guard !commemorations.isEmpty || own != nil else { return [] }
+        // The Order's own commemoration written out in the winner's `[Commemoratio 2]`
+        // rather than referred to (Friday in Passion Week: *Memoria Compassionis B.M.V.*,
+        // `Tempora/Quad5-5Feria`), at Lauds, after the others (`orationes.pl:331`).
+        let inlineOwn: [Unit] = {
+            guard own == nil, macroContext.hour == .laudes, context.rite == .dominicanus, let winnerPath,
+                winningRank.numericPrecedence < 6, resolver.sectionExists(path: winnerPath, section: "Commemoratio 2"),
+                let body = resolver.unresolvedBody(path: winnerPath, section: "Commemoratio 2"),
+                body.contains(where: { $0.hasPrefix("Ant.") }), !body.contains(where: { $0.hasPrefix("@") })
+            else { return [] }
+            func lines(_ resolver: SectionResolver) -> [String] {
+                resolver.resolve(path: winnerPath, section: "Commemoratio 2").split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            }
+            let latin = lines(resolver)
+            let english = englishResolver.flatMap { $0.sectionExists(path: winnerPath, section: "Commemoratio 2") ? lines($0) : nil }
+            guard let heading = latin.first(where: { $0.hasPrefix("!") }) else { return [] }
+            let englishHeading = english?.first { $0.hasPrefix("!") }
+            func rest(_ lines: [String]) -> [String] { lines.filter { !$0.hasPrefix("!") } }
+            return [.rubric(String(heading.dropFirst()).trimmingCharacters(in: .whitespaces),
+                            english: englishHeading.map { String($0.dropFirst()).trimmingCharacters(in: .whitespaces) })]
+                + Self.unitsFromLines(rest(latin), english: english.map(rest))
+        }()
+        guard !commemorations.isEmpty || own != nil || !inlineOwn.isEmpty else { return [] }
 
         // orationes.pl:585-594: "Under the 1960 rubrics, on II. cl and higher days,
         // allow at most one commemoration." The survivor is picked by a real numeric
@@ -1091,7 +1119,24 @@ public struct HourAssembler {
             if let latin = heading(resolver) {
                 blocks[blocks.count - 1][first] = .rubric(latin, english: heading(englishResolver))
             }
+            // From a Common, the collect is the section's own, its names put in
+            // (`@CommuneOP/C3a:Oratio:s/N\. et N\./Christóphorum et Cucuphátem/`).
+            if own.path.hasPrefix("Commune"), let section = ["Commemoratio 2", "Commemoratio"].first(where: { resolver.sectionExists(path: winnerPath, section: $0) }) {
+                func collect(_ resolver: SectionResolver?) -> String? {
+                    guard let resolver, resolver.sectionExists(path: winnerPath, section: section) else { return nil }
+                    return resolver.resolve(path: winnerPath, section: section).split(separator: "\n")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .first { !$0.isEmpty && !$0.hasPrefix("!") && !$0.hasPrefix("$") && !$0.hasPrefix("&") }
+                        .map { DOMarkers.stripLineLabel($0) }
+                }
+                if let latin = collect(resolver), let oremus = blocks[blocks.count - 1].firstIndex(where: { if case .prose(let text, _) = $0 { text.hasPrefix("Orémus") } else { false } }),
+                    oremus + 1 < blocks[blocks.count - 1].count
+                {
+                    blocks[blocks.count - 1][oremus + 1] = .prose(latin, english: collect(englishResolver))
+                }
+            }
         }
+        if !inlineOwn.isEmpty { blocks.append(inlineOwn) }
         blocks = blocks.filter { !$0.isEmpty }
         // `orationes.pl:601-645`, `delconclusio`: every commemoration's conclusion comes
         // off and only the last one's is said, once, at the end; so all but the last end
@@ -1229,7 +1274,12 @@ public struct HourAssembler {
         }
         guard let match = text.firstMatch(of: /@([A-Za-z0-9\/\-]+):Oratio/) else { return nil }
         let path = String(match.1)
-        guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { return nil }
+        // A Common has no rank of its own: the heading names the commemoration (St James,
+        // 25 July: "Memoria Ss. Christophori et Cucuphatis Mm.", from `CommuneOP/C3a`).
+        let commonRank = path.hasPrefix("Commune") && !heading.isEmpty
+            ? OfficeRank(title: String(heading.dropFirst()).trimmingCharacters(in: .whitespaces), degreeLabel: "", numericPrecedence: 1, communeReference: "")
+            : nil
+        guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) ?? commonRank else { return nil }
         // The same test on the heading `getrefs` builds from the referenced office.
         if rank.title.range(of: "O[ckt]t[aá]|Dominic[aæ]", options: [.regularExpression, .caseInsensitive]) != nil,
             macroContext.month < 12 || macroContext.day < 25

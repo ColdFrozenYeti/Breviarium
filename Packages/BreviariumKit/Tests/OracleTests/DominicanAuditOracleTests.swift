@@ -14,6 +14,7 @@ private let knownDivergences = [
     "Sancti/01-06:Ant Laudes",                 // Epiphany, both Vespers: a reference DO prints instead of *Ante lucíferum génitus*
     "Oratio missing", "Ant missing", "Ant 2 missing", "Ant 3 missing",    // 24 April: the Crown of Thorns office is incomplete
     "Ant. ‡ Canticum",                         // Our Lady on Saturday in January: `CommuneOP/C10b`'s line 2 of a one-line reference (*Génuit puérpera*)
+    "Ant. , allelúia.",                        // a Paschal commemoration whose Commune has no antiphon (Ss. Marcellinus and companions, 2 June)
     "mercántur pr'aemium",                     // 4 August: DO's `<sp>'ae</sp>` markup for *prǽmium*
     " is missing!",                            // any other DO error text: a reference to a section that doesn't exist
 ]
@@ -46,6 +47,7 @@ private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
 private let dateDivergences: [(hour: CanonicalHour?, monthday: String)] = [
     (nil, "08-30"),             // St Rose of Lima: DO loses her rank and says the feria or Our Lady's Saturday
     (.completorium, "11-01"),   // the title names the weekday after All Saints' second Vespers
+    (.laudes, "09-17"),         // St Lambert's commemoration before the Stigmata's: DO orders them by their Commons' ranks
 ]
 
 private func hourSelected(_ hour: CanonicalHour) -> Bool {
@@ -267,6 +269,11 @@ func dominicanVotiveAudit(_ votive: VotiveHour) async throws {
 private let dominicanMistranslations: [(start: String, pattern: String)] = [
     ("The morn had spread her crimson rays", #"(?s)The morn had spread her crimson rays,.*?The Spirit, God forevermore\. Amen\."#),
     ("Grace is poured into thy lips, therefore;", #"(?s)(℟\.(br\.)?\s*)?Grace is poured into thy lips, therefore;.*?Go forward, fare prosperously, and reign\."#),
+    // St Mary Magdalene: *Lauda mater Ecclésia* beside *Pater supérni lúminis*'s English.
+    ("Father of lights! one glance of thine", #"(?s)Father of lights! one glance of thine,.*?Be glory through eternity\. Amen\."#),
+    // Saturday Vespers' responsory *Igitur perfécti sunt*: the Roman Matins responsory's
+    // English, its lines not cut as the Order's Latin is.
+    ("So the heavens and the earth were finished", #"(?s)(℟\.\s*)?So the heavens and the earth were finished,.*?(℣\.\s*)?Glory be to the Father, and to the Son, \* and to the Holy Ghost\.\s*(℟\.\s*)?[^℣℟]*?which he had done\."#),
     ("Grace is poured into thy lips, therefore, alleluia.", #"(?s)(℟\.(br\.)?\s*)?Grace is poured into thy lips, therefore, alleluia\..*?reign, alleluia\."#),
 ]
 
@@ -275,18 +282,49 @@ private let dominicanMistranslations: [(start: String, pattern: String)] = [
 /// Roman text's English. Neither side is compared there: the Latin DO repeats is taken out
 /// of its English column, and the units it repeats lose their English for the comparison.
 func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualRow]) {
+    var hour = hour
     var repeated: Set<String> = []
     var rows = rows
     // A Latin text our English column shows too (a responsory's "Sicut dixit vobis." over
     // an English response) is a match, not a repetition.
     let englishShown = Set(hour.sections.flatMap(\.units).flatMap(englishComparisonTexts).map { collapsedWhitespace(LatinOrthography.normalize($0)) })
-    let pieces = Set(hour.sections.flatMap(\.units).flatMap(oracleComparisonTexts).map { collapsedWhitespace(LatinOrthography.normalize($0)) })
-        .filter { ($0.count >= 12 || ($0.count >= 8 && $0.hasSuffix(":"))) && !englishShown.contains($0) }.sorted { $0.count > $1.count }
-    // DO's English column keeps its J spelling ("cujus"), and its English its J's
-    // ("Jesu"): the pieces are matched either way, and the English is left as DO has it.
+    func folded(_ text: String) -> String {
+        text.replacingOccurrences(of: "ǽ", with: "æ").replacingOccurrences(of: "Ǽ", with: "Æ")
+            .folding(options: .diacriticInsensitive, locale: nil).replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+    }
+    // Pieces of 12 letters and more, and shorter ones (*Et suávis.*, *Allelúia.*) from a
+    // unit the app shows in Latin alone, or a rubric ("Et chorus:").
+    var pieceSet: Set<String> = []
+    for unit in hour.sections.flatMap(\.units) {
+        let latinOnly = englishComparisonTexts(unit).isEmpty
+        for text in oracleComparisonTexts(unit).map({ collapsedWhitespace(LatinOrthography.normalize($0)) }) where !englishShown.contains(text) {
+            if text.count >= 12 || (text.count >= 8 && (latinOnly || text.hasSuffix(":")))
+                || (text.count >= 6 && latinOnly && text.contains(where: \.isNumber)) // a Gospel's "Cap. 13"
+            {
+                pieceSet.insert(text)
+            }
+        }
+    }
+    // Nor Latin whose letters the app's English shows too ("Allelúia, allelúia." beside
+    // "Alleluia, alleluia.").
+    let foldedShown = Set(englishShown.map(folded))
+    let pieces = pieceSet.filter { $0.count < 12 || !foldedShown.contains(folded($0)) }.sorted { $0.count > $1.count }
+    // DO's English column keeps its J spelling ("cujus"), its English its J's ("Jesu"),
+    // and its Latin sometimes another accentuation ("alleluia"): a long piece is matched
+    // either way, a short one exactly, and the English is left as DO has it.
+    // Matched on decomposed text, each letter with any accents it carries.
     func pattern(_ piece: String) -> String {
-        NSRegularExpression.escapedPattern(for: piece)
-            .replacingOccurrences(of: "i", with: "[ij]").replacingOccurrences(of: "I", with: "[IJ]")
+        guard piece.count >= 12 else {
+            return NSRegularExpression.escapedPattern(for: piece)
+                .replacingOccurrences(of: "i", with: "[ij]").replacingOccurrences(of: "I", with: "[IJ]")
+        }
+        return folded(piece).map { character -> String in
+            switch character {
+            case "i", "I": return "[iIjJ]\\p{M}*"
+            case let letter where letter.isLetter: return "[\(letter.lowercased())\(letter.uppercased())]\\p{M}*"
+            default: return NSRegularExpression.escapedPattern(for: String(character))
+            }
+        }.joined()
     }
     // DO's English for a Dominican text it has no translation of, wrongly: a different
     // hymn's (the Paschal Lauds hymn, *Sermóne blando*, under *Aurora cælum purpurat*'s
@@ -299,27 +337,85 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
             rows[index].english = rows[index].english.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
         }
     }
+    // A chapter whose English DO takes from another text (Advent Sundays at Sext and
+    // None: Romans beside the Order's Isaiah): DO's Latin column has the app's reference,
+    // its English column another one. That English is left out, and so is the app's.
+    var swappedChapters: Set<String> = []
+    for unit in hour.sections.filter({ $0.kind == .capitulum }).flatMap(\.units) {
+        // The app's English is this chapter's own, or none (`DominicanEnglish`'s foreign chapter).
+        guard case .psalmTitle(let latinReference, let english) = unit, let citation = DominicanEnglish.citation(latinReference),
+            english.map({ DominicanEnglish.citation($0) == citation }) ?? true else { continue }
+        for index in rows.indices where rows[index].latin.contains(latinReference) && !rows[index].english.contains(citation) {
+            let other = #"(?s)\b(?:\d )?[A-Z][a-z]+\.? \d+:\d+(?:-\d+)? .*?(?=℟\. Thanks be to God)"#
+            if rows[index].english.range(of: other, options: .regularExpression) != nil {
+                rows[index].english = rows[index].english.replacingOccurrences(of: other, with: " ", options: .regularExpression)
+                swappedChapters.insert(latinReference)
+            }
+        }
+    }
+    if !swappedChapters.isEmpty {
+        hour.sections = hour.sections.map { section in
+            guard section.kind == .capitulum else { return section }
+            var section = section
+            var inChapter = false
+            section.units = section.units.map { unit in
+                switch unit {
+                case .psalmTitle(let text, _) where swappedChapters.contains(text):
+                    inChapter = true
+                    return .psalmTitle(text)
+                case .prose(let text, _) where inChapter: return .prose(text)
+                default:
+                    inChapter = false
+                    return unit
+                }
+            }
+            return section
+        }
+    }
+    // Latin the app shows in its English column too (half a responsory DO has no English
+    // for) is spelt with I, as DO's Latin column; DO's English column keeps its J.
+    let latinShownAsEnglish = englishShown.filter { $0.count >= 12 && $0.rangeOfCharacter(from: CharacterSet(charactersIn: "áéíóúǽ")) != nil }
+    for index in rows.indices where rows[index].english.contains("J") || rows[index].english.contains("j") {
+        for text in latinShownAsEnglish {
+            rows[index].english = rows[index].english.decomposedStringWithCanonicalMapping
+                .replacingOccurrences(of: pattern(text), with: NSRegularExpression.escapedTemplate(for: text), options: .regularExpression)
+                .precomposedStringWithCanonicalMapping
+        }
+    }
     for index in rows.indices {
         var english = collapsedWhitespace(rows[index].english)
         let normalized = LatinOrthography.normalize(english)
-        for piece in pieces where normalized.contains(piece) {
+        let foldedEnglish = folded(english)
+        for piece in pieces where piece.count >= 12 ? foldedEnglish.contains(folded(piece)) : normalized.contains(piece) {
             // With its verse number, if it has one (a lesson's "9 Et idcírco…"), but not
             // the end of a chapter's reference ("Sir 45:1-2 Diléctus…").
-            english = english.replacingOccurrences(
-                of: #"((?<!\p{L} )(?<![-:.,])\b\d+ )?"# + pattern(piece), with: " ", options: .regularExpression
-            )
+            english = english.decomposedStringWithCanonicalMapping.replacingOccurrences(
+                of: #"((?<!\p{L} )(?<!Cap\. )(?<![-:.,])\b\d+ )?"# + pattern(piece), with: " ", options: .regularExpression
+            ).precomposedStringWithCanonicalMapping
             repeated.insert(piece)
         }
         if !repeated.isEmpty { rows[index].english = collapsedWhitespace(english) }
     }
     guard !repeated.isEmpty else { return (hour, rows) }
-    var hour = hour
+    let doEnglish = rows.map { collapsedWhitespace($0.english) }.joined(separator: " ")
     hour.sections = hour.sections.map { section in
         var section = section
         section.units = section.units.map { unit in
             let latin = oracleComparisonTexts(unit).map { collapsedWhitespace(LatinOrthography.normalize($0)) }
             // A lesson whose one written-out line DO repeats keeps the English of the rest.
             let long = latin.filter { $0.count >= 12 }
+            // The same Latin said twice, once with English (All Souls' Compline: the
+            // *Requiéscant in pace* of the prayers, and of the special conclusion without).
+            let english = englishComparisonTexts(unit).filter { $0.count >= 8 }
+            if !english.isEmpty, english.allSatisfy({ text in doEnglish.contains(collapsedWhitespace(text)) }) { return unit }
+            // A versicle DO repeats in Latin over an English response keeps that response.
+            if case .versicleResponse(let v, let r, let ve, let re) = unit, ve != nil, re != nil {
+                let vRepeated = repeated.contains(collapsedWhitespace(LatinOrthography.normalize(v)))
+                let rRepeated = repeated.contains(collapsedWhitespace(LatinOrthography.normalize(r)))
+                if vRepeated != rRepeated {
+                    return .versicleResponse(versicle: v, response: r, versicleEnglish: vRepeated ? nil : ve, responseEnglish: rRepeated ? nil : re)
+                }
+            }
             guard !long.isEmpty, long.allSatisfy(repeated.contains) else { return unit }
             switch unit {
             case .rubric(let text, _): return .rubric(text)

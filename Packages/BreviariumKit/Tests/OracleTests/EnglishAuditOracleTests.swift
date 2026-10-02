@@ -58,7 +58,7 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\d+ "#),                // the row counter DO prints in the English cell
     try! Regex(#"Top Next"#),
     try! Regex(#"\{[^}]*\}"#),            // DO's source notes, "{from the Proper of Saints}", "{omit}"
-    try! Regex(#"Psalm \d+(\([^)]*\))?( —[^\[]*)? \[\d\]"#),
+    try! Regex(#"Psalm \d+(\([^)]*\))?( —[^\[]*)? \[\d+\]"#),
     try! Regex(#"\b\d{1,3}:\d{1,3}\b"#),  // verse references
     try! Regex(#"[℣℟]\."#),
     try! Regex(#"\bAnt\."#),
@@ -88,6 +88,10 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     // Beta 5: the Dominican Compline's heading, "Antiphonae finalis" (`specials.pl:319`),
     // in both columns.
     try! Regex(#"^\s*Antiphonae finalis"#),
+    // And the Order's Little Office at Compline: "Capitulum Responsorium" and "Antiphona
+    // finalis", in Latin in the English column.
+    try! Regex(#"^\s*Responsorium\b"#),
+    try! Regex(#"^\s*Antiphona finalis\b"#),
     try! Regex(#"^\s*Regula vel Evangelium"#),
     // All Souls' Dominican Prime: DO's label "Incipit specialis" on its opening.
     try! Regex(#"^\s*(Incipit )?specialis\b"#),
@@ -109,7 +113,7 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
 private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Top Next"#),
     try! Regex(#"\{[^}]*\}"#),
-    try! Regex(#"Psalmus \d+(\([^)]*\))?( —[^\[]*)? \[\d\]"#),
+    try! Regex(#"Psalmus \d+(\([^)]*\))?( —[^\[]*)? \[\d+\]"#),
     try! Regex(#"\b\d{1,3}:\d{1,3}\b"#),
     try! Regex(#"[℣℟]\."#),
     try! Regex(#"\bAnt\."#),
@@ -117,8 +121,9 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Incipit|Psalmi|Capitulum Hymnus Versus|Canticum: Magnificat|Preces Feriales|Oratio|Conclusio)\b"#),
     try! Regex(#"Canticum B\. Mariæ Virginis Luc\.\s*-?\d*"#),
     try! Regex(#"^\s*Hymnus\b"#),
+    try! Regex(#"^\s*Responsorium\b"#),
     try! Regex(#"^\s*Versus \(In loco Capituli\)"#),
-    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis|Antiphonae finalis|Regula vel Evangelium)\b"#),
+    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Responsorium|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis|Antiphonae finalis|Regula vel Evangelium)\b"#),
     try! Regex(#"^\s*(Incipit )?specialis\b"#),
     try! Regex(#"\bHymnus\b(?= |$)"#),
     try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),

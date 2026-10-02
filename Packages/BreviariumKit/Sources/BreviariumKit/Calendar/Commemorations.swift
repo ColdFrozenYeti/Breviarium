@@ -357,6 +357,7 @@ public struct Commemorations {
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
         let winnerIsSanctoral = winnerPath.hasPrefix("Sancti")
+        var mainSaintDropped = false
         for (candidateIndex, candidate) in calendar.candidates(day: day, month: month, year: year).enumerated() {
             let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard path != winnerPath,
@@ -389,10 +390,16 @@ public struct Commemorations {
                 // judges the day's saint (`$sname`, `horascommon.pl:716`); the Kalendarium's
                 // further saints stay in `@commemoentries`, which under the Order's rubrics
                 // nothing clears on a Sunday (22 August 2027, Ss. Timothy and companions).
+                // They are commemorated with it, not without it (20 July 2025: neither St
+                // Jerome Emiliani nor St Margaret under the Sunday).
                 let judged = context.rite != .dominicanus || candidateIndex == 0
+                if !judged, mainSaintDropped { continue }
                 guard !judged
                     || Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
-                else { continue }
+                else {
+                    mainSaintDropped = true
+                    continue
+                }
             } else {
                 // The Dominican ranks aren't 1960's: as DO's general rule (`horascommon.pl:338`),
                 // only a Simplex ends after None (Ss. Cyriacus and companions, 2.2, are
@@ -400,10 +407,11 @@ public struct Commemorations {
                 if context.rite == .dominicanus {
                     guard winnerIsSanctoral || rank.numericPrecedence >= 2 else { continue }
                     // `climit1960` at Vespers (`horascommon.pl:722`, the version matching
-                    // /196/): under a Sunday's temporal office only a I. classis feast is
-                    // commemorated (St John on the Sunday in the Christmas octave, 27
-                    // December 2026, is at Lauds only).
-                    if isSunday, !winnerIsSanctoral, winnerPath.hasPrefix("Tempora"), rank.numericPrecedence < 6 { continue }
+                    // /196/): under the temporal office the day's saint is commemorated at
+                    // Vespers only if I. classis (St John on the Sunday in the Christmas
+                    // octave, 27 December 2026; St John of God on the Saturday after Ash
+                    // Wednesday, 8 March 2025: at Lauds only).
+                    if candidateIndex == 0, !winnerIsSanctoral, winnerPath.hasPrefix("Tempora"), rank.numericPrecedence < 6 { continue }
                 } else {
                     guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
                     else { continue }

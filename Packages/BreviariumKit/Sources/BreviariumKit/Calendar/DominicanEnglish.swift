@@ -55,7 +55,19 @@ public enum DominicanEnglish {
             var section = section
             var units: [Unit] = []
             var pendingNote = false
-            for unit in section.units {
+            // A chapter whose English is another passage's (`Minor Special`'s `[Adv Nona]`:
+            // the Order's Isaiah 2:2 has its own Latin section but the Roman English of
+            // Isaiah 14:1) is said in Latin alone.
+            var foreignChapter = false
+            for var unit in section.units {
+                if case .psalmTitle(let latin, let english?) = unit {
+                    foreignChapter = Self.citation(latin) != nil && Self.citation(english) != nil && Self.citation(latin) != Self.citation(english)
+                    if foreignChapter { unit = .psalmTitle(latin) }
+                } else if foreignChapter, case .prose(let latin, _) = unit {
+                    unit = .prose(latin)
+                } else {
+                    foreignChapter = false
+                }
                 let (cleaned, latin, hasEnglish) = withoutRepeatedLatin(unit)
                 let altered = hasEnglish && (alterations?.contains(latin) ?? false)
                 if pendingNote, !altered { units.append(.englishNote(note)) }
@@ -67,6 +79,11 @@ public enum DominicanEnglish {
             return section
         }
         return hour
+    }
+
+    /// A Scripture reference's chapter and verses ("2:2", "14:1"), whatever the book's name.
+    static func citation(_ reference: String) -> String? {
+        reference.firstMatch(of: /\d+:[\d,\-]+/).map { String($0.output) }
     }
 
     /// The unit without an English that repeats its Latin; its Latin; and whether it still

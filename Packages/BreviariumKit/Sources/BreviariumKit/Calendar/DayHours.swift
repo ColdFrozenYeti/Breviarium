@@ -705,6 +705,8 @@ extension HourAssembler {
         let englishLines: [String]? = englishResolver == nil ? nil : lines(antiphon.english) + lines(englishAuxilium) + (englishGroup?.lines ?? [])
         // The antiphon's lines are one text, set like a hymn stanza, not a paragraph each.
         var units = Self.unitsFromLines(latinLines, english: englishLines)
+        // A lone `_` (the Order's *Salve Regína* before its versicle) ends the antiphon.
+        units.removeAll { if case .prose(let text, _) = $0 { text.trimmingCharacters(in: .whitespaces) == "_" } else { false } }
         let leading = units.prefix { if case .prose = $0 { true } else { false } }
         if leading.count > 1 {
             var latin: [String] = []
@@ -799,7 +801,9 @@ extension HourAssembler {
                 // And `suppress_alleluia` from Septuagesima (`webdia.pl:684-685`).
                 let suppressed = Self.isAlleluiaSuppressed(weekName: season, isFirstVespers: macroContext.isFirstVespers)
                 func processed(_ line: String) -> String {
+                    // A `_` a line join leaves inside a line is layout (the Order's *Salve Regína*).
                     let line = Self.processingInlineAlleluias(line, paschal: paschal)
+                        .replacingOccurrences(of: #"\s+_(?=\s|$)"#, with: "", options: .regularExpression)
                     guard suppressed, !line.hasPrefix("&"), !line.hasPrefix("$") else { return line }
                     return line.replacingOccurrences(of: #"[,.]?\s*allel[uú][ij]a"#, with: "", options: [.regularExpression, .caseInsensitive])
                 }
@@ -1032,7 +1036,8 @@ extension HourAssembler {
     /// *Tu autem* and the Rule's *Finita lectione* (the commemoration of the Order's dead,
     /// Psalm 116 and the collect *Actiónes nostras*).
     func assembleRegulaVelEvangelium(
-        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
+        winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?,
+        psalmsSaid: Int = 0
     ) -> Section {
         let regula = "Regula/OrdoPraedicatorum"
         func lines(_ text: String) -> [String] { text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) }
@@ -1076,7 +1081,8 @@ extension HourAssembler {
         let englishFinita = englishResolver.map(finita)
         units += part(latinFinita.before, englishFinita?.before)
         let (title, psalm) = psalmUnits(number: "116", resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
-        units.append(.psalmTitle(title, english: nil))
+        // Numbered on from the hour's psalms, as DO does: "Psalmus 116 [4]".
+        units.append(.psalmTitle(psalmsSaid > 0 ? Self.numberedPsalmTitle(title, psalmsSaid + 1) : title, english: nil))
         units += psalm
         units += part(latinFinita.after, englishFinita?.after)
         return Section(kind: .regulaVelEvangelium, units: units)
@@ -1421,7 +1427,9 @@ extension HourAssembler {
         let special = "Psalterium/Special/Major Special"
         let weekName = macroContext.weekName
         var location: (path: String, section: String)?
-        if macroContext.officeMonth == 12, [21, 23].contains(macroContext.officeDay), winner.winningPath.hasPrefix("Tempora") {
+        // `horas.pl:481`: not the 23rd under the Order's rubrics, whose Lauds keep the feria's.
+        let specialDays = resolver.context.rite == .dominicanus ? [21] : [21, 23]
+        if macroContext.officeMonth == 12, specialDays.contains(macroContext.officeDay), winner.winningPath.hasPrefix("Tempora") {
             location = (special, "Adv Ant \(macroContext.officeDay)L")
         }
         if location == nil {

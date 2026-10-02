@@ -158,7 +158,8 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         let date = env["BREVIARIUM_DEBUG_DATE"], let bundle = RealCorpus.bundle
     else { return }
     let parts = date.split(separator: "-").compactMap { Int($0) }
-    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
+    // `BREVIARIUM_DEBUG_BEA=1` assembles with the Pius XII psalter (no audit against the Vulgate pages).
+    let corpus = bundle.makeLatinCorpus(psalter: env["BREVIARIUM_DEBUG_BEA"] == nil ? .vulgate : .pius12)
     // `BREVIARIUM_DEBUG_RITE=op` (Beta 5) assembles the Dominican office and reads `op/` fixtures.
     let rite: Rite = env["BREVIARIUM_DEBUG_RITE"] == "op" ? .dominicanus : .romanus
     let prefix = rite == .dominicanus ? "op/" : ""
@@ -166,10 +167,13 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     // `BREVIARIUM_DEBUG_VOTIVE=C12` or `C9` (Beta 4) assembles the votive office and reads its fixtures.
     let votive = env["BREVIARIUM_DEBUG_VOTIVE"] ?? ""
     let officium: Officium = votive == "C12" ? .parvumBMV : votive == "C9" ? .defunctorum : .diei
-    let (assembled, title) = assembleDayHour(
-        hour, day: parts[2], month: parts[1], year: parts[0], priest: false, bundle: bundle, corpus: corpus, english: bundle.makeEnglishCorpus(),
-        calendar: calendar, officium: officium, rite: rite
-    )
+    // `BREVIARIUM_DEBUG_UNCORRECTED=1` assembles with DO's errors left in (`SectionResolver.correctsDOErrors`).
+    let (assembled, title) = SectionResolver.$correctsDOErrors.withValue(env["BREVIARIUM_DEBUG_UNCORRECTED"] == nil) {
+        assembleDayHour(
+            hour, day: parts[2], month: parts[1], year: parts[0], priest: false, bundle: bundle, corpus: corpus, english: bundle.makeEnglishCorpus(),
+            calendar: calendar, officium: officium, rite: rite
+        )
+    }
     var out = "TITLE: \(title ?? "-")\n"
     let debugContext = ConditionalContextBuilder.build(
         day: parts[2], month: parts[1], year: parts[0], ad: hour.doName, rubrica: rite.doVersion, corpus: corpus, sanctoralCalendar: calendar
