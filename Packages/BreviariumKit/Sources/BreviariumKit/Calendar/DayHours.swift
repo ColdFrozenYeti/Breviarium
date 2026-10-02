@@ -353,7 +353,7 @@ extension HourAssembler {
         }
         let latin = stanzas(texts.latin)
         let english = texts.english.map(stanzas)
-        var units = Self.pairedStanzas(latin: latin, english: english)
+        var units = hymnUnits(latin: latin, english: english, path: path, section: name, resolver: resolver, englishResolver: englishResolver)
         if dominicanCompline {
             // `postprocess_vr`: in Paschaltide each line ends in *allelúia*.
             let versum = rawBoth(path: path, section: "Versum 4", resolver: resolver, englishResolver: englishResolver)
@@ -1359,7 +1359,9 @@ extension HourAssembler {
             func stanzas(_ text: String) -> [String] { Self.hymnStanzas(text.replacingOccurrences(of: #"\*\s*"#, with: "", options: .regularExpression)) }
             let latin = stanzas(texts.latin)
             let english = texts.english.map(stanzas)
-            sections.append(Section(kind: .hymnus, units: Self.pairedStanzas(latin: latin, english: english)))
+            sections.append(Section(kind: .hymnus, units: hymnUnits(
+                latin: latin, english: english, path: hymnLocation.path, section: hymnLocation.section, resolver: resolver, englishResolver: englishResolver
+            )))
         }
 
         var versumLocation = proprium("Versum 2", flag: true, winner: winner, resolver: resolver, weekName: weekName)
@@ -1476,6 +1478,30 @@ extension HourAssembler {
     /// Pentecost Lauds hymn: 7 Latin, 8 English, the English doxology in two), the extra
     /// ones go with the last Latin stanza, so none of the English is lost; DO shows the
     /// whole hymn in one row.
+    /// `pairedStanzas`, and for the Order (decision 6 of `docs/Beta_5_plan.md`, by stanza):
+    /// a hymn that keeps some of the Roman hymn's stanzas word for word but not all, so
+    /// that the Roman English DO falls back on has another number of stanzas, gives each
+    /// kept stanza its Roman English and the Order's own stanzas none (the Seven Sorrows'
+    /// *Summæ Deus cleméntiæ* at Lauds, whose fourth stanza and doxology are the Order's).
+    func hymnUnits(
+        latin: [String], english: [String]?, path: String, section: String, resolver: SectionResolver, englishResolver: SectionResolver?
+    ) -> [Unit] {
+        let units = Self.pairedStanzas(latin: latin, english: english)
+        guard resolver.context.rite == .dominicanus, let english, english.count != latin.count, let englishResolver else { return units }
+        let roman = path.replacingOccurrences(of: #"^(Sancti|Tempora|Commune)OP/"#, with: "$1/", options: .regularExpression)
+        guard roman != path, resolver.sectionExists(path: roman, section: section), englishResolver.sectionExists(path: roman, section: section)
+        else { return units }
+        func stanzas(_ text: String) -> [String] { Self.hymnStanzas(text.replacingOccurrences(of: #"\*\s*"#, with: "", options: .regularExpression)) }
+        let romanLatin = stanzas(resolver.resolve(path: roman, section: section))
+        let romanEnglish = stanzas(englishResolver.resolve(path: roman, section: section))
+        guard romanLatin.count == romanEnglish.count, romanEnglish == english else { return units }
+        func key(_ text: String) -> String { text.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        let englishByLatin = Dictionary(zip(romanLatin.map(key), romanEnglish), uniquingKeysWith: { first, _ in first })
+        return latin.map { stanza in
+            .prose(stanza, english: englishByLatin[key(stanza)].map { $0.replacingOccurrences(of: "`", with: "") })
+        }
+    }
+
     static func pairedStanzas(latin: [String], english: [String]?) -> [Unit] {
         // `webdia.pl:694`: the editor's grave accents go ("`gainst").
         let english = english?.map { $0.replacingOccurrences(of: "`", with: "") }

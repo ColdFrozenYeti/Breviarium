@@ -327,6 +327,9 @@ public struct SectionResolver {
         // ends the antiphon of Psalm 20 (14 September).
         ("SanctiOP/09-14", "Ant Matutinum", "Suffragium Feriale:3 ", "Suffragium Feriale:2 "),
         ("SanctiOP/09-14", "Ant Matutinum", "Responsory6:1 s/R. // s/$/;;20/", "Responsory6:1 s/R. // s/:\\s*$/.;;20/"),
+        // A ferial second lesson after Pentecost: the substitution's closing slash is
+        // missing, so DO drops the lesson's reference, *1 Reg 14:11-14* (8 July 2025).
+        ("TemporaOP/Pent04-2", "Lectio2", "s/12-15/11-14", "s/12-15/11-14/"),
         // The Dominican Marian blessings (2 February, Saturdays), accented as every other.
         ("Psalterium/Benedictions", "Nocturn 1", "intercédát", "intercédat"),
         ("Psalterium/Benedictions", "Nocturn 3", "Ad societâtem civium", "Ad societátem cívium"),
@@ -501,8 +504,16 @@ public struct SectionResolver {
             let match = try? Self.substitutionDirectiveRegex.firstMatch(in: subs[cursor...])
         {
             if let regexReplace = match.output[1].substring {
-                result = applyRegexSubstitution(String(regexReplace), replacement: match.output[2].substring.map(String.init) ?? "",
-                    flags: match.output[3].substring.map(String.init) ?? "", to: result)
+                let replacement = match.output[2].substring.map(String.init) ?? ""
+                let flags = match.output[3].substring.map(String.init) ?? ""
+                let before = result
+                result = applyRegexSubstitution(String(regexReplace), replacement: replacement, flags: flags, to: result)
+                // The build spells a Latin file's pattern with I (`TemporaOP/Quadp3-4`'s
+                // `s/.* (?=Je[sz]us)//s`), but DO runs it on the English as written, where it
+                // meets "Jesus" (the Thursday after Ash Wednesday's second lesson).
+                if isEnglish, result == before, regexReplace.contains(where: { $0 == "I" || $0 == "i" }) {
+                    result = applyRegexSubstitution(Self.allowingJ(String(regexReplace)), replacement: replacement, flags: flags, to: result)
+                }
             } else if let startText = match.output[5].substring, let start = Int(startText) {
                 let negated = match.output[4].substring == "!"
                 let end = match.output[7].substring.flatMap { Int($0) } ?? start
@@ -519,12 +530,49 @@ public struct SectionResolver {
         return result
     }
 
+    /// A pattern with each literal I also matching J, outside character classes, escapes
+    /// and group syntax.
+    static func allowingJ(_ pattern: String) -> String {
+        var out = ""
+        var inClass = false
+        var escaped = false
+        var groupSyntax = false
+        var previous: Character?
+        for character in pattern {
+            defer { previous = character }
+            if escaped { out.append(character); escaped = false; continue }
+            if character == "\\" { out.append(character); escaped = true; continue }
+            if inClass {
+                if character == "]" { inClass = false }
+                out.append(character)
+                if character == "I" { out.append("J") } else if character == "i" { out.append("j") }
+                continue
+            }
+            if character == "[" { inClass = true; out.append(character); continue }
+            if character == "?", previous == "(" { groupSyntax = true; out.append(character); continue }
+            if groupSyntax {
+                if character == ":" || character == ")" || character == "=" || character == "!" || character == "<" { groupSyntax = false }
+                out.append(character)
+                continue
+            }
+            switch character {
+            case "I": out += "[IJ]"
+            case "i": out += "[ij]"
+            default: out.append(character)
+            }
+        }
+        return out
+    }
+
     private func applyLineSelection(start: Int, end: Int, negated: Bool, to text: String) -> String {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         // Perl's `split` drops trailing empty fields (the section's closing blank line).
         while lines.last == "" { lines.removeLast() }
         let startIndex = max(0, start - 1)
-        guard startIndex < lines.count else { return text }
+        // Past the end, Perl's `splice` selects nothing: TemporaOP/Pent04-2's `s/12-15/11-14`,
+        // a substitution without its closing slash, reads as the line ranges 12-15 and
+        // 11-14, and DO's second lesson loses its reference (8 July 2025).
+        guard startIndex < lines.count else { return negated ? lines.joined(separator: "\n") + "\n" : "\n" }
         let length = max(1, end - start + 1)
         let range = startIndex..<min(lines.count, startIndex + length)
 

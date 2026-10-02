@@ -209,7 +209,8 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         }
     }
     if let text = page {
-        out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
+        // `BREVIARIUM_DEBUG_DOEN=1` prints DO's English column instead of its Latin.
+        out += "=== DO\n" + OracleFixture.rows(text).map { env["BREVIARIUM_DEBUG_DOEN"] == nil ? String($0.latin.prefix(400)) : $0.english }.joined(separator: "\n")
         if let assembled {
             var report = DayHourAuditReport()
             var (compared, rows) = (assembled, withoutMartyrology(OracleFixture.rows(text)))

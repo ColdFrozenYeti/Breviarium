@@ -61,7 +61,7 @@ public enum DominicanEnglish {
             var foreignChapter = false
             for var unit in section.units {
                 if case .psalmTitle(let latin, let english?) = unit {
-                    foreignChapter = Self.citation(latin) != nil && Self.citation(english) != nil && Self.citation(latin) != Self.citation(english)
+                    foreignChapter = Self.passage(latin) != nil && Self.passage(english) != nil && Self.passage(latin) != Self.passage(english)
                     if foreignChapter { unit = .psalmTitle(latin) }
                 } else if foreignChapter, case .prose(let latin, _) = unit {
                     unit = .prose(latin)
@@ -81,9 +81,25 @@ public enum DominicanEnglish {
         return hour
     }
 
-    /// A Scripture reference's chapter and verses ("2:2", "14:1"), whatever the book's name.
-    static func citation(_ reference: String) -> String? {
-        reference.firstMatch(of: /\d+:[\d,\-]+/).map { String($0.output) }
+    /// The verses a Scripture reference names, whatever the book's name ("2:2", "14:1"),, and however it writes them: "21:10-11; 21:23" and
+    /// "21:10-11,23" are the same passage (the Transfiguration's chapter at None).
+    static func passage(_ reference: String) -> Set<String>? {
+        guard let whole = reference.firstMatch(of: /\d+:[\d,\-]+(?:\s*;\s*\d+:[\d,\-]+)*/) else { return nil }
+        var verses: Set<String> = []
+        for part in whole.output.split(separator: ";") {
+            let pieces = part.trimmingCharacters(in: .whitespaces).split(separator: ":")
+            guard pieces.count == 2 else { continue }
+            let chapter = pieces[0]
+            for item in pieces[1].split(separator: ",") {
+                let bounds = item.split(separator: "-").compactMap { Int($0) }
+                if bounds.count == 2, bounds[0] <= bounds[1], bounds[1] - bounds[0] < 500 {
+                    for verse in bounds[0]...bounds[1] { verses.insert("\(chapter):\(verse)") }
+                } else if let first = bounds.first {
+                    verses.insert("\(chapter):\(first)")
+                }
+            }
+        }
+        return verses.isEmpty ? nil : verses
     }
 
     /// The unit without an English that repeats its Latin; its Latin; and whether it still
@@ -99,6 +115,9 @@ public enum DominicanEnglish {
             // An English versicle over a response DO leaves in Latin (a responsory's
             // *Glória Patri*): the response stands in Latin alone.
             if let ve, same(r, re), r.count >= 12 { return (.versicleResponse(versicle: v, response: r, versicleEnglish: ve, responseEnglish: nil), v + " " + r, true) }
+            // And the other way: the Order's own versicle over a Roman response (Easter
+            // Monday's *Cito euntes*) stands in Latin alone.
+            if let re, same(v, ve), v.count >= 12 { return (.versicleResponse(versicle: v, response: r, versicleEnglish: nil, responseEnglish: re), v + " " + r, true) }
             return (unit, v + " " + r, ve != nil)
         case .verse(let reference, let first, let second, let fe, let se):
             if same(first, fe), same(second, se) || se == nil { return (.verse(reference: reference, firstHalf: first, secondHalf: second), first + " " + second, false) }

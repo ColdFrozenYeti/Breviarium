@@ -394,7 +394,12 @@ public struct HourAssembler {
                 day: day, month: month, year: year, macroContext: macroContext, winnerPath: winner.winningPath,
                 officium: officium, dayWinnerPath: dayWinnerPath
             ):
-                sections.append(contentsOf: assembleLitaniae(resolver: resolver, macroContext: macroContext, englishResolver: englishResolver))
+                let psalmsSaid = sections.flatMap(\.units).filter { unit in
+                    if case .psalmTitle(let title, _) = unit { title.hasPrefix("Psalmus") || title.hasPrefix("Canticum") } else { false }
+                }.count
+                sections.append(contentsOf: assembleLitaniae(
+                    resolver: resolver, macroContext: macroContext, englishResolver: englishResolver, psalmsSaid: psalmsSaid
+                ))
                 // The Office of the Dead's own conclusion follows the Litanies (`specials.pl:378`).
                 if macroContext.winningRule.range(of: "Special Conclusio", options: .caseInsensitive) != nil { fallthrough }
             case "Conclusio":
@@ -1185,7 +1190,7 @@ public struct HourAssembler {
 
     /// `specials.pl:353-376`: in place of the conclusion, *Domine exaudi* and *Benedicamus
     /// Domino*, then Preces' `[Litania]`.
-    func assembleLitaniae(resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?) -> [Section] {
+    func assembleLitaniae(resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?, psalmsSaid: Int = 5) -> [Section] {
         func lines(_ resolver: SectionResolver, english: Bool) -> [String] {
             var result = resolver.resolve(path: SectionResolver.prayersPath, section: "Domine exaudi").split(separator: "\n").map(String.init)
             result += (ScriptMacros.resolve("Benedicamus_Domino", context: macroContext, resolver: resolver, isEnglish: english) ?? "")
@@ -1233,8 +1238,9 @@ public struct HourAssembler {
             units += Self.unitsFromLines(chunk, english: pairEnglish ? english?.chunks[index] : nil)
             if index < latin.psalms.count {
                 let (title, content) = psalmUnits(number: latin.psalms[index], resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
-                // Numbered on from Lauds' five: "Psalmus 69 [6]".
-                units.append(.psalmTitle(Self.numberedPsalmTitle(title, 6 + index)))
+                // Numbered on from the psalms said: "Psalmus 69 [6]" after Lauds' five, "[7]"
+                // after the Order's Office of the Dead's Psalm 129 (25 April 2026).
+                units.append(.psalmTitle(Self.numberedPsalmTitle(title, psalmsSaid + 1 + index)))
                 units += content
             }
         }

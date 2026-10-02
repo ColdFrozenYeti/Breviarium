@@ -313,7 +313,10 @@ extension HourAssembler {
         guard let location, resolver.sectionExists(path: location.path, section: location.section) else { return nil }
         let texts = bothTexts(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
         func stanzas(_ text: String) -> [String] { Self.hymnStanzas(text.replacingOccurrences(of: #"\*\s*"#, with: "", options: .regularExpression)) }
-        return Section(kind: .hymnus, units: Self.pairedStanzas(latin: stanzas(texts.latin), english: texts.english.map(stanzas)))
+        return Section(kind: .hymnus, units: hymnUnits(
+            latin: stanzas(texts.latin), english: texts.english.map(stanzas), path: location.path, section: location.section,
+            resolver: resolver, englishResolver: englishResolver
+        ))
     }
 
     // MARK: - Psalmi cum lectionibus

@@ -40,6 +40,14 @@ private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
     (.laudes, ["Oblátus est * quia ipse vóluit, et peccáta nostra ipse portávit. ."]),
     (.laudes, ["Meménto mei, * Dómine, dum véneris in regnum tuum. ."]),
     (.laudes, ["si est dolor sicut dolor meus. ."]),
+    // A ferial first responsory after Pentecost (`TemporaOP/Pent01-2`'s `[Responsory1]`,
+    // reached through `TemporaOP/Pent04-2`, 8 July 2025): DO's substitution meets the
+    // Roman section's unexpanded `@:Responsory1_` and changes nothing, so it shows the
+    // Roman versicle, *Convertímini ad eum…*, not the Order's *Et auférte deos…*.
+    (.matutinum, ["Convertímini ad eum in toto corde vestro, et auférte deos"]),
+    // Our Lady Mediatrix of All Graces (8 May 2025, in the second week after the Easter
+    // octave): DO runs the Commune's versicles into the antiphons and says no psalms.
+    (.matutinum, ["allelúiaV. Adiuvábit eam Deus"]),
     (.vesperae, ["Commemoratio Dominica", "℣. Dirigátur, Dómine, orátio mea. ℟. Sicut incénsum in conspéctu tuo. Orémus."]),
 ]
 
@@ -274,7 +282,23 @@ private let dominicanMistranslations: [(start: String, pattern: String)] = [
     // Saturday Vespers' responsory *Igitur perfécti sunt*: the Roman Matins responsory's
     // English, its lines not cut as the Order's Latin is.
     ("So the heavens and the earth were finished", #"(?s)(℟\.\s*)?So the heavens and the earth were finished,.*?(℣\.\s*)?Glory be to the Father, and to the Son, \* and to the Holy Ghost\.\s*(℟\.\s*)?[^℣℟]*?which he had done\."#),
+    // The Assumption: the Roman Matins hymn's English (*Surge, iam terris*) beside the
+    // Order's *Quem terra, pontus, sídera*.
+    ("Arise! the cold blasts from earth have receded", #"(?s)Arise! the cold blasts from earth have receded,.*?Also our Mother\.\s*Amen\."#),
+    // The Assumption's third responsory, which the Order cuts at another place than the
+    // Roman (`SanctiOP/08-15`): the Roman English, not aligned with it, beside the Latin.
+    ("Who is this that cometh up like the sun?", #"(?s)Who is this that cometh up like the sun\?.*?lilies of the valleys\.\s*\*?\s*The daughters of Zion saw her, and called her blessed: the queens also, and they praised her\."#),
+    // The Seven Sorrows at Lauds: the Roman doxology's English beside the Order's own fourth
+    // stanza and doxology (the first three stanzas are the Roman ones, with their English).
+    ("Jesus, who for us did die", #"(?s)Jesus, who for us did die,.*?Worship thee forevermore\.\s*Amen\."#),
     ("Grace is poured into thy lips, therefore, alleluia.", #"(?s)(℟\.(br\.)?\s*)?Grace is poured into thy lips, therefore, alleluia\..*?reign, alleluia\."#),
+]
+
+/// DO's English garbled by an Order's substitution meant for the Latin (`TemporaOP/Quad3-0`'s
+/// `[Ant 2]`, `s/ Je.us//`, run on the Roman English too: "When had cast out the devil").
+/// The app shows the Roman English with its note (decision 6); DO's is read as that.
+let dominicanGarbledEnglish: [(shown: String, meant: String)] = [
+    ("When had cast out the devil", "When Jesus had cast out the devil"),
 ]
 
 /// Decisions 5 and 6 of `docs/Beta_5_plan.md`: where the Order's text has no English, DO's
@@ -307,24 +331,30 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
     }
     // Nor Latin whose letters the app's English shows too ("Allelúia, allelúia." beside
     // "Alleluia, alleluia.").
-    let foldedShown = Set(englishShown.map(folded))
-    let pieces = pieceSet.filter { $0.count < 12 || !foldedShown.contains(folded($0)) }.sorted { $0.count > $1.count }
+    let foldedShown = Set(englishShown.map { folded($0).lowercased() })
+    let pieces = pieceSet.filter { $0.count < 12 || !foldedShown.contains(folded($0).lowercased()) }.sorted { $0.count > $1.count }
     // DO's English column keeps its J spelling ("cujus"), its English its J's ("Jesu"),
     // and its Latin sometimes another accentuation ("alleluia"): a long piece is matched
     // either way, a short one exactly, and the English is left as DO has it.
     // Matched on decomposed text, each letter with any accents it carries.
     func pattern(_ piece: String) -> String {
         guard piece.count >= 12 else {
-            return NSRegularExpression.escapedPattern(for: piece)
+            return NSRegularExpression.escapedPattern(for: piece.decomposedStringWithCanonicalMapping)
                 .replacingOccurrences(of: "i", with: "[ij]").replacingOccurrences(of: "I", with: "[IJ]")
         }
-        return folded(piece).map { character -> String in
+        // In Paschaltide DO's English adds its "alleluia" to the Latin it repeats (Easter
+        // Monday's *Cito euntes… surréxit Dóminus, alleluia.*).
+        let paschal = piece.hasSuffix(".") ? "(?:,\\s*alleluia)?\\." : ""
+        return folded(paschal.isEmpty ? piece : String(piece.dropLast())).map { character -> String in
             switch character {
             case "i", "I": return "[iIjJ]\\p{M}*"
+            // DO's " *" and its flex "†" ("dilécta es a Dómino, † et Regína… digna es *").
+            case "*": return "\\s*\\*"
+            case " ": return "\\s+(?:†\\s+)?"
             case let letter where letter.isLetter: return "[\(letter.lowercased())\(letter.uppercased())]\\p{M}*"
             default: return NSRegularExpression.escapedPattern(for: String(character))
             }
-        }.joined()
+        }.joined() + paschal
     }
     // DO's English for a Dominican text it has no translation of, wrongly: a different
     // hymn's (the Paschal Lauds hymn, *Sermóne blando*, under *Aurora cælum purpurat*'s
@@ -337,15 +367,20 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
             rows[index].english = rows[index].english.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
         }
     }
+    for (shown, meant) in dominicanGarbledEnglish {
+        for index in rows.indices where rows[index].english.contains(shown) {
+            rows[index].english = rows[index].english.replacingOccurrences(of: shown, with: meant)
+        }
+    }
     // A chapter whose English DO takes from another text (Advent Sundays at Sext and
     // None: Romans beside the Order's Isaiah): DO's Latin column has the app's reference,
     // its English column another one. That English is left out, and so is the app's.
     var swappedChapters: Set<String> = []
     for unit in hour.sections.filter({ $0.kind == .capitulum }).flatMap(\.units) {
         // The app's English is this chapter's own, or none (`DominicanEnglish`'s foreign chapter).
-        guard case .psalmTitle(let latinReference, let english) = unit, let citation = DominicanEnglish.citation(latinReference),
-            english.map({ DominicanEnglish.citation($0) == citation }) ?? true else { continue }
-        for index in rows.indices where rows[index].latin.contains(latinReference) && !rows[index].english.contains(citation) {
+        guard case .psalmTitle(let latinReference, let english) = unit, let passage = DominicanEnglish.passage(latinReference),
+            english.map({ DominicanEnglish.passage($0) == passage }) ?? true else { continue }
+        for index in rows.indices where rows[index].latin.contains(latinReference) && DominicanEnglish.passage(rows[index].english) != passage {
             let other = #"(?s)\b(?:\d )?[A-Z][a-z]+\.? \d+:\d+(?:-\d+)? .*?(?=℟\. Thanks be to God)"#
             if rows[index].english.range(of: other, options: .regularExpression) != nil {
                 rows[index].english = rows[index].english.replacingOccurrences(of: other, with: " ", options: .regularExpression)
@@ -385,12 +420,18 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
     for index in rows.indices {
         var english = collapsedWhitespace(rows[index].english)
         let normalized = LatinOrthography.normalize(english)
-        let foldedEnglish = folded(english)
-        for piece in pieces where piece.count >= 12 ? foldedEnglish.contains(folded(piece)) : normalized.contains(piece) {
+        func loose(_ text: String) -> String { folded(text).replacingOccurrences(of: "† ", with: "").replacingOccurrences(of: " *", with: "*") }
+        let foldedEnglish = loose(english)
+        func found(_ piece: String) -> Bool {
+            guard piece.count >= 12 else { return normalized.contains(piece) }
+            return foldedEnglish.contains(loose(piece)) || (piece.hasSuffix(".") && foldedEnglish.contains(loose(String(piece.dropLast())) + ", alleluia."))
+        }
+        for piece in pieces where found(piece) {
             // With its verse number, if it has one (a lesson's "9 Et idcírco…"), but not
-            // the end of a chapter's reference ("Sir 45:1-2 Diléctus…").
+            // the end of a chapter's reference ("Sir 45:1-2 Diléctus…") or of a homily's
+            // source ("Epist. 151 ad Algasiam, q. 6, t. 3 Víllicus…").
             english = english.decomposedStringWithCanonicalMapping.replacingOccurrences(
-                of: #"((?<!\p{L} )(?<!Cap\. )(?<![-:.,])\b\d+ )?"# + pattern(piece), with: " ", options: .regularExpression
+                of: #"((?<!\p{L} )(?<![Cc]ap\. )(?<!\bt\. )(?<![Tt]om\. )(?<![Ll]ib\. )(?<!\bq\. )(?<!Epist\. )(?<!Hom\. )(?<!Serm\. )(?<!Tract\. )(?<![-:.,])\b\d+ )?"# + pattern(piece), with: " ", options: .regularExpression
             ).precomposedStringWithCanonicalMapping
             repeated.insert(piece)
         }

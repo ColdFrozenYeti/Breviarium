@@ -423,11 +423,14 @@ public struct Commemorations {
             // `horascommon.pl:1690-1711`, 1960: every commemoration goes when the winner's
             // rule says "No Sunday Commemoratio" on a Sunday (the Holy Family), when a
             // Festum Domini would commemorate another, or for 28 June on a Sunday.
+            // The first two are `$version =~ /1960/`, not the Order's "… - 1962" (St Hyginus
+            // under the Holy Family, 11 January 2026); the third is `/196/`.
+            let roman1960 = context.rite != .dominicanus
             let winnerRule = resolver.resolve(path: winnerPath, section: "Rule")
-            if isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
+            if roman1960, isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
             if let first = results.first {
                 let firstRule = resolver.sectionExists(path: first.path, section: "Rule") ? resolver.resolve(path: first.path, section: "Rule") : ""
-                if matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
+                if roman1960, matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
                 if isSunday, first.path.range(of: "06-28r?$", options: .regularExpression) != nil { return [] }
             }
         }
