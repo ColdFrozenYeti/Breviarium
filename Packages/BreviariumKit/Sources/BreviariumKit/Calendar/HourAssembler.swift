@@ -136,8 +136,9 @@ public struct HourAssembler {
         var contentContext = context
         // The Order's Saturday in the Easter octave: DO's conditionals read today's season
         // (`$dayname[0]` `Pasc0`, traced 11 April 2026) at the first Vespers of Low Sunday,
-        // "Vigilia Paschalis", so the Little Office's Magnificat is *Beáta Mater*.
-        let keepsEasterSaturday = context.rite == .dominicanus
+        // "Vigilia Paschalis", so the Little Office's Magnificat is *Beáta Mater*. At
+        // Compline it reads Low Sunday's (`Pasc1`): the Little Office's *Regína cæli*.
+        let keepsEasterSaturday = context.rite == .dominicanus && hour == .vesperae
             && TemporalCycle.weekName(day: day, month: month, year: year).hasPrefix("Pasc0")
             && Computus.dayOfWeek(day: day, month: month, year: year) == 6
         if result.isFirstVespersOfTomorrow {
@@ -1115,14 +1116,15 @@ public struct HourAssembler {
             ) ?? []
         }
         // Its heading is the section's own "!Commemoratio …" line, in each language.
-        if let own, let winnerPath, toRender.last == own, let first = blocks.last?.firstIndex(where: { if case .rubric = $0 { true } else { false } }) {
+        func ownHeadingAndCollect(_ block: inout [Unit], own: Commemoration, sourcePath winnerPath: String) {
+            guard let first = block.firstIndex(where: { if case .rubric = $0 { true } else { false } }) else { return }
             func heading(_ resolver: SectionResolver?) -> String? {
                 let section = resolver.flatMap { r in ["Commemoratio 2", "Commemoratio"].first { r.sectionExists(path: winnerPath, section: $0) } }
                 return section.flatMap { resolver?.unresolvedBody(path: winnerPath, section: $0)?.first { $0.hasPrefix("!") } }
                     .map { String($0.dropFirst()).trimmingCharacters(in: .whitespaces) }
             }
             if let latin = heading(resolver) {
-                blocks[blocks.count - 1][first] = .rubric(latin, english: heading(englishResolver))
+                block[first] = .rubric(latin, english: heading(englishResolver))
             }
             // From a Common, the collect is the section's own, its names put in
             // (`@CommuneOP/C3a:Oratio:s/N\. et N\./Christóphorum et Cucuphátem/`).
@@ -1134,12 +1136,37 @@ public struct HourAssembler {
                         .first { !$0.isEmpty && !$0.hasPrefix("!") && !$0.hasPrefix("$") && !$0.hasPrefix("&") }
                         .map { DOMarkers.stripLineLabel($0) }
                 }
-                if let latin = collect(resolver), let oremus = blocks[blocks.count - 1].firstIndex(where: { if case .prose(let text, _) = $0 { text.hasPrefix("Orémus") } else { false } }),
-                    oremus + 1 < blocks[blocks.count - 1].count
+                if let latin = collect(resolver), let oremus = block.firstIndex(where: { if case .prose(let text, _) = $0 { text.hasPrefix("Orémus") } else { false } }),
+                    oremus + 1 < block.count
                 {
-                    blocks[blocks.count - 1][oremus + 1] = .prose(latin, english: collect(englishResolver))
+                    block[oremus + 1] = .prose(latin, english: collect(englishResolver))
                 }
             }
+        }
+        if let own, let winnerPath, toRender.last == own, !blocks.isEmpty {
+            ownHeadingAndCollect(&blocks[blocks.count - 1], own: own, sourcePath: winnerPath)
+        }
+        // `orationes.pl:390-430`, "add commemorated from cwinner": a commemorated office's own
+        // `[Commemoratio 2]` follows it, under the same conditions as the winner's. St James
+        // commemorated under the Sunday (25 July 2027) brings his *Memoria Ss. Christophori et
+        // Cucuphatis*. For the Order (the Roman office has no such case in DO's data).
+        if context.rite == .dominicanus, macroContext.hour == .laudes, blocks.count == toRender.count {
+            var withTheirs: [[Unit]] = []
+            for (commemoration, block) in zip(toRender, blocks) {
+                withTheirs.append(block)
+                guard commemoration != own, let theirs = winnersOwnCommemoration(
+                    winnerPath: commemoration.path, winningRank: winningRank, macroContext: macroContext, resolver: resolver
+                ) else { continue }
+                var theirBlock = commemorationUnits(
+                    for: theirs, ind: 2, weekName: macroContext.weekName, dayOfWeek: macroContext.dayOfWeek,
+                    day: day, month: month, year: year, resolver: resolver, englishResolver: englishResolver,
+                    officeTitle: winningRank.title
+                ) ?? []
+                guard !theirBlock.isEmpty else { continue }
+                ownHeadingAndCollect(&theirBlock, own: theirs, sourcePath: commemoration.path)
+                withTheirs.append(theirBlock)
+            }
+            blocks = withTheirs
         }
         if !inlineOwn.isEmpty { blocks.append(inlineOwn) }
         blocks = blocks.filter { !$0.isEmpty }
@@ -2156,9 +2183,12 @@ public struct HourAssembler {
             // special case that the same audit had already shown explained a large
             // share of the mismatched Psalmodia days -- a psalm quoted, in whole or in
             // part, by its own antiphon is a common pattern, not a rare one.
-            let (taggedPsalmContent, latinMatched, englishMatched) = Self.applyingAntiphonDagger(
-                antiphon: pair.antiphon, englishAntiphon: english, psalmContent: psalmContent
-            )
+            // DO crosses the antiphon before its alleluias go: one that began "Allelúia, *"
+            // (Sunday Lauds from Septuagesima, St Thomas Aquinas on Quinquagesima Sunday,
+            // 7 March 2038) matches no psalm, and its leftover ", *" shows it.
+            let lostAlleluia = pair.antiphon.trimmingCharacters(in: .whitespaces).hasPrefix(",")
+            let (taggedPsalmContent, latinMatched, englishMatched) = lostAlleluia ? (psalmContent, false, false)
+                : Self.applyingAntiphonDagger(antiphon: pair.antiphon, englishAntiphon: english, psalmContent: psalmContent)
             psalmContent = taggedPsalmContent
             let antiphonText = latinMatched ? "\(pair.antiphon) ‡" : pair.antiphon
             let englishAntiphonText = englishMatched ? english.map { "\($0) ‡" } : english

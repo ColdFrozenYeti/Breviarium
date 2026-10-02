@@ -86,7 +86,17 @@ extension HourAssembler {
         var scriptura: String?
         if !office.hasPrefix("Tempora"), rank < 7 {
             let path = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
-            if resolver.sectionExists(path: path, section: "Rank") { scriptura = path }
+            if resolver.sectionExists(path: path, section: "Rank") {
+                scriptura = path
+            } else if context.rite == .dominicanus, Self.participatesInMonthdayMerge(office: path),
+                let key = Computus.monthday(day: day, month: month, year: year, tomorrow: false),
+                resolver.sectionExists(path: context.rite.adjusted("Tempora/\(key)", latin: corpus), section: "Lectio1")
+            {
+                // `officestring` (`SetupString.pl:748-780`) merges the month's week into a
+                // resumed Epiphany week whose file has no rank of its own: the Saturday in
+                // the fifth week of October reads Maccabees (6 November 2027).
+                scriptura = path
+            }
         }
         let commemoratio = context.rite == .dominicanus
             ? Commemorations(corpus: corpus, context: context, calendar: calendar).laudsCommemorations(day: day, month: month, year: year).first?.path

@@ -1244,10 +1244,10 @@ extension HourAssembler {
             // its `ex` rank only feeds `$communerule`. 3 May 2025: one Allelúia antiphon.
             && (!communeIsEx || winner.winningRank.communeReference.contains("C10"))
 
-        func entries(_ resolver: SectionResolver, english: Bool) -> [(antiphon: String, psalms: [String])] {
+        func entries(_ resolver: SectionResolver, english: Bool) -> [(antiphon: String, cross: String, psalms: [String])] {
             let psalmLines = lines(psalmSource.0, psalmSource.1, resolver)
             let antiphonLines = antiphonSource.map { lines($0.path, $0.section, resolver) } ?? []
-            var result: [(antiphon: String, psalms: [String])] = []
+            var result: [(antiphon: String, cross: String, psalms: [String])] = []
             // `psalmi.pl:555-558`: a single Dominican antiphon covers all the psalms (Easter week,
             // "…;;92;99;62;210;148").
             let underOneAntiphon = resolver.context.rite == .dominicanus && antiphonLines.count == 1
@@ -1263,11 +1263,19 @@ extension HourAssembler {
                 }
                 if paschalAlleluia { antiphon = index == 0 ? alleluiaAntiphon(resolver: resolver) : "" }
                 antiphon = antiphon.trimmingCharacters(in: .whitespaces)
+                // DO crosses the psalm with the antiphon as written, its alleluias still in
+                // (`getantcross` runs before `suppress_alleluia`): Sunday's *Allelúia, *
+                // Dóminus regnávit* and *Iubiláte Deo omnis terra, allelúia* mark nothing
+                // from Septuagesima (7 March 2038).
+                var cross = antiphon
                 if !antiphon.isEmpty {
+                    let withAlleluias = antiphon.replacingOccurrences(of: #"\(allel[uú][ij]a[^)]*\)"#, with: "", options: [.regularExpression, .caseInsensitive])
                     antiphon = Self.applyingSeasonalAlleluia(to: antiphon, weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName)
                     antiphon = substituteName(in: antiphon, office: office, resolver: resolver, isAntiphon: true)
+                    cross = Self.isAlleluiaSuppressed(weekName: macroContext.seasonWeekName.isEmpty ? weekName : macroContext.seasonWeekName, isFirstVespers: false)
+                        ? substituteName(in: withAlleluias, office: office, resolver: resolver, isAntiphon: true) : antiphon
                 }
-                result.append((antiphon, psalms.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }))
+                result.append((antiphon, cross, psalms.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }))
             }
             return result
         }
@@ -1279,6 +1287,7 @@ extension HourAssembler {
         var openAntiphon: (latin: String, english: String?)?
         for (index, entry) in latin.enumerated() {
             let englishAntiphon = english.flatMap { index < $0.count ? $0[index].antiphon : nil }.flatMap { $0.isEmpty ? nil : $0 }
+            let englishCross = english.flatMap { index < $0.count ? $0[index].cross : nil }.flatMap { $0.isEmpty ? nil : $0 }
             if !entry.antiphon.isEmpty {
                 if let open = openAntiphon {
                     units.append(.antiphon(Self.closingAntiphon(open.latin), english: open.english.map(Self.closingAntiphon)))
@@ -1297,7 +1306,7 @@ extension HourAssembler {
                 }
                 if offset == 0, !entry.antiphon.isEmpty {
                     let (tagged, latinMatched, englishMatched) = Self.applyingAntiphonDagger(
-                        antiphon: entry.antiphon, englishAntiphon: englishAntiphon, psalmContent: psalmContent
+                        antiphon: entry.cross, englishAntiphon: englishCross, psalmContent: psalmContent
                     )
                     psalmContent = tagged
                     if latinMatched || englishMatched {

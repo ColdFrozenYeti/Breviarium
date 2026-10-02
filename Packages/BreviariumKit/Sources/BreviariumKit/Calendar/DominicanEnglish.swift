@@ -106,6 +106,19 @@ public enum DominicanEnglish {
     /// has English.
     static func withoutRepeatedLatin(_ unit: Unit) -> (Unit, String, Bool) {
         func same(_ latin: String, _ english: String?) -> Bool { english.map { key($0) == key(latin) } ?? false }
+        // An English half that the Order's substitution, meant for the Latin, has left
+        // as bare punctuation (".", the Advent Ember Friday's *Præcúrsor pro nobis*) is none.
+        func text(_ english: String?) -> String? { english.flatMap { $0.contains(where: \.isLetter) ? $0 : nil } }
+        var unit = unit
+        switch unit {
+        case .versicleResponse(let v, let r, let ve, let re?) where text(re) == nil:
+            unit = .versicleResponse(versicle: v, response: r, versicleEnglish: ve, responseEnglish: nil)
+        case .verse(let reference, let first, let second, let fe, let se?) where text(se) == nil:
+            let whole = fe.map { $0.replacingOccurrences(of: #"\s*\*\s*$"#, with: "", options: .regularExpression) }
+            unit = .verse(reference: reference, firstHalf: first, secondHalf: second, firstHalfEnglish: whole, secondHalfEnglish: nil)
+        default:
+            break
+        }
         switch unit {
         case .rubric(let text, let english):
             let keep = same(text, english) ? nil : english

@@ -301,7 +301,8 @@ public struct SectionResolver {
             }
         }
         if Self.correctsDOErrors, var corrected = winner {
-            let corrections = Self.doTextCorrections.filter { $0.path == resolvedPath && $0.section == section }
+            let corrections = (Self.doTextCorrections + (isEnglish ? Self.doEnglishTextCorrections : []))
+                .filter { $0.path == resolvedPath && $0.section == section }
             if !corrections.isEmpty {
                 corrected.body = corrected.body.map { line in
                     corrections.reduce(line) { $0.replacingOccurrences(of: $1.wrong, with: $1.right) }
@@ -341,6 +342,14 @@ public struct SectionResolver {
         ("TemporaOP/Quad6-4", "Ant Laudes", " s/$/;;148/", " s/_?$/;;148/"),
         ("TemporaOP/Quad6-5", "Ant Laudes", " s/$/;;148/s", " s/_?$/;;148/s"),
         ("TemporaOP/Quad6-6", "Ant Laudes", " s/$/;;148/", " s/_?$/;;148/"),
+    ]
+
+    /// The same, read only for the English column: a substitution the Order writes for its
+    /// Latin, which DO runs on the Roman English too and garbles it.
+    static let doEnglishTextCorrections: [(path: String, section: String, wrong: String, right: String)] = [
+        // The Third Sunday of Lent's Benedictus antiphon: the Order's Latin drops *Iesus*
+        // (`s/ Je.us//`), DO's English "When had cast out the devil".
+        ("TemporaOP/Quad3-0", "Ant 2", "@Tempora/Quad3-0:Ant Prima:s/ Ie.us//", "@Tempora/Quad3-0:Ant Prima"),
     ]
 
     // MARK: - `@` inclusion and `$` prayer macro resolution
