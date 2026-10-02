@@ -51,6 +51,10 @@ public enum Unit: Equatable, Sendable {
     /// homily's sentences as DO breaks them), shown as one paragraph, with its English
     /// the same way. Kept as lines so each can be checked against DO's page.
     case lesson(LessonParagraph)
+    /// Beta 5, decision 6 of `docs/Beta_5_plan.md`: the small grey line under an English
+    /// text that is the Roman one, where the Dominican Latin differs (*Roman text; the
+    /// Dominican Latin differs.*). Shown only with the English, after the unit it follows.
+    case englishNote(String)
 }
 
 /// `Unit`'s own description, so nothing prints it by reflection: the Swift 6.1 runtime on
@@ -70,6 +74,7 @@ extension Unit: CustomStringConvertible {
         case .prose(let text, let english): return "prose(\(quoted(text)), english: \(quoted(english)))"
         case .psalmTitle(let text, let english): return "psalmTitle(\(quoted(text)), english: \(quoted(english)))"
         case .englishPsalm(let verses): return "englishPsalm(\(verses.count) verses)"
+        case .englishNote(let text): return "englishNote(\(quoted(text)))"
         case .lesson(let paragraph):
             return "lesson(\(paragraph.lines.map { $0.debugDescription }.joined(separator: ", ")), english: \(paragraph.english.map { $0.joined(separator: " ").debugDescription } ?? "nil"))"
         }

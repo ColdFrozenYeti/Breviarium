@@ -23,7 +23,7 @@ class BreviariumUITestCase: XCTestCase {
     func launchApp(
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
-        officium: String = "diei", rubrics: Bool = true, expectedTitle: String? = nil
+        officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -38,6 +38,7 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
+            "-settings.rite", rite,
         ]
         app.launch()
         XCTAssertTrue(app.staticTexts[expectedTitle ?? Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
@@ -259,7 +260,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["Beta 4"].waitForExistence(timeout: 5) || app.staticTexts["BETA 4"].exists)
+        XCTAssertTrue(app.staticTexts["Beta 5"].waitForExistence(timeout: 5) || app.staticTexts["BETA 5"].exists)
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -669,5 +670,74 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
             capture(app, "b4-tedeum-rubrics\(rubrics ? "On" : "Off")-page2")
             app.terminate()
         }
+    }
+}
+
+/// Beta 5: the Dominican rite, chosen in Settings, its hours, its votive offices and the
+/// grey note under a borrowed Roman English text.
+final class DominicanUITests: BreviariumUITestCase {
+    /// Settings -> Dominicanus chooses the rite and its office.
+    func testDominicanusSetting() {
+        let app = launchApp(date: "2026-10-07", hour: "Laudes")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        capture(app, "b5-settings")
+        app.buttons["ritusDominicanus"].tap()
+        let diei = app.buttons["officium-diei"]
+        XCTAssertTrue(diei.waitForExistence(timeout: 5))
+        capture(app, "b5-officium-setting")
+        diei.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Laudes"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.4)
+        capture(app, "b5-rosary-Laudes-after-setting")
+        app.terminate()
+    }
+    /// Every hour of the Holy Rosary (7 October 2026), Latin only, page 1 and 2.
+    func testDominicanHoursSnapshots() {
+        for hour in ["Matutinum", "Laudes", "Prima", "Tertia", "Sexta", "Nona", "Vespera", "Completorium"] {
+            let app = launchApp(date: "2026-10-07", hour: hour, rite: "dominicanus")
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b5-rosary-\(hour)-page1")
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b5-rosary-\(hour)-page2")
+            app.terminate()
+        }
+    }
+    /// English on: St Dominic (4 August, Dominican English where DO has it), St Thomas
+    /// Aquinas (28 January) and a ferial day, with the grey note where the Roman English
+    /// stands for a Dominican Latin that differs.
+    func testDominicanEnglishSnapshots() {
+        for (date, hour, name) in [
+            ("2026-08-04", "Vespera", "dominic-Vespera"), ("2026-01-28", "Laudes", "thomas-Laudes"),
+            ("2026-01-28", "Matutinum", "thomas-Matutinum"), ("2026-09-16", "Vespera", "ferial-Vespera"),
+        ] {
+            let app = launchApp(date: date, english: true, hour: hour, rite: "dominicanus")
+            for page in 1...3 {
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "b5-en-\(name)-page\(page)")
+                app.swipeLeft()
+            }
+            app.terminate()
+        }
+    }
+    /// The Dominican Little Office and Office of the Dead, and the Pius XII psalter.
+    func testDominicanVotivesAndPsalter() {
+        for (officium, hour) in [("parvumBMV", "Laudes"), ("defunctorum", "Vespera")] {
+            let app = launchApp(date: "2026-09-16", hour: hour, officium: officium, rite: "dominicanus")
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b5-\(officium)-\(hour)-page1")
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "b5-\(officium)-\(hour)-page2")
+            app.terminate()
+        }
+        let app = launchApp(date: "2026-09-16", psalter: "pius12", hour: "Vespera", rite: "dominicanus")
+        app.swipeLeft()
+        Thread.sleep(forTimeInterval: 0.4)
+        capture(app, "b5-pius12-Vespera-page2")
+        app.terminate()
     }
 }

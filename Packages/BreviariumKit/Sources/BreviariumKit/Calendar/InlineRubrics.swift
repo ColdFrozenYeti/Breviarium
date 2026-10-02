@@ -42,7 +42,7 @@ public enum InlineRubrics {
             return .verse(reference: reference, firstHalf: m(first), secondHalf: m(second), firstHalfEnglish: firstEnglish.map(m), secondHalfEnglish: secondEnglish.map(m))
         case .antiphon(let text, let english): return .antiphon(m(text), english: english.map(m))
         case .prose(let text, let english): return .prose(m(text), english: english.map(m))
-        case .psalmTitle: return unit
+        case .psalmTitle, .englishNote: return unit
         case .englishPsalm(let verses):
             return .englishPsalm(verses.map { verse in
                 var verse = verse

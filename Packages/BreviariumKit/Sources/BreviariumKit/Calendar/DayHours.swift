@@ -865,6 +865,15 @@ extension HourAssembler {
                             text.split(separator: "\n", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
                         }
                         sections.append(Section(kind: .versus, units: Self.unitsFromLines(lines(texts.latin), english: texts.english.map(lines))))
+                    } else if let split = Self.joinedVersicle(texts.latin) {
+                        // `Alleluia~` joined to "V. Hæc dies…" (`TemporaOP/Pasc0-6`): DO shows
+                        // one line, "Allelúia. ℣. Hæc dies…"; the app, the *Allelúia* and
+                        // the versicle.
+                        let english = texts.english.flatMap(Self.joinedVersicle)
+                        sections.append(Section(kind: .versus, units: [
+                            .antiphon(split.lead, english: english?.lead),
+                            .versicleResponse(versicle: split.versicle, response: "", versicleEnglish: english?.versicle, responseEnglish: english.map { _ in "" }),
+                        ]))
                     } else {
                         sections.append(Section(kind: .versus, units: [
                             .antiphon(DOMarkers.stripLineLabel(texts.latin), english: texts.english.map(DOMarkers.stripLineLabel)),
@@ -877,6 +886,16 @@ extension HourAssembler {
         let keyword = name.split(separator: " ").first.map(String.init) ?? name
         let versum2KeepsChapter = name.contains("Capitulum") && hour == .laudes && Self.capitulumVersum2Qualifier(rule: rule) != nil
         return Self.ruleOmits(rule: rule, keyword: keyword, atMatins: hour == .matutinum) && !versum2KeepsChapter
+    }
+
+    /// "Allelúia. V. Hæc dies…" on one line: the lead and the versicle, or nil.
+    static func joinedVersicle(_ text: String) -> (lead: String, versicle: String)? {
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.contains("\n"), let range = line.range(of: " V. ") else { return nil }
+        let lead = line[..<range.lowerBound].trimmingCharacters(in: .whitespaces)
+        let versicle = line[range.upperBound...].split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+        guard !lead.isEmpty, !versicle.isEmpty else { return nil }
+        return (lead, versicle)
     }
 
     // MARK: - Prime

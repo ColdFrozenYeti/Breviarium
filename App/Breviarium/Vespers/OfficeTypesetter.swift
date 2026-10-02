@@ -166,6 +166,25 @@ struct OfficeTypesetter {
             }
             flushLatinVerses()
 
+            // Beta 5: the grey note under a Roman English text (decision 6 of
+            // `docs/Beta_5_plan.md`), in the English column, or under stacked prose.
+            if case .unit(_, .englishNote(let note), _, _) = block {
+                let text = build { text in
+                    appendParagraph(
+                        NSMutableAttributedString(string: note, attributes: [
+                            .font: UIFont.italicSystemFont(ofSize: metrics.bodySize * 0.7), .foregroundColor: chromeColor,
+                        ]),
+                        to: text, style: paragraphStyle(after: metrics.bodySize * 0.4)
+                    )
+                }
+                if case .pair = rows.last {
+                    rows.append(.pair(latin: NSMutableAttributedString(), english: text, keepTogether: false))
+                } else {
+                    rows.append(.full(text, keepWithNext: false))
+                }
+                continue
+            }
+
             switch block {
             case .pageHeader:
                 rows.append(.full(build { appendHeader(to: $0) }, keepWithNext: false))
@@ -221,12 +240,14 @@ struct OfficeTypesetter {
         switch unit {
         case .rubric(_, let english): english.map { .rubric($0) }
         case .versicleResponse(_, _, let versicle, let response):
-            versicle.flatMap { versicle in response.map { .versicleResponse(versicle: versicle, response: $0) } }
+            // A response left in Latin alone (Beta 5: a Dominican responsory's *Glória
+            // Patri* with no English response) leaves its English line empty.
+            versicle.map { .versicleResponse(versicle: $0, response: response ?? "") }
         case .verse(let reference, _, _, let first, let second): first.map { .verse(reference: reference, firstHalf: $0, secondHalf: second ?? "") }
         case .antiphon(_, let english): english.map { .antiphon($0) }
         case .prose(_, let english): english.map { .prose($0) }
         case .lesson(let paragraph): paragraph.english.map { .lesson(LessonParagraph(lines: $0)) }
-        case .psalmTitle, .englishPsalm: nil
+        case .psalmTitle, .englishPsalm, .englishNote: nil
         }
     }
 
@@ -350,6 +371,12 @@ struct OfficeTypesetter {
             appendParagraph(liturgical(text, font: italic, color: rubricColor), to: output, style: paragraphStyle(after: gap))
         case .versicleResponse(let versicle, let response, _, _):
             // A response on its own (a chapter's *Deo grátias*) has an empty versicle.
+            // A versicle on its own (the Dominican Easter week's *Hæc dies*, after its
+            // *Allelúia*) has an empty response.
+            if response.isEmpty {
+                appendParagraph(liturgical(versicle, font: regular, color: textColor), to: output, style: paragraphStyle(after: gap))
+                return
+            }
             if !versicle.isEmpty {
                 appendParagraph(liturgical(versicle, font: regular, color: textColor), to: output, style: paragraphStyle())
             }
@@ -390,8 +417,8 @@ struct OfficeTypesetter {
                 liturgical(text, font: italic, color: chromeColor), to: output,
                 style: paragraphStyle(after: metrics.bodySize * 0.3)
             )
-        case .englishPsalm:
-            // English only; laid out with the parallel English in B1-M5.
+        case .englishPsalm, .englishNote:
+            // English only: laid out with the parallel English (B1-M5, Beta 5).
             break
         }
     }

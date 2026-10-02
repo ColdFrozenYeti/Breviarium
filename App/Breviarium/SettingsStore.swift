@@ -52,6 +52,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(officium.rawValue, forKey: Keys.officium) }
     }
 
+    /// The rite (Beta 5): *Romanus* by default, or *Dominicanus*, each with its offices.
+    @Published var rite: Rite {
+        didSet { defaults.set(rite.rawValue, forKey: Keys.rite) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -63,6 +68,7 @@ final class SettingsStore: ObservableObject {
         static let pageTurn = "settings.pageTurn"
         static let psalter = "settings.psalter"
         static let officium = "settings.officium"
+        static let rite = "settings.rite"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -81,5 +87,6 @@ final class SettingsStore: ObservableObject {
         pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
         psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
         officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
+        rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus
     }
 }

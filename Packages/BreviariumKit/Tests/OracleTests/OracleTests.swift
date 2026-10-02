@@ -48,7 +48,7 @@ func oracleComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
         // Same for a trailing " ‡".
         return [text.hasSuffix(" ‡") ? String(text.dropLast(2)) : text]
     case .prose(let text, _): return [text]
-    case .englishPsalm:
+    case .englishPsalm, .englishNote:
         return []
     case .psalmTitle(let text, let english):
         // A psalm's title is checked by the psalmody audits, and a Matins lesson's own
@@ -248,7 +248,7 @@ func mismatches(hour: Hour, fixtureText: String, sectionKinds: Set<Section.Kind>
             return ["\(withoutAsterisk) * \(second)"]
         case .antiphon(_, let english): return [english].compactMap { $0 }
         case .prose(_, let english): return [english].compactMap { $0 }
-        case .psalmTitle: return []
+        case .psalmTitle, .englishNote: return []
         case .englishPsalm, .lesson: return englishComparisonTexts(unit)
         }
     }
@@ -622,6 +622,7 @@ private func allTexts(in unit: BreviariumKit.Unit) -> [String] {
     case .psalmTitle(let text, _): [text]
     case .englishPsalm(let verses): verses.flatMap { [$0.firstHalf, $0.secondHalf] }
     case .lesson(let paragraph): paragraph.lines + (paragraph.english ?? [])
+    case .englishNote: []
     }
 }
 

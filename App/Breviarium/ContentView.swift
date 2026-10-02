@@ -42,7 +42,7 @@ struct ContentView: View {
             VespersView(
                 content: content, settings: settings, selection: shownHour,
                 onSelectHour: { selection = $0 },
-                calendarColors: { year, month in dataStore.calendarColors(year: year, month: month) },
+                calendarColors: { year, month in dataStore.calendarColors(year: year, month: month, rite: settings.rite) },
                 onPreviousDay: { displayedDate = SimpleDate(Computus.addDays(-1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onNextDay: { displayedDate = SimpleDate(Computus.addDays(1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onJump: { newDate in displayedDate = newDate },
@@ -82,10 +82,10 @@ struct ContentView: View {
         case .hour(let hour):
             dataStore.content(
                 for: hour, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, priest: settings.priestPresent,
-                psalter: settings.psalter, english: settings.showEnglish, officium: settings.officium
+                psalter: settings.psalter, english: settings.showEnglish, officium: settings.officium, rite: settings.rite
             )
         case .martyrologium:
-            dataStore.martyrologyContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)
+            dataStore.martyrologyContent(day: displayedDate.day, month: displayedDate.month, year: displayedDate.year, rite: settings.rite)
         }
     }
 }

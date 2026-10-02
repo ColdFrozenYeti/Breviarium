@@ -180,10 +180,12 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     if let spec = env["BREVIARIUM_DEBUG_RESOLVE"]?.split(separator: "|"), spec.count == 2 {
         let resolved = SectionResolver(corpus: corpus, context: debugContext).resolve(path: String(spec[0]), section: String(spec[1]))
         out += "RESOLVE: \(resolved.debugDescription)\n"
+        let english = SectionResolver(corpus: bundle.makeEnglishCorpus(), context: debugContext, isEnglish: true).resolve(path: String(spec[0]), section: String(spec[1]))
+        out += "RESOLVE EN: \(english.debugDescription)\n"
     }
     for section in assembled?.sections ?? [] {
         out += "## \(section.kind)\n"
-        for unit in section.units { out += "  \(unit)\n".prefix(260) + "\n" }
+        for unit in section.units { out += "  \(unit)\n".prefix(env["BREVIARIUM_DEBUG_FULL"] == nil ? 260 : 4000) + "\n" }
     }
     // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
     var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
@@ -206,7 +208,9 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
         if let assembled {
             var report = DayHourAuditReport()
-            report.add(hour: assembled, rows: withoutMartyrology(OracleFixture.rows(text)), title: title, date: date)
+            var (compared, rows) = (assembled, withoutMartyrology(OracleFixture.rows(text)))
+            if rite == .dominicanus { (compared, rows) = reconciledEnglish(assembled, rows: rows) }
+            report.add(hour: compared, rows: rows, title: title, date: date)
             out += "\n=== AUDIT\n" + (report.text.isEmpty ? "clean" : report.text)
         }
     }

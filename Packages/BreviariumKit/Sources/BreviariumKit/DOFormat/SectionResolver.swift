@@ -48,6 +48,10 @@ public struct SectionResolver {
     /// (`docs/rubrics-op1962.md` §8).
     @TaskLocal public static var correctsDOErrors = true
 
+    /// Beta 5: while set, the Latin lines a Dominican substitution changes the wording of
+    /// (`DominicanEnglish`), so the Roman English shown for them carries the grey note.
+    @TaskLocal public static var alterations: DominicanAlterations?
+
     /// Matches `setupstring()`'s own nesting cap (`SetupString.pl:698`: `$iiij++ > 6`).
     private static let maxInclusionDepth = 6
 
@@ -326,6 +330,14 @@ public struct SectionResolver {
         // The Dominican Marian blessings (2 February, Saturdays), accented as every other.
         ("Psalterium/Benedictions", "Nocturn 1", "intercédát", "intercédat"),
         ("Psalterium/Benedictions", "Nocturn 3", "Ad societâtem civium", "Ad societátem cívium"),
+        // St Dominic's Benedictus antiphon: DO's `<sp>'ae</sp>` markup for *ǽ*, which it
+        // shows as "pr'aemium" (4 August).
+        ("SanctiOP/08-04", "Ant 2", "pr<sp>'ae</sp>mium", "prǽmium"),
+        // The Triduum's Lauds: the Roman section's last newline, turned into `_`, stays at
+        // the end of the fifth antiphon, which DO shows as "portávit. ." (2-4 April 2026).
+        ("TemporaOP/Quad6-4", "Ant Laudes", " s/$/;;148/", " s/_?$/;;148/"),
+        ("TemporaOP/Quad6-5", "Ant Laudes", " s/$/;;148/s", " s/_?$/;;148/s"),
+        ("TemporaOP/Quad6-6", "Ant Laudes", " s/$/;;148/", " s/_?$/;;148/"),
     ]
 
     // MARK: - `@` inclusion and `$` prayer macro resolution
@@ -497,6 +509,9 @@ public struct SectionResolver {
                 result = applyLineSelection(start: start, end: end, negated: negated, to: result)
             }
             cursor = match.range.upperBound
+        }
+        if !isEnglish, context.rite == .dominicanus, let alterations = Self.alterations, subs.contains("s/") {
+            alterations.record(original: text, substituted: result)
         }
         // The selection's final newline is the included line's own (DO's inclusion regex
         // eats the `@` line's newline, `SetupString.pl:305-312`).

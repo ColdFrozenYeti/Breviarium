@@ -102,6 +102,26 @@ jobs:
           - name: office of the dead
             filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
             votives: C9
+          # Beta 5: the Dominican office (`Ordo Praedicatorum - 1962`), every hour in both
+          # psalters, the 2044 hold-out, and its Little Office and Office of the Dead.
+          - name: dominican day hours 2025-2032 and 2044
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2025-2032
+          - name: dominican day hours 2033-2040
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2033-2040
+          - name: dominican matins 2025-2032 and 2044
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+            hours: Matutinum
+            years: 2025-2032
+          - name: dominican matins 2033-2040
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2033-2040
+          - name: dominican votive offices
+            filter: "dominicanVotiveAudit"
     name: audits (${{ matrix.name }})
     runs-on: ubuntu-latest
     steps:

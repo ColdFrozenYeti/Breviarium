@@ -26,6 +26,7 @@ func englishComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .prose(_, let english): return [english].compactMap { $0 }
     case .psalmTitle(_, let english): return [english].compactMap { $0 }.filter { !$0.isEmpty }
     case .lesson(let paragraph): return paragraph.english ?? []
+    case .englishNote: return []
     case .englishPsalm(let verses):
         return verses.map { verse in
             guard !verse.secondHalf.isEmpty else { return verse.firstHalf }

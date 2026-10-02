@@ -126,7 +126,13 @@ public struct DataBundle: Codable, Sendable {
     /// does in DO's own English column. The base is plain `Latin/` whichever psalter
     /// is chosen (`$baselang = 'Latin'`); there is no English Bea tree.
     public func makeEnglishCorpus() -> OfficeCorpus {
-        LayeredOfficeCorpus(layers: [OldHymnAliasingCorpus(base: InMemoryOfficeCorpus(files: english)), InMemoryOfficeCorpus(files: latin)])
+        let englishCorpus = InMemoryOfficeCorpus(files: english)
+        let latinCorpus = InMemoryOfficeCorpus(files: latin)
+        return LayeredOfficeCorpus(layers: [
+            OldHymnAliasingCorpus(base: englishCorpus),
+            RomanEnglishForDominicanCorpus(latinFiles: latin, latin: latinCorpus, english: englishCorpus),
+            latinCorpus,
+        ])
     }
 }
 
@@ -188,4 +194,56 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
     public func fileExists(path: String) -> Bool {
         layers.contains { $0.fileExists(path: path) }
     }
+}
+
+/// Beta 5, decision 5 of `docs/Beta_5_plan.md`: a Dominican section with no English of its
+/// own whose Latin is word for word a Roman section's takes that section's English (the
+/// Dominican folders have almost no English; DO shows their Latin in its English column).
+/// Only text the Dominican file writes out is matched: a reference already reads the
+/// referenced file's English.
+public struct RomanEnglishForDominicanCorpus: OfficeCorpus {
+    private let latin: OfficeCorpus
+    private let english: OfficeCorpus
+    private let romanByText: [String: (path: String, name: String)]
+
+    public init(latinFiles: [RawOfficeFile], latin: OfficeCorpus, english: OfficeCorpus) {
+        self.latin = latin
+        self.english = english
+        var index: [String: (path: String, name: String)] = [:]
+        for file in latinFiles where file.path.range(of: #"^(Tempora|Sancti|Commune|Psalterium)/"#, options: .regularExpression) != nil {
+            for section in file.sections {
+                guard let key = Self.key(section.body), index[key] == nil,
+                    !english.rawSections(path: file.path, name: section.name).isEmpty
+                else { continue }
+                index[key] = (file.path, section.name)
+            }
+        }
+        romanByText = index
+    }
+
+    /// The written-out text, whitespace collapsed; `nil` for a section with references,
+    /// macros or conditionals, or too short to be matched safely.
+    static func key(_ body: [String]) -> String? {
+        let lines = body.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !lines.isEmpty, !lines.contains(where: { $0.hasPrefix("@") || $0.hasPrefix("$") || $0.hasPrefix("&") || $0.hasPrefix("(") })
+        else { return nil }
+        let text = lines.joined(separator: " ").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return text.count >= 20 ? text : nil
+    }
+
+    public func rawSections(path: String, name: String) -> [RawSection] {
+        guard path.range(of: #"^(Tempora|Sancti|Commune)OP/"#, options: .regularExpression) != nil,
+            english.rawSections(path: path, name: name).isEmpty
+        else { return [] }
+        return latin.rawSections(path: path, name: name).compactMap { variant in
+            guard let key = Self.key(variant.body), let roman = romanByText[key],
+                let translated = english.rawSections(path: roman.path, name: roman.name).first(where: { $0.condition.isEmpty })
+            else { return nil }
+            return RawSection(name: name, condition: variant.condition, body: translated.body)
+        }
+    }
+
+    public func baseFile(path: String) -> BaseFileReference? { nil }
+
+    public func fileExists(path: String) -> Bool { false }
 }

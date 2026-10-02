@@ -357,7 +357,7 @@ public struct Commemorations {
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
         let winnerIsSanctoral = winnerPath.hasPrefix("Sancti")
-        for candidate in calendar.candidates(day: day, month: month, year: year) {
+        for (candidateIndex, candidate) in calendar.candidates(day: day, month: month, year: year).enumerated() {
             let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard path != winnerPath,
                 let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path))
@@ -373,7 +373,10 @@ public struct Commemorations {
             {
                 continue
             }
-            if isSunday, let temporalRank,
+            // `horascommon.pl:379`, `$version =~ /1960/`: not the Order's "… - 1962", which
+            // keeps a Simplex on a II. classis Sunday (22 August 2027, Ss. Timothy and
+            // companions).
+            if isSunday, context.rite != .dominicanus, let temporalRank,
                 Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
             {
                 continue
@@ -382,8 +385,13 @@ public struct Commemorations {
                 // `horascommon.pl:365`: under 1960 a I. classis temporal office leaves no
                 // saint below it (the Easter and Pentecost octaves: St George, 23 April).
                 if let temporalRank, temporalRank.numericPrecedence >= 6, rank.numericPrecedence < 6 { continue }
-                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included.
-                guard Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
+                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included. It
+                // judges the day's saint (`$sname`, `horascommon.pl:716`); the Kalendarium's
+                // further saints stay in `@commemoentries`, which under the Order's rubrics
+                // nothing clears on a Sunday (22 August 2027, Ss. Timothy and companions).
+                let judged = context.rite != .dominicanus || candidateIndex == 0
+                guard !judged
+                    || Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
                 else { continue }
             } else {
                 // The Dominican ranks aren't 1960's: as DO's general rule (`horascommon.pl:338`),
@@ -391,6 +399,11 @@ public struct Commemorations {
                 // commemorated at Vespers on 8 August 2026).
                 if context.rite == .dominicanus {
                     guard winnerIsSanctoral || rank.numericPrecedence >= 2 else { continue }
+                    // `climit1960` at Vespers (`horascommon.pl:722`, the version matching
+                    // /196/): under a Sunday's temporal office only a I. classis feast is
+                    // commemorated (St John on the Sunday in the Christmas octave, 27
+                    // December 2026, is at Lauds only).
+                    if isSunday, !winnerIsSanctoral, winnerPath.hasPrefix("Tempora"), rank.numericPrecedence < 6 { continue }
                 } else {
                     guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
                     else { continue }
