@@ -127,7 +127,7 @@ private func dominicanBilingualReport(
                         if corrected.last == label {
                             report.daysChecked += 1
                         } else {
-                            report.add(hour: assembled, rows: rows, title: title, date: label)
+                            report.merge(single)
                         }
                     } else {
                         report.failedToAssemble.append(label)
@@ -509,17 +509,22 @@ func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualR
                 .precomposedStringWithCanonicalMapping
         }
     }
+    func loose(_ text: String) -> String { folded(text).replacingOccurrences(of: "† ", with: "").replacingOccurrences(of: " *", with: "*") }
+    // Each long piece's loose forms, computed once rather than once per row.
+    let looseForms = pieces.map { piece -> (plain: String, paschal: String?)? in
+        guard piece.count >= 12 else { return nil }
+        let paschal = piece.hasSuffix(".") && !folded(piece).lowercased().hasSuffix("alleluia.") ? loose(String(piece.dropLast())) + ", alleluia." : nil
+        return (loose(piece), paschal)
+    }
     for index in rows.indices {
         var english = collapsedWhitespace(rows[index].english)
         let normalized = LatinOrthography.normalize(english)
-        func loose(_ text: String) -> String { folded(text).replacingOccurrences(of: "† ", with: "").replacingOccurrences(of: " *", with: "*") }
         let foldedEnglish = loose(english)
-        func found(_ piece: String) -> Bool {
-            guard piece.count >= 12 else { return normalized.contains(piece) }
-            return foldedEnglish.contains(loose(piece))
-                || (piece.hasSuffix(".") && !folded(piece).lowercased().hasSuffix("alleluia.") && foldedEnglish.contains(loose(String(piece.dropLast())) + ", alleluia."))
+        func found(_ index: Int) -> Bool {
+            guard let forms = looseForms[index] else { return normalized.contains(pieces[index]) }
+            return foldedEnglish.contains(forms.plain) || forms.paschal.map(foldedEnglish.contains) == true
         }
-        for piece in pieces where found(piece) {
+        for piece in pieces.indices.filter(found).map({ pieces[$0] }) {
             if ProcessInfo.processInfo.environment["BREVIARIUM_DEBUG_RECONCILE"] != nil { print("RECONCILE piece: \(piece.prefix(80))") }
             // With its verse number, if it has one (a lesson's "9 Et idcírco…"), but not
             // the end of a chapter's reference ("Sir 45:1-2 Diléctus…") or of a homily's

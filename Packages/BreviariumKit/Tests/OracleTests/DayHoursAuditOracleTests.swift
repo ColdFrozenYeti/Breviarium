@@ -55,6 +55,21 @@ struct DayHourAuditReport {
         }
     }
 
+    /// Another report's findings added to this one (a page audited once, then kept).
+    mutating func merge(_ other: DayHourAuditReport) {
+        func merged(_ mine: inout [String: [String]], _ theirs: [String: [String]]) {
+            mine.merge(theirs) { $0 + $1 }
+        }
+        merged(&latinMissing, other.latinMissing)
+        merged(&englishMissing, other.englishMissing)
+        merged(&uncovered, other.uncovered)
+        merged(&uncoveredLatin, other.uncoveredLatin)
+        merged(&mispaired, other.mispaired)
+        merged(&titles, other.titles)
+        failedToAssemble += other.failedToAssemble
+        daysChecked += other.daysChecked
+    }
+
     var text: String {
         func report(_ name: String, _ problems: [String: [String]]) -> String {
             guard !problems.isEmpty else { return "" }
