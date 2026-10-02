@@ -88,15 +88,16 @@ extension HourAssembler {
             let path = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
             if resolver.sectionExists(path: path, section: "Rank") {
                 scriptura = path
-            } else if context.rite == .dominicanus, resolver.sectionExists(path: path, section: "Lectio1")
+            } else if context.rite == .dominicanus, (office.contains("C10") && resolver.sectionExists(path: path, section: "Lectio1"))
                 || (Self.participatesInMonthdayMerge(office: path)
                     && Computus.monthday(day: day, month: month, year: year, tomorrow: false).map {
                         resolver.sectionExists(path: context.rite.adjusted("Tempora/\($0)", latin: corpus), section: "Lectio1")
                     } == true)
             {
                 // A resumed Epiphany week's file has no rank of its own, but its lessons
-                // (`TemporaOP/Epi4-6`, Galatians, under Our Lady on Saturday, 6 February
-                // 2038), or the month's week `officestring` merges into it
+                // serve Our Lady on Saturday (`TemporaOP/Epi4-6`, Galatians, 6 February
+                // 2038; a saint reads its Common's, St John of Matha on 8 February 2025),
+                // or the month's week `officestring` merges into it and ranks it
                 // (`SetupString.pl:748-780`: Maccabees on 6 November 2027).
                 scriptura = path
             }
@@ -961,7 +962,10 @@ extension HourAssembler {
         // `Lectio1 OctNat` / `TempNat` (`:780-808`), 29 December to 5 January: the first
         // nocturn from the day's own `Tempora/NatDD` (before the 29th, Christmas Day's).
         if text == nil, nocturn == 1, has(rule, "Lectio1 (Oct|Temp)Nat") {
-            let file = matins.month == 12 && matins.day < 29 ? "Sancti/12-25" : String(format: "Tempora/Nat%02d", matins.day)
+            // `subdirname('Tempora', $version)`: the Order's own, `TemporaOP/Nat29`'s Romans 6
+            // (29 December 2030); Christmas Day's file as named.
+            let file = matins.month == 12 && matins.day < 29
+                ? "Sancti/12-25" : context.rite.adjusted(String(format: "Tempora/Nat%02d", matins.day), latin: corpus)
             if let own = section(file, "Lectio\(num)") {
                 text = own
                 source = file
