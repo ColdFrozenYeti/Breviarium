@@ -71,7 +71,6 @@ public enum BreviariumDataPipeline {
         let missaRoot = checkoutRoot.appendingPathComponent("web/www/missa")
         latin += try OfficeCorpusWalker.walkMissaGospels(languageRoot: missaRoot.appendingPathComponent("Latin"), applyLatinOrthography: true)
         english += try OfficeCorpusWalker.walkMissaGospels(languageRoot: missaRoot.appendingPathComponent("English"), applyLatinOrthography: false)
-        latin = latin.map(Self.correctingDOErrors)
         let calendar = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot)
         let calendarOP = try CalendarChainReader.flattenedCalendar(tabulaeRoot: tabulaeRoot, rite: .dominicanus)
         var transferTable = try TransferTableReader.readAll(transferRoot: tabulaeRoot.appendingPathComponent("Transfer"))
@@ -86,26 +85,6 @@ public enum BreviariumDataPipeline {
             latin: latin, latinBea: latinBea, english: english, calendar: calendar,
             transferTable: transferTable, temporaRedirect: temporaRedirect, calendarOP: calendarOP
         )
-    }
-
-    /// DO data errors corrected where the intended text is certain (decided 1 October 2026;
-    /// `docs/rubrics-op1962.md` §8), as (file, wrong line, corrected line).
-    static let doCorrections: [(path: String, wrong: String, right: String)] = [
-        // Ash Wednesday's first lesson: a colon short, so "1-4" reads as a section name and DO
-        // prints "Tempora/Quadp3-3:1-4 is missing!". Lines 1-4 of the same lesson are meant.
-        ("TemporaOP/Quadp3-3", "@Tempora/Quadp3-3:1-4", "@Tempora/Quadp3-3:Lectio1:1-4"),
-    ]
-
-    static func correctingDOErrors(_ file: RawOfficeFile) -> RawOfficeFile {
-        let corrections = doCorrections.filter { $0.path == file.path }
-        guard !corrections.isEmpty else { return file }
-        var file = file
-        for index in file.sections.indices {
-            file.sections[index].body = file.sections[index].body.map { line in
-                corrections.first { $0.wrong == line.trimmingCharacters(in: .whitespaces) }?.right ?? line
-            }
-        }
-        return file
     }
 
     /// Of `Regula/`, only the Dominican Prime's Rule of St Augustine

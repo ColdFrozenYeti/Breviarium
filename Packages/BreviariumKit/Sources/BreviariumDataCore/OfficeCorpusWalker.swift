@@ -60,7 +60,7 @@ public enum OfficeCorpusWalker {
                 throw WalkError.fileReadFailed(fullPath, underlying: error)
             }
 
-            let normalized = applyLatinOrthography ? LatinOrthography.normalize(text) : text
+            let normalized = applyLatinOrthography ? LatinOrthography.normalize(text, keepingFlexa: true) : text
             let pathWithoutExtension = relative.hasSuffix(".txt") ? String(relative.dropLast(4)) : relative
             results.append(RawSectionParser.parse(fileText: normalized, path: pathWithoutExtension))
         }
@@ -88,7 +88,7 @@ public enum OfficeCorpusWalker {
                     have.insert(path)
                     let url = languageRoot.appendingPathComponent(path + ".txt")
                     guard let raw = try? String(contentsOf: url, encoding: .utf8) else { continue }
-                    let normalized = applyLatinOrthography ? LatinOrthography.normalize(raw) : raw
+                    let normalized = applyLatinOrthography ? LatinOrthography.normalize(raw, keepingFlexa: true) : raw
                     let parsed = RawSectionParser.parse(fileText: normalized, path: path)
                     added.append(parsed)
                     pending.append(parsed)

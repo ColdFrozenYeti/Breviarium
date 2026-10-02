@@ -1536,6 +1536,12 @@ public struct HourAssembler {
         var candidates = lines
         if isVocativeEligible, lines.contains(where: { $0.hasPrefix("Ant=") }) {
             candidates = lines.filter { $0.hasPrefix("Ant=") }
+        } else if text.range(of: #"^L..*N\.\."#, options: .regularExpression) != nil, lines.contains(where: { $0.hasPrefix("Invit=") }) {
+            // A widow's invitatory takes the genitive (`specials.pl:801-805`): "In
+            // solemnitáte sanctæ Ioánnæ Francíscæ", 21 August.
+            candidates = lines.filter { $0.hasPrefix("Invit=") }
+        } else if lines.contains(where: { $0.hasPrefix("Oratio=") }) {
+            candidates = lines.filter { $0.hasPrefix("Oratio=") }
         }
         guard var name = candidates.first, !name.isEmpty else { return text }
         if let equals = name.firstIndex(of: "=") {

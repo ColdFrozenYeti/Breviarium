@@ -121,6 +121,11 @@ public enum ConditionalContextBuilder {
             officeTitle = resolver.resolve(path: occurrence.winningPath, section: "Officium")
             rule = resolver.resolve(path: occurrence.winningPath, section: "Rule")
             winningKey = String(occurrence.winningPath.split(separator: "/").last ?? "")
+            // DO's `$dayname[1]` ends with the Commune in brackets (`horascommon.pl:531`,
+            // `[$commune]`), which `(officio C11)` tests: the Dominican Marian blessings.
+            if let commune = occurrence.winningRank.communeReference.firstMatch(of: /C\d+[a-z]?/) {
+                officeTitle += " [\(commune.output)]"
+            }
         }
         let temporalKey = String(
             Occurrence.temporalPath(day: day, month: month, year: year, calendar: sanctoralCalendar, corpus: corpus, context: bootstrapContext)

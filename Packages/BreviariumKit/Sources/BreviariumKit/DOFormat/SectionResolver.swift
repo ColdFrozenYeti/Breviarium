@@ -64,7 +64,7 @@ public struct SectionResolver {
         // `horas.pl:117`: a line ending in `~` runs on into the next one as DO shows it
         // (Pent13-0's `[Ant 2]`, "Cum transíret ~" / "Iesus * quoddam castéllum…",
         // with a rubric-conditional alternative between them).
-        let text = resolveSection(path: path, section: section, depth: 0)
+        let text = shown(resolveSection(path: path, section: section, depth: 0))
         guard text.contains("~") else { return text }
         // The next line's own "r." (first letter red, `horas.pl:178`) goes before the
         // merge: Preces' "Orémus pro Pontífice nostro~" / "r. N.".
@@ -93,11 +93,11 @@ public struct SectionResolver {
     /// (`$Pater noster Et`, `$rubrica Pater secreto`, `$Jube domne`).
     public func expandMacroLine(_ line: String) -> String {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.first == "$" { return resolvePrayerMacroLine(String(trimmed.dropFirst()), depth: 0) }
+        if trimmed.first == "$" { return shown(resolvePrayerMacroLine(String(trimmed.dropFirst()), depth: 0)) }
         if trimmed.first == "&", let macroContext,
             let resolved = ScriptMacros.resolve(String(trimmed.dropFirst()), context: macroContext, resolver: self, isEnglish: isEnglish)
         {
-            return resolved
+            return shown(resolved)
         }
         return line
     }
@@ -253,7 +253,14 @@ public struct SectionResolver {
         guard let winner = winningVariant(path: path, section: section) else {
             return "\(path):\(section) is missing!"
         }
-        return resolveInclusionsAndMacros(in: winner.body.joined(separator: "\n"), depth: 0)
+        return shown(resolveInclusionsAndMacros(in: winner.body.joined(separator: "\n"), depth: 0))
+    }
+
+    /// The Latin text as DO shows it, without the `†` flexa the bundle keeps for DO's
+    /// substitutions (`LatinOrthography.normalize(_:keepingFlexa:)`). DO's English keeps
+    /// its own (*The Lord caused a deep sleep… ribs. † And the rib…*, 3 February).
+    private func shown(_ text: String) -> String {
+        isEnglish ? text : LatinOrthography.strippingFlexa(text)
     }
 
     // MARK: - Section resolution
@@ -278,7 +285,7 @@ public struct SectionResolver {
     /// The winning variant's body, unresolved (`@` references still in place): for a
     /// caller that needs to read a reference itself, as `getrefs` does.
     public func unresolvedBody(path: String, section: String) -> [String]? {
-        winningVariant(path: path, section: section)?.body
+        winningVariant(path: path, section: section)?.body.map(shown)
     }
 
     private func winningVariant(path: String, section: String) -> RawSection? {
@@ -289,8 +296,31 @@ public struct SectionResolver {
                 winner = candidate
             }
         }
+        if Self.correctsDOErrors, var corrected = winner {
+            let corrections = Self.doTextCorrections.filter { $0.path == resolvedPath && $0.section == section }
+            if !corrections.isEmpty {
+                corrected.body = corrected.body.map { line in
+                    corrections.reduce(line) { $0.replacingOccurrences(of: $1.wrong, with: $1.right) }
+                }
+                winner = corrected
+            }
+        }
         return winner
     }
+
+    /// DO data errors corrected where the intended text is certain (decided 1 October 2026;
+    /// `docs/rubrics-op1962.md` §8), as (file, section, wrong text, corrected text). With
+    /// `correctsDOErrors` off the text is DO's, which the Dominican audit checks.
+    static let doTextCorrections: [(path: String, section: String, wrong: String, right: String)] = [
+        // Ash Wednesday's first lesson: a colon short, so "1-4" reads as a section name and DO
+        // prints "Tempora/Quadp3-3:1-4 is missing!". Lines 1-4 of the same lesson are meant.
+        ("TemporaOP/Quadp3-3", "Lectio1", "@Tempora/Quadp3-3:1-4", "@Tempora/Quadp3-3:Lectio1:1-4"),
+        // A widow's invitatory, "sancæ" for *sanctæ* (21 August).
+        ("CommuneOP/C7a", "Invit", "sancæ", "sanctæ"),
+        // The Dominican Marian blessings (2 February, Saturdays), accented as every other.
+        ("Psalterium/Benedictions", "Nocturn 1", "intercédát", "intercédat"),
+        ("Psalterium/Benedictions", "Nocturn 3", "Ad societâtem civium", "Ad societátem cívium"),
+    ]
 
     // MARK: - `@` inclusion and `$` prayer macro resolution
 
@@ -458,6 +488,9 @@ public struct SectionResolver {
             }
             cursor = match.range.upperBound
         }
+        // The selection's final newline is the included line's own (DO's inclusion regex
+        // eats the `@` line's newline, `SetupString.pl:305-312`).
+        if result.hasSuffix("\n"), !text.hasSuffix("\n") { result.removeLast() }
         return result
     }
 
@@ -473,7 +506,10 @@ public struct SectionResolver {
         } else {
             lines = Array(lines[range])
         }
-        return lines.joined(separator: "\n")
+        // DO joins the lines and ends them with a newline (`SetupString.pl:500`), which a
+        // following `s///s` can match: the Dominican Saturday after the Ascension's
+        // responsory, `s/…\n(.*)/…\n$3R. \u$2/s`, puts its respond on a line of its own.
+        return lines.joined(separator: "\n") + "\n"
     }
 
     private func applyRegexSubstitution(_ pattern: String, replacement: String, flags: String, to text: String) -> String {
@@ -482,7 +518,11 @@ public struct SectionResolver {
         if flags.contains("s") { options.append("s") }
         if flags.contains("m") { options.append("m") }
         let prefix = options.isEmpty ? "" : "(?\(options.joined())"
-        let fullPattern = prefix.isEmpty ? pattern : "\(prefix))\(pattern)"
+        // Perl's `$` (without /m) also matches before a final newline, as `\Z` does; a
+        // selected line ends with one (`applyLineSelection`), so `s/$/;67;103/` extends
+        // the psalm list of `TemporaOP/Pasc7-1` rather than adding a line.
+        let perlPattern = flags.contains("m") ? pattern : pattern.replacingOccurrences(of: #"(?<!\\)\$(?=$|\)|\|)"#, with: #"\\Z"#, options: .regularExpression)
+        let fullPattern = prefix.isEmpty ? perlPattern : "\(prefix))\(perlPattern)"
 
         guard let regex = try? Regex(fullPattern) else { return text }
         let maxReplacements = flags.contains("g") ? Int.max : 1
@@ -532,6 +572,13 @@ public struct SectionResolver {
                 // `s/V\. .*/V. Spíritus Paráclitus, allelúja.\nR. …/s`), `\t` a tab, and any
                 // other escaped character itself.
                 switch chars[i + 1] {
+                case let digit where digit.isNumber:
+                    // Perl's `\1` in a replacement is `$1` (`TemporaOP/091-0`'s `\u\1`).
+                    if let groupIndex = digit.wholeNumberValue, groupIndex < match.output.count,
+                        let captured = match.output[groupIndex].substring
+                    {
+                        append(captured)
+                    }
                 case "n": append("\n")
                 case "t": append("\t")
                 case "u", "l": caseNext = chars[i + 1]
