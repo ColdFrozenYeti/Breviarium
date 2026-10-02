@@ -106,7 +106,13 @@ public struct Concurrence {
         // the generic threshold cascade below (which requires tomorrow to strictly
         // *outrank* today) would otherwise wrongly keep today's own second Vespers.
         if !today.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.contains("C10") {
-            let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+            var todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+            // The Dominican Easter Saturday (`TemporaOP/Pasc0-6`) takes its rule from its
+            // Monday's file, without "No secunda Vespera"; DO fails to read its rank and
+            // gives Low Sunday's first Vespers, as the Roman office's rule does (11 April 2026).
+            if today.winningPath.hasPrefix("TemporaOP/Pasc0-6") {
+                todayRule += "\n" + resolver.resolve(path: "Tempora/Pasc0-6", section: "Rule")
+            }
             if todayRule.range(of: "No secunda vespera", options: .caseInsensitive) != nil {
                 return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
             }

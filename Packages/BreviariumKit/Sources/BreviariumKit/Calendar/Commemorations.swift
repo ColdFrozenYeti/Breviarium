@@ -193,7 +193,11 @@ public struct Commemorations {
         let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !result.vespersOffice.winningPath.hasPrefix("Sancti")
             && !result.vespersOffice.winningPath.contains("C10")
         if bothTemporal {
-            let comrank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
+            // `horascommon.pl:1398-1436`: a Simplex has no second Vespers, so it is not the
+            // commemorated office whose rank decides (Bl. Jane of Aza, 1.2, before Ss. Cyriacus
+            // and companions, 2.2, on the Dominican 8 August 2026).
+            let withVespers = todayRunnersUp.filter { [1.15, 2.1, 2.99, 3.9].contains($0.rank.numericPrecedence) || $0.rank.numericPrecedence >= 2 }
+            let comrank = withVespers.first?.rank.numericPrecedence ?? 0
             let keepsSaints = crank < 7 && crank != 6.5 && crank != 6 && comrank > 2 && !matches(tomorrowRule, "no commemoratio")
             displacedCandidates = keepsSaints ? todayRunnersUp : []
         } else {
@@ -382,8 +386,15 @@ public struct Commemorations {
                 guard Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
                 else { continue }
             } else {
-                guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
-                else { continue }
+                // The Dominican ranks aren't 1960's: as DO's general rule (`horascommon.pl:338`),
+                // only a Simplex ends after None (Ss. Cyriacus and companions, 2.2, are
+                // commemorated at Vespers on 8 August 2026).
+                if context.rite == .dominicanus {
+                    guard winnerIsSanctoral || rank.numericPrecedence >= 2 else { continue }
+                } else {
+                    guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
+                    else { continue }
+                }
             }
             results.append(Commemoration(path: path, rank: rank, ind: ind))
         }

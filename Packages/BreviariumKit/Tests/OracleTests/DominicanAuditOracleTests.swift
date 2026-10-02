@@ -15,6 +15,20 @@ private let knownDivergences = [
     " is missing!",                            // any other DO error text: a reference to a section that doesn't exist
 ]
 
+/// DO errors on one hour's pages, recognised by all of their texts (`docs/rubrics-op1962.md` §8).
+private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
+    // Two Saturdays (14 February, 10 October 2026): Prime's chapter at first Vespers of Sunday.
+    (.vesperae, ["Dóminus dírigat corda et córpora"]),
+    // First Vespers of Passion Sunday: the Holy Cross's *In hac triúmphi glória*.
+    (.vesperae, ["Dominica de Passione", "In hac triúmphi glória"]),
+    // 2 January: the Roman Christmas hymn, through `Tempora/Nat02`'s `vide Sancti/01-01`;
+    // every other Dominican Vespers of Christmastide says *Veni, redémptor géntium*.
+    (.vesperae, ["Die Secunda Januarii", "Christe Redémptor ómnium"]),
+    // 12 November (All Saints of the Order, `ex Sancti/11-01`): one antiphon from the
+    // Common of Martyrs' Lauds over the Martyrs' Vespers psalms, not All Saints' office.
+    (.vesperae, ["Festivitas Omnium Sanctorum OP", "Justórum autem ánimæ"]),
+]
+
 @Test(arguments: [CanonicalHour.vesperae, .completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
     if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
@@ -34,7 +48,11 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
             let date = String(format: "%04d-%02d-%02d", y, month, day)
             // Known DO divergences, where DO prints an error and the app the corrected text
             // (`docs/rubrics-op1962.md` §8).
-            if let text = archive["\(year)/\(date)_priestN_bilingual.tsv"], !knownDivergences.contains(where: text.contains) {
+            let page = archive["\(year)/\(date)_priestN_bilingual.tsv"]
+            let hourDivergence = page.map { text in
+                hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(text.contains) }
+            } ?? false
+            if let text = page, !knownDivergences.contains(where: text.contains), !hourDivergence {
                 let (assembled, title) = assembleDayHour(
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english,
                     calendar: calendar, rite: .dominicanus

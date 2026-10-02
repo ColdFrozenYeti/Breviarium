@@ -691,7 +691,9 @@ public struct HourAssembler {
         if let winner, context.rite == .dominicanus {
             let rank = winner.winningRank
             let dayName = rank.title + " " + rank.degreeLabel
-            if Self.loadedRank(rank, day: macroContext.officeDay) < 3 || dayName.contains("Vigil"),
+            // `horascommon.pl:889-893`: Ash Wednesday's second Vespers rank 2.99 outside 1955/1960.
+            let ashWednesdayVespers = macroContext.hour == .vesperae && !macroContext.isFirstVespers && winner.winningPath.contains("Quadp3-3")
+            if Self.loadedRank(rank, day: macroContext.officeDay) < 3 || dayName.contains("Vigil") || ashWednesdayVespers,
                 winner.winningPath.range(of: "12-24|Pasc|01-0[2-5]", options: .regularExpression) == nil
             {
                 func lines(_ resolver: SectionResolver) -> [String] {
@@ -1366,8 +1368,18 @@ public struct HourAssembler {
         let versicleResponseUnits = Self.unitsFromLines(versumLines, english: englishVersumLines)
         guard case .versicleResponse = versicleResponseUnits.first else { return nil }
 
+        // `orationes.pl:722-733`: the office's `[Oratio]`, `[Oratio ind]`, `[Oratio 4-ind]`, and
+        // only then its Commune's plain `[Oratio]`. A Dominican anniversary of the dead
+        // (`vide C9`, 6 July) has none, so DO makes no commemoration of it.
+        let dominicanOratio: (path: String, section: String)? = {
+            guard resolver.context.rite == .dominicanus else { return nil }
+            for section in ["Oratio", "Oratio \(ind)", "Oratio \(4 - ind)"] where resolver.sectionExists(path: commemoration.path, section: section) {
+                return (commemoration.path, section)
+            }
+            return location("Oratio")
+        }()
         guard let oratioLocation = Self.commemoratedOratioDominicaLocation(office: commemoration.path, resolver: resolver)
-            ?? location("Oratio \(ind)") ?? location("Oratio")
+            ?? (resolver.context.rite == .dominicanus ? dominicanOratio : location("Oratio \(ind)") ?? location("Oratio"))
         else { return nil }
         let collect = resolver.resolve(path: oratioLocation.path, section: oratioLocation.section)
         let named = substituteName(in: collect, office: commemoration.path, resolver: resolver)

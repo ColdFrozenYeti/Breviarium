@@ -1374,10 +1374,20 @@ extension HourAssembler {
         guard let location else { return ([], nil) }
         let texts = bothTexts(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
         // `replaceNdot`: the saint's name for "N." (*Ora pro nobis, beáte Hilárium*, 14 January).
+        // When the day's office has no `[Name]`, DO falls back to the commemorated office's,
+        // naming another saint (*beáte Pauli* on Bl. Francis de Capillas's day, 15 January
+        // 2026); the Common's "N." is kept instead (`docs/rubrics-op1962.md` §8).
+        var named = winner.winningPath
+        if !SectionResolver.correctsDOErrors, !resolver.sectionExists(path: named, section: "Name"),
+            let commemorated = Commemorations(corpus: corpus, context: context, calendar: calendar)
+                .laudsCommemorations(day: macroContext.day, month: macroContext.month, year: macroContext.year).first?.path
+        {
+            named = commemorated
+        }
         func lines(_ text: String, english: Bool) -> [String] {
             text.split(separator: "\n", omittingEmptySubsequences: false).map {
                 let line = Self.applyingSeasonalAlleluia(to: String($0), weekName: weekName, isFirstVespers: false, english: english, season: macroContext.seasonWeekName)
-                return substituteName(in: line, office: winner.winningPath, resolver: english ? (englishResolver ?? resolver) : resolver)
+                return substituteName(in: line, office: named, resolver: english ? (englishResolver ?? resolver) : resolver)
             }
         }
         return (lines(texts.latin, english: false), texts.english.map { lines($0, english: true) })
