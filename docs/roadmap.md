@@ -1,8 +1,9 @@
 # Roadmap to 1.0
 
 Agreed on 25 September 2026, after Beta 2's release. Beta 3 was released on 26
-September and Beta 4 on 27 September; Beta 5 is next, and its draft plan is
-[`Beta_5_plan.md`](Beta_5_plan.md). The picture in the README is
+September, Beta 4 on 27 September and Beta 5, the Dominican rite
+([`Beta_5_plan.md`](Beta_5_plan.md)), in October; Beta 6 is next, once its sources are
+confirmed. The picture in the README is
 [`images/roadmap.svg`](images/roadmap.svg), drawn by `scripts/roadmap-svg.py`. Each beta
 still gets its own plan document (`Beta_N_plan.md`) and approval before any work starts.
 
@@ -59,7 +60,7 @@ can be checked that way, and whatever it lacks cannot.
   own calendar (`Kalendaria/OP1962.txt`) and its own Tempora, Sancti and Commune
   (579 Latin files), but it reads the Roman psalter files, choosing `…OP` sections where
   they exist, and DO runs it through the Roman engine with about 30 Dominican branches.
-  See [`Beta_5_plan.md`](Beta_5_plan.md).
+  *Answered in Beta 5:* see [`rubrics-op1962.md`](rubrics-op1962.md).
 - **Beta 6:** answered in part by the user's research (1 October 2026,
   [`ambrosian-sources.md`](ambrosian-sources.md)). There is no complete pre-conciliar
   Ambrosian breviary online. Three partial sources exist: Compline (a typeset PDF), the

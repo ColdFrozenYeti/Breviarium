@@ -1,7 +1,9 @@
 # Breviarium — Beta 5 Implementation Plan (draft)
 
 **Status: approved on 27 September 2026**, with the answers in *Decisions* at the end.
-B5-M0 (CI) is under way.
+B5-M0 to B5-M6 are done (2 October 2026); the pull request waits for the user to try the
+IPA on the phone. The record is in `PLAN.md` under "Beta 5", and the retrospective in
+`beta-5-retrospective.md`.
 
 ## Context
 

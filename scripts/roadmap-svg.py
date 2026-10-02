@@ -12,7 +12,7 @@ rows = [
     ("done", "Beta 2", "Released", "The day hours, Lauds to Compline, and the hour picker"),
     ("done", "Beta 3", "Released", "Matins · the new app icon · the title block’s commemoration line"),
     ("done", "Beta 4", "Released", "Little Office of Our Lady · Office of the Dead · Martyrology · colours"),
-    ("next", "Beta 5", "Next", "The Dominican rite (Ordo Prædicatorum, 1962)"),
+    ("done", "Beta 5", "Released", "The Dominican rite (Ordo Prædicatorum, 1962)"),
     ("wait", "Beta 6", "Sources found", "Ambrosian Compline and Office of the Dead, standalone"),
     ("wait", "Beta 7", "Source found", "The Ambrosian Little Office of Our Lady"),
     ("goal", "1.0", "Goal", "Phone checks, landscape and the largest text size, then a freeze"),
@@ -27,7 +27,7 @@ out = []
 a = out.append
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Breviarium roadmap</title>')
-a('<desc id="d">Alpha and Betas 1 to 4 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead and the Martyrology. Next: Beta 5, the Dominican rite; Beta 6, Ambrosian Compline and the Ambrosian Office of the Dead; Beta 7, the Ambrosian Little Office; the full Ambrosian office is blocked on a source; then 1.0. The Monastic office is possible after 1.0.</desc>')
+a('<desc id="d">Alpha and Betas 1 to 5 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology and the Dominican rite. Next: Beta 6, Ambrosian Compline and the Ambrosian Office of the Dead; Beta 7, the Ambrosian Little Office; the full Ambrosian office is blocked on a source; then 1.0. The Monastic office is possible after 1.0.</desc>')
 a(f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>')
 a(f'<text x="{X-24}" y="52" font-family="{serif}" font-size="30" font-weight="700" fill="{WHITE}" letter-spacing="1.5">ROADMAP</text>')
 a(f'<text x="{W-40}" y="52" text-anchor="end" font-family="{sans}" font-size="15" font-style="italic" fill="{RUBRIC}">Alpha to 1.0</text>')

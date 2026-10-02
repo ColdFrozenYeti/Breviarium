@@ -4070,3 +4070,59 @@ Measured on the PR's first full round (27 September, `1bf57f1`):
   small: two app launches failed, nine tests that pass serially timed out, and the step
   took 56 minutes instead of 32. Parallel testing is off again. The five test classes
   stay, so the tests could later be split across separate runners instead.
+
+### B5-M1 — The Dominican office in DO
+
+`docs/rubrics-op1962.md` (27 September): the version is a calendar diff over the 1960
+rubrics; its texts are `…OP` files and sections read through the Roman engine, with
+about 30 Dominican branches in the Perl; DO renders the Little Office and the Office of
+the Dead under it, and the Pius XII psalter; it has no Dominican Martyrology. Every
+`$version =~ /1960/` test in DO takes the pre-1960 path for "Ordo Praedicatorum - 1962".
+
+### B5-M2 — Fixtures
+
+The fixture scripts take a rite (`op`). The Dominican fixtures cover every day from 2025
+to 2040 at all eight hours, in Latin and English and with the Pius XII psalter, plus the
+2044 hold-out with the priest on and off, and the Little Office (2026, 2027) and the
+Office of the Dead (2026), under `data/oracle-fixtures/op/`.
+
+### B5-M3 — The rite plug-in
+
+`Rite` (`romanus`, `dominicanus`) is part of the office context. The rite chooses the
+calendar (the Dominican kalendarium applied over 1960's) and adjusts every path the way
+DO does (`Rite.adjusted`: an `…OP` file or section where one exists, else the Roman
+one). The Roman office is untouched; its audits stayed at zero throughout.
+
+### B5-M4 — The engine
+
+Built hour by hour against the Dominican audit (little hours, Compline, Prime with
+*Regula vel Evangelium*, Vespers, Lauds, Matins), then five rounds of residuals. What
+the residuals were, in classes:
+- **DO's version-name tests.** Sunday commemorations, *Festum Domini* clearing and
+  Ash Wednesday's rank at second Vespers (2.99, so a I class feast tomorrow takes first
+  Vespers) all follow DO's pre-1960 path for the Order.
+- **Perl semantics.** A `splice` past the end selects nothing; English substitutions
+  match `I` for `J`; the Litany psalm is numbered from the psalms already said.
+- **The Order's own structure.** A commemorated office's own commemoration at Lauds; no
+  commemorations on rank-7 days; nothing of tomorrow after 1 January; the month's
+  Scripture in resumed Epiphany weeks only for Our Lady's Saturday office; the Order's
+  `Nat` lesson files in Christmastide.
+- **DO's data errors** are corrected as named, switchable corrections, and the audit
+  proves each corrected page both ways (with the correction off it equals DO).
+  `rubrics-op1962.md` §8 lists every divergence, corrected or not.
+- **English** per decisions 5 and 6: the Order's English, else the Roman English matched
+  text by text (hymns stanza by stanza), with the grey note where the Latin differs.
+
+### B5-M5 — The app
+
+*Ritus: Dominicanus* is selectable with its own *Officium* choice; the hour picker,
+psalter and Martyrology follow the rite; the typesetter handles a response in Latin
+alone and a lone versicle; the grey note is set under its English. Snapshots: every
+hour of the Holy Rosary (7 October 2026), English on St Dominic, St Thomas and a ferial
+day, and the Dominican Little Office, Office of the Dead and Pius XII psalter.
+
+### B5-M6 — Release
+
+Release notes in the app and `docs/releases/beta-5.md`, the README and roadmap, the
+install checklist (item 12), and `beta-5-retrospective.md`. The PR waits for the user to
+try the IPA on the phone before it is merged.

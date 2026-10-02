@@ -707,12 +707,12 @@ final class DominicanUITests: BreviariumUITestCase {
         }
     }
     /// English on: St Dominic (4 August, Dominican English where DO has it), St Thomas
-    /// Aquinas (28 January) and a ferial day, with the grey note where the Roman English
-    /// stands for a Dominican Latin that differs.
+    /// Aquinas (7 March) and a ferial day, with the grey note where the Roman English
+    /// stands for a Dominican Latin that differs (the hymn at St Thomas's Lauds).
     func testDominicanEnglishSnapshots() {
         for (date, hour, name) in [
-            ("2026-08-04", "Vespera", "dominic-Vespera"), ("2026-01-28", "Laudes", "thomas-Laudes"),
-            ("2026-01-28", "Matutinum", "thomas-Matutinum"), ("2026-09-16", "Vespera", "ferial-Vespera"),
+            ("2026-08-04", "Vespera", "dominic-Vespera"), ("2026-03-07", "Laudes", "thomas-Laudes"),
+            ("2026-03-07", "Matutinum", "thomas-Matutinum"), ("2026-09-22", "Vespera", "ferial-Vespera"),
         ] {
             let app = launchApp(date: date, english: true, hour: hour, rite: "dominicanus")
             for page in 1...3 {

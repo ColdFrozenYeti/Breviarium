@@ -70,10 +70,12 @@ it was checked against, is in [`docs/PLAN.md`](docs/PLAN.md). What went right an
 and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retrospective.md),
 [`docs/beta-1-retrospective.md`](docs/beta-1-retrospective.md),
 [`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md),
-[`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md) and
-[`docs/beta-4-retrospective.md`](docs/beta-4-retrospective.md). Beta 4's plan is
-[`docs/Beta_4_plan.md`](docs/Beta_4_plan.md), and the draft plan for Beta 5 is
-[`docs/Beta_5_plan.md`](docs/Beta_5_plan.md). How each day hour is put together is in
+[`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md),
+[`docs/beta-4-retrospective.md`](docs/beta-4-retrospective.md) and
+[`docs/beta-5-retrospective.md`](docs/beta-5-retrospective.md). Beta 5's plan is
+[`docs/Beta_5_plan.md`](docs/Beta_5_plan.md), and how the Dominican office is put
+together in Divinum Officium, with the errors in its data the app corrects, is in
+[`docs/rubrics-op1962.md`](docs/rubrics-op1962.md). How each day hour is put together is in
 [`docs/rubrics-1960-day-hours.md`](docs/rubrics-1960-day-hours.md), Matins in
 [`docs/rubrics-1960-matins.md`](docs/rubrics-1960-matins.md), and the Little Office, the
 Office of the Dead and the Martyrology in
@@ -81,7 +83,7 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha and Betas 1 to 4 released; next, Beta 5, the Dominican rite; Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha and Betas 1 to 5 released, Beta 5 being the Dominican rite; next, Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
 
 Why it's in this order, and what each beta depends on, is in
 [`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was

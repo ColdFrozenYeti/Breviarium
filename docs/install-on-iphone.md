@@ -230,6 +230,25 @@ Every item has a matching automated UI test on CI; this is the on-device confirm
      and a grey ring for black (All Souls, Good Friday).
    - **Inline rubrics.** In the *Te Deum*, *(Fit reverentia)* and *(Sequens versus dicitur
      flexis genibus)* are red; turning *Rubricæ* off removes them.
+12. **The Dominican office (Beta 5).**
+   - **The rite.** Settings → *Ritus* lists *Romanus*, *Dominicanus* and *Ambrosianus*
+     (*Coming soon*). Tap *Dominicanus*: it shows *Officium diei*, *Officium parvum
+     B.M.V.* and *Officium defunctorum*. Choose *Officium diei* and go back: the
+     *Ritus* section shows it beside *Dominicanus*.
+   - **A Dominican feast.** Jump to 7 October 2026 (the Holy Rosary) and pick each hour in
+     turn, Matins to Compline: the title block names the Rosary at every hour, and Prime
+     reads the day's Gospel.
+   - **A ferial day.** On 22 September 2026, Prime reads the Rule of St Augustine instead
+     of a Gospel.
+   - **English.** Turn English on. On 7 March (St Thomas Aquinas), Lauds: the hymn's
+     Roman English stands for a Dominican Latin that differs, and has a small grey line
+     under it, *Roman text; the Dominican Latin differs.* A text with no English is
+     Latin across the full width.
+   - **The other offices.** *Officium parvum B.M.V.* and *Officium defunctorum* under
+     *Dominicanus* list only their own hours, as under *Romanus*.
+   - **The psalter.** *Psalterium: Pius XII* changes the psalms under *Dominicanus* too.
+   - **The icon.** Settings → *App icon* switches between the two icons; iOS confirms the
+     change with an alert.
 
 ## Sources
 
