@@ -98,6 +98,15 @@ public enum OfficeCorpusWalker {
         return added.sorted { $0.path < $1.path }
     }
 
+    /// The given files (paths without `.txt`) of one language folder, those that exist.
+    public static func files(languageRoot: URL, paths: [String], applyLatinOrthography: Bool) throws -> [RawOfficeFile] {
+        paths.compactMap { path in
+            guard let raw = try? String(contentsOf: languageRoot.appendingPathComponent(path + ".txt"), encoding: .utf8) else { return nil }
+            let normalized = applyLatinOrthography ? LatinOrthography.normalize(raw, keepingFlexa: true) : raw
+            return RawSectionParser.parse(fileText: normalized, path: path)
+        }.sorted { $0.path < $1.path }
+    }
+
     /// Beta 5: the Mass Gospels the Dominican Prime reads on feasts (`monastic.pl:534-590`,
     /// `lectioE`), from DO's `missa/<Language>/{Tempora,Sancti,Commune}` (its `Commune` has
     /// only `Coronatio` and `Propaganda`; the numbered Commons are read from the office's

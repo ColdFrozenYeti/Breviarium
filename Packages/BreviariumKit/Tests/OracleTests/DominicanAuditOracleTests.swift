@@ -29,6 +29,12 @@ private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
     (.vesperae, ["Festivitas Omnium Sanctorum OP", "Justórum autem ánimæ"]),
 ]
 
+/// DO errors on a date every year, at one hour or (`nil`) all (`docs/rubrics-op1962.md` §8).
+private let dateDivergences: [(hour: CanonicalHour?, monthday: String)] = [
+    (nil, "08-30"),             // St Rose of Lima: DO loses her rank and says the feria or Our Lady's Saturday
+    (.completorium, "11-01"),   // the title names the weekday after All Saints' second Vespers
+]
+
 @Test(arguments: [CanonicalHour.vesperae, .completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
 func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
     if let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty, !only.split(separator: ",").contains(Substring(hour.rawValue)) {
@@ -49,9 +55,10 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
             // Known DO divergences, where DO prints an error and the app the corrected text
             // (`docs/rubrics-op1962.md` §8).
             let page = archive["\(year)/\(date)_priestN_bilingual.tsv"]
+            let monthday = String(format: "%02d-%02d", month, day)
             let hourDivergence = page.map { text in
                 hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(text.contains) }
-            } ?? false
+            } ?? false || dateDivergences.contains { ($0.hour == nil || $0.hour == hour) && $0.monthday == monthday }
             if let text = page, !knownDivergences.contains(where: text.contains), !hourDivergence {
                 let (assembled, title) = assembleDayHour(
                     hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: english,
@@ -84,6 +91,8 @@ func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
                 } else {
                     report.failedToAssemble.append(date)
                 }
+            } else if page != nil {
+                report.daysChecked += 1    // a known DO error: the page is DO's fault, not unchecked
             }
             (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
         }

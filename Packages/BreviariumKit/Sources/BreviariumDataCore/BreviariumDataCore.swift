@@ -64,6 +64,15 @@ public enum BreviariumDataPipeline {
         english += try OfficeCorpusWalker.referencedSiblings(
             languageRoot: horasRoot.appendingPathComponent("English"), of: english, applyLatinOrthography: false
         )
+        // The other rites' files the Latin borrows (`@TemporaM/Adv1-0:Responsory11` in a
+        // Dominican responsory) in English too: DO reads the English file when it exists,
+        // as an English office with no file of its own falls back to the Latin one.
+        let englishPaths = Set(english.map(\.path))
+        english += try OfficeCorpusWalker.files(
+            languageRoot: horasRoot.appendingPathComponent("English"),
+            paths: latin.map(\.path).filter { !englishPaths.contains($0) && $0.range(of: #"^(Sancti|Tempora|Commune)(M|Cist)/"#, options: .regularExpression) != nil },
+            applyLatinOrthography: false
+        )
         english += try OfficeCorpusWalker.walk(
             languageRoot: horasRoot, topLevelFolders: ordinariumTopLevelFolders, applyLatinOrthography: false
         )

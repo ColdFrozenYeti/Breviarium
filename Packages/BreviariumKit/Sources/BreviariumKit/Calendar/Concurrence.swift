@@ -41,7 +41,18 @@ public struct Concurrence {
 
     public func resolve(day: Int, month: Int, year: Int) -> ConcurrenceResult? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
-        guard let today = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
+        guard var today = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
+        // `horascommon.pl:338`, "Simplex end after None": a Dominican Simplex saint (Bl. Jane
+        // of Aza, 1.2, on Friday 8 August 2025) has no second Vespers; the feria's follow.
+        // (1960's ranks have no Simplex that wins a day.)
+        if context.rite == .dominicanus, today.winningPath.hasPrefix("Sancti"), today.winningRank.numericPrecedence < 2,
+            !(month == 1 && day > 6 && day < 13)
+        {
+            let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
+            if let temporalRank = OfficeRank(rankFieldValue: SectionResolver(corpus: corpus, context: context).resolveRank(path: temporalPath)) {
+                today = OccurrenceResult(sanctoralWins: false, winningPath: temporalPath, winningRank: temporalRank, isSunday: today.isSunday)
+            }
+        }
 
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
         guard var tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
