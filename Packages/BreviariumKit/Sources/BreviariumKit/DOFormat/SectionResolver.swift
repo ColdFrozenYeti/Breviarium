@@ -317,6 +317,12 @@ public struct SectionResolver {
         ("TemporaOP/Quadp3-3", "Lectio1", "@Tempora/Quadp3-3:1-4", "@Tempora/Quadp3-3:Lectio1:1-4"),
         // A widow's invitatory, "sancæ" for *sanctæ* (21 August).
         ("CommuneOP/C7a", "Invit", "sancæ", "sanctæ"),
+        // The Exaltation of the Cross, Matins: the antiphon of Psalm 23 is the ferial
+        // suffrage's antiphon (*Per signum Crucis*, which `s/Ant. //` is written for), one
+        // line above the `_` DO reads, so DO shows an empty antiphon; and a respond's colon
+        // ends the antiphon of Psalm 20 (14 September).
+        ("SanctiOP/09-14", "Ant Matutinum", "Suffragium Feriale:3 ", "Suffragium Feriale:2 "),
+        ("SanctiOP/09-14", "Ant Matutinum", "Responsory6:1 s/R. // s/$/;;20/", "Responsory6:1 s/R. // s/:\\s*$/.;;20/"),
         // The Dominican Marian blessings (2 February, Saturdays), accented as every other.
         ("Psalterium/Benedictions", "Nocturn 1", "intercédát", "intercédat"),
         ("Psalterium/Benedictions", "Nocturn 3", "Ad societâtem civium", "Ad societátem cívium"),
@@ -378,7 +384,11 @@ public struct SectionResolver {
                     if context.rite == .dominicanus, Self.correctsDOErrors, meaningful.count == 1, meaningful[0].hasPrefix("@") {
                         raw = resolveInclusionsAndMacros(in: raw, depth: depth + 1, callerPath: path)
                     }
-                    let substituted = applySubstitutions(subs, to: raw)
+                    var substituted = applySubstitutions(subs, to: raw)
+                    // The section's final newline stands for the `@` line's own (DO's inclusion
+                    // regex eats it, `SetupString.pl:305-312`): Easter's invitatory,
+                    // `s/\.$/, *~/`, then runs on into the next line.
+                    while substituted.hasSuffix("\n") { substituted.removeLast() }
                     resolvedLines.append(resolveInclusionsAndMacros(in: substituted, depth: depth + 1, callerPath: path))
                 } else {
                     resolvedLines.append(resolveSection(path: path, section: section, depth: depth + 1))
@@ -496,6 +506,8 @@ public struct SectionResolver {
 
     private func applyLineSelection(start: Int, end: Int, negated: Bool, to text: String) -> String {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        // Perl's `split` drops trailing empty fields (the section's closing blank line).
+        while lines.last == "" { lines.removeLast() }
         let startIndex = max(0, start - 1)
         guard startIndex < lines.count else { return text }
         let length = max(1, end - start + 1)
@@ -524,18 +536,39 @@ public struct SectionResolver {
         let perlPattern = flags.contains("m") ? pattern : pattern.replacingOccurrences(of: #"(?<!\\)\$(?=$|\)|\|)"#, with: #"\\Z"#, options: .regularExpression)
         let fullPattern = prefix.isEmpty ? perlPattern : "\(prefix))\(perlPattern)"
 
-        guard let regex = try? Regex(fullPattern) else { return text }
+        guard let regex = try? Regex(fullPattern) else {
+            // Swift's Regex has no lookbehind; ICU's does (`SanctiOP/09-14`'s
+            // `s/(?<=4 ).*?\.//`, the Exaltation of the Cross's first lesson).
+            guard let ns = try? NSRegularExpression(pattern: fullPattern) else { return text }
+            let source = text as NSString
+            var result = ""
+            var last = 0
+            var count = 0
+            for match in ns.matches(in: text, range: NSRange(location: 0, length: source.length)) {
+                guard count < (flags.contains("g") ? Int.max : 1) else { break }
+                result += source.substring(with: NSRange(location: last, length: match.range.location - last))
+                result += expandBackreferences(replacement) { index in
+                    guard index < match.numberOfRanges, match.range(at: index).location != NSNotFound else { return nil }
+                    return source.substring(with: match.range(at: index))
+                }
+                last = match.range.location + match.range.length
+                count += 1
+            }
+            return result + source.substring(from: last)
+        }
         let maxReplacements = flags.contains("g") ? Int.max : 1
 
         // Perl's replacement string supports $1-style backreferences; expand them
         // ourselves via the match-based closure overload, since Swift's plain-string
         // replacement overload treats the replacement as a literal.
         return text.replacing(regex, maxReplacements: maxReplacements) { match in
-            expandBackreferences(replacement, match: match)
+            expandBackreferences(replacement) { index in
+                index < match.output.count ? match.output[index].substring.map(String.init) : nil
+            }
         }
     }
 
-    private func expandBackreferences(_ replacement: String, match: Regex<AnyRegexOutput>.Match) -> String {
+    private func expandBackreferences(_ replacement: String, group: (Int) -> String?) -> String {
         var result = ""
         let chars = Array(replacement)
         var i = 0
@@ -556,16 +589,14 @@ public struct SectionResolver {
                     numberText.append(chars[j])
                     j += 1
                 }
-                if let groupIndex = Int(numberText), groupIndex < match.output.count,
-                    let captured = match.output[groupIndex].substring
-                {
+                if let groupIndex = Int(numberText), let captured = group(groupIndex) {
                     append(captured)
                 }
                 i = j
             } else if chars[i] == "$", i + 1 < chars.count, chars[i + 1] == "&" {
                 // Perl's `$&`, the whole match (the Dominican Pentecost Terce chapter,
                 // "…domum, ubi $& Apóstoli", 24 May 2026).
-                append(match.output[0].substring ?? "")
+                append(group(0) ?? "")
                 i += 2
             } else if chars[i] == "\\", i + 1 < chars.count {
                 // Perl's escapes in a replacement: `\n` is a newline (Pentecost Tuesday's
@@ -574,9 +605,7 @@ public struct SectionResolver {
                 switch chars[i + 1] {
                 case let digit where digit.isNumber:
                     // Perl's `\1` in a replacement is `$1` (`TemporaOP/091-0`'s `\u\1`).
-                    if let groupIndex = digit.wholeNumberValue, groupIndex < match.output.count,
-                        let captured = match.output[groupIndex].substring
-                    {
+                    if let groupIndex = digit.wholeNumberValue, let captured = group(groupIndex) {
                         append(captured)
                     }
                 case "n": append("\n")

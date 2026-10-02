@@ -176,6 +176,11 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
     )
     let commemorated = Commemorations(corpus: corpus, context: debugContext, calendar: calendar).laudsCommemorations(day: parts[2], month: parts[1], year: parts[0])
     out += "LAUDS COMMEMORATIONS: \(commemorated.map(\.path))\n"
+    // `BREVIARIUM_DEBUG_RESOLVE=path|section` prints one section as the resolver returns it.
+    if let spec = env["BREVIARIUM_DEBUG_RESOLVE"]?.split(separator: "|"), spec.count == 2 {
+        let resolved = SectionResolver(corpus: corpus, context: debugContext).resolve(path: String(spec[0]), section: String(spec[1]))
+        out += "RESOLVE: \(resolved.debugDescription)\n"
+    }
     for section in assembled?.sections ?? [] {
         out += "## \(section.kind)\n"
         for unit in section.units { out += "  \(unit)\n".prefix(260) + "\n" }
