@@ -76,7 +76,8 @@ public struct LiturgicalCalendarEngine {
                 ?? Occurrence(corpus: corpus, context: context, calendar: sanctoralCalendar).resolve(day: day, month: month, year: year),
             let path = officium.votivePath(
                 hour: hour, day: day, month: month, year: year,
-                weekName: TemporalCycle.weekName(day: seasonDate.day, month: seasonDate.month, year: seasonDate.year), dayWinnerPath: dayOffice.winningPath
+                weekName: TemporalCycle.weekName(day: seasonDate.day, month: seasonDate.month, year: seasonDate.year), dayWinnerPath: dayOffice.winningPath,
+                rite: context.rite, latin: corpus
             ),
             let rank = Officium.votiveRank(path: path, resolver: SectionResolver(corpus: corpus, context: context), dayRank: nil)
         else { return nil }

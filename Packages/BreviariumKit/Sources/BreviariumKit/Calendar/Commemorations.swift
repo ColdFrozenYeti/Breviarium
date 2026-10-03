@@ -189,16 +189,27 @@ public struct Commemorations {
         // displaced by Pentecost's own first Vespers, `$crank` 7) and 30 December 2028
         // (`Tempora/Nat30`, displaced by "Dominica Infra Octavam Nativitatis"): both real
         // fixtures read "Vespera de sequenti." with no commemoration at all.
+        // `horascommon.pl:1199-1210`: on a Sunday's (or a Feast of the Lord's) first Vespers
+        // that leaves nothing of today, `@commemoentries` goes too, unless today's
+        // commemoration is a privileged one (1.15, 2.1, 2.99, 3.9): St Paul the Hermit,
+        // commemorated under Bl. Francis de Capillas, on Saturday 15 January 2033.
+        let todayCommemorationRank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
+        let keepsPrivilegedOnly = [1.15, 2.1, 2.99, 3.9].contains(todayCommemorationRank)
         let displacedCandidates: [Commemoration]
-        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !result.vespersOffice.winningPath.hasPrefix("Sancti/")
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !result.vespersOffice.winningPath.hasPrefix("Sancti")
             && !result.vespersOffice.winningPath.contains("C10")
         if bothTemporal {
-            let comrank = todayRunnersUp.first?.rank.numericPrecedence ?? 0
+            // `horascommon.pl:1398-1436`: a Simplex has no second Vespers, so it is not the
+            // commemorated office whose rank decides (Bl. Jane of Aza, 1.2, before Ss. Cyriacus
+            // and companions, 2.2, on the Dominican 8 August 2026).
+            let withVespers = todayRunnersUp.filter { [1.15, 2.1, 2.99, 3.9].contains($0.rank.numericPrecedence) || $0.rank.numericPrecedence >= 2 }
+            let comrank = withVespers.first?.rank.numericPrecedence ?? 0
             let keepsSaints = crank < 7 && crank != 6.5 && crank != 6 && comrank > 2 && !matches(tomorrowRule, "no commemoratio")
             displacedCandidates = keepsSaints ? todayRunnersUp : []
         } else {
-            displacedCandidates =
-                (precedingIsExcluded ? [] : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)]) + todayRunnersUp
+            displacedCandidates = precedingIsExcluded
+                ? (context.rite == .dominicanus && !keepsPrivilegedOnly ? [] : todayRunnersUp)
+                : [Commemoration(path: today.winningPath, rank: today.winningRank, ind: 3)] + todayRunnersUp
         }
         let displaced = displacedVespersCommemorations(
             candidates: displacedCandidates, displacedRank: today.winningRank, winnerRank: result.vespersOffice.winningRank
@@ -336,7 +347,7 @@ public struct Commemorations {
         var results: [Commemoration] = []
         // `horascommon.pl:1681-1684`: a saint's "Tempora none" clears every commemoration
         // (Christmas Eve over the Advent feria). At Lauds (Beta 2).
-        if ind == 2, winnerPath.hasPrefix("Sancti/"),
+        if ind == 2, winnerPath.hasPrefix("Sancti"),
             resolver.resolve(path: winnerPath, section: "Rule").range(of: "Tempora none", options: .caseInsensitive) != nil
         {
             return []
@@ -352,9 +363,10 @@ public struct Commemorations {
         }
 
         let isSunday = Computus.dayOfWeek(day: day, month: month, year: year) == 0
-        let winnerIsSanctoral = winnerPath.hasPrefix("Sancti/")
-        for candidate in calendar.candidates(day: day, month: month, year: year) {
-            let path = "Sancti/\(candidate)"
+        let winnerIsSanctoral = winnerPath.hasPrefix("Sancti")
+        var mainSaintDropped = false
+        for (candidateIndex, candidate) in calendar.candidates(day: day, month: month, year: year).enumerated() {
+            let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard path != winnerPath,
                 let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path))
             else { continue }
@@ -369,7 +381,10 @@ public struct Commemorations {
             {
                 continue
             }
-            if isSunday, let temporalRank,
+            // `horascommon.pl:379`, `$version =~ /1960/`: not the Order's "… - 1962", which
+            // keeps a Simplex on a II. classis Sunday (22 August 2027, Ss. Timothy and
+            // companions).
+            if isSunday, context.rite != .dominicanus, let temporalRank,
                 Self.isDiscardedOnSunday(candidateRank: rank.numericPrecedence, temporalRank: temporalRank.numericPrecedence)
             {
                 continue
@@ -378,12 +393,36 @@ public struct Commemorations {
                 // `horascommon.pl:365`: under 1960 a I. classis temporal office leaves no
                 // saint below it (the Easter and Pentecost octaves: St George, 23 April).
                 if let temporalRank, temporalRank.numericPrecedence >= 6, rank.numericPrecedence < 6 { continue }
-                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included.
-                guard Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
-                else { continue }
+                // Lauds (Beta 2): `climit1960` is non-zero, "ad Laudes tantum" included. It
+                // judges the day's saint (`$sname`, `horascommon.pl:716`); the Kalendarium's
+                // further saints stay in `@commemoentries`, which under the Order's rubrics
+                // nothing clears on a Sunday (22 August 2027, Ss. Timothy and companions).
+                // They are commemorated with it, not without it (20 July 2025: neither St
+                // Jerome Emiliani nor St Margaret under the Sunday).
+                let judged = context.rite != .dominicanus || candidateIndex == 0
+                if !judged, mainSaintDropped { continue }
+                guard !judged
+                    || Self.climit1960(candidatePath: path, candidateRank: rank.numericPrecedence, winnerPath: winnerPath, resolver: resolver) != 0
+                else {
+                    mainSaintDropped = true
+                    continue
+                }
             } else {
-                guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
-                else { continue }
+                // The Dominican ranks aren't 1960's: as DO's general rule (`horascommon.pl:338`),
+                // only a Simplex ends after None (Ss. Cyriacus and companions, 2.2, are
+                // commemorated at Vespers on 8 August 2026).
+                if context.rite == .dominicanus {
+                    guard winnerIsSanctoral || rank.numericPrecedence >= 2 else { continue }
+                    // `climit1960` at Vespers (`horascommon.pl:722`, the version matching
+                    // /196/): under the temporal office the day's saint is commemorated at
+                    // Vespers only if I. classis (St John on the Sunday in the Christmas
+                    // octave, 27 December 2026; St John of God on the Saturday after Ash
+                    // Wednesday, 8 March 2025: at Lauds only).
+                    if candidateIndex == 0, !winnerIsSanctoral, winnerPath.hasPrefix("Tempora"), rank.numericPrecedence < 6 { continue }
+                } else {
+                    guard Self.isVespersCommemorationEligible1960(candidateRank: rank.numericPrecedence, winnerIsSanctoral: winnerIsSanctoral)
+                    else { continue }
+                }
             }
             results.append(Commemoration(path: path, rank: rank, ind: ind))
         }
@@ -391,11 +430,14 @@ public struct Commemorations {
             // `horascommon.pl:1690-1711`, 1960: every commemoration goes when the winner's
             // rule says "No Sunday Commemoratio" on a Sunday (the Holy Family), when a
             // Festum Domini would commemorate another, or for 28 June on a Sunday.
+            // The first two are `$version =~ /1960/`, not the Order's "… - 1962" (St Hyginus
+            // under the Holy Family, 11 January 2026); the third is `/196/`.
+            let roman1960 = context.rite != .dominicanus
             let winnerRule = resolver.resolve(path: winnerPath, section: "Rule")
-            if isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
+            if roman1960, isSunday, winnerRule.range(of: "No Sunday commemoratio", options: .caseInsensitive) != nil { return [] }
             if let first = results.first {
                 let firstRule = resolver.sectionExists(path: first.path, section: "Rule") ? resolver.resolve(path: first.path, section: "Rule") : ""
-                if matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
+                if roman1960, matches(winnerRule, "Festum Domini"), matches(firstRule, "Festum Domini") { return [] }
                 if isSunday, first.path.range(of: "06-28r?$", options: .regularExpression) != nil { return [] }
             }
         }
@@ -423,9 +465,9 @@ public struct Commemorations {
     private func droppingTemporaBeforeSunday(
         _ candidates: [Commemoration], day: Int, month: Int, year: Int, todayWinner: OccurrenceResult
     ) -> [Commemoration] {
-        guard todayWinner.winningPath.hasPrefix("Sancti/"),
+        guard todayWinner.winningPath.hasPrefix("Sancti"),
             !matches(todayWinner.winningRank.title, "infra octavam Nativitatis$"),
-            let first = candidates.first, first.path.hasPrefix("Tempora/")
+            let first = candidates.first, first.path.hasPrefix("Tempora")
         else { return candidates }
         let resolver = SectionResolver(corpus: corpus, context: context)
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
@@ -460,7 +502,7 @@ public struct Commemorations {
     /// under a I. classis one, and not the Sacred Heart under the Precious Blood. A plain
     /// Paschaltide feria (28 April 2025, S. Paul of the Cross) isn't.
     private func isTemporaCommemoratedUnderSaint(temporalRank: OfficeRank, winnerPath: String, resolver: SectionResolver) -> Bool {
-        guard winnerPath.hasPrefix("Sancti/"), let saint = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return true }
+        guard winnerPath.hasPrefix("Sancti"), let saint = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return true }
         let srank = saint.numericPrecedence
         let trank = temporalRank.numericPrecedence
         if matches(saint.title, "Sangu"), matches(temporalRank.title, "Cor[dp]") { return false }
@@ -470,7 +512,7 @@ public struct Commemorations {
     private func isTemporaDiscardedBySanctoral1960(
         day: Int, month: Int, year: Int, temporalRank: OfficeRank, winnerPath: String
     ) -> Bool {
-        guard winnerPath.hasPrefix("Sancti/") else { return false }
+        guard winnerPath.hasPrefix("Sancti") else { return false }
         let resolver = SectionResolver(corpus: corpus, context: context)
         guard let saintRank = OfficeRank(rankFieldValue: resolver.resolveRank(path: winnerPath)) else { return false }
         let srank = saintRank.numericPrecedence
@@ -519,7 +561,7 @@ public struct Commemorations {
     /// the Maternity on a Sunday (1), and 16 July, Mount Carmel on a feria (2).
     static func climit1960(candidatePath: String, candidateRank: Double, winnerPath: String, resolver: SectionResolver) -> Int {
         if candidatePath.contains("7-16"), winnerPath.contains("C10") { return 0 }
-        guard winnerPath.hasPrefix("Tempora/") || winnerPath.contains("C10") else { return 1 }
+        guard winnerPath.hasPrefix("Tempora") || winnerPath.contains("C10") else { return 1 }
         if resolver.resolveRank(path: winnerPath).range(of: "Dominica", options: .caseInsensitive) != nil {
             return candidateRank >= 5 ? 1 : 0
         }
@@ -533,7 +575,7 @@ public struct Commemorations {
         else { return nil }
         let resolver = SectionResolver(corpus: corpus, context: context)
         guard let first = runnersUp(day: day, month: month, year: year, winnerPath: winner.winningPath, ind: 2).first else { return nil }
-        guard first.path.hasPrefix("Sancti/") else { return first }
+        guard first.path.hasPrefix("Sancti") else { return first }
         return Self.climit1960(candidatePath: first.path, candidateRank: first.rank.numericPrecedence, winnerPath: winner.winningPath, resolver: resolver) == 1
             ? first : nil
     }
@@ -574,7 +616,7 @@ public struct Commemorations {
             winnerIsOrdinary ? 2 : winnerRank.numericPrecedence >= 6 ? 4.2 : winnerRank.numericPrecedence >= 5 ? 2.1 : 2
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             if isTemporal, candidate.rank.numericPrecedence < 2, candidate.rank.numericPrecedence != 1.15 {
                 return false    // Feria minor has no Vespers once superseded.
             }
@@ -623,7 +665,7 @@ public struct Commemorations {
             : 2
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             if isTemporal, candidate.rank.numericPrecedence != 1.15 {
                 if candidate.rank.numericPrecedence < 2 { return false }    // Feria minor / vigils.
                 if matches(candidate.rank.title, "Rogatio|Quattuor.*Sept") { return false }
@@ -657,7 +699,7 @@ public struct Commemorations {
             winnerIsOrdinary ? 1.1 : winnerRank.numericPrecedence >= 6 ? 4.2 : winnerRank.numericPrecedence >= 5 ? 2.2 : 1.1
 
         return candidates.filter { candidate in
-            let isTemporal = candidate.path.hasPrefix("Tempora/")
+            let isTemporal = candidate.path.hasPrefix("Tempora")
             let isSunday = matches(candidate.rank.title, "Dominica")
             if (isTemporal || matches(candidate.rank.title, "infra octavam")), !isSunday { return false }
             guard isSunday else { return false }    // The 1960-specific reduction, above.

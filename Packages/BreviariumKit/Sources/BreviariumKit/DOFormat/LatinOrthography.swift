@@ -75,39 +75,43 @@ public enum LatinOrthography {
     /// allelúia." — the target text's own "allelúja" had already become "allelúia"
     /// by the time the pattern (still reading "allelúja", never normalised) tried to
     /// match it.
-    public static func normalizeLine(_ line: String) -> String {
+    public static func normalizeLine(_ line: String, keepingFlexa: Bool = false) -> String {
         if line.trimmingCharacters(in: .whitespaces).first == "@" {
-            return normalizeInclusionLine(line)
+            return normalizeInclusionLine(line, keepingFlexa: keepingFlexa)
         }
         if isReferenceDirectiveLine(line) {
             return line
         }
-        return normalizeProse(line)
+        return normalizeProse(line, keepingFlexa: keepingFlexa)
     }
 
     /// Normalises only the substitution segment of an `@file:section:substitution`
     /// line (see `normalizeLine`'s own doc comment), leaving `@file:section` itself
     /// untouched. A line with no third segment (`@file:section`, no trailing colon)
     /// passes through unchanged, same as before this exception existed.
-    private static func normalizeInclusionLine(_ line: String) -> String {
+    private static func normalizeInclusionLine(_ line: String, keepingFlexa: Bool) -> String {
         guard let atIndex = line.firstIndex(of: "@") else { return line }
         let body = line[line.index(after: atIndex)...]
         guard let firstColon = body.firstIndex(of: ":") else { return line }
         guard let secondColon = body[body.index(after: firstColon)...].firstIndex(of: ":") else { return line }
         let afterSecondColon = body.index(after: secondColon)
-        return String(line[..<afterSecondColon]) + normalizeProse(String(line[afterSecondColon...]))
+        return String(line[..<afterSecondColon]) + normalizeProse(String(line[afterSecondColon...]), keepingFlexa: keepingFlexa)
     }
 
     /// Applies J -> I normalisation to a multi-line block of Latin text, line by line,
     /// preserving reference/macro directive lines untouched (see `normalizeLine`).
-    public static func normalize(_ text: String) -> String {
+    ///
+    /// `keepingFlexa` keeps the `†` for the build-time bundle: DO removes it only when it
+    /// shows the text (`horasscripts.pl`), after its substitutions, some of which match it
+    /// (`TemporaOP/Pasc7-1`'s `s/, †.*/./`); `SectionResolver` removes it as it returns.
+    public static func normalize(_ text: String, keepingFlexa: Bool = false) -> String {
         // CRLF-checked-out files (Windows) would otherwise collapse into a single
         // "line": Swift's Character (grapheme cluster) view treats "\r\n" as one
         // Character, so `split(separator: "\n")` never finds a boundary inside it —
         // this only ever surfaces locally on Windows, never on Linux CI.
         text.replacingOccurrences(of: "\r\n", with: "\n")
             .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { normalizeLine(String($0)) }
+            .map { normalizeLine(String($0), keepingFlexa: keepingFlexa) }
             .joined(separator: "\n")
     }
 
@@ -119,7 +123,13 @@ public enum LatinOrthography {
         return first == "@" || first == "$" || first == "&"
     }
 
-    private static func normalizeProse(_ text: String) -> String {
+    /// The text as shown: without the `†` flexa mark (`horasscripts.pl`'s `s/†\s*//g`).
+    public static func strippingFlexa(_ text: String) -> String {
+        guard text.contains("†") else { return text }
+        return text.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+    }
+
+    private static func normalizeProse(_ text: String, keepingFlexa: Bool = false) -> String {
         var result = String()
         result.reserveCapacity(text.count)
         for character in text {
@@ -130,7 +140,7 @@ public enum LatinOrthography {
             }
         }
         result = result.replacingOccurrences(of: "er eúmdem", with: "er eúndem")
-        result = result.replacingOccurrences(of: #"†\s*"#, with: "", options: .regularExpression)
+        if !keepingFlexa { result = strippingFlexa(result) }
         // Never across a verse reference: text joined from many verses (a whole DO row, in
         // the oracle audits) must not carry one verse's ‡ to the next verse's asterisk.
         return result.replacingOccurrences(

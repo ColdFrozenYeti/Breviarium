@@ -33,11 +33,14 @@ extension LiturgicalCalendarEngine {
         let temporalRule = rule(tname)
 
         // The sanctoral office and the ones after it (`@commemoentries`).
-        var entries = sanctoralCalendar.candidates(day: day, month: month, year: year).map { "Sancti/\($0)" }
+        let rite = context.rite
+        let candidateKeys = sanctoralCalendar.candidates(day: day, month: month, year: year)
+        var entries = candidateKeys.map { rite.adjusted("Sancti/\($0)", latin: corpus) }
         // A feast moved away this year (`:228-230`, `transfered()`): the day names it.
         var transfered: String?
-        if let first = entries.first, !sanctoralCalendar.hasOwnTransferEntry(day: day, month: month, year: year),
-            sanctoralCalendar.isTransferredAwayThisYear(candidateKey: String(first.dropFirst("Sancti/".count)), year: year)
+        if let first = entries.first, let firstKey = candidateKeys.first,
+            !sanctoralCalendar.hasOwnTransferEntry(day: day, month: month, year: year),
+            sanctoralCalendar.isTransferredAwayThisYear(candidateKey: firstKey, year: year)
         {
             transfered = first
             entries.removeFirst()
@@ -75,13 +78,14 @@ extension LiturgicalCalendarEngine {
             }
         }
         // 29-31 December: the octave day of Christmas is the one commemorated (`:450-456`).
-        if weekName.hasPrefix("Nat1"), day > 28, month == 12, rank("Tempora/Nat\(day)") != nil {
-            sname = "Tempora/Nat\(day)"
-            srank = rank("Tempora/Nat\(day)")
+        let octaveDay = rite.adjusted("Tempora/Nat\(day)", latin: corpus)
+        if weekName.hasPrefix("Nat1"), day > 28, month == 12, rank(octaveDay) != nil {
+            sname = octaveDay
+            srank = rank(octaveDay)
         }
         // Our Lady on Saturday (`:423-442`): the season's Scripture is still read.
         var scriptura: String?
-        let isOurLady = result.winningPath.hasPrefix("Commune/C10")
+        let isOurLady = (result.winningPath.hasPrefix("Commune") && result.winningPath.contains("/C10"))
         if isOurLady {
             scriptura = tname
         }
@@ -142,7 +146,7 @@ extension LiturgicalCalendarEngine {
                     let table = sanctoralCalendar.scriptureTransfer(day: day, month: month, year: year), !table.hasSuffix("~A"),
                     let first = table.split(separator: "~").first
                 {
-                    let tsfile = "Tempora/\(first)"
+                    let tsfile = rite.adjusted("Tempora/\(first)", latin: corpus)
                     if tsfile != tname, let tsrank = rank(tsfile) {
                         line += "\nScriptura ut in \(tsrank.title)"
                     }

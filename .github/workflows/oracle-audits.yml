@@ -3,7 +3,7 @@ name: Oracle audits
 # The full-range oracle audits: every day 2025-2040 against Divinum Officium's own
 # rendering, for content, commemorations, psalmody (both psalters) and the English
 # (vespersFullRange* in Packages/BreviariumKit/Tests/OracleTests), and from Beta 2 the
-# day hours (dayHoursFullRangeAudit, one job of its own), and from Beta 3 Matins, split
+# day hours (dayHoursFullRange*, split by years across four jobs since B5-M0), and from Beta 3 Matins, split
 # by years across four jobs since it alone takes over an hour, and from Beta 4 the Little
 # Office and the Office of the Dead (votive*). Split out of Kit CI in
 # Beta 1 (docs/PLAN.md, B1-M4) because together they take several times longer than the
@@ -29,18 +29,55 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A push to a pull request runs the jobs below only if something they check changed
+  # since the last commit that passed this workflow (scripts/ci-needs-run.sh; GitHub's
+  # `paths:` alone looks at the whole pull request). Main pushes always run.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+        run: scripts/ci-needs-run.sh oracle-audits.yml '^(Packages/BreviariumKit/|data/oracle-fixtures/|\.github/workflows/oracle-audits\.yml)'
+
   audits:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: vespers
             filter: vespersFullRange
-          # Every day-hour audit (content, Pius XII, 2044 hold-out, title line) except
-          # Matins' content audits, which the jobs below run.
-          - name: day hours
-            filter: dayHoursFullRange
+          # The day hours, Lauds to Compline, split by years like Matins (B5-M0: as one
+          # job it took about an hour). The first also runs the 2044 hold-out and the
+          # title line, which don't follow the years.
+          - name: day hours 2025-2028, 2044 and title line
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit|dayHoursFullRangeHoldout2044|dayHoursFullRangeHeadLineAudit"
             hours: Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2025-2028
+          - name: day hours 2029-2032
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2029-2032
+          - name: day hours 2033-2036
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2033-2036
+          - name: day hours 2037-2040
+            filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit"
+            hours: Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2037-2040
           - name: matins 2025-2028 and 2044
             filter: "dayHoursFullRangeAudit|dayHoursFullRangeBeaAudit|dayHoursFullRangeHoldout2044"
             hours: Matutinum
@@ -64,6 +101,48 @@ jobs:
             votives: C12
           - name: office of the dead
             filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
+            votives: C9
+          # Beta 5: the Dominican office (`Ordo Praedicatorum - 1962`), every hour in both
+          # psalters, the 2044 hold-out, and its Little Office and Office of the Dead.
+          # Split by four years and by office like the Roman ones (each over 90 minutes as
+          # two jobs of eight years).
+          - name: dominican day hours 2025-2028 and 2044
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2025-2028
+          - name: dominican day hours 2029-2032
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2029-2032
+          - name: dominican day hours 2033-2036
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2033-2036
+          - name: dominican day hours 2037-2040
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
+            years: 2037-2040
+          - name: dominican matins 2025-2028 and 2044
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+            hours: Matutinum
+            years: 2025-2028
+          - name: dominican matins 2029-2032
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2029-2032
+          - name: dominican matins 2033-2036
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2033-2036
+          - name: dominican matins 2037-2040
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
+            hours: Matutinum
+            years: 2037-2040
+          - name: dominican little office
+            filter: "dominicanVotiveAudit"
+            votives: C12
+          - name: dominican office of the dead
+            filter: "dominicanVotiveAudit"
             votives: C9
     name: audits (${{ matrix.name }})
     runs-on: ubuntu-latest

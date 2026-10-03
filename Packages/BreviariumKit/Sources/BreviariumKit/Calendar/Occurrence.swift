@@ -135,9 +135,10 @@ public struct Occurrence {
     public static func temporalPath(
         day: Int, month: Int, year: Int, calendar: SanctoralCalendar, corpus: OfficeCorpus, context: ConditionalContext
     ) -> String {
-        let ordinary = temporalPath(day: day, month: month, year: year, calendar: calendar)
+        let rite = context.rite
+        let ordinary = rite.adjusted(temporalPath(day: day, month: month, year: year, calendar: calendar), latin: corpus)
         guard let monthdayKey = Computus.monthday(day: day, month: month, year: year, tomorrow: false) else { return ordinary }
-        let monthdayPath = "Tempora/\(monthdayKey)"
+        let monthdayPath = rite.adjusted("Tempora/\(monthdayKey)", latin: corpus)
         let resolver = SectionResolver(corpus: corpus, context: context)
         return resolver.sectionExists(path: monthdayPath, section: "Officium") ? monthdayPath : ordinary
     }
@@ -161,7 +162,7 @@ public struct Occurrence {
         // branch only: on a Saturday the day hours are still All Souls'.
         let isVespersOrCompline = context.ad.range(of: "vesper|complet", options: [.regularExpression, .caseInsensitive]) != nil
         for candidate in calendar.candidates(day: day, month: month, year: year) {
-            let path = "Sancti/\(candidate)"
+            let path = context.rite.adjusted("Sancti/\(candidate)", latin: corpus)
             guard let rank = OfficeRank(rankFieldValue: resolver.resolveRank(path: path)) else { continue }
             if isVespersOrCompline, Self.isAllSoulsSuppressedOnSaturday(title: rank.title, month: month, weekday: weekday) { continue }
             sanctoralPath = path
@@ -175,18 +176,15 @@ public struct Occurrence {
         // own I. classis Sancti office, so DO itself never needed a temporal filler for
         // either date. A missing temporal file means sanctoral wins outright if it
         // resolved; if neither resolved, there is genuinely no office for this date.
-        guard let temporalRank else {
-            guard let sanctoralPath, let sanctoralRank else { return nil }
-            return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
-        }
-
         // `horascommon.pl:423-442`: "In Festo Sanctae Mariae Sabbato according to the
         // rubrics" -- a Saturday with neither a temporal nor a sanctoral office above
         // rank 1.4 is Our Lady's (`Commune/C10`, by season: `a` Advent, `b` January to
         // 1 February, `c` after Epiphany and in Lent, `Pasc` in Paschaltide), rank 1.3;
         // `:1757-1760` makes its Commune an `ex` one for the day hours. Beta 2: Vespers
-        // never met it (Saturday evening is Sunday's).
-        if weekday == 6, temporalRank.numericPrecedence < 1.4, (sanctoralRank?.numericPrecedence ?? 0) < 1.4 {
+        // never met it (Saturday evening is Sunday's). A week with no temporal file is rank
+        // 0 here (`$trank[2]` empty): Our Lady over St Vedast, 6 February 2038, whose
+        // Saturday after Epiphany has its Scripture transferred.
+        if weekday == 6, (temporalRank?.numericPrecedence ?? 0) < 1.4, (sanctoralRank?.numericPrecedence ?? 0) < 1.4 {
             let week = TemporalCycle.weekName(day: day, month: month, year: year)
             let suffix = week.hasPrefix("Adv") ? "a"
                 : (month == 1 || (month == 2 && day == 1)) ? "b"
@@ -195,8 +193,13 @@ public struct Occurrence {
             if let bvm = OfficeRank(rankFieldValue: "Sanctæ Mariæ Sabbato;;Simplex;;1.3;;ex C10\(suffix)"),
                 (sanctoralRank?.numericPrecedence ?? 0) <= bvm.numericPrecedence
             {
-                return OccurrenceResult(sanctoralWins: false, winningPath: "Commune/C10\(suffix)", winningRank: bvm, isSunday: false)
+                return OccurrenceResult(sanctoralWins: false, winningPath: context.rite.adjusted("Commune/C10\(suffix)", latin: corpus), winningRank: bvm, isSunday: false)
             }
+        }
+
+        guard let temporalRank else {
+            guard let sanctoralPath, let sanctoralRank else { return nil }
+            return OccurrenceResult(sanctoralWins: true, winningPath: sanctoralPath, winningRank: sanctoralRank, isSunday: isSunday)
         }
 
         // `horascommon.pl:487`: the Sunday exceptions below apply when `$trank[0] =~

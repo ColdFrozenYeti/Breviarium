@@ -150,6 +150,9 @@ actor OracleFixture {
     static func extractAndRead(archive: URL) throws -> [String: String] {
         let dest = FileManager.default.temporaryDirectory.appendingPathComponent("breviarium-oracle-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        // Read into memory, so the extracted copy can go (an audit of every year and hour
+        // otherwise leaves thousands of them behind).
+        defer { try? FileManager.default.removeItem(at: dest) }
 
         let process = Process()
         #if os(Windows)

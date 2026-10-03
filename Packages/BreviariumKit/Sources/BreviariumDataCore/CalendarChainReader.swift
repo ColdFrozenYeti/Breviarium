@@ -12,8 +12,11 @@ public enum CalendarChainReader {
     public static let chainOldestFirst = ["1570", "1888", "1906", "1939", "1954", "1955", "1960"]
 
     /// `tabulaeRoot` is `.../web/www/Tabulae`.
-    public static func flattenedCalendar(tabulaeRoot: URL) throws -> [String: String] {
-        let texts = try chainOldestFirst.map { version -> String in
+    public static func flattenedCalendar(tabulaeRoot: URL, rite: Rite = .romanus) throws -> [String: String] {
+        // The Dominican calendar "only notes the differences to Rubrics 1960" (its own
+        // first line): the 1960 chain with `OP1962` on top (`data.txt`, base `Rubrics 1960`).
+        let chain = rite == .dominicanus ? chainOldestFirst + ["OP1962"] : chainOldestFirst
+        let texts = try chain.map { version -> String in
             let fileURL = tabulaeRoot.appendingPathComponent("Kalendaria/\(version).txt")
             return try String(contentsOf: fileURL, encoding: .utf8)
         }

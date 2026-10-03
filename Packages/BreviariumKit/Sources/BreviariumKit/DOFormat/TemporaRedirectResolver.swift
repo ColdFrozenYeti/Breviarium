@@ -39,7 +39,7 @@ public enum TemporaRedirectResolver {
             guard appliesTo1960(versionList) else { continue }
 
             let fields = withoutVersion.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            guard fields.count == 2, fields[0].hasPrefix("Tempora/"), fields[1].hasPrefix("Tempora/") else { continue }
+            guard fields.count == 2, fields[0].hasPrefix("Tempora"), fields[1].hasPrefix("Tempora") else { continue }
             entries[String(fields[0])] = String(fields[1])
         }
         return entries

@@ -51,6 +51,9 @@ public struct DataBundle: Codable, Sendable {
     /// computing (or transfer-overriding) the ordinary week-numbered path, for every hour
     /// of the day, not just Vespers.
     public var temporaRedirect: [String: String]
+    /// Beta 5: the Dominican calendar, `Kalendaria/OP1962.txt` flattened over the 1960
+    /// chain (`docs/rubrics-op1962.md` §1). `nil` in bundles made before Beta 5.
+    public var calendarOP: [String: String]?
 
     public init(
         formatVersion: Int = breviariumKitDataFormatVersion,
@@ -59,7 +62,8 @@ public struct DataBundle: Codable, Sendable {
         english: [RawOfficeFile],
         calendar: [String: String],
         transferTable: [String: [String: String]] = [:],
-        temporaRedirect: [String: String] = [:]
+        temporaRedirect: [String: String] = [:],
+        calendarOP: [String: String]? = nil
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
@@ -68,6 +72,7 @@ public struct DataBundle: Codable, Sendable {
         self.calendar = calendar
         self.transferTable = transferTable
         self.temporaRedirect = temporaRedirect
+        self.calendarOP = calendarOP
     }
 
     /// The Latin corpus `SectionResolver` should read from, for one psalter
@@ -94,8 +99,21 @@ public struct DataBundle: Codable, Sendable {
     /// (its initialiser defaults it to empty), which changed the rendered Vespers on 262
     /// dates in 2025-2040 relative to what the oracle tests verify -- Holy Saturday,
     /// weeks of Paschaltide, late June, among others.
-    public func makeSanctoralCalendar() -> SanctoralCalendar {
-        SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
+    public func makeSanctoralCalendar(rite: Rite = .romanus) -> SanctoralCalendar {
+        switch rite {
+        case .romanus:
+            return SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
+        case .dominicanus:
+            // The 1960 transfer tables (`data.txt`: transfer `1960`) and no Scripture
+            // transfers (`stransfer` `XXXX`). No `Generale` redirect either: DO looks
+            // them up by the rite's own path (`TemporaOP/Quad6-0`, `horascommon.pl:141-147`),
+            // and the table has none for the Dominican folders.
+            return SanctoralCalendar(
+                entries: calendarOP ?? calendar,
+                transferTable: transferTable.filter { !$0.key.hasPrefix("S:") },
+                temporaRedirect: [:]
+            )
+        }
     }
 
     /// The English corpus: DO's English tree layered over plain Latin, section by
@@ -108,7 +126,39 @@ public struct DataBundle: Codable, Sendable {
     /// does in DO's own English column. The base is plain `Latin/` whichever psalter
     /// is chosen (`$baselang = 'Latin'`); there is no English Bea tree.
     public func makeEnglishCorpus() -> OfficeCorpus {
-        LayeredOfficeCorpus(layers: [InMemoryOfficeCorpus(files: english), InMemoryOfficeCorpus(files: latin)])
+        let englishCorpus = InMemoryOfficeCorpus(files: english)
+        let latinCorpus = InMemoryOfficeCorpus(files: latin)
+        return LayeredOfficeCorpus(layers: [
+            OldHymnAliasingCorpus(base: englishCorpus),
+            RomanEnglishForDominicanCorpus(latinFiles: latin, latin: latinCorpus, english: englishCorpus),
+            latinCorpus,
+        ])
+    }
+}
+
+/// `SetupString.pl:613-619`: in a language other than Latin, a file's `[Hymnus X]` also
+/// answers for `[HymnusM X]` when the file has no `[HymnusM X]` of its own, so the
+/// translation stands in for the older Latin text the Dominican office reads
+/// (`SectionResolver.oldHymnSection`) rather than the Latin showing through.
+public struct OldHymnAliasingCorpus: OfficeCorpus {
+    public var base: OfficeCorpus
+
+    public init(base: OfficeCorpus) {
+        self.base = base
+    }
+
+    public func rawSections(path: String, name: String) -> [RawSection] {
+        let own = base.rawSections(path: path, name: name)
+        guard own.isEmpty, name.hasPrefix("HymnusM ") else { return own }
+        return base.rawSections(path: path, name: "Hymnus " + name.dropFirst("HymnusM ".count))
+    }
+
+    public func baseFile(path: String) -> BaseFileReference? {
+        base.baseFile(path: path)
+    }
+
+    public func fileExists(path: String) -> Bool {
+        base.fileExists(path: path)
     }
 }
 
@@ -140,4 +190,60 @@ public struct LayeredOfficeCorpus: OfficeCorpus {
         }
         return nil
     }
+
+    public func fileExists(path: String) -> Bool {
+        layers.contains { $0.fileExists(path: path) }
+    }
+}
+
+/// Beta 5, decision 5 of `docs/Beta_5_plan.md`: a Dominican section with no English of its
+/// own whose Latin is word for word a Roman section's takes that section's English (the
+/// Dominican folders have almost no English; DO shows their Latin in its English column).
+/// Only text the Dominican file writes out is matched: a reference already reads the
+/// referenced file's English.
+public struct RomanEnglishForDominicanCorpus: OfficeCorpus {
+    private let latin: OfficeCorpus
+    private let english: OfficeCorpus
+    private let romanByText: [String: (path: String, name: String)]
+
+    public init(latinFiles: [RawOfficeFile], latin: OfficeCorpus, english: OfficeCorpus) {
+        self.latin = latin
+        self.english = english
+        var index: [String: (path: String, name: String)] = [:]
+        for file in latinFiles where file.path.range(of: #"^(Tempora|Sancti|Commune|Psalterium)/"#, options: .regularExpression) != nil {
+            for section in file.sections {
+                guard let key = Self.key(section.body), index[key] == nil,
+                    !english.rawSections(path: file.path, name: section.name).isEmpty
+                else { continue }
+                index[key] = (file.path, section.name)
+            }
+        }
+        romanByText = index
+    }
+
+    /// The written-out text, whitespace collapsed; `nil` for a section with references,
+    /// macros or conditionals, or too short to be matched safely.
+    static func key(_ body: [String]) -> String? {
+        let lines = body.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !lines.isEmpty, !lines.contains(where: { $0.hasPrefix("@") || $0.hasPrefix("$") || $0.hasPrefix("&") || $0.hasPrefix("(") })
+        else { return nil }
+        let text = lines.joined(separator: " ").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return text.count >= 20 ? text : nil
+    }
+
+    public func rawSections(path: String, name: String) -> [RawSection] {
+        guard path.range(of: #"^(Tempora|Sancti|Commune)OP/"#, options: .regularExpression) != nil,
+            english.rawSections(path: path, name: name).isEmpty
+        else { return [] }
+        return latin.rawSections(path: path, name: name).compactMap { variant in
+            guard let key = Self.key(variant.body), let roman = romanByText[key],
+                let translated = english.rawSections(path: roman.path, name: roman.name).first(where: { $0.condition.isEmpty })
+            else { return nil }
+            return RawSection(name: name, condition: variant.condition, body: translated.body)
+        }
+    }
+
+    public func baseFile(path: String) -> BaseFileReference? { nil }
+
+    public func fileExists(path: String) -> Bool { false }
 }

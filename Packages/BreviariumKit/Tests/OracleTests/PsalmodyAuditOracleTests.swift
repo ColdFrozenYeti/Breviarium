@@ -18,7 +18,7 @@ struct RenderedPsalm: Equatable, CustomStringConvertible {
     var description: String { "\(title): \(references.joined(separator: " "))" }
 }
 
-private nonisolated(unsafe) let fixturePsalmTitle = try! Regex(#"Psalmus \d+[^\[]*?\[\d\]"#)
+private nonisolated(unsafe) let fixturePsalmTitle = try! Regex(#"Psalmus \d+[^\[]*?\[\d+\]"#)
 private nonisolated(unsafe) let fixtureVerseReference = try! Regex(#"(?:^| )(\d{1,3}:\d{1,3}) "#)
 
 /// DO's psalms as its page shows them: every "Psalmus ... [n]" title, and the verse

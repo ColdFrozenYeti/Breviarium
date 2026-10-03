@@ -51,10 +51,10 @@ extension TemporalCycle {
         }
         if let n = digitsAfter("Pasc") {
             if n < 5 || (n == 5 && (dayOfWeek < 3 || (!vespOrComp && dayOfWeek == 3))) { return "post Octavam Paschæ" }
-            // DO tests this against $dayname[0], which (unlike the bare `weekName` this
-            // function otherwise takes) already carries the "-<day-of-week>" suffix --
-            // reconstruct it just for this one suffix-sensitive check.
-            if n == 6, dayOfWeek == 5 || dayOfWeek == 6 { return "post Octavam Ascensionis" }
+            // DO's `/^Pasc6-(5|6)/` ("post Octavam Ascensionis") never matches: its
+            // `$dayname[0]` is the bare week ("Pasc6", traced 22 May 2026, both rites), so
+            // the Friday and Saturday after the octave read "Octava Ascensionis" too (the
+            // Order's Little Office: *Regína cæli … iam ascéndit*).
             if n < 7 { return "Octava Ascensionis" }
             return "Octava Pentecostes"
         }
@@ -121,6 +121,11 @@ public enum ConditionalContextBuilder {
             officeTitle = resolver.resolve(path: occurrence.winningPath, section: "Officium")
             rule = resolver.resolve(path: occurrence.winningPath, section: "Rule")
             winningKey = String(occurrence.winningPath.split(separator: "/").last ?? "")
+            // DO's `$dayname[1]` ends with the Commune in brackets (`horascommon.pl:531`,
+            // `[$commune]`), which `(officio C11)` tests: the Dominican Marian blessings.
+            if let commune = occurrence.winningRank.communeReference.firstMatch(of: /C\d+[a-z]?/) {
+                officeTitle += " [\(commune.output)]"
+            }
         }
         let temporalKey = String(
             Occurrence.temporalPath(day: day, month: month, year: year, calendar: sanctoralCalendar, corpus: corpus, context: bootstrapContext)
@@ -169,7 +174,7 @@ public enum ConditionalContextBuilder {
     /// `$dayname[2]` split (approximated here as "the winning office's title contains
     /// 'Doctor'", which is the same substring DO's own regex tests for, just against a
     /// less precisely-scoped string).
-    private static func dayName(
+    static func dayName(
         day: Int, month: Int, year: Int, dayOfWeek: Int, isVespersOrCompline: Bool,
         winningKey: String, temporalKey: String, officeTitle: String, rule: String
     ) -> String {

@@ -39,7 +39,7 @@ mkdir -p "$(dirname "$out_path")"
 # own psalmvar-based Latin->Latin-Bea auto-upgrade only ever mutates *one* of lang1/lang2
 # (each check reads the other's *already-updated* value), so relying on it here leaves
 # lang1 and lang2 unequal and defeats the single-column collapse this depends on.
-args=(version="Rubrics 1960" "command=pray${hour}" "date=${date_param}" "lang1=${lang1}" "lang2=${lang2}" content=1)
+args=("version=${ORACLE_VERSION:-Rubrics 1960}" "command=pray${hour}" "date=${date_param}" "lang1=${lang1}" "lang2=${lang2}" content=1)
 if [ "$priest" = "1" ]; then
   args+=(priest=1)
 fi

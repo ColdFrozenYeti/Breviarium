@@ -19,7 +19,7 @@ Read this file at the start of every session. If a decision here conflicts with 
   - no Mass propers, Rosary, or Angelus.
 
   This is a breviary in a phone.
-- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, and the page footer. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
+- **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, the page footer, and (Dominican office only) the grey note under a borrowed Roman English text. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
 - **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time.
 
 ## Development environment: there is no Mac
@@ -48,20 +48,26 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Liturgical scope
 
 - **Roman office:** Breviarium Romanum under the 1960 rubrics (1962 typical edition), using the Universal Calendar only (no national, diocesan, or order propers), with the **Vulgate psalter by default** and the Pius XII (Bea) psalter as an option (decided 2026-09-24).
-- **Dominican office:** Divinum Officium's *Ordo Prædicatorum - 1962*, in Beta 5 (decided 2026-09-25).
+- **Dominican office:** Divinum Officium's *Ordo Prædicatorum - 1962*, released in Beta 5 on 2026-10-03 (decided 2026-09-25). How DO builds it, and every place the app departs from DO (corrected data errors, and texts that need a Dominican breviary), is in `docs/rubrics-op1962.md`.
   - Checked against DO like the Roman office.
-  - English: DO's Dominican English where it exists; where it doesn't (DO has none for the Dominican saints), the Roman English for texts that match the Roman ones; otherwise Latin only.
-- **Ambrosian office (pre-conciliar):** Beta 6, and its Little Office of Our Lady in Beta 7.
-  - Divinum Officium does **not** contain the Ambrosian office. The source is still to be chosen, and will probably be an online text source. It is bundled at build time, so the app stays offline, and its licence must allow that.
+  - English: DO's Dominican English where it exists; where it doesn't (DO has none for the Dominican saints), the Roman English for texts that match the Roman ones exactly; for texts that differ a little from the Roman (a saint's name in a collect), the Roman English with a small grey (`#B2B2B2`) line under it, *Roman text; the Dominican Latin differs.*; otherwise Latin only (decided 2026-09-27).
+  - Beta 5 included the Dominican *Officium* choice (the office of the day, the Little Office, and the Office of the Dead if DO has it for the rite), fixtures for every day 2025–2040 plus 2044, the Pius XII psalter if DO offers it for the rite (otherwise *Psalterium* is fixed to the Vulgate under *Dominicanus*), and the Dominican Martyrology where it differs from the Roman (decided 2026-09-27; `docs/Beta_5_plan.md`). DO offers the Pius XII psalter for the rite, so *Psalterium* works under *Dominicanus* too; DO has no Dominican Martyrology, so *Dominicanus* shows the 1960 Roman one (decision 4).
+- **Ambrosian offices (pre-conciliar, 1957 recension):** revised 1 October 2026 after the user's source research (`docs/ambrosian-sources.md`, which governs this work).
+  - No complete Ambrosian breviary is available digitally, so the **full Ambrosian office is blocked** until a complete primary source is obtained. Its architecture may be prepared, but no missing content is invented.
+  - Beta 6: **Ambrosian Compline** and the **Ambrosian Office of the Dead**, each a standalone, precisely named office; Beta 7: the **Ambrosian Little Office**. Each starts only after its source's edition, completeness and rights are confirmed.
+  - **No Roman fallback**: no Roman text, psalm, psalter or rubric fills an Ambrosian gap unless an Ambrosian source says so; never the modern Ambrosian Liturgy of the Hours.
+  - Every Ambrosian text keeps its provenance (edition and page). Divinum Officium can't check them; tests come from the sources page by page, with negative tests that no Roman text slips in.
+  - The repository is public: raw Ambrosian sources (scans, PDFs, LaTeX) are **not committed** until their redistribution is confirmed.
   - The engine must let a second rite plug in without rewriting the Roman one.
-- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), Beta 3 added Matins (`docs/Beta_3_plan.md`), and Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology (`docs/Beta_4_plan.md`, released 2026-09-27). Beta 5, the Dominican rite, is next (`docs/Beta_5_plan.md`, a draft awaiting approval). The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
+- **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), Beta 3 added Matins (`docs/Beta_3_plan.md`), Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology (`docs/Beta_4_plan.md`, released 2026-09-27), and Beta 5 the Dominican rite, every hour with its Little Office and Office of the Dead (`docs/Beta_5_plan.md`, released 2026-10-03). Beta 6 (Ambrosian offices) is next, once its sources are confirmed. The full order to 1.0 is in `docs/roadmap.md` (decided 2026-09-25).
 - **The hour picker** lists only the office's own hours (*Ad Matutinum* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24): Matins until 05:00, then Lauds, Terce, Sext, None, Vespers and Compline (the schedule is in `ContentView.hourForTimeOfDay`).
 - **Beta 4 (decided 2026-09-25, released 2026-09-27):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
 - **Later:** votive offices where the rubrics permit, and possibly the Monastic office, after 1.0.
 
 ## Settings (Universalis-style toggles)
 
-- **Ritus:** Romanus / Ambrosianus / Dominicanus. Ambrosianus and Dominicanus are listed as "Coming soon" and stay disabled until each is implemented (Dominicanus added 2026-09-25).
+- **Ritus:** Romanus / Dominicanus / Ambrosianus. *Dominicanus* is selectable since Beta 5, with its own *Officium* choice like *Romanus*; *Ambrosianus* is listed as "Coming soon" and stays disabled until it is implemented. Under *Ambrosianus* the UI names only the offices that exist (e.g. *Completorium Ambrosianum*), never implying the full office (decided 2026-10-01).
+- **App icon:** the original or an alternative icon (added 2026-10-01; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`).
   - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
@@ -184,7 +190,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 - **`Breviarium` app target**
   - SwiftUI views only, with no liturgical logic. Every rubrical decision lives in the Kit.
 - **Rite abstraction**
-  - Roman-1960, Dominican and Ambrosian are separate providers behind one interface covering calendar, precedence, and hour assembly. The Dominican rite (Beta 5) is the first to use it, since it can be checked against DO.
+  - Roman-1960, Dominican and Ambrosian are separate providers behind one interface covering calendar, precedence, and hour assembly. The Dominican rite (Beta 5) was the first to use it: `Rite.adjusted` reads an `…OP` file or section where one exists, else the Roman one, as DO does.
 - **Vespers date semantics**
   - Selecting a date and opening Vespers gives what is prayed on that evening, including first Vespers of the next day where the 1960 rubrics require it.
   - Match Divinum Officium's behaviour, including the title block it shows in those cases.
@@ -231,6 +237,6 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 
 - Work milestone by milestone. At the end of each one, summarise what was built, show the test results (and snapshot images for UI work), and wait for approval.
 - Keep commits small and descriptive.
-- **CI costs about an hour per push** to a pull request (the day-hours audit and App CI's UI tests are the long jobs). Batch docs changes, and don't push while a pull request's checks are running unless the push fixes them (added 2026-09-27).
+- **CI costs about an hour per push** to a pull request: a full round takes about 50 minutes (22 audit jobs, the longest the Dominican day hours at about 38; App CI about 48), accepted on 2026-10-03 so that every push keeps every check. Split an audit job that grows past 40 minutes. Batch docs changes, and don't push while a pull request's checks are running unless the push fixes them (added 2026-09-27).
 - Code is in English, except for Latin identifiers where they are the natural domain terms (`Vesperae`, `Commemoratio`).
 - When liturgical correctness is uncertain, ask. Do not improvise rubrics.

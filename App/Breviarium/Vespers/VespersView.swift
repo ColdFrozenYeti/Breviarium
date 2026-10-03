@@ -51,7 +51,7 @@ struct VespersView: View {
     /// Everything the typeset text depends on.
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
-            + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)"
+            + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)|\(settings.rite.rawValue)"
     }
 
     /// The hour's sections in order, for the table of contents.

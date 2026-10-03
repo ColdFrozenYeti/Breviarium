@@ -1,0 +1,574 @@
+import Foundation
+import Testing
+@testable import BreviariumKit
+
+/// B5-M4: the Dominican office (`Ordo Praedicatorum - 1962`) against DO's own Dominican
+/// renders (`op/hours/<Hour>/<year>.tar.gz`, `docs/rubrics-op1962.md`), every hour, the
+/// same checks as `dayHoursFullRangeAudit`. `BREVIARIUM_AUDIT_YEAR(S)` and
+/// `BREVIARIUM_AUDIT_HOURS` narrow a run.
+/// DO's own error texts on pages the app corrects (decided 1 October 2026).
+private let knownDivergences = [
+    "Sancti/9-12:Evangelium is missing!",    // 7 October, Prime: the Rosary Mass's Gospel reference
+    "Commune/C1:Ant Vespera",                  // the Apostles' second Vespers antiphon (St Matthias)
+    "Responsory Vespera 1 is missing!",        // Ascension, first Vespers: a reference with no section
+    "Sancti/01-06:Ant Laudes",                 // Epiphany, both Vespers: a reference DO prints instead of *Ante lucíferum génitus*
+    "Oratio missing", "Ant missing", "Ant 2 missing", "Ant 3 missing",    // 24 April: the Crown of Thorns office is incomplete
+    "Ant. ‡ Canticum",                         // Our Lady on Saturday in January: `CommuneOP/C10b`'s line 2 of a one-line reference (*Génuit puérpera*)
+    "Ant. , allelúia.",                        // a Paschal commemoration whose Commune has no antiphon (Ss. Marcellinus and companions, 2 June)
+    "mercántur pr'aemium",                     // 4 August: DO's `<sp>'ae</sp>` markup for *prǽmium*
+    " is missing!",                            // any other DO error text: a reference to a section that doesn't exist
+]
+
+/// DO errors on one hour's pages, recognised by all of their texts (`docs/rubrics-op1962.md` §8).
+private let hourDivergences: [(hour: CanonicalHour, all: [String])] = [
+    // Two Saturdays (14 February, 10 October 2026): Prime's chapter at first Vespers of Sunday.
+    (.vesperae, ["Dóminus dírigat corda et córpora"]),
+    // A Friday before a Saturday feast (13 September 2030, before the Exaltation of the
+    // Cross): DO reads `Major Special` first for Saturday, so Friday's Vespers get
+    // Saturday's chapter (*Benedíctus Deus*) and Magnificat antiphon (*Suscépit Deus*).
+    (.vesperae, ["Feria Sexta", "Ant. Suscépit Deus * Israël, púerum suum"]),
+    // First Vespers of Passion Sunday: the Holy Cross's *In hac triúmphi glória*.
+    (.vesperae, ["Dominica de Passione", "In hac triúmphi glória"]),
+    // 2 to 5 January: the Roman Christmas hymn, through `TemporaOP/Nat02`…`Nat05`'s `vide
+    // Sancti/01-01`; every other Dominican Vespers of Christmastide says *Veni, redémptor
+    // géntium*.
+    (.vesperae, ["Januarii ~ IV. classis", "Christe Redémptor ómnium"]),
+    // 12 November (All Saints of the Order, `ex Sancti/11-01`): one antiphon from the
+    // Common of Martyrs' Lauds over the Martyrs' Vespers psalms, not All Saints' office.
+    (.vesperae, ["Festivitas Omnium Sanctorum OP", "Justórum autem ánimæ"]),
+    // A Sunday commemorated at a Saturday's Vespers takes Saturday's versicle, *Vespertína
+    // orátio*, as on most such Saturdays; on a few (St Joachim, the Rosary, St Thomas) DO
+    // shows Sunday's *Dirigátur*, by the order in which it first reads `Major Special`.
+    // The Triduum's Lauds: the fifth antiphon ends in DO's stray `_`, shown as "portávit. ."
+    // (`SectionResolver.doTextCorrections`).
+    (.laudes, ["Oblátus est * quia ipse vóluit, et peccáta nostra ipse portávit. ."]),
+    (.laudes, ["Meménto mei, * Dómine, dum véneris in regnum tuum. ."]),
+    (.laudes, ["si est dolor sicut dolor meus. ."]),
+    // A ferial first responsory after Pentecost (`TemporaOP/Pent01-2`'s `[Responsory1]`,
+    // reached through `TemporaOP/Pent04-2`, 8 July 2025): DO's substitution meets the
+    // Roman section's unexpanded `@:Responsory1_` and changes nothing, so it shows the
+    // Roman versicle, *Convertímini ad eum…*, not the Order's *Et auférte deos…*.
+    (.matutinum, ["Convertímini ad eum in toto corde vestro, et auférte deos"]),
+    // Our Lady on Saturday with Our Lady of Mount Carmel commemorated (16 July 2033 and
+    // 2039): DO follows the Common's third lesson with Carmel's own Elijah responsory
+    // (*Factum est, dum tólleret*), the app with the Common's; which one needs a source.
+    (.matutinum, ["Sanctæ Mariæ Sabbato", "Factum est, dum tólleret Dóminus Elíam"]),
+    // Our Lady Mediatrix of All Graces (8 May 2025, in the second week after the Easter
+    // octave): DO runs the Commune's versicles into the antiphons and says no psalms.
+    (.matutinum, ["allelúiaV. Adiuvábit eam Deus"]),
+    (.vesperae, ["Commemoratio Dominica", "℣. Dirigátur, Dómine, orátio mea. ℟. Sicut incénsum in conspéctu tuo. Orémus."]),
+]
+
+/// DO errors on a date every year, at one hour or (`nil`) all (`docs/rubrics-op1962.md` §8).
+private let dateDivergences: [(hour: CanonicalHour?, monthday: String)] = [
+    (nil, "08-30"),             // St Rose of Lima: DO loses her rank and says the feria or Our Lady's Saturday
+    (.completorium, "11-01"),   // the title names the weekday after All Saints' second Vespers
+    (.laudes, "09-17"),         // St Lambert's commemoration before the Stigmata's: DO orders them by their Commons' ranks
+]
+
+private func hourSelected(_ hour: CanonicalHour) -> Bool {
+    guard let only = ProcessInfo.processInfo.environment["BREVIARIUM_AUDIT_HOURS"], !only.isEmpty else { return true }
+    return only.split(separator: ",").contains(Substring(hour.rawValue))
+}
+
+private func votiveSelected(_ votive: VotiveHour) -> Bool {
+    let env = ProcessInfo.processInfo.environment
+    if let only = env["BREVIARIUM_AUDIT_VOTIVES"], !only.isEmpty, !only.split(separator: ",").contains(Substring(votive.votive)) { return false }
+    return hourSelected(votive.hour)
+}
+
+/// The bilingual Dominican pages of `archives` (one per year), with the corrections check:
+/// a page that differs from DO only by a corrected DO error counts as checked.
+private func dominicanBilingualReport(
+    hour: CanonicalHour, officium: Officium, archives: [(year: Int, archive: [String: String])], priests: [Bool]
+) -> (report: DayHourAuditReport, corrected: [String])? {
+    guard let bundle = RealCorpus.bundle else { return nil }
+    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
+    let english = bundle.makeEnglishCorpus()
+    let calendar = bundle.makeSanctoralCalendar(rite: .dominicanus)
+    var report = DayHourAuditReport()
+    var corrected: [String] = []
+    for (year, archive) in archives {
+        for priest in priests {
+            var (day, month, y) = (1, 1, year)
+            while y == year {
+                let date = String(format: "%04d-%02d-%02d", y, month, day)
+                let label = date + (priest ? " priest" : "")
+                // Known DO divergences, where DO prints an error and the app the corrected
+                // text (`docs/rubrics-op1962.md` §8).
+                let page = archive["\(year)/\(date)_priest\(priest ? "Y" : "N")_bilingual.tsv"]
+                let monthday = String(format: "%02d-%02d", month, day)
+                let hourDivergence = officium == .diei && (page.map { text in
+                    hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(text.contains) }
+                } ?? false || dateDivergences.contains { ($0.hour == nil || $0.hour == hour) && $0.monthday == monthday })
+                if let text = page, !knownDivergences.contains(where: text.contains), !hourDivergence {
+                    func assemble() -> (Hour?, String?) {
+                        assembleDayHour(
+                            hour, day: day, month: month, year: y, priest: priest, bundle: bundle, corpus: corpus, english: english,
+                            calendar: calendar, officium: officium, rite: .dominicanus
+                        )
+                    }
+                    let (assembled, title) = assemble()
+                    if let assembled {
+                        let (assembled, rows) = reconciledEnglish(assembled, rows: withoutMartyrology(OracleFixture.rows(text)))
+                        var single = DayHourAuditReport()
+                        single.add(hour: assembled, rows: rows, title: title, date: label)
+                        // A page that differs only by a correction of DO's data (`SectionResolver.
+                        // correctsDOErrors`) must match DO exactly with the corrections off.
+                        if !single.text.isEmpty {
+                            let (uncorrected, uncorrectedTitle) = SectionResolver.$correctsDOErrors.withValue(false) { assemble() }
+                            if let uncorrected {
+                                let (uncorrected, rows) = reconciledEnglish(uncorrected, rows: withoutMartyrology(OracleFixture.rows(text)))
+                                var check = DayHourAuditReport()
+                                check.add(hour: uncorrected, rows: rows, title: uncorrectedTitle, date: label)
+                                if check.text.isEmpty { corrected.append(label) }
+                            }
+                        }
+                        if corrected.last == label {
+                            report.daysChecked += 1
+                        } else {
+                            report.merge(single)
+                        }
+                    } else {
+                        report.failedToAssemble.append(label)
+                    }
+                } else if page != nil {
+                    report.daysChecked += 1    // a known DO error: the page is DO's fault, not unchecked
+                }
+                (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
+            }
+        }
+    }
+    return (report, corrected)
+}
+
+/// The Latin of the Pius XII pages: content and every psalm's title and verses, as
+/// `dayHoursFullRangeBeaAudit`.
+private func dominicanBeaProblems(
+    hour: CanonicalHour, officium: Officium, archives: [(year: Int, archive: [String: String])]
+) -> (problems: [String: [String]], daysChecked: Int)? {
+    guard let bundle = RealCorpus.bundle else { return nil }
+    let corpus = bundle.makeLatinCorpus(psalter: .pius12)
+    let calendar = bundle.makeSanctoralCalendar(rite: .dominicanus)
+    var problems: [String: [String]] = [:]
+    var daysChecked = 0
+    for (year, archive) in archives {
+        var (day, month, y) = (1, 1, year)
+        while y == year {
+            let date = String(format: "%04d-%02d-%02d", y, month, day)
+            let monthday = String(format: "%02d-%02d", month, day)
+            if let text = archive["\(year)/\(date)_priestN_latin.txt"] {
+                // The Pius XII pages are spelt with I ("Iustórum"), the divergences as DO's J.
+                func has(_ part: String) -> Bool { text.contains(part) || text.contains(LatinOrthography.normalize(part)) }
+                let divergence = officium == .diei && (knownDivergences.contains(where: has)
+                    || hourDivergences.contains { $0.hour == hour && $0.all.allSatisfy(has) }
+                    || dateDivergences.contains { ($0.hour == nil || $0.hour == hour) && $0.monthday == monthday })
+                if divergence {
+                    daysChecked += 1
+                } else {
+                    func misses(_ correcting: Bool) -> [String]? {
+                        let (assembled, _) = SectionResolver.$correctsDOErrors.withValue(correcting) {
+                            assembleDayHour(
+                                hour, day: day, month: month, year: y, priest: false, bundle: bundle, corpus: corpus, english: nil,
+                                calendar: calendar, officium: officium, rite: .dominicanus
+                            )
+                        }
+                        guard let assembled else { return nil }
+                        var found = latinContentMisses(hour: assembled, rows: [BilingualRow(latin: text, english: "")])
+                            .map { "[\($0.0)] \($0.1.prefix(auditPrefix))" }
+                        let expected = dayHourFixturePsalms(text)
+                        let actual = dayHourRenderedPsalms(assembled)
+                        if expected.count != actual.count {
+                            found.append("DO \(expected.map { $0.title }) | engine \(actual.map { $0.title })")
+                        } else if let (e, a) = zip(expected, actual).first(where: { $0 != $1 }) {
+                            found.append("DO \(e) | engine \(a)".prefix(400).description)
+                        }
+                        return found
+                    }
+                    if let found = misses(true) {
+                        daysChecked += 1
+                        if !found.isEmpty, misses(false)?.isEmpty != true {
+                            for key in found { problems[key, default: []].append(date) }
+                        }
+                    } else {
+                        problems["not assembled", default: []].append(date)
+                    }
+                }
+            }
+            (day, month, y) = Computus.addDays(1, day: day, month: month, year: y)
+        }
+    }
+    return (problems, daysChecked)
+}
+
+private func problemsText(_ problems: [String: [String]]) -> String {
+    problems.sorted { $0.value.count > $1.value.count }.prefix(25)
+        .map { "  \($0.value.count)x, e.g. \($0.value.first!): \($0.key)" }.joined(separator: "\n")
+}
+
+@Test(arguments: [CanonicalHour.vesperae, .completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
+func dominicanFullRangeAudit(hour: CanonicalHour) async throws {
+    guard hourSelected(hour), try await OracleFixture.shared.hourYear(set: "op/hours", hour: hour, year: 2040) != nil else { return }
+    var archives: [(year: Int, archive: [String: String])] = []
+    for year in auditYears {
+        if let archive = try await OracleFixture.shared.hourYear(set: "op/hours", hour: hour, year: year) { archives.append((year, archive)) }
+    }
+    guard let (report, corrected) = dominicanBilingualReport(hour: hour, officium: .diei, archives: archives, priests: [false]) else { return }
+    if !corrected.isEmpty { print("Dominican \(hour): \(corrected.count) page(s) differ from DO only by a corrected DO error: \(corrected.prefix(20).joined(separator: ", "))") }
+    #expect(report.daysChecked > auditYears.count * 362, "\(hour): checked \(report.daysChecked)")
+    #expect(report.text.isEmpty, "\nDominican \(hour):\n\(report.text)")
+}
+
+/// The Pius XII psalter under *Dominicanus* (`op/hours-bea`).
+@Test(arguments: [CanonicalHour.vesperae, .completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
+func dominicanFullRangeBeaAudit(hour: CanonicalHour) async throws {
+    guard hourSelected(hour), try await OracleFixture.shared.hourYear(set: "op/hours-bea", hour: hour, year: 2040) != nil else { return }
+    var archives: [(year: Int, archive: [String: String])] = []
+    for year in auditYears {
+        if let archive = try await OracleFixture.shared.hourYear(set: "op/hours-bea", hour: hour, year: year) { archives.append((year, archive)) }
+    }
+    guard let (problems, daysChecked) = dominicanBeaProblems(hour: hour, officium: .diei, archives: archives) else { return }
+    #expect(daysChecked > auditYears.count * 362, "\(hour) (Pius XII): checked \(daysChecked)")
+    #expect(problems.isEmpty, "\nDominican \(hour) (Pius XII): \(problems.count) distinct\n\(problemsText(problems))")
+}
+
+/// The 2044 hold-out, priest on and off.
+@Test(arguments: [CanonicalHour.vesperae, .completorium, .tertia, .sexta, .nona, .prima, .laudes, .matutinum])
+func dominicanHoldout2044(hour: CanonicalHour) async throws {
+    let path = OracleFixture.repoRoot.appendingPathComponent("data/oracle-fixtures/op/holdout/2044-\(hour.doName).tar.gz")
+    guard hourSelected(hour), FileManager.default.fileExists(atPath: path.path) else { return }
+    let archive = try OracleFixture.extractAndRead(archive: path)
+    guard let (report, corrected) = dominicanBilingualReport(hour: hour, officium: .diei, archives: [(2044, archive)], priests: [false, true])
+    else { return }
+    if !corrected.isEmpty { print("Dominican 2044 \(hour): \(corrected.count) corrected page(s)") }
+    #expect(report.daysChecked >= 2 * 366, "2044 \(hour): checked \(report.daysChecked)")
+    #expect(report.text.isEmpty, "\nDominican 2044 \(hour):\n\(report.text)")
+}
+
+/// The Little Office (C12) and the Office of the Dead (C9) under *Dominicanus*, both
+/// psalters, and their 2044 hold-outs.
+@Test(arguments: votiveHours)
+func dominicanVotiveAudit(_ votive: VotiveHour) async throws {
+    guard votiveSelected(votive) else { return }
+    var archives: [(year: Int, archive: [String: String])] = []
+    for year in 2025...2040 {
+        if let archive = try await OracleFixture.shared.hourYear(set: "op/votives/\(votive.votive)", hour: votive.hour, year: year) {
+            archives.append((year, archive))
+        }
+    }
+    guard !archives.isEmpty, let (report, _) = dominicanBilingualReport(hour: votive.hour, officium: votive.officium, archives: archives, priests: [false])
+    else { return }
+    #expect(report.daysChecked >= 365, "Dominican \(votive): checked \(report.daysChecked)")
+    #expect(report.text.isEmpty, "\nDominican \(votive):\n\(report.text)")
+
+    var beaArchives: [(year: Int, archive: [String: String])] = []
+    for year in 2025...2040 {
+        if let archive = try await OracleFixture.shared.hourYear(set: "op/votives-bea/\(votive.votive)", hour: votive.hour, year: year) {
+            beaArchives.append((year, archive))
+        }
+    }
+    if let (problems, daysChecked) = dominicanBeaProblems(hour: votive.hour, officium: votive.officium, archives: beaArchives), !beaArchives.isEmpty {
+        #expect(daysChecked >= 365, "Dominican \(votive) (Pius XII): checked \(daysChecked)")
+        #expect(problems.isEmpty, "\nDominican \(votive) (Pius XII): \(problems.count) distinct\n\(problemsText(problems))")
+    }
+
+    let path = OracleFixture.repoRoot.appendingPathComponent("data/oracle-fixtures/op/holdout/2044-\(votive.votive)-\(votive.hour.doName).tar.gz")
+    if FileManager.default.fileExists(atPath: path.path) {
+        let archive = try OracleFixture.extractAndRead(archive: path)
+        if let (report, _) = dominicanBilingualReport(hour: votive.hour, officium: votive.officium, archives: [(2044, archive)], priests: [false, true]) {
+            #expect(report.daysChecked >= 2 * 366, "Dominican 2044 \(votive): checked \(report.daysChecked)")
+            #expect(report.text.isEmpty, "\nDominican 2044 \(votive):\n\(report.text)")
+        }
+    }
+}
+
+/// DO English that translates another text than the Dominican Latin it stands beside, as
+/// (its first words, the whole of it as a pattern).
+private let dominicanMistranslations: [(start: String, pattern: String)] = [
+    ("The morn had spread her crimson rays", #"(?s)The morn had spread her crimson rays,.*?The Spirit, God forevermore\. Amen\."#),
+    ("Grace is poured into thy lips, therefore;", #"(?s)(℟\.(br\.)?\s*)?Grace is poured into thy lips, therefore;.*?Go forward, fare prosperously, and reign\."#),
+    // St Mary Magdalene: *Lauda mater Ecclésia* beside *Pater supérni lúminis*'s English.
+    ("Father of lights! one glance of thine", #"(?s)Father of lights! one glance of thine,.*?Be glory through eternity\. Amen\."#),
+    // Saturday Vespers' responsory *Igitur perfécti sunt*: the Roman Matins responsory's
+    // English, its lines not cut as the Order's Latin is.
+    ("So the heavens and the earth were finished", #"(?s)(℟\.\s*)?So the heavens and the earth were finished,.*?(℣\.\s*)?Glory be to the Father, and to the Son, \* and to the Holy Ghost\.\s*(℟\.\s*)?[^℣℟]*?which he had done\."#),
+    // The Assumption: the Roman Matins hymn's English (*Surge, iam terris*) beside the
+    // Order's *Quem terra, pontus, sídera*.
+    ("Arise! the cold blasts from earth have receded", #"(?s)Arise! the cold blasts from earth have receded,.*?Also our Mother\.\s*Amen\."#),
+    // The Assumption at Lauds: the Roman hymn's English (*Solis, o Virgo, rádiis amícta*)
+    // beside the Order's.
+    ("O Virgin, who shines with sun's rays surrounded", #"(?s)O Virgin, who shines with sun's rays surrounded,.*?Also our Mother\.\s*Amen\."#),
+    // The Assumption's third responsory, which the Order cuts at another place than the
+    // Roman (`SanctiOP/08-15`): the Roman English, not aligned with it, beside the Latin.
+    ("Who is this that cometh up like the sun?", #"(?s)Who is this that cometh up like the sun\?.*?lilies of the valleys\.\s*\*?\s*The daughters of Zion saw her, and called her blessed: the queens also, and they praised her\."#),
+    // Matins responsories the Order cuts otherwise than the Roman, whose Roman English DO
+    // shows mangled by the Order's substitutions (the respond run into the versicle, the
+    // repeat doubled); the app says them in Latin alone. Christmas's *Descéndit de cælis*,
+    // the Epiphany's *Stella quam víderant* and *Vidéntes stellam*, Job's *Utinam
+    // appenderéntur* (September), and *Factus est mihi Dóminus* (24 January).
+    ("He came down from heaven: true God", #"(?s)He came down from heaven: true God.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("The star which the wise men had seen in the East", #"(?s)The star which the wise men had seen in the East.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("When the wise men saw the star, they rejoiced", #"(?s)When the wise men saw the star, they rejoiced.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("O that my sins, whereby I have deserved wrath;and", #"(?s)O that my sins, whereby I have deserved wrath;and.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("Behold, the Virgin shall conceive, and bear a son, saith the Lord;and", #"(?s)Behold, the Virgin shall conceive, and bear a son, saith the Lord;and.*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    ("The Lord is my refuge. * And my God is the stay of my trust.", #"(?s)The Lord is my refuge\. \* And my God is the stay of my trust\..*?(?=℣\. Grant, Lord|\s*Te Deum\b|$)"#),
+    // The Seven Sorrows at Lauds: the Roman doxology's English beside the Order's own fourth
+    // stanza and doxology (the first three stanzas are the Roman ones, with their English).
+    ("Jesus, who for us did die", #"(?s)Jesus, who for us did die,.*?Worship thee forevermore\.\s*Amen\."#),
+    ("Grace is poured into thy lips, therefore, alleluia.", #"(?s)(℟\.(br\.)?\s*)?Grace is poured into thy lips, therefore, alleluia\..*?reign, alleluia\."#),
+]
+
+/// Decisions 5 and 6 of `docs/Beta_5_plan.md`: where the Order's text has no English, DO's
+/// English column repeats the Latin, and the app shows the Latin alone or a matching
+/// Roman text's English. Neither side is compared there: the Latin DO repeats is taken out
+/// of its English column, and the units it repeats lose their English for the comparison.
+func reconciledEnglish(_ hour: Hour, rows: [BilingualRow]) -> (Hour, [BilingualRow]) {
+    var hour = hour
+    var repeated: Set<String> = []
+    var rows = rows
+    // A Latin text our English column shows too (a responsory's "Sicut dixit vobis." over
+    // an English response) is a match, not a repetition.
+    let englishShown = Set(hour.sections.flatMap(\.units).flatMap(englishComparisonTexts).map { collapsedWhitespace(LatinOrthography.normalize($0)) })
+    func folded(_ text: String) -> String {
+        text.replacingOccurrences(of: "ǽ", with: "æ").replacingOccurrences(of: "Ǽ", with: "Æ")
+            .folding(options: .diacriticInsensitive, locale: nil).replacingOccurrences(of: "j", with: "i").replacingOccurrences(of: "J", with: "I")
+    }
+    // Pieces of 12 letters and more, and shorter ones (*Et suávis.*, *Allelúia.*) from a
+    // unit the app shows in Latin alone, or a rubric ("Et chorus:").
+    var pieceSet: Set<String> = []
+    for unit in hour.sections.flatMap(\.units) {
+        let latinOnly = englishComparisonTexts(unit).isEmpty
+        for text in oracleComparisonTexts(unit).map({ collapsedWhitespace(LatinOrthography.normalize($0)) }) where !englishShown.contains(text) {
+            if text.count >= 12 || (text.count >= 8 && (latinOnly || text.hasSuffix(":")))
+                // A short Latin word on a line of its own ("Póstea", 12 November's lesson).
+                || (text.count >= 5 && latinOnly && text.rangeOfCharacter(from: CharacterSet(charactersIn: "áéíóúǽ")) != nil)
+                || (text.count >= 6 && latinOnly && text.contains(where: \.isNumber)) // a Gospel's "Cap. 13"
+            {
+                pieceSet.insert(text)
+            }
+        }
+    }
+    // Nor Latin whose letters the app's English shows too ("Allelúia, allelúia." beside
+    // "Alleluia, alleluia.").
+    // (and a reference the English writes with a full stop, "Matt 21:10-17.").
+    let foldedShown = Set(englishShown.flatMap { text -> [String] in
+        let key = folded(text).lowercased()
+        return key.hasSuffix(".") ? [key, String(key.dropLast())] : [key]
+    })
+    let pieces = pieceSet.filter { $0.count < 12 || !foldedShown.contains(folded($0).lowercased()) }.sorted { $0.count > $1.count }
+    // DO's English column keeps its J spelling ("cujus"), its English its J's ("Jesu"),
+    // and its Latin sometimes another accentuation ("alleluia"): a long piece is matched
+    // either way, a short one exactly, and the English is left as DO has it.
+    // Matched on decomposed text, each letter with any accents it carries.
+    func pattern(_ piece: String) -> String {
+        guard piece.count >= 12 else {
+            return NSRegularExpression.escapedPattern(for: piece.decomposedStringWithCanonicalMapping)
+                .replacingOccurrences(of: "i", with: "[ij]").replacingOccurrences(of: "I", with: "[IJ]")
+        }
+        // In Paschaltide DO's English adds its "alleluia" to the Latin it repeats (Easter
+        // Monday's *Cito euntes… surréxit Dóminus, alleluia.*).
+        let paschal = piece.hasSuffix(".") && !folded(piece).lowercased().hasSuffix("alleluia.") ? "(?:,\\s*alleluia)?\\." : ""
+        return folded(paschal.isEmpty ? piece : String(piece.dropLast())).map { character -> String in
+            switch character {
+            case "i", "I": return "[iIjJ]\\p{M}*"
+            // DO's " *" and its flex "†" ("dilécta es a Dómino, † et Regína… digna es *").
+            case "*": return "\\s*\\*"
+            case " ": return "\\s+(?:†\\s+)?"
+            case let letter where letter.isLetter: return "[\(letter.lowercased())\(letter.uppercased())]\\p{M}*"
+            default: return NSRegularExpression.escapedPattern(for: String(character))
+            }
+        }.joined() + paschal
+    }
+    // DO's English for a Dominican text it has no translation of, wrongly: a different
+    // hymn's (the Paschal Lauds hymn, *Sermóne blando*, under *Aurora cælum purpurat*'s
+    // English) or a substitution's mangled lines (the virgins' short responsory at
+    // Terce, 21 January). The app shows the Latin alone; the English DO shows is left out
+    // of the comparison when the app shows none of it.
+    let shownEnglish = hour.sections.flatMap(\.units).flatMap(englishComparisonTexts).joined(separator: " ")
+    for (start, pattern) in dominicanMistranslations where !shownEnglish.contains(start) {
+        for index in rows.indices where rows[index].english.contains(start) {
+            rows[index].english = rows[index].english.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+        }
+    }
+    // A lesson's reference DO's English gives with other verses than the Latin's ("John
+    // 14:13-31" for *Ioannes 14:23-31* on Pentecost, "Luke 19:41-17" for *Luc 19:41-47*,
+    // "1 Sam 5:4-11" for the Order's *1 Reg 4:3-4*): the app shows the Latin reference
+    // alone (`DominicanEnglish.passage`). DO's English references that match none the app
+    // shows in English are left out; the Latin ones are compared as ever.
+    // (with a lesson's own first line, where its English writes the reference unmarked:
+    // "Gal 6:6-9 And let him…", 6 February 2038).
+    var shownPassages = hour.sections.flatMap(\.units).compactMap { unit -> Set<String>? in
+        guard case .psalmTitle(_, let english?) = unit else { return nil }
+        return DominicanEnglish.passage(english)
+    }
+    for text in englishShown {
+        if let lead = text.firstMatch(of: /^(?:\d )?[A-Z][a-z]+\.? \d+:[\d,\-]+(?:; ?\d+:[\d,\-]+)*/), let passage = DominicanEnglish.passage(String(lead.output)) {
+            shownPassages.append(passage)
+        }
+    }
+    let latinReferences = hour.sections.flatMap(\.units).contains { unit in
+        if case .psalmTitle(let latin, nil) = unit { DominicanEnglish.passage(latin) != nil } else { false }
+    }
+    // Matins only: a canticle's title elsewhere carries its reference ("Canticle of
+    // Zacharias Luke 1:68-79"), which the English chrome recognises whole.
+    let matins = hour.sections.contains { $0.kind == .adNocturnum || $0.kind == .nocturnusI }
+    if latinReferences, matins {
+        let reference = #"(?<=\s|^)(?:\d )?(?:Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phil|Col|Thess|Tim|Tit|Heb|Jas|Pet|Jude|Apoc|Rev|Gen|Exod|Lev|Num|Deut|Jos|Josh|Judg|Ruth|Sam|Kings|Kgs|Par|Chr|Esd|Ezra|Neh|Tob|Jdt|Esth|Job|Ps|Prov|Eccl|Cant|Wis|Sir|Ecclus|Isa|Jer|Lam|Bar|Ezek|Dan|Hos|Joel|Amos|Abd|Jonah|Mic|Nah|Hab|Soph|Zeph|Agg|Hag|Zach|Zech|Mal|Mac|Macc)\.? \d+:\d+(?:[-,][\d,\-]*)?(?:; ?\d+:[\d,\-]+)*\.?(?=\s|$)"#
+        let regex = try! NSRegularExpression(pattern: reference)
+        for index in rows.indices {
+            let english = rows[index].english as NSString
+            for match in regex.matches(in: rows[index].english, range: NSRange(location: 0, length: english.length)).reversed() {
+                guard let passage = DominicanEnglish.passage(english.substring(with: match.range)), !shownPassages.contains(passage) else { continue }
+                rows[index].english = (rows[index].english as NSString).replacingCharacters(in: match.range, with: "")
+            }
+        }
+    }
+    // A Matins responsory the Order cuts otherwise than the Roman one (the Ascension's
+    // *Post passiónem suam*, Christmas's *Descéndit de cælis*, Job's *Utinam appenderéntur*):
+    // the Roman English can't be aligned with it, and DO's English column shows the Roman
+    // one mangled by the Order's substitutions. The app says it in Latin alone (decision
+    // 5), and DO's English for it is left out. The responsories are matched in order, each
+    // after its lesson's *Tu autem* (DO: "Thanks be to God."), where both count the same.
+    var responsoriesLatinOnly: [Bool] = []
+    var inResponsory = false
+    var latinOnly = true
+    for unit in hour.sections.flatMap(\.units) {
+        switch unit {
+        case .versicleResponse(let v, let r, _, _) where v.hasPrefix("Tu autem") && r.hasPrefix("Deo grátias"):
+            if inResponsory { responsoriesLatinOnly.append(latinOnly) }
+            inResponsory = true
+            latinOnly = true
+            continue
+        case .englishNote:
+            continue
+        case .prose(let text, _) where text.hasPrefix("Iube, domne") || text.hasPrefix("Iube, Dómine"):
+            if inResponsory { responsoriesLatinOnly.append(latinOnly); inResponsory = false }
+            continue
+        case .psalmTitle:
+            if inResponsory { responsoriesLatinOnly.append(latinOnly); inResponsory = false }
+            continue
+        default:
+            if inResponsory, !englishComparisonTexts(unit).isEmpty { latinOnly = false }
+        }
+    }
+    if inResponsory { responsoriesLatinOnly.append(latinOnly) }
+    let responsoryRows = rows.indices.filter { rows[$0].english.range(of: #"Thanks be to God\.\s*℟\.(?!br)"#, options: .regularExpression) != nil }
+    if ProcessInfo.processInfo.environment["BREVIARIUM_DEBUG_RECONCILE"] != nil {
+        print("RECONCILE responsories ours=\(responsoriesLatinOnly) DO rows=\(responsoryRows)")
+    }
+    if responsoriesLatinOnly.contains(true), responsoryRows.count == responsoriesLatinOnly.count {
+        for (index, row) in responsoryRows.enumerated() where responsoriesLatinOnly[index] {
+            rows[row].english = rows[row].english.replacingOccurrences(
+                // up to the *Te Deum* that may follow in the same row (29 December 2033).
+                of: #"(?s)(Thanks be to God\.)\s*℟\.(?!br)(?!.*Thanks be to God\.\s*℟\.).*?(?=\s*Te Deum\b|$)"#, with: "$1", options: .regularExpression
+            )
+        }
+    }
+    // A chapter whose English DO takes from another text (Advent Sundays at Sext and
+    // None: Romans beside the Order's Isaiah): DO's Latin column has the app's reference,
+    // its English column another one. That English is left out, and so is the app's.
+    var swappedChapters: Set<String> = []
+    for unit in hour.sections.filter({ $0.kind == .capitulum }).flatMap(\.units) {
+        // The app's English is this chapter's own, or none (`DominicanEnglish`'s foreign chapter).
+        guard case .psalmTitle(let latinReference, let english) = unit, let passage = DominicanEnglish.passage(latinReference),
+            english.map({ DominicanEnglish.passage($0) == passage }) ?? true else { continue }
+        for index in rows.indices where rows[index].latin.contains(latinReference) && DominicanEnglish.passage(rows[index].english) != passage {
+            let other = #"(?s)\b(?:\d )?[A-Z][a-z]+\.? \d+:\d+(?:-\d+)? .*?(?=℟\. Thanks be to God)"#
+            if rows[index].english.range(of: other, options: .regularExpression) != nil {
+                rows[index].english = rows[index].english.replacingOccurrences(of: other, with: " ", options: .regularExpression)
+                swappedChapters.insert(latinReference)
+            }
+        }
+    }
+    if !swappedChapters.isEmpty {
+        hour.sections = hour.sections.map { section in
+            guard section.kind == .capitulum else { return section }
+            var section = section
+            var inChapter = false
+            section.units = section.units.map { unit in
+                switch unit {
+                case .psalmTitle(let text, _) where swappedChapters.contains(text):
+                    inChapter = true
+                    return .psalmTitle(text)
+                case .prose(let text, _) where inChapter: return .prose(text)
+                default:
+                    inChapter = false
+                    return unit
+                }
+            }
+            return section
+        }
+    }
+    // Latin the app shows in its English column too (half a responsory DO has no English
+    // for) is spelt with I, as DO's Latin column; DO's English column keeps its J.
+    let latinShownAsEnglish = englishShown.filter { $0.count >= 12 && $0.rangeOfCharacter(from: CharacterSet(charactersIn: "áéíóúǽ")) != nil }
+    for index in rows.indices where rows[index].english.contains("J") || rows[index].english.contains("j") {
+        for text in latinShownAsEnglish {
+            rows[index].english = rows[index].english.decomposedStringWithCanonicalMapping
+                .replacingOccurrences(of: pattern(text), with: NSRegularExpression.escapedTemplate(for: text), options: .regularExpression)
+                .precomposedStringWithCanonicalMapping
+        }
+    }
+    func loose(_ text: String) -> String { folded(text).replacingOccurrences(of: "† ", with: "").replacingOccurrences(of: " *", with: "*") }
+    // Each long piece's loose forms, computed once rather than once per row.
+    let looseForms = pieces.map { piece -> (plain: String, paschal: String?)? in
+        guard piece.count >= 12 else { return nil }
+        let paschal = piece.hasSuffix(".") && !folded(piece).lowercased().hasSuffix("alleluia.") ? loose(String(piece.dropLast())) + ", alleluia." : nil
+        return (loose(piece), paschal)
+    }
+    for index in rows.indices {
+        var english = collapsedWhitespace(rows[index].english)
+        let normalized = LatinOrthography.normalize(english)
+        let foldedEnglish = loose(english)
+        func found(_ index: Int) -> Bool {
+            guard let forms = looseForms[index] else { return normalized.contains(pieces[index]) }
+            return foldedEnglish.contains(forms.plain) || forms.paschal.map(foldedEnglish.contains) == true
+        }
+        for piece in pieces.indices.filter(found).map({ pieces[$0] }) {
+            if ProcessInfo.processInfo.environment["BREVIARIUM_DEBUG_RECONCILE"] != nil { print("RECONCILE piece: \(piece.prefix(80))") }
+            // With its verse number, if it has one (a lesson's "9 Et idcírco…"), but not
+            // the end of a chapter's reference ("Sir 45:1-2 Diléctus…") or of a homily's
+            // source ("Epist. 151 ad Algasiam, q. 6, t. 3 Víllicus…").
+            english = english.decomposedStringWithCanonicalMapping.replacingOccurrences(
+                of: #"((?<!\p{L} )(?<![Cc]ap\. )(?<!\bt\. )(?<![Tt]om\. )(?<![Ll]ib\. )(?<!\bq\. )(?<!Epist\. )(?<!Hom\. )(?<!Serm\. )(?<!Tract\. )(?<![-:.,])\b\d+ )?"# + pattern(piece), with: " ", options: .regularExpression
+            ).precomposedStringWithCanonicalMapping
+            repeated.insert(piece)
+        }
+        if !repeated.isEmpty { rows[index].english = collapsedWhitespace(english) }
+    }
+    guard !repeated.isEmpty else { return (hour, rows) }
+    let doEnglish = rows.map { collapsedWhitespace($0.english) }.joined(separator: " ")
+    hour.sections = hour.sections.map { section in
+        var section = section
+        section.units = section.units.map { unit in
+            let latin = oracleComparisonTexts(unit).map { collapsedWhitespace(LatinOrthography.normalize($0)) }
+            // A lesson whose one written-out line DO repeats keeps the English of the rest.
+            let long = latin.filter { $0.count >= 12 }
+            // The same Latin said twice, once with English (All Souls' Compline: the
+            // *Requiéscant in pace* of the prayers, and of the special conclusion without).
+            let english = englishComparisonTexts(unit).filter { $0.count >= 8 }
+            if !english.isEmpty, english.allSatisfy({ text in doEnglish.contains(collapsedWhitespace(text)) }) { return unit }
+            // A versicle DO repeats in Latin over an English response keeps that response.
+            if case .versicleResponse(let v, let r, let ve, let re) = unit, ve != nil, re != nil {
+                let vRepeated = repeated.contains(collapsedWhitespace(LatinOrthography.normalize(v)))
+                let rRepeated = repeated.contains(collapsedWhitespace(LatinOrthography.normalize(r)))
+                if vRepeated != rRepeated {
+                    return .versicleResponse(versicle: v, response: r, versicleEnglish: vRepeated ? nil : ve, responseEnglish: rRepeated ? nil : re)
+                }
+            }
+            guard !long.isEmpty, long.allSatisfy(repeated.contains) else { return unit }
+            switch unit {
+            case .rubric(let text, _): return .rubric(text)
+            case .versicleResponse(let v, let r, _, _): return .versicleResponse(versicle: v, response: r)
+            case .verse(let reference, let first, let second, _, _): return .verse(reference: reference, firstHalf: first, secondHalf: second)
+            case .antiphon(let text, _): return .antiphon(text)
+            case .prose(let text, _): return .prose(text)
+            case .psalmTitle(let text, _): return .psalmTitle(text)
+            case .lesson(let paragraph): return .lesson(LessonParagraph(lines: paragraph.lines))
+            default: return unit
+            }
+        }
+        return section
+    }
+    return (hour, rows)
+}

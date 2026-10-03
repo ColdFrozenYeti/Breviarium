@@ -31,7 +31,20 @@ public enum Officium: String, CaseIterable, Sendable, Codable {
     /// for the day's office. The Little Office has four seasonal forms: `C12N` from Christmas
     /// Eve's Vespers to 2 February, `C12A` in Advent and on the Annunciation, `C12Q` from
     /// Septuagesima to Easter, `C12` otherwise.
-    func votivePath(hour: CanonicalHour, day: Int, month: Int, year: Int, weekName: String, dayWinnerPath: String) -> String? {
+    /// In the Dominican rite (`:1781-1783`) the Annunciation doesn't take the Advent form
+    /// and there is no Lenten form (`C12Q`); the path is the rite's own Commune where it
+    /// has one (`:1810`, `subdirname`).
+    func votivePath(
+        hour: CanonicalHour, day: Int, month: Int, year: Int, weekName: String, dayWinnerPath: String,
+        rite: Rite = .romanus, latin: OfficeCorpus? = nil
+    ) -> String? {
+        let roman = romanVotivePath(hour: hour, day: day, month: month, year: year, weekName: weekName, dayWinnerPath: dayWinnerPath, rite: rite)
+        guard let roman, let latin else { return roman }
+        return rite.adjusted(roman, latin: latin)
+    }
+
+    private func romanVotivePath(hour: CanonicalHour, day: Int, month: Int, year: Int, weekName: String, dayWinnerPath: String, rite: Rite) -> String? {
+        let dominican = rite == .dominicanus
         switch self {
         case .diei:
             return nil
@@ -41,10 +54,10 @@ public enum Officium: String, CaseIterable, Sendable, Codable {
             if (month == 12 && ((day == 24 && (hour == .vesperae || hour == .completorium)) || day > 24)) || month == 1 || (month == 2 && day < 3) {
                 return "Commune/C12N"
             }
-            if weekName.range(of: "adv", options: .caseInsensitive) != nil || dayWinnerPath.contains("03-25") {
+            if weekName.range(of: "adv", options: .caseInsensitive) != nil || (dayWinnerPath.contains("03-25") && !dominican) {
                 return "Commune/C12A"
             }
-            if weekName.range(of: "(Quadp|Quad)", options: .regularExpression) != nil {
+            if weekName.range(of: "(Quadp|Quad)", options: .regularExpression) != nil, !dominican {
                 return "Commune/C12Q"
             }
             return "Commune/C12"
@@ -65,6 +78,6 @@ public enum Officium: String, CaseIterable, Sendable, Codable {
         let title = resolver.resolve(path: path, section: "Officium").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
         let rank = dayRank.map { $0 >= 3 ? $0 : 6 } ?? 6
-        return OfficeRank(title: title, degreeLabel: "", numericPrecedence: rank, communeReference: "ex " + path.replacingOccurrences(of: "Commune/", with: ""))
+        return OfficeRank(title: title, degreeLabel: "", numericPrecedence: rank, communeReference: "ex " + path.replacingOccurrences(of: #"^Commune(OP)?/"#, with: "", options: .regularExpression))
     }
 }

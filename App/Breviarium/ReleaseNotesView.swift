@@ -10,6 +10,12 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "Beta 5", notes: [
+            "The Dominican office (Ordo Prædicatorum, 1962): choose Dominicanus in Settings, under Ritus, with the office of the day, the Little Office or the Office of the Dead.",
+            "Every hour follows the Order's calendar and books as Divinum Officium has them, checked against it for every day from 2025 to 2040; where its data is in error, the app shows the corrected text.",
+            "The English is the Order's own where it exists, else the Roman English of the same text; a Roman text whose Dominican Latin differs carries a small grey note.",
+            "Prime reads the Rule of St Augustine, or the day's Gospel on feasts.",
+        ]),
         Release(name: "Beta 4", notes: [
             "The Little Office of Our Lady, all eight hours, in its forms for Advent, Christmastide, Septuagesima to Easter and the rest of the year.",
             "The Office of the Dead: Matins, Lauds and Vespers.",

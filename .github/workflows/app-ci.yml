@@ -28,7 +28,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A push to a pull request runs the jobs below only if something they check changed
+  # since the last commit that passed this workflow (scripts/ci-needs-run.sh; GitHub's
+  # `paths:` alone looks at the whole pull request). Main pushes always run.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+        run: scripts/ci-needs-run.sh app-ci.yml '^(App/|Packages/BreviariumKit/|\.github/workflows/app-ci\.yml)'
+
   build-and-test:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: macos-26
     env:
       # Pinned explicitly rather than trusting the runner image's rolling default —
@@ -67,6 +90,9 @@ jobs:
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest"
 
+      # The UI tests are five classes (B5-M0). They run one after another: on three
+      # cloned simulators at once (tried 27 September) the macOS runner was too small,
+      # nine tests timed out and the step took 56 minutes instead of 32.
       - name: Run UI tests
         working-directory: App
         run: |
@@ -74,6 +100,7 @@ jobs:
             -project Breviarium.xcodeproj \
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
+            -parallel-testing-enabled NO \
             -resultBundlePath TestResults.xcresult
 
       - name: Upload test results

@@ -41,7 +41,18 @@ public struct Concurrence {
 
     public func resolve(day: Int, month: Int, year: Int) -> ConcurrenceResult? {
         let occurrenceEngine = Occurrence(corpus: corpus, context: context, calendar: calendar)
-        guard let today = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
+        guard var today = occurrenceEngine.resolve(day: day, month: month, year: year) else { return nil }
+        // `horascommon.pl:338`, "Simplex end after None": a Dominican Simplex saint (Bl. Jane
+        // of Aza, 1.2, on Friday 8 August 2025) has no second Vespers; the feria's follow.
+        // (1960's ranks have no Simplex that wins a day.)
+        if context.rite == .dominicanus, today.winningPath.hasPrefix("Sancti"), today.winningRank.numericPrecedence < 2,
+            !(month == 1 && day > 6 && day < 13)
+        {
+            let temporalPath = Occurrence.temporalPath(day: day, month: month, year: year, calendar: calendar, corpus: corpus, context: context)
+            if let temporalRank = OfficeRank(rankFieldValue: SectionResolver(corpus: corpus, context: context).resolveRank(path: temporalPath)) {
+                today = OccurrenceResult(sanctoralWins: false, winningPath: temporalPath, winningRank: temporalRank, isSunday: today.isSunday)
+            }
+        }
 
         let tomorrowDate = Computus.addDays(1, day: day, month: month, year: year)
         guard var tomorrow = occurrenceEngine.resolve(day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year)
@@ -72,7 +83,7 @@ public struct Concurrence {
         // per year) that it can't affect any other date's own occurrence, including a
         // direct query of 24 December itself as "today" rather than reached via this
         // specific Dec-23 pre-emption check.
-        if day == 23, month == 12, tomorrow.winningPath.hasPrefix("Sancti/") {
+        if day == 23, month == 12, tomorrow.winningPath.hasPrefix("Sancti") {
             let temporalPath = Occurrence.temporalPath(
                 day: tomorrowDate.day, month: tomorrowDate.month, year: tomorrowDate.year, calendar: calendar, corpus: corpus, context: context
             )
@@ -105,11 +116,41 @@ public struct Concurrence {
         // 1960-conditioned rank (6) is numerically *lower* than today's own (6.9) --
         // the generic threshold cascade below (which requires tomorrow to strictly
         // *outrank* today) would otherwise wrongly keep today's own second Vespers.
-        if !today.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.hasPrefix("Sancti/"), !tomorrow.winningPath.contains("C10") {
-            let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+        if !today.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.hasPrefix("Sancti"), !tomorrow.winningPath.contains("C10") {
+            var todayRule = resolver.resolve(path: today.winningPath, section: "Rule")
+            // The Dominican Easter Saturday (`TemporaOP/Pasc0-6`) takes its rule from its
+            // Monday's file, without "No secunda Vespera"; DO fails to read its rank and
+            // gives Low Sunday's first Vespers, as the Roman office's rule does (11 April 2026).
+            if today.winningPath.hasPrefix("TemporaOP/Pasc0-6") {
+                todayRule += "\n" + resolver.resolve(path: "Tempora/Pasc0-6", section: "Rule")
+            }
             if todayRule.range(of: "No secunda vespera", options: .caseInsensitive) != nil {
                 return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
             }
+        }
+
+        // `horascommon.pl:887-891`: before 1955 Ash Wednesday gave way at second Vespers to a
+        // Duplex (`$rank = 2.99`), and `$version !~ /1960|1955/` keeps that for the Order's
+        // "… - 1962": St Thomas Aquinas on the Thursday after (7 March 2030) takes first
+        // Vespers, Ash Wednesday commemorated. A feria tomorrow has no first Vespers,
+        if context.rite == .dominicanus, TemporalCycle.weekName(day: day, month: month, year: year) == "Quadp3",
+            Computus.dayOfWeek(day: day, month: month, year: year) == 3,
+            // and only a feast with first Vespers: under `/196/` a I. classis one
+            // (`horascommon.pl:973-977`; St Matthias, II. classis, on 24 February 2039 has none).
+            tomorrow.winningPath.hasPrefix("Sancti"), tomorrow.winningRank.numericPrecedence >= 6
+        {
+            return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow)
+        }
+
+        // `horascommon.pl:1177`: Christmas and 1 January take first Vespers outright, unless
+        // the "nihil de sequenti" case before it holds (an I. classis today against a
+        // tomorrow below I. classis). The Dominican Christmas has rank 6.9, as its Vigil does
+        // (its 7 is `(rubrica 1960)`): 24 December 2026.
+        if tomorrow.winningPath.range(of: "12-25|01-01", options: .regularExpression) != nil {
+            let todayDayOfWeek = Computus.dayOfWeek(day: day, month: month, year: year)
+            let nihilDeSequenti = today.winningRank.numericPrecedence >= (todayDayOfWeek < 6 ? 6 : 7)
+                && tomorrow.winningRank.numericPrecedence < 6
+            if !nihilDeSequenti { return ConcurrenceResult(isFirstVespersOfTomorrow: true, vespersOffice: tomorrow) }
         }
 
         let todayIsSaturday = Computus.dayOfWeek(day: day, month: month, year: year) == 6
@@ -171,7 +212,7 @@ public struct Concurrence {
         day: Int, month: Int, year: Int, today: OccurrenceResult, tomorrow: OccurrenceResult,
         tomorrowIsDominica: Bool, tomorrowIsFestumDomini: Bool, resolver: SectionResolver
     ) -> Bool {
-        let bothTemporal = !today.winningPath.hasPrefix("Sancti/") && !tomorrow.winningPath.hasPrefix("Sancti/")
+        let bothTemporal = !today.winningPath.hasPrefix("Sancti") && !tomorrow.winningPath.hasPrefix("Sancti")
             && !tomorrow.winningPath.contains("C10")
         guard !bothTemporal, tomorrowIsDominica || tomorrowIsFestumDomini else { return false }
         let todayRule = resolver.resolve(path: today.winningPath, section: "Rule")

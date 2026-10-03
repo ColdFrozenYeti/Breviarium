@@ -26,6 +26,7 @@ func englishComparisonTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .prose(_, let english): return [english].compactMap { $0 }
     case .psalmTitle(_, let english): return [english].compactMap { $0 }.filter { !$0.isEmpty }
     case .lesson(let paragraph): return paragraph.english ?? []
+    case .englishNote: return []
     case .englishPsalm(let verses):
         return verses.map { verse in
             guard !verse.secondHalf.isEmpty else { return verse.firstHalf }
@@ -57,7 +58,7 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\d+ "#),                // the row counter DO prints in the English cell
     try! Regex(#"Top Next"#),
     try! Regex(#"\{[^}]*\}"#),            // DO's source notes, "{from the Proper of Saints}", "{omit}"
-    try! Regex(#"Psalm \d+(\([^)]*\))?( —[^\[]*)? \[\d\]"#),
+    try! Regex(#"Psalm \d+(\([^)]*\))?( —[^\[]*)? \[\d+\]"#),
     try! Regex(#"\b\d{1,3}:\d{1,3}\b"#),  // verse references
     try! Regex(#"[℣℟]\."#),
     try! Regex(#"\bAnt\."#),
@@ -84,6 +85,19 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"\bPrayer\b"#),
     // DO keeps the Latin heading of the final antiphon in the English column there.
     try! Regex(#"^\s*Antiphona finalis B\. ?M\. ?V\."#),
+    // Beta 5: the Dominican Compline's heading, "Antiphonae finalis" (`specials.pl:319`),
+    // in both columns.
+    try! Regex(#"^\s*Antiphonae finalis"#),
+    // And the Order's Little Office at Compline: "Capitulum Responsorium" and "Antiphona
+    // finalis", in Latin in the English column.
+    try! Regex(#"^\s*Responsorium\b"#),
+    try! Regex(#"^\s*Antiphona finalis\b"#),
+    try! Regex(#"^\s*Regula vel Evangelium"#),
+    // All Souls' Dominican Prime: DO's label "Incipit specialis" on its opening.
+    try! Regex(#"^\s*(Incipit )?specialis\b"#),
+    // The Dominican first Vespers' "Hymn" label inside the chapter's row, after the
+    // responsory.
+    try! Regex(#"\bHymn\b(?= |$)"#),
     try! Regex(#"^\s*Invitatory\b"#),
     try! Regex(#"\bwith lections\b"#),
     try! Regex(#"\bAt the Nocturn\b"#),
@@ -99,7 +113,7 @@ private nonisolated(unsafe) let englishChrome: [Regex<AnyRegexOutput>] = [
 private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"Top Next"#),
     try! Regex(#"\{[^}]*\}"#),
-    try! Regex(#"Psalmus \d+(\([^)]*\))?( —[^\[]*)? \[\d\]"#),
+    try! Regex(#"Psalmus \d+(\([^)]*\))?( —[^\[]*)? \[\d+\]"#),
     try! Regex(#"\b\d{1,3}:\d{1,3}\b"#),
     try! Regex(#"[℣℟]\."#),
     try! Regex(#"\bAnt\."#),
@@ -107,8 +121,11 @@ private nonisolated(unsafe) let latinChrome: [Regex<AnyRegexOutput>] = [
     try! Regex(#"^\s*(Incipit|Psalmi|Capitulum Hymnus Versus|Canticum: Magnificat|Preces Feriales|Oratio|Conclusio)\b"#),
     try! Regex(#"Canticum B\. Mariæ Virginis Luc\.\s*-?\d*"#),
     try! Regex(#"^\s*Hymnus\b"#),
+    try! Regex(#"^\s*Responsorium\b"#),
     try! Regex(#"^\s*Versus \(In loco Capituli\)"#),
-    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis)\b"#),
+    try! Regex(#"^\s*(Capitulum Responsorium Versus|Capitulum Responsorium|Capitulum Versus|Lectio brevis|Completorium singulare|Suffragium|Canticum: Benedictus|De Officio Capituli|Litaniæ|Canticum: Nunc dimittis|Antiphona finalis B\. ?M\. ?V\.|Antiphona finalis|Antiphonae finalis|Regula vel Evangelium)\b"#),
+    try! Regex(#"^\s*(Incipit )?specialis\b"#),
+    try! Regex(#"\bHymnus\b(?= |$)"#),
     try! Regex(#"Canticum Simeonis Luc\.\s*-?[\d:-]*"#),
     try! Regex(#"Canticum Zachariæ Luc\.\s*-?[\d:-]*"#),
     // The blessing's and absolution's red label, which the app doesn't show.

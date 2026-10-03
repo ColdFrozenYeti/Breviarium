@@ -55,6 +55,21 @@ struct DayHourAuditReport {
         }
     }
 
+    /// Another report's findings added to this one (a page audited once, then kept).
+    mutating func merge(_ other: DayHourAuditReport) {
+        func merged(_ mine: inout [String: [String]], _ theirs: [String: [String]]) {
+            mine.merge(theirs) { $0 + $1 }
+        }
+        merged(&latinMissing, other.latinMissing)
+        merged(&englishMissing, other.englishMissing)
+        merged(&uncovered, other.uncovered)
+        merged(&uncoveredLatin, other.uncoveredLatin)
+        merged(&mispaired, other.mispaired)
+        merged(&titles, other.titles)
+        failedToAssemble += other.failedToAssemble
+        daysChecked += other.daysChecked
+    }
+
     var text: String {
         func report(_ name: String, _ problems: [String: [String]]) -> String {
             guard !problems.isEmpty else { return "" }
@@ -96,10 +111,10 @@ func withoutMartyrology(_ rows: [BilingualRow]) -> [BilingualRow] {
 /// One hour, one date: assembled as the app assembles it.
 func assembleDayHour(
     _ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, bundle: DataBundle, corpus: OfficeCorpus, english: OfficeCorpus?,
-    calendar: SanctoralCalendar, officium: Officium = .diei
+    calendar: SanctoralCalendar, officium: Officium = .diei, rite: Rite = .romanus
 ) -> (Hour?, String?) {
     let context = ConditionalContextBuilder.build(
-        day: day, month: month, year: year, ad: hour.doName, rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        day: day, month: month, year: year, ad: hour.doName, rubrica: rite.doVersion, corpus: corpus, sanctoralCalendar: calendar
     )
     let assembled = HourAssembler(corpus: corpus, context: context, calendar: calendar, englishCorpus: english)
         .assemble(hour, day: day, month: month, year: year, priest: priest, officium: officium)
@@ -158,29 +173,43 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         let date = env["BREVIARIUM_DEBUG_DATE"], let bundle = RealCorpus.bundle
     else { return }
     let parts = date.split(separator: "-").compactMap { Int($0) }
-    let corpus = bundle.makeLatinCorpus(psalter: .vulgate)
-    let calendar = bundle.makeSanctoralCalendar()
+    // `BREVIARIUM_DEBUG_BEA=1` assembles with the Pius XII psalter (no audit against the Vulgate pages).
+    let corpus = bundle.makeLatinCorpus(psalter: env["BREVIARIUM_DEBUG_BEA"] == nil ? .vulgate : .pius12)
+    // `BREVIARIUM_DEBUG_RITE=op` (Beta 5) assembles the Dominican office and reads `op/` fixtures.
+    let rite: Rite = env["BREVIARIUM_DEBUG_RITE"] == "op" ? .dominicanus : .romanus
+    let prefix = rite == .dominicanus ? "op/" : ""
+    let calendar = bundle.makeSanctoralCalendar(rite: rite)
     // `BREVIARIUM_DEBUG_VOTIVE=C12` or `C9` (Beta 4) assembles the votive office and reads its fixtures.
     let votive = env["BREVIARIUM_DEBUG_VOTIVE"] ?? ""
     let officium: Officium = votive == "C12" ? .parvumBMV : votive == "C9" ? .defunctorum : .diei
-    let (assembled, title) = assembleDayHour(
-        hour, day: parts[2], month: parts[1], year: parts[0], priest: false, bundle: bundle, corpus: corpus, english: bundle.makeEnglishCorpus(),
-        calendar: calendar, officium: officium
-    )
+    // `BREVIARIUM_DEBUG_UNCORRECTED=1` assembles with DO's errors left in (`SectionResolver.correctsDOErrors`).
+    let (assembled, title) = SectionResolver.$correctsDOErrors.withValue(env["BREVIARIUM_DEBUG_UNCORRECTED"] == nil) {
+        assembleDayHour(
+            hour, day: parts[2], month: parts[1], year: parts[0], priest: false, bundle: bundle, corpus: corpus, english: bundle.makeEnglishCorpus(),
+            calendar: calendar, officium: officium, rite: rite
+        )
+    }
     var out = "TITLE: \(title ?? "-")\n"
     let debugContext = ConditionalContextBuilder.build(
-        day: parts[2], month: parts[1], year: parts[0], ad: hour.doName, rubrica: "Rubrics 1960 - 1960", corpus: corpus, sanctoralCalendar: calendar
+        day: parts[2], month: parts[1], year: parts[0], ad: hour.doName, rubrica: rite.doVersion, corpus: corpus, sanctoralCalendar: calendar
     )
     let commemorated = Commemorations(corpus: corpus, context: debugContext, calendar: calendar).laudsCommemorations(day: parts[2], month: parts[1], year: parts[0])
     out += "LAUDS COMMEMORATIONS: \(commemorated.map(\.path))\n"
+    // `BREVIARIUM_DEBUG_RESOLVE=path|section` prints one section as the resolver returns it.
+    if let spec = env["BREVIARIUM_DEBUG_RESOLVE"]?.split(separator: "|"), spec.count == 2 {
+        let resolved = SectionResolver(corpus: corpus, context: debugContext).resolve(path: String(spec[0]), section: String(spec[1]))
+        out += "RESOLVE: \(resolved.debugDescription)\n"
+        let english = SectionResolver(corpus: bundle.makeEnglishCorpus(), context: debugContext, isEnglish: true).resolve(path: String(spec[0]), section: String(spec[1]))
+        out += "RESOLVE EN: \(english.debugDescription)\n"
+    }
     for section in assembled?.sections ?? [] {
         out += "## \(section.kind)\n"
-        for unit in section.units { out += "  \(unit)\n".prefix(260) + "\n" }
+        for unit in section.units { out += "  \(unit)\n".prefix(env["BREVIARIUM_DEBUG_FULL"] == nil ? 260 : 4000) + "\n" }
     }
     // `BREVIARIUM_DEBUG_TSV` points at a single rendered page when the year isn't archived yet.
     var page = env["BREVIARIUM_DEBUG_TSV"].flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
     if page == nil {
-        page = try await OracleFixture.shared.hourYear(set: votive.isEmpty ? "hours" : "votives/\(votive)", hour: hour, year: parts[0])?[
+        page = try await OracleFixture.shared.hourYear(set: prefix + (votive.isEmpty ? "hours" : "votives/\(votive)"), hour: hour, year: parts[0])?[
             "\(parts[0])/\(date)_priestN_bilingual.tsv"
         ]
     }
@@ -195,10 +224,13 @@ func dayHoursFullRangeAudit(hour: CanonicalHour) async throws {
         }
     }
     if let text = page {
-        out += "=== DO\n" + OracleFixture.rows(text).map { String($0.latin.prefix(400)) }.joined(separator: "\n")
+        // `BREVIARIUM_DEBUG_DOEN=1` prints DO's English column instead of its Latin.
+        out += "=== DO\n" + OracleFixture.rows(text).map { env["BREVIARIUM_DEBUG_DOEN"] == nil ? String($0.latin.prefix(400)) : $0.english }.joined(separator: "\n")
         if let assembled {
             var report = DayHourAuditReport()
-            report.add(hour: assembled, rows: withoutMartyrology(OracleFixture.rows(text)), title: title, date: date)
+            var (compared, rows) = (assembled, withoutMartyrology(OracleFixture.rows(text)))
+            if rite == .dominicanus { (compared, rows) = reconciledEnglish(assembled, rows: rows) }
+            report.add(hour: compared, rows: rows, title: title, date: date)
             out += "\n=== AUDIT\n" + (report.text.isEmpty ? "clean" : report.text)
         }
     }
