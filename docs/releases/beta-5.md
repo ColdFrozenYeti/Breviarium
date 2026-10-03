@@ -18,7 +18,7 @@ the Order's own calendar, saints, commons, psalter and hymns, at every hour.
   Dominican Latin differs.* Where there is no Roman counterpart, the text is Latin only.
 - **The Martyrology** under *Dominicanus* is the 1960 Roman one, with the Dominican day's
   title block (DO has no Dominican Martyrology).
-- **Settings → App icon** chooses the original icon or the illuminated *B*.
+- **Settings → App icon** chooses the original icon or the alternative, the illuminated Benedictus *B*.
 - The Dominican office is checked against Divinum Officium at every hour on every day
   from 2025 to 2040, in both psalters and with the English, plus all of 2044 with the
   priest on and off; its Little Office (2026 and 2027) and Office of the Dead (2026) the

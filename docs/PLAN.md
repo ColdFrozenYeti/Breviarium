@@ -4124,5 +4124,19 @@ day, and the Dominican Little Office, Office of the Dead and Pius XII psalter.
 ### B5-M6 — Release
 
 Release notes in the app and `docs/releases/beta-5.md`, the README and roadmap, the
-install checklist (item 12), and `beta-5-retrospective.md`. The PR waits for the user to
-try the IPA on the phone before it is merged.
+install checklist (item 12), and `beta-5-retrospective.md`.
+
+**CI.** On `30319c2` the Dominican audit jobs took 95 to 120 minutes each (two jobs of
+eight years per hour group, against 16 to 26 for the Roman ones of four). Two changes
+in `fa9c1a4`: the audit checks each page once (it had audited every page twice, once to
+decide whether a DO correction explained it and once for the report), and folds each
+piece of Latin once per page instead of once per row (334 s to 216 s for a year of
+Lauds, against 116 s for the Roman audit). The Dominican jobs are split by four years
+and by office like the Roman ones. Measured on `fa9c1a4`: the longest job 38 minutes,
+a full round 52 (22 audit jobs, so two wait for a runner). A release build of the tests
+saved only 15%, since the time is in Foundation's string handling. The user accepted
+about 50 minutes on 3 October 2026, keeping every check on every push, rather than
+running the Dominican audits only before a merge.
+
+The user tried the IPA on the phone and approved the merge on 3 October 2026; Beta 5 is
+published as a pre-release with `Breviarium-Beta-5.ipa`.

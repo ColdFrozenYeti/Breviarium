@@ -1,8 +1,9 @@
 # Breviarium — Beta 5 Implementation Plan (draft)
 
 **Status: approved on 27 September 2026**, with the answers in *Decisions* at the end.
-B5-M0 to B5-M6 are done (2 October 2026); the pull request waits for the user to try the
-IPA on the phone. The record is in `PLAN.md` under "Beta 5", and the retrospective in
+B5-M0 to B5-M6 are done (2 October 2026), and Beta 5 was released on 3 October 2026
+after the user tried it on the phone. The exit criterion of a CI round under 30 minutes
+was not met (about 52); the user accepted about 50. The record is in `PLAN.md` under "Beta 5", and the retrospective in
 `beta-5-retrospective.md`.
 
 ## Context

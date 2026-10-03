@@ -2,7 +2,7 @@
 
 Agreed on 25 September 2026, after Beta 2's release. Beta 3 was released on 26
 September, Beta 4 on 27 September and Beta 5, the Dominican rite
-([`Beta_5_plan.md`](Beta_5_plan.md)), in October; Beta 6 is next, once its sources are
+([`Beta_5_plan.md`](Beta_5_plan.md)), on 3 October; Beta 6 is next, once its sources are
 confirmed. The picture in the README is
 [`images/roadmap.svg`](images/roadmap.svg), drawn by `scripts/roadmap-svg.py`. Each beta
 still gets its own plan document (`Beta_N_plan.md`) and approval before any work starts.

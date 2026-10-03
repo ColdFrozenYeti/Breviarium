@@ -65,8 +65,11 @@ and a long list is where a real bug could hide. Next time, prefer correcting the
 
 **The local machine was the bottleneck.** Four cores ran the 16-year Dominican audits
 slowly, Docker went down twice and took running audits with it, and CI's Dominican jobs
-took over an hour. Next time, split the long Dominican audits on CI as the Roman ones
-were split in B5-M0, and use CI rather than the container for whole-range runs.
+took 95 to 120 minutes each. At the end the audit stopped checking each page twice and
+its jobs were split by four years and by office: the longest job now takes 38 minutes
+and a full round about 52, against the plan's 30. The user accepted about 50 minutes
+(3 October 2026) rather than run fewer checks per push. Next time, use CI rather than
+the container for whole-range runs.
 
 **A push cancelled the audits it was meant to complement.** Pushing a fix for one failed
 job cancelled four Dominican jobs that were nearly done, so their results came a cycle
@@ -94,4 +97,5 @@ supplies the Order's own text:
 - Before adding a rite or version, list every DO branch that tests the version's name.
 - Run the affected hour's full-range audit locally before pushing an engine fix.
 - Prefer a switchable data correction to an audit-side exception.
-- Split any audit job over 20 minutes on CI, Dominican ones included.
+- A full CI round takes about 50 minutes (accepted 3 October 2026); split a job that
+  grows past 40, and batch pushes accordingly.
