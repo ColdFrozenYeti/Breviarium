@@ -1,11 +1,12 @@
 # Breviarium
 
-A personal iPhone app for the traditional Divine Office, modelled on Universalis's night
+An iPhone app for the traditional Divine Office, modelled on Universalis's night
 mode but giving the pre-conciliar office: the *Breviarium Romanum* under the **1960
 rubrics**, with the Universal Calendar, the Vulgate psalter (the Pius XII psalter is an
 option), and an optional parallel English translation. The app computes the office
-itself for any date. It is fully offline, night mode only, and for private
-use. It is installed by sideloading with a free Apple ID.
+itself for any date. It is fully offline and night mode only.
+For now it is built and used privately and installed by sideloading with a free Apple ID;
+a public release on the App Store is planned.
 
 ## Status: Beta 5
 

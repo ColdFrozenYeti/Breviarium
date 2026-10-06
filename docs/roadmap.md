@@ -23,7 +23,7 @@ can be checked that way, and whatever it lacks cannot.
 | **Beta 6** | **Ambrosian offices** (revised 1 October 2026): Ambrosian Compline and the Ambrosian Office of the Dead, each a standalone, precisely named office, with the provenance and coverage model ([`ambrosian-sources.md`](ambrosian-sources.md)). | **No** | The sources' audit (edition, completeness, rights); the rite plug-in, proven in Beta 5 |
 | **Beta 7** | **The Ambrosian Little Office of Our Lady**, from the LaTeX source, once it is tied to an edition. | No | Beta 6's model, and the source audit |
 | Blocked | **The full Ambrosian office** (the 1957 *Breviarium Ambrosianum*, four volumes, with its calendar). | No | A complete primary source, which isn't available digitally |
-| **1.0** | A release pass: check every hour and rite on the phone, verify landscape, add hyphenation at the largest text size, then freeze. | | Everything above |
+| **1.0** | A release pass: check every hour and rite on the phone, verify landscape, add hyphenation at the largest text size, then freeze. Then the App Store release (planned since 6 October 2026; its prerequisites are in `CLAUDE.md`). | | Everything above; the paid Apple Developer Program |
 | After 1.0 | Possible: the Monastic office (DO's *Monastic - 1963*), and votive offices where the 1960 rubrics allow them. | Yes | |
 
 - **Matins first:** it completes the Roman office, and both the Little Office and the

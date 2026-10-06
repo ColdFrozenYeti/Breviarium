@@ -1,6 +1,6 @@
 # Breviarium — project rules
 
-Breviarium is a personal, native iPhone app for the traditional Divine Office. It is modelled closely on the Universalis app's night mode in layout and behaviour, but it gives the pre-conciliar office instead of the Liturgy of the Hours. It is for private use by one person and will never be distributed publicly.
+Breviarium is a personal, native iPhone app for the traditional Divine Office. It is modelled closely on the Universalis app's night mode in layout and behaviour, but it gives the pre-conciliar office instead of the Liturgy of the Hours. It is currently built and used privately by one person and installed by sideloading, but it is planned for public release on the App Store (decided 2026-10-06, replacing "will never be distributed publicly"). Until then the sideloading rules below still apply; *Before the App Store release* lists what that release needs.
 
 Read this file at the start of every session. If a decision here conflicts with a request in chat, ask before proceeding.
 
@@ -20,7 +20,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 
   This is a breviary in a phone.
 - **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, the page footer, and (Dominican office only) the grey note under a borrowed Roman English text. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
-- **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time.
+- **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time. This holds until the paid membership is joined for the App Store release; even then the app stays offline, so none of these is expected to be needed.
 
 ## Development environment: there is no Mac
 
@@ -39,7 +39,13 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - CI produces an **unsigned** device build (`CODE_SIGNING_ALLOWED=NO`), packaged as a plain `.ipa` (`Payload/Breviarium.app`, zipped), and uploads it as a GitHub Actions workflow artifact — nothing in CI ever signs anything, since CI has no Apple account to sign with. `scripts/get-ipa.ps1` fetches the latest one.
   - The actual signing happens on Windows, in the sideloading tool, with the free Apple ID. Free-tier signatures **expire after 7 days** and must be re-signed; `docs/install-on-iphone.md` covers that routine, including whether it needs a cable.
   - The **bundle identifier stays fixed forever** (`com.epavone.breviarium`) so every re-sign reuses the same App ID instead of burning through the free tier's ~10-new-App-IDs-per-week limit.
-  - Design the CI pipeline so that adding TestFlight later, if the Apple Developer Program is ever joined, means adding a signing step on top of the existing unsigned build — not restructuring it.
+  - Design the CI pipeline so that adding TestFlight and App Store builds, once the Apple Developer Program is joined, means adding a signing step on top of the existing unsigned build — not restructuring it. The fixed bundle identifier becomes the App Store app's identifier.
+- **Before the App Store release** (planned since 2026-10-06; none of it is done yet):
+  - Join the paid Apple Developer Program (about $99 a year); the App Store needs it, and it ends the 7-day re-signing.
+  - Add a licence to the repository (MIT matches Divinum Officium's), and keep the MIT notice on the About screen.
+  - Check the rights of every bundled text: Divinum Officium's Latin and English (MIT), the Douay-Rheims (public domain), and the user's icon designs.
+  - Review the design against Apple's App Review Guidelines, in particular copycat apps (4.1): the app is "modelled closely" on Universalis's night mode, which is fine for private use but needs its own identity in name, icon and presentation before public release. Ask the user before changing the design.
+  - Prepare the App Store listing: a privacy label of "no data collected" (the app is fully offline), screenshots from the snapshot tests, and a support page.
 - **Visual iteration without a simulator on hand**
   - Snapshot tests render each key screen at fixed sizes in the iOS simulator on CI.
   - Download the artifacts and compare them visually against `design/reference/`. Report differences concretely (element, measured value, expected value), fix them, and repeat.

@@ -4153,3 +4153,12 @@ gallery of the icons as rounded Home Screen squares; a tap sets the icon (iOS co
 with its own alert). `AppIconAlt` became `AppIconBenedictus`: an icon iOS still
 remembers by the old name reads as *Default* until another is chosen. SwiftUI can't draw
 an app icon set, so each has a 360 px `IconPreview…` image beside it.
+
+### The App Store (6 October 2026)
+
+The user decided the app will be released publicly on the App Store, replacing
+"for private use by one person and will never be distributed publicly". It stays
+private and sideloaded until then. `CLAUDE.md` lists what the release needs first: the
+paid Apple Developer Program, a licence for the repository, the texts' rights, a design
+review against Apple's copycat guideline (4.1) given how closely the app follows
+Universalis, and the App Store listing.
