@@ -12,7 +12,18 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Breviarium")
                         .font(.title2.bold())
-                    Text("The traditional Divine Office, per the 1960 rubrics. For private use.")
+                    Text("The traditional Divine Office, per the 1960 rubrics.")
+                        .foregroundStyle(Theme.chrome)
+                }
+                .padding(.vertical, 4)
+            }
+
+            // The app's own licence (decided 6 October 2026, `NOTICE.md`).
+            Section("Licence") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Breviarium is free software, licensed under the GNU General Public License, version 3 or any later version. You may share and change it; any version you distribute must remain free, with its source.")
+                    Text("Copyright © 2026 Eduardo Pavone. Source: github.com/ColdFrozenYeti/Breviarium")
+                        .font(.footnote)
                         .foregroundStyle(Theme.chrome)
                 }
                 .padding(.vertical, 4)

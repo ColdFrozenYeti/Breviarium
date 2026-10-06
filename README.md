@@ -1,11 +1,12 @@
 # Breviarium
 
-A personal iPhone app for the traditional Divine Office, modelled on Universalis's night
+An iPhone app for the traditional Divine Office, modelled on Universalis's night
 mode but giving the pre-conciliar office: the *Breviarium Romanum* under the **1960
 rubrics**, with the Universal Calendar, the Vulgate psalter (the Pius XII psalter is an
 option), and an optional parallel English translation. The app computes the office
-itself for any date. It is fully offline, night mode only, and for private
-use. It is installed by sideloading with a free Apple ID.
+itself for any date. It is fully offline and night mode only.
+For now it is built and used privately and installed by sideloading with a free Apple ID;
+a public release on the App Store is planned.
 
 ## Status: Beta 5
 
@@ -69,7 +70,8 @@ office of the day, the Little Office or the Office of the Dead.
   - Page turn (slide or page curl)
   - *Ritus*: Romanus or Dominicanus, each with its *Officium* (of the day, the Little
     Office or the Office of the Dead); Ambrosianus is listed as coming soon
-  - App icon (the original or the alternative, the illuminated Benedictus B)
+  - App icon: Default, Benedictus, Gutenberg (mono) or Gutenberg, chosen from a gallery
+    of all four
   - Release notes, and About with the Divinum Officium licence
 
 The build log, with every decision and every bug traced to the Divinum Officium source
@@ -173,6 +175,12 @@ What the tests check:
 discipline, and the non-negotiables.
 
 ## Credits and licence
+
+Breviarium is free software under the **GNU General Public License, version 3 or later**
+([`LICENSE`](LICENSE)): anyone may use, study, share and change it, and every version
+distributed must stay free and come with its source. [`NOTICE.md`](NOTICE.md) has the
+copyright, an additional permission for app stores such as the App Store (the source
+must still be offered free under the GPL), and the third-party material.
 
 The Latin texts and the rubrical logic come from
 [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium) (MIT licence),
