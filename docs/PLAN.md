@@ -4162,3 +4162,13 @@ private and sideloaded until then. `CLAUDE.md` lists what the release needs firs
 paid Apple Developer Program, a licence for the repository, the texts' rights, a design
 review against Apple's copycat guideline (4.1) given how closely the app follows
 Universalis, and the App Store listing.
+
+### The licence (6 October 2026)
+
+The user asked for a licence that keeps the project completely open source and free.
+**GPL-3.0-or-later** (`LICENSE`): copyleft, so every distributed version must stay free
+with its source, which MIT would not guarantee. Divinum Officium's MIT code and data can
+be combined into a GPL work; its notice stays on the About screen. Since the GPL and the
+App Store's terms are widely held to conflict (VLC was pulled in 2011 over it),
+`NOTICE.md` adds a section 7 permission for app-store distribution, conditional on the
+source being offered free under the GPL. The About screen states the licence.

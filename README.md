@@ -176,6 +176,12 @@ discipline, and the non-negotiables.
 
 ## Credits and licence
 
+Breviarium is free software under the **GNU General Public License, version 3 or later**
+([`LICENSE`](LICENSE)): anyone may use, study, share and change it, and every version
+distributed must stay free and come with its source. [`NOTICE.md`](NOTICE.md) has the
+copyright, an additional permission for app stores such as the App Store (the source
+must still be offered free under the GPL), and the third-party material.
+
 The Latin texts and the rubrical logic come from
 [Divinum Officium](https://github.com/DivinumOfficium/divinum-officium) (MIT licence),
 pinned to commit `126a07f` (see [`data/SOURCE.md`](data/SOURCE.md)). Its licence notice

@@ -42,7 +42,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - Design the CI pipeline so that adding TestFlight and App Store builds, once the Apple Developer Program is joined, means adding a signing step on top of the existing unsigned build — not restructuring it. The fixed bundle identifier becomes the App Store app's identifier.
 - **Before the App Store release** (planned since 2026-10-06; none of it is done yet):
   - Join the paid Apple Developer Program (about $99 a year); the App Store needs it, and it ends the 7-day re-signing.
-  - Add a licence to the repository (MIT matches Divinum Officium's), and keep the MIT notice on the About screen.
+  - ~~Add a licence~~ Done 2026-10-06: **GPL-3.0-or-later** (`LICENSE`, `NOTICE.md`), so every version stays free and open source, with an additional permission (section 7) for app-store distribution as long as the source is offered free under the GPL. Divinum Officium's MIT notice stays on the About screen; new files are GPL unless `NOTICE.md` lists them as third-party.
   - Check the rights of every bundled text: Divinum Officium's Latin and English (MIT), the Douay-Rheims (public domain), and the user's icon designs.
   - Review the design against Apple's App Review Guidelines, in particular copycat apps (4.1): the app is "modelled closely" on Universalis's night mode, which is fine for private use but needs its own identity in name, icon and presentation before public release. Ask the user before changing the design.
   - Prepare the App Store listing: a privacy label of "no data collected" (the app is fully offline), screenshots from the snapshot tests, and a support page.
