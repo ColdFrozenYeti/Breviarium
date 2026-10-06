@@ -4140,3 +4140,16 @@ running the Dominican audits only before a merge.
 
 The user tried the IPA on the phone and approved the merge on 3 October 2026; Beta 5 is
 published as a pre-release with `Breviarium-Beta-5.ipa`.
+
+## After Beta 5
+
+### Four app icons (6 October 2026)
+
+The user added two icons, a Gutenberg initial B in black and cream and the same in
+colour, and asked for the four to be named *Default*, *Benedictus* (the alternative
+since 1 October), *Gutenberg (mono)* and *Gutenberg*, chosen from one page that shows
+them all. Settings → *App icon* is now a row naming the current icon, opening a 2×2
+gallery of the icons as rounded Home Screen squares; a tap sets the icon (iOS confirms
+with its own alert). `AppIconAlt` became `AppIconBenedictus`: an icon iOS still
+remembers by the old name reads as *Default* until another is chosen. SwiftUI can't draw
+an app icon set, so each has a 360 px `IconPreview…` image beside it.

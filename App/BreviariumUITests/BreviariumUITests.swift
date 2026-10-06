@@ -350,8 +350,9 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         add(attachment)
     }
 
-    /// The app icon choice in Settings (added 1 October 2026). The switch itself raises a
-    /// system alert outside the app, so the test checks the row and its choices only.
+    /// The app icon choice in Settings (added 1 October 2026; a gallery of four since
+    /// 6 October). The switch itself raises a system alert outside the app, so the test
+    /// checks the row and the gallery of choices only.
     func testAppIconPicker() {
         let app = launchApp(date: "2026-09-16")
         app.buttons["settingsButton"].tap()
@@ -360,11 +361,18 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         scrollSettings(to: picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertTrue(picker.isEnabled, "alternate icons should be supported")
+        XCTAssertTrue(picker.label.contains("Default"), "the row names the current icon: \(picker.label)")
         picker.tap()
-        XCTAssertTrue(app.buttons["Alternative"].waitForExistence(timeout: 5) || app.staticTexts["Alternative"].exists)
+        XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
+        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg")] {
+            let tile = app.buttons["appIcon-\(icon)"]
+            XCTAssertTrue(tile.exists, "missing icon \(icon)")
+            XCTAssertEqual(tile.label, label)
+        }
+        Thread.sleep(forTimeInterval: 0.4)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "app-icon-picker"
+        attachment.name = "app-icon-gallery"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

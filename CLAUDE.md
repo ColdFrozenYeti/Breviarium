@@ -67,7 +67,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 ## Settings (Universalis-style toggles)
 
 - **Ritus:** Romanus / Dominicanus / Ambrosianus. *Dominicanus* is selectable since Beta 5, with its own *Officium* choice like *Romanus*; *Ambrosianus* is listed as "Coming soon" and stays disabled until it is implemented. Under *Ambrosianus* the UI names only the offices that exist (e.g. *Completorium Ambrosianum*), never implying the full office (decided 2026-10-01).
-- **App icon:** the original or an alternative icon (added 2026-10-01; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`).
+- **App icon:** *Default*, *Benedictus*, *Gutenberg (mono)* or *Gutenberg*, chosen from a gallery that shows all four at once (added 2026-10-01, four icons since 2026-10-06; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`). Each icon is an icon set in `Assets.xcassets` listed in `project.yml`, with a small `IconPreview…` image for the gallery.
   - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.

@@ -81,7 +81,7 @@ struct SettingsView: View {
                 }
 
                 Section("App icon") {
-                    AppIconPicker()
+                    AppIconRow()
                 }
 
                 Section {
