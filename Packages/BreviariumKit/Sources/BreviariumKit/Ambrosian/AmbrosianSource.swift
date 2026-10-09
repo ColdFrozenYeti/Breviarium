@@ -70,7 +70,7 @@ public enum AmbrosianSource {
 
     /// One line of `corrections.txt`.
     public struct Correction: Sendable, Equatable {
-        public enum Kind: String, Sendable { case misprint, doubtful, expansion, ruling, witness }
+        public enum Kind: String, Sendable { case misprint, doubtful, expansion, ruling, witness, cross }
         public var piece: String
         public var printed: String
         public var shown: String
@@ -78,9 +78,9 @@ public enum AmbrosianSource {
         public var pages: String
         public var note: String
 
-        /// Applied to the text: misprints and expansions. Doubtful readings are listed
-        /// for the user, rulings are built by the engine, witnesses need nothing.
-        public var isApplied: Bool { kind == .misprint || kind == .expansion }
+        /// Applied to the text: misprints, expansions and crosses. Doubtful readings are
+        /// listed for the user, rulings are built by the engine, witnesses need nothing.
+        public var isApplied: Bool { kind == .misprint || kind == .expansion || kind == .cross }
     }
 
     /// The pieces of `completorium-1957.txt`, as transcribed.

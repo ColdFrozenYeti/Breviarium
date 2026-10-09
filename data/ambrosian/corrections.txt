@@ -8,6 +8,8 @@
 #         ruling    (the user's decision where the source is silent; editorial)
 #         witness   (another part misprints what this transcription takes, correctly,
 #                    from a part that prints it right; noted, nothing to apply)
+#         cross     (a sign of the cross the source doesn't print, added by the user's
+#                    ruling; applied: "+" is the red cross, "✙︎" the small one)
 # Every line is checked by the data tool: the "as printed" text must occur exactly once
 # in the piece, or the build fails. Doubtful lines are listed but not applied.
 
@@ -72,3 +74,14 @@ finis | Pater Noster. (secreto). | Pater noster, (secreto) qui es in cælis, san
 benedictio | R. Amen\nV. Dormiamus | R. Amen.\nV. Dormiamus | misprint | HI.8 HII.9 AI.8 AII.8 | the other Amens have their full stop
 fidelium | R. Amen | R. Amen. | misprint | HI.9 HII.10 AI.9 AII.9 | as above
 confessio | R. Amen\nV. Adjutorium | R. Amen.\nV. Adjutorium | misprint | HI.10 HII.11 AI.10 AII.10 | as above
+
+# The user's ruling of 10 October 2026 ("we're missing some important crosses", comparing
+# the Roman Compline): the source prints no sign of the cross, so the five texts the
+# Ambrosian Compline shares with the Roman one take the cross where the Roman office
+# marks it (Divinum Officium's Psalterium/Common/Prayers.txt), keeping the source's own
+# punctuation. Applied.
+convertenos | V. Converte nos, Deus | V. Converte nos, ✙︎ Deus | cross | — | the small cross, as the Roman "Convérte nos ✙︎ Deus"
+deusinadiutorium | V. Deus, in adjutorium | V. Deus, + in adjutorium | cross | — | as the Roman "Deus + in adjutórium"
+confessio | Indulgentiam, absolutionem | Indulgentiam, + absolutionem | cross | — | as the Roman "Indulgéntiam, + absolutiónem"
+confessio | V. Adjutorium nostrum in nomine | V. Adjutorium nostrum + in nomine | cross | — | as the Roman "Adjutórium nostrum + in nómine Dómini"
+nuncdimittis | Nunc dimittis, Domine, servum tuum, * secundum verbum tuum, in pace; | Nunc dimittis, + Domine, servum tuum, * secundum verbum tuum, in pace; | cross | — | as the Roman "Nunc dimíttis + servum tuum" (Psalm233.txt); the user, 10 October 2026: "the canticle needs a cross". Not on the verse repeated after Iterum

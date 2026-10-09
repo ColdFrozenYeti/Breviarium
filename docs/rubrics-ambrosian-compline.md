@@ -73,6 +73,16 @@ on the phone):
 - **A line with a half-verse asterisk** is set as a verse wherever it stands (the
   *Capitulum*, the short responsory), and the short responsory's first line (*R. br.*) is
   upright, as the reader says it.
+- **Signs of the cross** (the user, 10 October 2026, comparing the Roman Compline): the
+  source prints none, so the five texts Ambrosian Compline shares with the Roman one take
+  the cross where the Roman office marks it: ℣. *Converte nos, ✙︎ Deus* (the small cross),
+  ℣. *Deus, ✠ in adiutorium*, the canticle's *Nunc dimittis, ✠ Domine* (its first verse,
+  not the verse repeated after *Iterum*), *Indulgentiam, ✠ absolutionem* and ℣.
+  *Adiutorium nostrum ✠ in nomine Domini*, red as in the Roman hours. No other cross is
+  added: *Benedicat et exaudiat nos Deus* has no Roman counterpart (§6, `cross`).
+- **Spacing** (the same day): the Roman hours' design, unchanged: each prayer is its own
+  paragraph, with a gap only between two prayers or stanzas; versicles, verses and the
+  *Glória* run on, as in `Format.png`. No Ambrosian layout of its own.
 
 The source's own red title at the head of a piece (*Hymnus.*, *Capitulum*, *Oratio*) is
 dropped where the section heading already says it (of *Epistolella. I. Cor. 16* only the
@@ -311,6 +321,7 @@ correctly, and lists every page.
 | `expansion` | an abbreviation written out (question 10): *Kyr. kyr. kyr.*, *Gloria Patri… Sicut erat…* | yes |
 | `ruling` | the user's decision where the source is silent (§5) | built by the engine |
 | `witness` | another part misprints what the transcription takes correctly from a part that prints it right | nothing to apply |
+| `cross` | a sign of the cross the source doesn't print, added by the user's ruling where the Roman office marks the same text (§2) | yes |
 
 The data tool checks every applied line: its "as printed" text must occur exactly once
 in its piece, or the build fails.
