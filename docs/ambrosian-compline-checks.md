@@ -39,6 +39,12 @@ until you decide:
 | Psalm 90, HI.4 | *et dena millia a dextris tuis* | *decem millia* (Vulgate) | |
 | Psalm 90, HI.4 | *Quoniam ipse liberabit me* | *liberavit* (Vulgate) | |
 
+Two more, seen in the screenshots and shown as printed:
+- ℟. *Amen* without a full stop after *Benedicat et exaudiat nos Deus* (HI.8) and after
+  *Fidelium animæ* (HI.9), where the other *Amen*s have one. **Add the full stop?**
+- *a Nativitate **Dòmini*** (HI.9, the rubric over *Alma Redemptoris*): a grave accent,
+  the only one in the source. **Correct to *Dómini*, or to plain *Domini*?**
+
 ## 3. The expansions and rulings
 
 Editorial, each marked in `corrections.txt`:
