@@ -23,7 +23,8 @@ class BreviariumUITestCase: XCTestCase {
     func launchApp(
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
-        officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil
+        officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
+        priest: Bool? = nil
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -40,6 +41,7 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
             "-settings.rite", rite,
         ]
+        if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
         XCTAssertTrue(app.staticTexts[expectedTitle ?? Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
         return app
@@ -260,7 +262,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["Beta 5"].waitForExistence(timeout: 5) || app.staticTexts["BETA 5"].exists)
+        XCTAssertTrue(app.staticTexts["Beta 6"].waitForExistence(timeout: 5) || app.staticTexts["BETA 6"].exists)
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -342,7 +344,10 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         app.staticTexts["About"].tap()
         XCTAssertTrue(app.navigationBars["About"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Breviarium"].exists)
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MIT License'")).firstMatch.exists)
+        // Beta 6's Ambrosian section sits above the licence, so it may be below the fold.
+        let mit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MIT License'")).firstMatch
+        for _ in 0..<4 where !mit.exists { app.swipeUp() }
+        XCTAssertTrue(mit.exists)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "about-screen"
@@ -351,7 +356,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
     }
 
     /// The app icon choice in Settings (added 1 October 2026; a gallery of four since
-    /// 6 October). The switch itself raises a system alert outside the app, so the test
+    /// 6 October, six since 10 October). The switch itself raises a system alert outside the app, so the test
     /// checks the row and the gallery of choices only.
     func testAppIconPicker() {
         let app = launchApp(date: "2026-09-16")
@@ -364,7 +369,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCTAssertTrue(picker.label.contains("Default"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg")] {
+        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
             let tile = app.buttons["appIcon-\(icon)"]
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)
@@ -747,5 +752,58 @@ final class DominicanUITests: BreviariumUITestCase {
         Thread.sleep(forTimeInterval: 0.4)
         capture(app, "b5-pius12-Vespera-page2")
         app.terminate()
+    }
+}
+
+/// Beta 6: Ambrosian Compline (`docs/Beta_6_plan.md` §8, check 6): every page of each
+/// form, for the user's check against the source PDFs: the four parts, festal and
+/// ferial, priest on and off, the five Marian antiphons and Good Friday.
+final class AmbrosianUITests: BreviariumUITestCase {
+    /// Settings -> Ambrosianus names its one office.
+    func testAmbrosianusSetting() {
+        let app = launchApp(date: "2026-06-02", hour: "Completorium")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.buttons["ritusAmbrosianus"].tap()
+        let office = app.buttons["officium-diei"]
+        XCTAssertTrue(office.waitForExistence(timeout: 5))
+        // The row's text is merged into its button's label.
+        XCTAssertTrue(office.label.contains("Completorium Ambrosianum"), office.label)
+        XCTAssertFalse(app.buttons["officium-parvumBMV"].exists)
+        capture(app, "b6-ambrosianus-setting")
+        office.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        capture(app, "b6-settings-ambrosianus")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        app.terminate()
+    }
+
+    /// Every page of one form, until a turn shows the same page again.
+    private func captureAllPages(date: String, priest: Bool, name: String) {
+        let app = launchApp(date: date, hour: "Completorium", rite: "ambrosianus", priest: priest)
+        var previous: Data?
+        for page in 1...30 {
+            Thread.sleep(forTimeInterval: 0.4)
+            let shot = app.screenshot()
+            if shot.pngRepresentation == previous { break }
+            previous = shot.pngRepresentation
+            let attachment = XCTAttachment(screenshot: shot)
+            attachment.name = "b6-\(name)-page\(page)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            app.swipeLeft()
+        }
+        app.terminate()
+    }
+
+    func testAmbrosianComplineForms() {
+        captureAllPages(date: "2026-06-02", priest: true, name: "aestiva2-ferial")      // Inviolata, the preces
+        captureAllPages(date: "2026-06-07", priest: true, name: "aestiva2-sunday")      // festal
+        captureAllPages(date: "2026-02-24", priest: true, name: "hiemalis2-lent")       // two hymns, Laus tibi, Salve
+        captureAllPages(date: "2026-04-03", priest: true, name: "hiemalis2-goodfriday") // no Salve
+        captureAllPages(date: "2026-04-07", priest: true, name: "aestiva1-easter")      // Regina caeli, festal
+        captureAllPages(date: "2026-01-15", priest: false, name: "hiemalis1-nopriest")  // Alma; Domine, exaudi; one Confiteor
+        captureAllPages(date: "2026-11-21", priest: true, name: "hiemalis1-bvm")        // Ave Regina, Our Lady's feast
     }
 }

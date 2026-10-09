@@ -54,6 +54,9 @@ public struct DataBundle: Codable, Sendable {
     /// Beta 5: the Dominican calendar, `Kalendaria/OP1962.txt` flattened over the 1960
     /// chain (`docs/rubrics-op1962.md` §1). `nil` in bundles made before Beta 5.
     public var calendarOP: [String: String]?
+    /// Beta 6: the Ambrosian rite's own sources (`data/ambrosian/`): Compline and the
+    /// *Kalendarium Ambrosianum*. `nil` in bundles made before Beta 6.
+    public var ambrosian: AmbrosianData?
 
     public init(
         formatVersion: Int = breviariumKitDataFormatVersion,
@@ -63,7 +66,8 @@ public struct DataBundle: Codable, Sendable {
         calendar: [String: String],
         transferTable: [String: [String: String]] = [:],
         temporaRedirect: [String: String] = [:],
-        calendarOP: [String: String]? = nil
+        calendarOP: [String: String]? = nil,
+        ambrosian: AmbrosianData? = nil
     ) {
         self.formatVersion = formatVersion
         self.latin = latin
@@ -73,6 +77,7 @@ public struct DataBundle: Codable, Sendable {
         self.transferTable = transferTable
         self.temporaRedirect = temporaRedirect
         self.calendarOP = calendarOP
+        self.ambrosian = ambrosian
     }
 
     /// The Latin corpus `SectionResolver` should read from, for one psalter
@@ -101,7 +106,9 @@ public struct DataBundle: Codable, Sendable {
     /// weeks of Paschaltide, late June, among others.
     public func makeSanctoralCalendar(rite: Rite = .romanus) -> SanctoralCalendar {
         switch rite {
-        case .romanus:
+        case .romanus, .ambrosianus:
+            // (The Ambrosian rite reads no DO calendar: `AmbrosianCalendar` is its own.
+            // The Roman one is returned only so every rite has a value.)
             return SanctoralCalendar(entries: calendar, transferTable: transferTable, temporaRedirect: temporaRedirect)
         case .dominicanus:
             // The 1960 transfer tables (`data.txt`: transfer `1960`) and no Scripture

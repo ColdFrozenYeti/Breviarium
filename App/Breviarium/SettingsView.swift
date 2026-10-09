@@ -13,8 +13,8 @@ struct SettingsView: View {
             List {
                 Section("Ritus") {
                     // The office is chosen under the rite (Beta 4, decided 2026-09-26; the
-                    // Dominican office, Beta 5).
-                    ForEach([Rite.romanus, .dominicanus], id: \.self) { rite in
+                    // Dominican office, Beta 5; Ambrosian Compline, Beta 6).
+                    ForEach([Rite.romanus, .dominicanus, .ambrosianus], id: \.self) { rite in
                         NavigationLink {
                             OfficiumView(settings: settings, rite: rite)
                         } label: {
@@ -23,22 +23,14 @@ struct SettingsView: View {
                                     .foregroundStyle(Theme.liturgicalText)
                                 Spacer()
                                 if settings.rite == rite {
-                                    Text(OfficiumView.label(for: settings.officium))
+                                    Text(OfficiumView.label(for: settings.officium, rite: rite))
                                         .font(.footnote)
                                         .foregroundStyle(Theme.chrome)
                                 }
                             }
                         }
-                        .accessibilityIdentifier(rite == .romanus ? "ritusRomanus" : "ritusDominicanus")
+                        .accessibilityIdentifier("ritus\(OfficiumView.name(of: rite))")
                     }
-                    // Shown but not selectable until it is built.
-                    HStack {
-                        Text("Ambrosianus")
-                        Spacer()
-                        Text("Coming soon")
-                            .font(.footnote)
-                    }
-                    .foregroundStyle(Theme.chrome)
                 }
 
                 Section {
@@ -55,7 +47,14 @@ struct SettingsView: View {
                         Text("Pii XII").tag(Psalter.pius12)
                     }
                     .accessibilityIdentifier("psalterPicker")
+                } footer: {
+                    // Beta 6: Ambrosian Compline is Latin only, in its own psalter.
+                    if settings.rite == .ambrosianus {
+                        Text("Completorium Ambrosianum is in Latin only, with the Ambrosian psalter.")
+                            .foregroundStyle(Theme.chrome)
+                    }
                 }
+                .disabled(settings.rite == .ambrosianus)
 
                 Section("Reading") {
                     Picker("Scrolling", selection: $settings.readingMode) {
@@ -125,11 +124,19 @@ struct OfficiumView: View {
         switch rite {
         case .romanus: "Romanus"
         case .dominicanus: "Dominicanus"
+        case .ambrosianus: "Ambrosianus"
         }
     }
 
-    static func label(for officium: Officium) -> String {
-        switch officium {
+    /// The offices under a rite. *Ambrosianus* names only the one that exists
+    /// (`CLAUDE.md`, decided 2026-10-01): Compline, under the day's office.
+    static func offices(of rite: Rite) -> [Officium] {
+        rite == .ambrosianus ? [.diei] : Officium.allCases
+    }
+
+    static func label(for officium: Officium, rite: Rite = .romanus) -> String {
+        if rite == .ambrosianus { return "Completorium Ambrosianum" }
+        return switch officium {
         case .diei: "Officium diei"
         case .parvumBMV: "Officium parvum B.M.V."
         case .defunctorum: "Officium defunctorum"
@@ -139,13 +146,13 @@ struct OfficiumView: View {
     var body: some View {
         List {
             Section("Officium") {
-                ForEach(Officium.allCases, id: \.self) { officium in
+                ForEach(Self.offices(of: rite), id: \.self) { officium in
                     Button {
                         settings.rite = rite
                         settings.officium = officium
                     } label: {
                         HStack {
-                            Text(Self.label(for: officium))
+                            Text(Self.label(for: officium, rite: rite))
                                 .foregroundStyle(Theme.liturgicalText)
                             Spacer()
                             if settings.rite == rite, settings.officium == officium {

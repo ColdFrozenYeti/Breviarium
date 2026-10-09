@@ -27,8 +27,10 @@ enum OfficeHour: Hashable {
 
     /// The hour `officium` actually shows for this choice: an hour the office lacks opens
     /// the nearest earlier one it has (decided 2026-09-26).
-    func shown(in officium: Officium) -> OfficeHour {
-        switch self {
+    func shown(in officium: Officium, rite: Rite = .romanus) -> OfficeHour {
+        // Beta 6: the Ambrosian rite has Compline alone.
+        if rite == .ambrosianus { return .hour(.completorium) }
+        return switch self {
         case .hour(let hour): .hour(officium.availableHour(for: hour))
         case .martyrologium: officium == .diei ? self : .hour(officium.availableHour(for: .prima))
         }
@@ -36,8 +38,9 @@ enum OfficeHour: Hashable {
 
     /// The picker's rows: the office's hours, with the Martyrology after Prime in the
     /// day's office.
-    static func rows(for officium: Officium) -> [OfficeHour] {
-        officium.hours.flatMap { hour -> [OfficeHour] in
+    static func rows(for officium: Officium, rite: Rite = .romanus) -> [OfficeHour] {
+        if rite == .ambrosianus { return [.hour(.completorium)] }
+        return officium.hours.flatMap { hour -> [OfficeHour] in
             officium == .diei && hour == .prima ? [.hour(hour), .martyrologium] : [.hour(hour)]
         }
     }

@@ -34,3 +34,13 @@ modifications, as section 7 allows.
   About screen. The MIT licence permits this combination; the MIT notice must be kept
   with every copy.
 - **The Douay-Rheims Bible**: public domain.
+- **Church of Ambrose** (mrchurch.it): the Ambrosian Compline (*Ad Completorium
+  Quotidianum iuxta ritum Sanctæ Ecclesiæ Mediolanensis*, four parts, 2025), digitised
+  from the 1957 *Breviarium Ambrosianum*, and the *Kalendarium Ambrosianum* with its
+  paschal tables and the *Rubricæ generales*, from their scans of the 1954 *Missale
+  Ambrosianum*. Published under CC BY-NC-ND 4.0; their owners have given Breviarium
+  permission to include an adapted transcription (normalised spelling, corrected
+  misprints) in this free app (verbal permission, 9 October 2026; written confirmation to
+  follow). That transcription is not covered by the GPL: it may be redistributed only as
+  part of Breviarium or under Church of Ambrose's own licence. The source PDFs are not
+  in this repository.

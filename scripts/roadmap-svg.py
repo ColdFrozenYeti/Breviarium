@@ -13,10 +13,9 @@ rows = [
     ("done", "Beta 3", "Released", "Matins · the new app icon · the title block’s commemoration line"),
     ("done", "Beta 4", "Released", "Little Office of Our Lady · Office of the Dead · Martyrology · colours"),
     ("done", "Beta 5", "Released", "The Dominican rite (Ordo Prædicatorum, 1962)"),
-    ("wait", "Beta 6", "Sources found", "Ambrosian Compline and Office of the Dead, standalone"),
-    ("wait", "Beta 7", "Source found", "The Ambrosian Little Office of Our Lady"),
+    ("next", "Beta 6", "Next", "Ambrosian Compline · English side by side · red rubrics"),
     ("goal", "1.0", "Goal", "Phone checks, landscape and the largest text size, then a freeze"),
-    ("later", "After 1.0", "Possible", "The Monastic office (1963), and votive offices"),
+    ("later", "After 1.0", "Possible", "Monastic office · votives · Ambrosian Office of the Dead and Little Office"),
 ]
 H = TOP + ROW * len(rows) + 28
 BG, WHITE, RUBRIC, ICON, CHROME, DIM = "#000000", "#FFFFFF", "#FF8080", "#FF4D33", "#B2B2B2", "#5C5C5C"
@@ -27,7 +26,7 @@ out = []
 a = out.append
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Breviarium roadmap</title>')
-a('<desc id="d">Alpha and Betas 1 to 5 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology and the Dominican rite. Next: Beta 6, Ambrosian Compline and the Ambrosian Office of the Dead; Beta 7, the Ambrosian Little Office; the full Ambrosian office is blocked on a source; then 1.0. The Monastic office is possible after 1.0.</desc>')
+a('<desc id="d">Alpha and Betas 1 to 5 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology and the Dominican rite. Next: Beta 6, Ambrosian Compline; the full Ambrosian office is blocked on a source; then 1.0. After 1.0, possibly the Monastic office, votive offices, and the Ambrosian Office of the Dead and Little Office.</desc>')
 a(f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>')
 a(f'<text x="{X-24}" y="52" font-family="{serif}" font-size="30" font-weight="700" fill="{WHITE}" letter-spacing="1.5">ROADMAP</text>')
 a(f'<text x="{W-40}" y="52" text-anchor="end" font-family="{sans}" font-size="15" font-style="italic" fill="{RUBRIC}">Alpha to 1.0</text>')

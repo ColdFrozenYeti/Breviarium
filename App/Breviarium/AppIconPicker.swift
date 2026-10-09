@@ -1,7 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The Home Screen icon (added 1 October 2026; four icons since 6 October): the user's
+/// The Home Screen icon (added 1 October 2026; four icons since 6 October, six since
+/// 10 October): the user's
 /// designs, each an icon set in `Assets.xcassets` with a small `IconPreview…` image beside
 /// it, since SwiftUI can't draw an app icon set. iOS remembers the choice itself, so
 /// nothing is stored here.
@@ -14,6 +15,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     case benedictus
     case gutenbergMono
     case gutenberg
+    case churchOfAmbrose
+    case weissenau
 
     var id: Self { self }
 
@@ -25,6 +28,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .benedictus: "AppIconBenedictus"
         case .gutenbergMono: "AppIconGutenbergMono"
         case .gutenberg: "AppIconGutenberg"
+        case .churchOfAmbrose: "AppIconChurchOfAmbrose"
+        case .weissenau: "AppIconWeissenau"
         }
     }
 
@@ -35,6 +40,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .benedictus: "IconPreviewBenedictus"
         case .gutenbergMono: "IconPreviewGutenbergMono"
         case .gutenberg: "IconPreviewGutenberg"
+        case .churchOfAmbrose: "IconPreviewChurchOfAmbrose"
+        case .weissenau: "IconPreviewWeissenau"
         }
     }
 
@@ -44,6 +51,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .benedictus: "Benedictus"
         case .gutenbergMono: "Gutenberg (mono)"
         case .gutenberg: "Gutenberg"
+        case .churchOfAmbrose: "ChurchofAmbrose"
+        case .weissenau: "Weissenau"
         }
     }
 

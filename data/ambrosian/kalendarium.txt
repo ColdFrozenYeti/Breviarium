@@ -1,0 +1,287 @@
+# Kalendarium Ambrosianum (1957)
+#
+# Transcribed from the calendar of the Missale Ambrosianum (Milan: Daverio, 1954, "editio
+# quinta post typicam"), pp. XV-XVIII (Church of Ambrose's scans, "Rubricae Generales"
+# pp. 12-15; the scan's title page, received 10 October 2026, shows it is the Missal's
+# front matter, not the 1957 breviary's), used with the owners'
+# permission (NOTICE.md). Only the "Menses" column: each day's feast, its rank and its
+# commemorations, as printed (abbreviations kept; J kept; the data tool applies J -> I).
+# Days the calendar leaves empty are not listed.
+#
+#   MM-DD | feast | rank | commemoration or note | page
+#
+# Ranks as printed: "Sol. Dom. I cl." and "Sol. Dom. II cl." (Solemnitas Domini, I and II
+# class), "Sol. Dom.", "Sol. I cl.", "Sol. II cl.", "Solemne majus" / "Sol. majus" /
+# "Sol. maj.", "Solemne", "Sol.", "Privil." / "Priv.", or none.
+# "Vigilia seq." in the note column: the next day's feast has a vigil.
+# The one editorial change: a Solemnity of the Lord printed in full ("Solemne. Dom. I cl."
+# on 6 January, "Solemn. Dom. II cl." on 2 February, "Solemne Domini I cl." on 25 March,
+# "Solemn. Dom. I cl." on 25 December) is written "Sol. Dom. I cl." / "Sol. Dom. II cl."
+# as everywhere else, so the rank reads the same.
+
+01-01 | Circumcisio et Octava Nativ. Dom. | Sol. Dom. II cl. | | XV
+01-02 | SS. Nominis J. C. | Sol. Dom. II cl. | | XV
+01-03 | S. Martiniani Episc. Mediol. et Conf. | Solemne | Commem. S. Marini Mart. | XV
+01-04 | Ss. Faustini et Jovitæ Mm. | | | XV
+01-05 | | | Vigilia seq. | XV
+01-06 | EPIPHANIA DOMINI | Sol. Dom. I cl. | | XV
+01-07 | Christophoria | Sol. Dom. | Commem. Octavæ Epiph. | XV
+01-08 | De Octava Epiph. | Sol. Dom. | | XV
+01-09 | De Octava Epiph. | Sol. Dom. | Commem. Ss. Quadraginta Mm. | XV
+01-10 | De Octava Epiph. | Sol. Dom. | | XV
+01-11 | De Octava Epiph. | Sol. Dom. | | XV
+01-12 | De Octava Epiph. | Sol. Dom. | | XV
+01-13 | Octava Epiph. | Sol. Dom. | | XV
+01-14 | S. Datii Episc. Mediol. et Conf. | Sol. | | XV
+01-15 | S. Joannis Boni Episc. Mediol. et Conf. | Sol. | Commem. S. Pauli primi Eremitæ Conf. | XV
+01-16 | S. Marcelli Papæ et Mart. | | | XV
+01-17 | S. Antonii Abb. et Conf. | Sol. majus | | XV
+01-18 | Cathedra S. Petri Romæ | Sol. II cl. | | XV
+01-19 | S. Bassiani Episc. et Conf. | Privil. | | XV
+01-20 | S. Sebastiani Mart. | Sol. majus | Commem. Ss. Solutoris et Socc. Mm. | XV
+01-21 | S. Agnetis Virg. et Mart. | Sol. maj. | | XV
+01-22 | S. Vincentii Lev. et Mart. | Sol. maj. | | XV
+01-23 | S. Emerentianæ Virg. et Mart. | | | XV
+01-24 | Ss. Babylæ et Trium Parvulorum Mm. | Sol. | | XV
+01-25 | Conversio S. Pauli Apost. | Sol. II cl. | | XV
+01-26 | S. Polycarpi Episc. et Mart. | | | XV
+01-27 | S. Joannis Chrysostomi Episc., Conf. et Doct. | Sol. majus | | XV
+01-28 | S. Thomæ Aquinatis Sac., Conf. et Doct. | Sol. majus | | XV
+01-29 | S. Aquilini Presb. et Mart. | Sol. | | XV
+01-30 | S. Savinæ Matronæ | Privil. | | XV
+01-31 | S. Julii Presb. et Conf. | Privil. | Comm. S. Petri Nolasci Sac. et Conf. | XV
+02-01 | S. Cyrilli Alexandrini Episc., Conf. et Doct. | Sol. majus | Commem. S. Ignatii Episc. et Mart.; item S. Severi Episc. et Conf. | XV
+02-02 | Purificatio B. M. V. | Sol. Dom. II cl. | | XV
+02-03 | S. Blasii Episc. et Mart. | Privil. | | XV
+02-05 | S. Agathæ Virg. et Mart. | Sol. maj. | | XV
+02-06 | S. Dorotheæ Virg. et Mart. | | Vigilia seq. | XV
+02-07 | S. Mathiæ Apost. | Sol. II cl. | | XV
+02-08 | S. Honorati Episc. Mediol. et Conf. | Solemne | | XV
+02-09 | S. Apolloniæ Virg. et Mart. | Sol. | | XV
+02-10 | S. Soteris Virg. et Mart. | Sol. | | XV
+02-11 | S. Lazari Episc. Mediol. et Conf. | Sol. | | XV
+02-12 | S. Romualdi Abb., Sac. et Conf. | Sol. | | XV
+02-13 | S. Francisci Salesii Episc., Conf. et Doct. | Sol. majus | | XV
+02-14 | S. Joannis de Matha Sac. et Conf. | Solemne | | XV
+02-22 | Cathedra S. Petri Antiochiæ | Solemne II cl. | Si Festum incidat in Quadragesimam, celebratur die 4 hujus. | XV
+03-19 | S. JOSEPH SPONSI B. M. V. ET ECCL. CATHOL. PATRONI | Sol. I cl. | | XV
+03-25 | ANNUNCIATIO B. M. V. | Sol. Dom. I cl. | | XV
+04-02 | S. Francisci de Paula Conf. | Sol. | | XV
+04-04 | Depositio S. Ambrosii Episc. et Doct. | | cujus commem. semper fit Feria V in Albis. | XV
+04-07 | S. Petri Damiani Episc., Conf. et Doct. | Sol. majus | | XV
+04-08 | S. Franciscæ Romanæ Matronæ | Sol. | | XV
+04-09 | S. Cyrilli Hierosolymitani Episc., Conf. et Doct. | Sol. majus | | XV
+04-10 | S. Anselmi Episc. et Conf. | Privil. | | XV
+04-11 | S. Leonis Papæ, Conf. et Doct. | Solemne majus | | XV
+04-12 | S. Zenonis Episc. et Mart. | | | XV
+04-13 | S. Hermenegildi Regis et Mart. | Sol. | | XV
+04-14 | S. Justini Mart. | Sol. | Commem. Ss. Tiburtii et Socc. Mm. | XV
+04-17 | S. Aniceti Papæ et Mart. | | | XV
+04-18 | S. Galdini Episc. Mediol. et Conf. | Solemne | | XV
+04-22 | Ss. Soteris et Caji Pp. et Mm. | | | XVI
+04-23 | S. Maroli Episc. Mediol. et Conf. | Solemne | | XVI
+04-24 | S. Georgii Mart. | Sol. | | XVI
+04-25 | S. Marci Evang. | Sol. II cl. | | XVI
+04-28 | Ss. Vitalis et Valeriæ Mm. | Sol. | | XVI
+04-29 | S. Petri Sac. et Mart. | Sol. | | XVI
+04-30 | S. Catharinæ Senensis Virg. | Sol. | | XVI
+05-01 | Ss. Philippi et Jacobi Ap. | Sol. II cl. | Commem. S. Sigismundi Regis et Mart. | XVI
+05-02 | S. Athanasii Episc., Conf. et Doct. | Solemne majus | | XVI
+05-03 | Inventio S. Crucis | Sol. Dom. II cl. | | XVI
+05-04 | S. Venerii Episc. Med. et Conf. | Sol. | Commem. S. Gothardi Episc. et Conf.; item S. Monicæ Matronæ. | XVI
+05-05 | S. Geruntii Episc. Mediol. et Conf. | Solemne | Commem. Conversionis S. Augustini Episc. et Doct. | XVI
+05-06 | S. Pauli a Cruce Sac. et Conf. | Sol. | | XVI
+05-07 | S. Stanislai Episc. et Mart. | Sol. | | XVI
+05-08 | S. Victoris Mart. | Sol. majus | | XVI
+05-09 | S. Gregorii Nazianzeni Episc., Conf. et Doct. | Sol. majus | | XVI
+05-10 | Translatio S. Nazarii Mart. | Privil. | | XVI
+05-11 | S. Antonini Episc. Florent. et Conf. | Solemne | | XVI
+05-12 | S. Pancratii Mart. | | | XVI
+05-13 | S. Natalis Episc. Med. et Conf. | Sol. | | XVI
+05-14 | Elevatio Corporum Ss. Ambrosii, Protasii et Gervasii | Sol. majus | Comm. Translat. S. Victoris Mart. et Natalis Ss. Felicis et Fortunati Mm. | XVI
+05-16 | S. Joannis Nepomuceni Sac. et Mart. | Solemne | | XVI
+05-20 | S. Bernardini Senen. Sac. et Conf. | | | XVI
+05-23 | S. Desiderii Episc. et Mart. | | | XVI
+05-25 | S. Dionysii Episc. Mediol. et Conf. | Solemne | | XVI
+05-26 | S. Philippi Nerii Sac. et Conf. | Sol. | | XVI
+05-27 | S. Gregorii VII Papæ et Conf. | Sol. | | XVI
+05-28 | S. Senatoris Episc. Mediol. et Conf. | Solemne | | XVI
+05-29 | Ss. Sisinii, Martyrii et Alexandri Mm. | Privil. | | XVI
+05-30 | S. Augustini Episc. Cantuar. Conf. | Solemne | | XVI
+05-31 | Ss. Cantii, Cantiani et Cantianillæ Mm. | Privil. | Commem. S. Petronillæ Virg. | XVI
+06-01 | Ss. Gratiniani et Felini Mm. | | | XVI
+06-02 | Ss. Petri et Marcellini Mm. | | | XVI
+06-04 | S. Quirini Episc. et Mart. | | | XVI
+06-05 | S. Bonifacii Episc. et Mart. | Sol. | | XVI
+06-06 | S. Eustorgii II, Episc. Mediol. et Conf. | Solemne | | XVI
+06-07 | S. Norberti Episc. et Conf. | Sol. | | XVI
+06-09 | Ss. Primi et Feliciani Mm. | | | XVI
+06-11 | S. Barnabæ Apost. | Sol. II cl. | | XVI
+06-13 | S. Antonii de Padua Sac. et Doct. | Solemne | | XVI
+06-14 | S. Basilii Ep., Conf. et Doct. | Sol. maj. | | XVI
+06-15 | S. Viti Mart. | Privil. | Comm. Ss. Modesti et Crescentiæ Mm. | XVI
+06-17 | Ss. Marci et Marcelliani Mm. | | | XVI
+06-18 | | | Vigilia seq. | XVI
+06-19 | Ss. Protasii et Gervasii Mm. | Solemne II cl. | | XVI
+06-21 | S. Aloisii Gonzagæ Conf. | Solemne | | XVI
+06-22 | S. Juliani Mart. | Privil. | | XVI
+06-23 | S. Paulini Episc. et Conf. | Privil. | Vigilia seq. | XVI
+06-24 | NATIVITAS S. JOANNIS BAPT. | Sol. I cl. | | XVI
+06-25 | S. Februniæ Virg. et Mart. | | | XVI
+06-26 | Ss. Joannis et Pauli Mm. | | | XVI
+06-27 | S. Arialdi Lev. et Mart. | Solemne | | XVI
+06-28 | | | Vigilia seq. | XVI
+06-29 | SS. PETRI ET PAULI APOSTOLORUM | Sol. I cl. | Comm. Omnium Ss. Apostolorum. | XVI
+07-02 | Visitatio B. M. V. | Sol. Dom. II cl. | | XVI
+07-03 | S. Thomæ Apost. | Sol. II cl. | | XVI
+07-04 | S. Ulderici Episc. et Conf. | | | XVI
+07-05 | S. Antonii M. Zaccaria Sac. et Conf. | Solemne | Comm. S. Margaritæ Virg. et Mart. | XVI
+07-06 | Ss. Cyrilli et Methodii Episc. et Conf. | Solemne | Commem. S. Tranquillini Presb. et Mart. | XVI
+07-07 | S. Hilarii Episc., Conf. et Doct. | Solemne majus | | XVI
+07-08 | S. Ampellii Episc. Mediol. et Conf. | Solemne | | XVI
+07-10 | Ss. Septem Fratrum Martyrum | | | XVI
+07-11 | S. Benedicti Abb. et Conf. | Sol. maj. | | XVI
+07-12 | Ss. Naboris et Felicis Mm. | Sol. maj. | Comm. S. Joannis Gualberti Conf. | XVI
+07-14 | S. Bonaventuræ Episc. Conf. et Doct. | Sol. majus | | XVI
+07-15 | S. Henrici Imper. et Conf. | Sol. | | XVI
+07-16 | B. M. V. de Monte Carmelo | Solemne II cl. | Comm. Ss. Quirici et Julittæ Mm. | XVI
+07-17 | S. Marcellinæ Virg. | Sol. | | XVI
+07-18 | S. Materni Episc. Mediol. et Conf. | Solemne | | XVI
+07-19 | S. Vincentii a Paulo Sac. et Conf. | Solemne | | XVI
+07-20 | S. Hieronymi Æmiliani Confess. | Solemne | | XVI
+07-21 | S. Praxedis Virg. | Sol. | | XVI
+07-22 | S. Mariæ Magdalenæ | Sol. maj. | | XVI
+07-23 | S. Apollinaris Episc. et Mart. | Sol. majus | | XVI
+07-24 | S. Camilli de Lellis Sacerd. et Conf. | Solemne | Comm. S. Christinæ Virg. et Mart. Vigilia seq. | XVI
+07-25 | S. Jacobi Apost. | Sol. II cl. | Commem. S. Christophori Mart. | XVI
+07-26 | S. Annæ Matris B. M. V. | Sol. II cl. | | XVI
+07-27 | S. Pantaleonis Mart. | | Vigilia seq. | XVI
+07-28 | Ss. Nazarii et Celsi Mm. | Sol. II cl. | | XVI
+07-29 | S. Marthæ Virg. | Privil. | | XVI
+07-30 | Ss. Abdon et Sennen Mm. | | | XVI
+07-31 | S. Calimerii Episc. Mediol. et Mart. | Solemne | | XVI
+08-01 | Ss. Machabæorum Mm. et S. Eusebii Episc. et Conf. | Privil. | | XVII
+08-02 | S. Alphonsi M. de Ligorio Episc., Conf. et Doct. | Sol. majus | Commem. S. Stephani Pp. et Mart. | XVII
+08-03 | Inventio S. Stephani Protom. | Privil. | Commem. S. Gaudentii Episc. Conf. | XVII
+08-04 | S. Dominici Sac. et Conf. | Sol. maj. | Commem. S. Perpetuæ Matronæ. | XVII
+08-05 | Dedicatio S. Mariæ ad Nives | Sol. II cl. | | XVII
+08-06 | Transfiguratio D. N. J. C. | Sol. Dom. II cl. | Commem. S. Xysti Pp. et Mart. | XVII
+08-07 | Ss. Donati et Carpophori Mm. | Priv. | | XVII
+08-08 | S. Ignatii de Lojola Sac. et Conf. | Solemne | Commem. S. Cyriaci, Largi et Smaragdi Mm. | XVII
+08-09 | S. Cajetani Sac. et Conf. | Sol. | Commem. Ss. Firmi et Rustici Mm. Vigilia seq. | XVII
+08-10 | S. Laurentii Mart. | Sol. II cl. | | XVII
+08-11 | S. Radegundæ Reg. et Matronæ | | | XVII
+08-12 | S. Eusebii Episc. Mediol. et Conf. | | Commem. S. Claræ Virg. | XVII
+08-13 | S. Hippolyti Mart. | Privil. | | XVII
+08-14 | | | Vigilia seq. | XVII
+08-15 | ASSUMPTIO B. M. V. | Sol. II cl. | | XVII
+08-16 | S. Simpliciani Episc. Mediol. et Conf. | Sol. | Commem. S. Rochi Conf. | XVII
+08-17 | S. Hyacinthi Sac. et Conf. | Sol. | | XVII
+08-18 | Ss. Mammetis et Agapiti Mm. | Priv. | | XVII
+08-20 | S. Bernardi Abb. Sac. et Doc. | Sol. maj. | | XVII
+08-21 | S. Joannæ Franciscæ Fremiot de Chantal Matronæ | Sol. | | XVII
+08-22 | Ss. Timothei et Socc. Mm. | | | XVII
+08-23 | | | Vigilia seq. | XVII
+08-24 | S. Bartholomæi Apost. | Sol. II cl. | | XVII
+08-25 | S. Genesii Mart. | Privil. | | XVII
+08-26 | S. Alexandri Mart. | Privil. | | XVII
+08-27 | S. Joseph Calasantii Sac. et Conf. | Sol. | | XVII
+08-28 | S. Augustini Episc., Conf. et Doct. | Solemne majus | | XVII
+08-29 | Decollatio S. Joannis Baptistæ | Solemne II cl. | | XVII
+08-30 | S. Ludovici Regis et Conf. | Sol. | Comm. Ss. Felicis et Adaucti Mm. | XVII
+08-31 | S. Abundii Episc. et Conf. | Privil. | | XVII
+09-01 | S. Ægidii Abb., Sac. et Conf. | | | XVII
+09-02 | S. Mansueti Episc. Mediol. et Conf. | Solemne | | XVII
+09-03 | S. Auxani Episc. Mediol. et Conf. | Solemne | | XVII
+09-04 | S. Gregorii I, Pp. Conf. et Doct. | Solemne majus | | XVII
+09-06 | S. Benedicti Episc. Mediol. et Conf. | Solemne | | XVII
+09-07 | | | Vigilia seq. | XVII
+09-08 | Nativitas B. M. V. | Sol. II cl. | | XVII
+09-09 | S. Joachim Conf. et Patris B. M. V. | Sol. II cl. | Commem. S. Adriani Mart. | XVII
+09-10 | S. Nicolai de Tolentino Sac. et Conf. | Sol. | | XVII
+09-11 | Ss. Proti et Hyacinthi Mm. | | | XVII
+09-12 | SS. Nominis B. M. V. | Sol. II cl. | | XVII
+09-13 | S. Maurilii Episc. et Conf. | | | XVII
+09-14 | Exaltatio S. Crucis | Sol. Dom. II cl. | | XVII
+09-15 | Septem Dolorum B. M. V. | Sol. II cl. | Comm. S. Nicomedis Presb. et Mart. | XVII
+09-16 | S. Euphemiæ Virg. et Mart. | Privil. | | XVII
+09-17 | S. Satyri Conf. | Sol. | | XVII
+09-18 | S. Eustorgii I, Episc. Mediol. et Conf. | Sol. | | XVII
+09-19 | Ss. Cornelii et Cypriani Mm. et Pontiff. | Privil. | Commem. Ss. Januarii et Socc. Mm. | XVII
+09-20 | S. Clicerii Episc. Mediol. et Conf. | Sol. | Vigilia seq. | XVII
+09-21 | S. Matthæi Apost. et Evan. | Sol. II cl. | | XVII
+09-22 | Ss. Mauritii et Socc. Mm. | Privil. | | XVII
+09-23 | S. Lini Pp. et Mart. | | | XVII
+09-24 | S. Theclæ Virg. et Mart. | Sol. | | XVII
+09-25 | S. Anatalonis Episc. Mediol. et Conf. | Solemne | | XVII
+09-26 | Ss. Cypriani et Justinæ Mm. | | | XVII
+09-27 | S. Caji Episc. Mediol. et Conf. | Sol. | | XVII
+09-29 | Dedicatio Ecclesiæ S. Michaelis Archangeli | Sol. II cl. | | XVII
+09-30 | S. Hieronymi Presb., Conf. et Doct. | Solemne majus | | XVII
+10-01 | S. Francisci Borgiæ Sac. et Conf. | Solemne | Commem. S. Remigii Episc. et Conf. | XVII
+10-02 | Ss. Angelorum Custodum | Sol. II cl. | | XVII
+10-04 | S. Francisci Assis. Conf. | Sol. maj. | | XVII
+10-05 | Ss. Placidi et Socc. Mm. | | | XVII
+10-06 | S. Brunonis Sacerd. et Conf. | Sol. | | XVII
+10-07 | S. Birgittæ Matronæ | Sol. | | XVII
+10-08 | S. Pelagiæ Virg. et Mart. | | | XVII
+10-09 | Ss. Dionysii, Rustici, Eleutherii et Domnini Mm. | | | XVII
+10-10 | S. Casimiri Regis et Conf. | Sol. | | XVII
+10-12 | S. Monæ Episc. Mediol. et Conf. | Solemne | | XVII
+10-14 | S. Callisti Pp. et Mart. | | | XVII
+10-15 | S. Teresiæ Virg. | Sol. | | XVII
+10-16 | S. Galli Abb. et Conf. | | | XVII
+10-17 | B. Contardi Ferrini Conf. | | | XVII
+10-18 | S. Lucæ Evang. | Sol. II cl. | | XVII
+10-19 | S. Petri de Alcantara Sac. et Conf. | | | XVII
+10-21 | Ss. Ursulæ et Socc. Virg. et Mm. | | | XVII
+10-22 | Ss. Cosmæ et Damiani Mm. | Privil. | | XVII
+10-24 | S. Raphaelis Archang. | Sol. II cl. | | XVII
+10-25 | Ss. Chrysanti et Dariæ Mm. | | | XVII
+10-26 | S. Evaristi Pp. et Mart. | | | XVII
+10-27 | | | Vigilia seq. | XVII
+10-28 | Ss. Simonis et Judæ Apost. | Sol. II cl. | Commem. S. Fidelis Mart. | XVII
+10-29 | S. Antonini Episc. Mediol. et Conf. | Solemne | | XVII
+10-30 | S. Saturnini Mart. | | | XVII
+10-31 | | | Vigil. seq. | XVII
+11-01 | OMNIUM SANCTORUM | Sol. I cl. | | XVII
+11-02 | Commem. Omn. Fidel. Defunct. | | | XVII
+11-04 | S. Caroli Episc. Mediol. et Conf. | Sol. II cl. | | XVII
+11-05 | S. Magni Episc. Med. et Conf. | Sol. | | XVII
+11-06 | Ss. Vitalis et Agricolæ Mm. | Privil. | Commem. S. Leonardi Conf. | XVII
+11-08 | Ss. Quatuor Coronatorum Mm. | | | XVII
+11-09 | Dedic. Eccl. Later. Ss. Salvatoris | Sol. II cl. | Comm. S. Aurelii Episc. et Conf. | XVII
+11-10 | S. Andreæ Avellini Sac. et Conf. | Sol. | Vigilia seq. | XVII
+11-11 | S. Martini Episc. et Conf. | Sol. II cl. | | XVII
+11-12 | S. Josaphat Episc. et Mart. | Sol. | | XVII
+11-13 | S. Antonini Mart. | Privil. | Commem. S. Homoboni Conf. et S. Stanislai Kostkæ Conf. | XVIII
+11-18 | S. Romani Mart. | Privil. | | XVIII
+11-19 | S. Pontiani Pp. et Mart. | | | XVIII
+11-20 | S. Benigni Episc. Med. et Conf. | Sol. | | XVIII
+11-21 | Præsentatio B. M. V. | Sol. II cl. | | XVIII
+11-22 | S. Cæciliæ Virg. et Mart. | Privil. | | XVIII
+11-23 | S. Clementis Pp. et Mart. | Sol. | | XVIII
+11-24 | S. Protasii Episc. Med. et Conf. | Sol. | | XVIII
+11-25 | S. Catharinæ Virg. et Mart. | Sol. | | XVIII
+11-28 | S. Joannis de Deo Conf. | Sol. | | XVIII
+11-29 | | | Vigilia seq. | XVIII
+11-30 | S. Andreæ Apost. | Sol. II cl. | Commem. Baptismi S. Ambrosii. | XVIII
+12-01 | S. Castritiani Ep. Med. et Conf. | Sol. | | XVIII
+12-03 | S. Miroclis Episc. Med. et Conf. | Sol. | | XVIII
+12-04 | S. Francisci Xaverii Sac. et Conf. | Sol. | Commem. S. Barbaræ Virg. et Mart. | XVIII
+12-05 | S. Gabrielis Archang. | Sol. II cl. | Comm. S. Dalmatii Episc. et Mart. | XVIII
+12-06 | S. Nicolai Episc. et Conf. | | Vigilia seq. | XVIII
+12-07 | ORDINATIO S. AMBROSII EPISC. CONF. ET DOCT. | Sol. I cl. | | XVIII
+12-08 | IMMACULATA CONCEPTIO B. M. V. | Sol. I cl. | | XVIII
+12-09 | S. Syri Episc. et Conf. | Privil. | | XVIII
+12-10 | S. Melchiadis Pp. et Mart. | | | XVIII
+12-13 | S. Luciæ Virg. et Mart. | Sol. | | XVIII
+12-14 | S. Matroniani Eremitæ et Conf. | | | XVIII
+12-24 | Vigilia Nativitatis Domini | | | XVIII
+12-25 | NATIVITAS D. N. J. C. | Sol. Dom. I cl. | | XVIII
+12-26 | S. Stephani Protomartyris | Sol. II cl. | Commem. Octavæ, et Omnium Ss. Martyrum. | XVIII
+12-27 | S. Joannis Ap. et Ev. | Sol. II cl. | Commem. Octavæ. | XVIII
+12-28 | Ss. Innocentum Mm. | Sol. II cl. | Commem. Octavæ. | XVIII
+12-29 | S. Thomæ Cantuar. Episc. et Mart. | Sol. II cl. | Commem. Octavæ. | XVIII
+12-30 | De Octava | Sol. Dom. | Commem. S. Eugenii Episc. et Conf. | XVIII
+12-31 | De Octava | Sol. Dom. | Commem. S. Silvestri Pp. et Conf. | XVIII

@@ -1,11 +1,31 @@
 import BreviariumKit
 import Foundation
 
+/// The date and title block a screen shows (Beta 6: the Ambrosian rite has its own
+/// calendar, so this no longer needs the Roman engine's `LiturgicalDay`).
+struct ContentDay {
+    let day: Int
+    let month: Int
+    let year: Int
+    let titleBlock: TitleBlock
+
+    init(day: Int, month: Int, year: Int, titleBlock: TitleBlock) {
+        self.day = day
+        self.month = month
+        self.year = year
+        self.titleBlock = titleBlock
+    }
+
+    init(_ liturgicalDay: LiturgicalDay) {
+        self.init(day: liturgicalDay.day, month: liturgicalDay.month, year: liturgicalDay.year, titleBlock: liturgicalDay.titleBlock)
+    }
+}
+
 /// Everything one Vespers screen needs to render, bundled together so the view doesn't
 /// have to know how it was assembled.
 struct VespersContent {
     let hour: Hour
-    let day: LiturgicalDay
+    let day: ContentDay
     /// "Ad Vesperas" -- fixed, since Vespers is the only hour this project renders so far
     /// (`CLAUDE.md`: "The alpha is Roman Vespers only").
     let hourTitle: String
@@ -29,6 +49,8 @@ final class OfficeDataStore {
     /// Each rite's calendar (Beta 5): the Dominican one has its own kalendarium and no
     /// Scripture transfers (`DataBundle.makeSanctoralCalendar(rite:)`).
     private let sanctoralCalendars: [Rite: SanctoralCalendar]
+    /// Beta 6: Ambrosian Compline, from its own sources (`BreviariumKit.AmbrosianCompline`).
+    private var ambrosianCompline: AmbrosianCompline?
     private var colorCache: [String: [Int: CalendarColor]] = [:]
 
     /// What happened while loading the bundle, for the fallback UI to show verbatim --
@@ -77,6 +99,7 @@ final class OfficeDataStore {
             latinCorpus = corpora[.vulgate]
             englishCorpus = bundle.makeEnglishCorpus()
             sanctoralCalendars = Dictionary(uniqueKeysWithValues: Rite.allCases.map { ($0, bundle.makeSanctoralCalendar(rite: $0)) })
+            ambrosianCompline = bundle.ambrosian.map(AmbrosianCompline.init(data:))
         } catch {
             latinCorpus = nil
             latinCorpora = [:]
@@ -99,6 +122,7 @@ final class OfficeDataStore {
         for canonicalHour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false,
         officium: Officium = .diei, rite: Rite = .romanus
     ) -> VespersContent? {
+        if rite == .ambrosianus { return ambrosianContent(day: day, month: month, year: year, priest: priest) }
         guard let latinCorpus = latinCorpora[psalter] ?? latinCorpus, let englishCorpus, let sanctoralCalendar = sanctoralCalendars[rite]
         else { return nil }
 
@@ -129,7 +153,7 @@ final class OfficeDataStore {
 
         return VespersContent(
             hour: hour,
-            day: liturgicalDay,
+            day: ContentDay(liturgicalDay),
             hourTitle: canonicalHour.title,
             dateLine: LatinDateLine.format(day: day, month: month, year: year),
             shortDate: Self.shortDateFormatter.string(from: displayDate)
@@ -158,7 +182,24 @@ final class OfficeDataStore {
         }
         let displayDate = Self.utcCalendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
         return VespersContent(
-            hour: hour, day: liturgicalDay, hourTitle: "Martyrologium",
+            hour: hour, day: ContentDay(liturgicalDay), hourTitle: "Martyrologium",
+            dateLine: LatinDateLine.format(day: day, month: month, year: year),
+            shortDate: Self.shortDateFormatter.string(from: displayDate)
+        )
+    }
+
+    /// Beta 6: Ambrosian Compline, Latin only, with the day from the *Kalendarium
+    /// Ambrosianum*. Nothing here reads the Divinum Officium corpus.
+    private func ambrosianContent(day: Int, month: Int, year: Int, priest: Bool) -> VespersContent? {
+        guard let compline = ambrosianCompline else {
+            loadDiagnostic = "the bundle has no Ambrosian data"
+            return nil
+        }
+        let displayDate = Self.utcCalendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
+        return VespersContent(
+            hour: compline.assemble(day: day, month: month, year: year, priest: priest),
+            day: ContentDay(day: day, month: month, year: year, titleBlock: compline.titleBlock(day: day, month: month, year: year)),
+            hourTitle: CanonicalHour.completorium.title,
             dateLine: LatinDateLine.format(day: day, month: month, year: year),
             shortDate: Self.shortDateFormatter.string(from: displayDate)
         )
@@ -169,6 +210,18 @@ final class OfficeDataStore {
     func calendarColors(year: Int, month: Int, rite: Rite = .romanus) -> [Int: CalendarColor] {
         let key = "\(rite.rawValue)|\(year * 100 + month)"
         if let cached = colorCache[key] { return cached }
+        // Beta 6: the Ambrosian colours, by the Missal's rubrics (`AmbrosianCalendar.color`).
+        guard rite.usesDivinumOfficium else {
+            guard let calendar = ambrosianCompline?.calendar else { return [:] }
+            var colors: [Int: CalendarColor] = [:]
+            var (day, m, y) = (1, month, year)
+            while m == month, y == year {
+                colors[day] = calendar.color(day: day, month: m, year: y)
+                (day, m, y) = Computus.addDays(1, day: day, month: m, year: y)
+            }
+            colorCache[key] = colors
+            return colors
+        }
         guard let latinCorpus, let sanctoralCalendar = sanctoralCalendars[rite] else { return [:] }
         var colors: [Int: CalendarColor] = [:]
         var (day, m, y) = (1, month, year)

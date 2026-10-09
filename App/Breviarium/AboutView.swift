@@ -12,7 +12,7 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Breviarium")
                         .font(.title2.bold())
-                    Text("The traditional Divine Office, per the 1960 rubrics.")
+                    Text("The traditional Divine Office: the Roman office per the 1960 rubrics, the Dominican office of 1962, and Ambrosian Compline of 1957.")
                         .foregroundStyle(Theme.chrome)
                 }
                 .padding(.vertical, 4)
@@ -40,6 +40,19 @@ struct AboutView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.chrome)
                     Text("Pinned commit: 126a07f91ede04664108abb6fb20ace3f4de14b9")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.chrome)
+                }
+                .padding(.vertical, 4)
+            }
+
+            // Beta 6: the Ambrosian Compline's source, used with its owners' permission
+            // (`NOTICE.md`; asked for by the user, 9 October 2026).
+            Section("Ambrosian source") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Completorium Ambrosianum is transcribed from Church of Ambrose's digitisation of the 1957 Breviarium Ambrosianum (Ad Completorium Quotidianum iuxta ritum Sanctæ Ecclesiæ Mediolanensis, Milan 2025), and the Ambrosian calendar from their scans of the 1954 Missale Ambrosianum, with spelling normalised and misprints corrected.")
+                    Text("Published under CC BY-NC-ND 4.0, and included in Breviarium with the permission of its owners. This transcription is not covered by Breviarium's licence: it may be shared only as part of Breviarium or under Church of Ambrose's own licence.")
+                    Text("mrchurch.it")
                         .font(.footnote)
                         .foregroundStyle(Theme.chrome)
                 }

@@ -92,7 +92,21 @@ public enum BreviariumDataPipeline {
 
         return DataBundle(
             latin: latin, latinBea: latinBea, english: english, calendar: calendar,
-            transferTable: transferTable, temporaRedirect: temporaRedirect, calendarOP: calendarOP
+            transferTable: transferTable, temporaRedirect: temporaRedirect, calendarOP: calendarOP,
+            ambrosian: try ambrosian(root: checkoutRoot.deletingLastPathComponent().appendingPathComponent("ambrosian"))
+        )
+    }
+
+    /// Beta 6: `data/ambrosian/` (beside the DO checkout), the Ambrosian rite's own
+    /// sources: Compline, its corrections, and the calendar. `nil` if the folder isn't
+    /// there.
+    static func ambrosian(root: URL) throws -> AmbrosianData? {
+        let compline = root.appendingPathComponent("completorium-1957.txt")
+        guard FileManager.default.fileExists(atPath: compline.path) else { return nil }
+        return try AmbrosianSource.data(
+            compline: String(contentsOf: compline, encoding: .utf8),
+            corrections: String(contentsOf: root.appendingPathComponent("corrections.txt"), encoding: .utf8),
+            calendar: String(contentsOf: root.appendingPathComponent("kalendarium.txt"), encoding: .utf8)
         )
     }
 

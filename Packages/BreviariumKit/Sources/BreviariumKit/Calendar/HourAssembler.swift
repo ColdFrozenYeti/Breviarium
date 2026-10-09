@@ -648,7 +648,11 @@ public struct HourAssembler {
                 // Inline small print keeps its words ("/:(percutit sibi pectus):/"), and
                 // `+++` is DO's ✙︎ (`webdia.pl:492-502`, `setcross`).
                 // `++` is DO's plain red cross (`webdia.pl:498-502`): *Dómine, lábia + mea*.
-                text = text.replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
+                // Beta 6: inline small print is a direction, marked as an inline rubric so
+                // the app draws it red (the *Te Deum*'s English, "/:bow head:/ Holy, Holy,
+                // Holy", has no brackets for `InlineRubrics` to find).
+                text = text.replacingOccurrences(of: #"/:(.*?):/"#, with: "\(InlineRubrics.start)$1\(InlineRubrics.end)", options: .regularExpression)
+                    .replacingOccurrences(of: "/:", with: "").replacingOccurrences(of: ":/", with: "")
                     .replacingOccurrences(of: " +++ ", with: " ✙︎ ").replacingOccurrences(of: " ++ ", with: " + ")
             }
             return text
@@ -3446,7 +3450,10 @@ public struct HourAssembler {
         if let firstContentIndex = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("/:") }) {
             lines[firstContentIndex] = DOMarkers.stripLineLabel(lines[firstContentIndex])
         }
-        lines = lines.map(DOMarkers.stripSmallFontMarkers)
+        // A small-print direction (`/:Prima stropha sequentis hymni dicitur flexis
+        // genibus.:/`, or `/:Ad hunc Vers. genuflectatur:/` inside a stanza) is a rubric:
+        // Beta 6 marks it, so the app draws it red (and drops it with rubrics off).
+        lines = lines.map { $0.replacingOccurrences(of: #"/:(.*?):/"#, with: "\(InlineRubrics.start)$1\(InlineRubrics.end)", options: .regularExpression) }
         // A mute vowel in brackets, "Patr[e]", is shown plain (DO sets it in italic,
         // `horas.pl:193`).
         lines = lines.map { $0.replacingOccurrences(of: #"\[([æaeiou]m?)\]"#, with: "$1", options: .regularExpression) }
@@ -3460,7 +3467,9 @@ public struct HourAssembler {
         // project's engine rendered the literal `!` instead of stripping it (unlike
         // `unitsFromLines`/`unitsFromResolvedText`, which already check
         // `DOMarkers.isRubricLine` elsewhere -- `hymnStanzas` never did).
-        lines = lines.map { DOMarkers.isRubricLine($0) ? DOMarkers.stripRubricMarkers($0) : $0 }
+        // Beta 6: and it is marked as an inline rubric, so the app draws it red (and
+        // leaves it out with rubrics off) rather than as a white stanza.
+        lines = lines.map { DOMarkers.isRubricLine($0) ? "\(InlineRubrics.start)\(DOMarkers.stripRubricMarkers($0))\(InlineRubrics.end)" : $0 }
         cleaned = lines.joined(separator: "\n")
 
         var stanzas: [String] = []

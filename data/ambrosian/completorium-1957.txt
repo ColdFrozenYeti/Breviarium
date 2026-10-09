@@ -1,0 +1,370 @@
+# Ambrosian Compline (Completorium quotidianum), 1957
+#
+# A diplomatic transcription of Church of Ambrose's *Ad Completorium Quotidianum iuxta
+# ritum Sanctæ Ecclesiæ Mediolanensis, Divinum Officium MCMLVII* (Milan, 2025), four
+# parts: HI = Pars hiemalis prima, HII = Pars hiemalis secunda, AI = Pars æstiva prima,
+# AII = Pars æstiva secunda. Used with the owners' permission (NOTICE.md); the PDFs are
+# not in this repository.
+#
+# The text is as printed, misprints and J included. `corrections.txt` holds every
+# correction and editorial expansion; the data tool applies them, then the app's Latin
+# rules (J -> I). Accents are the source's own; none are added.
+#
+# Format (docs/rubrics-ambrosian-compline.md §4):
+#   [piece]  part.page ...   a piece and every page that prints it
+#   V. / R.                  versicle / response
+#   R. br.                   the short responsory's response
+#   Ant.                     antiphon
+#   !text                    a rubric (red in the source)
+#   ^text                    a heading or reference (red in the source: "Psalmus 4.")
+#   a * b                    a psalm verse: first half * second half
+#   _                        a break between stanzas or paragraphs
+#   (anything else)          a line of prose or a hymn line
+#   (text)                   inside a line, a red direction: "(secreto)"
+
+[praeparatio] HI.2 HII.2 AI.2 AII.2
+Pater Noster. Ave Maria.
+
+[convertenos] HI.2 HII.2 AI.2 AII.2
+V. Converte nos, Deus salutaris noster:
+R. Et averte iracundiam tuam a nobis.
+
+[deusinadiutorium] HI.2 HII.2 AI.2 AII.2
+V. Deus, in adjutorium meum intende:
+R. Domine, ad adjuvandum me festina:
+Glória Patri et Fílio et Spirítui Sancto. Sicut erat in princípio, et nunc et semper et in sǽcula sæculórum.
+
+[hallelujah] HI.2 AI.2 AII.2
+Hallelujah.
+
+[laustibi] HII.2
+Laus tibi, Domine, Rex æternæ gloriæ.
+
+[hymnus-telucis] HI.2 AI.2 AII.2 HII.6
+^Hymnus.
+Te, lucis ante terminum,
+Rerum Creator, póscimus,
+Ut solita clementia
+Sis præsul ad custodiam.
+_
+Procul recédant somnia,
+Et noctium phantásmata:
+Hostemque nostrum cómprime,
+Ne polluantur corpora.
+_
+Præsta, Pater piissime,
+Per Jesum Christum Dominum,
+Qui tecum in perpetuum
+Regnat cum Sancto Spiritu.
+Amen.
+
+[hymnus-luxalma] HII.2
+^Hymnus.
+Lux alma, Christe, mentium,
+Verus diéi Lúcifer,
+Largire te precantibus
+Vitam beatam servulis.
+_
+Te quæsum, dum corpora
+Somno cubantes tradimus,
+Ut te tuente, líbera
+Artus quiete gaudeant.
+_
+Ne fœda dormientibus
+Immittat hostis somnia,
+Ne fraude mentes óbruat.
+Et labe cor coinquinet.
+_
+Corpus sopóri indulgeat,
+Sit interim cor pérvigil:
+Te diligentes filios
+Manu Paterna prótegas.
+_
+Tu nos ab altis aspice,
+Dolos Draconis déstrue,
+Tuos guberna servulos,
+Quos sanguine mercatus es.
+_
+Hæc te memento corpora
+Et hos creasse spiritus:
+Hac ergo nocte sedulus
+Utrisuqe custos éxcuba.
+_
+Deo Patri sit gloria,
+Ejusque soli Filio,
+Cum Spiritu Paraclito
+Et nun et in perpetuum.
+Amen.
+
+[gloriapatri] HI.3 HI.4 HI.5 HI.8 HII.3 HII.5 HII.6 HII.9 AI.3 AI.4 AI.5 AI.8 AII.3 AII.4 AII.5 AII.8
+Glória Patri et Fílio et Spirítui Sancto. Sicut erat in princípio, et nunc et semper et in sǽcula sæculórum.
+
+[psalmus4] HI.2 HI.3 HII.2 HII.3 AI.2 AI.3 AII.2 AII.3
+^Psalmus 4.
+Cum invocarem te, exaudisti me, * Deus justitiæ meæ.
+In tribulatione dilatasti mihi * miserere mei, et exaudi orationem meam.
+Filii hominum, úsquequo gravi corde? ut quid dilígitis venitatem, * et quæriis mendacium?
+Et scitote quoniam mirificavit Dominus sanctum suum; * Dominus exaudiet me, cum clamávero ad eum.
+Irascímini et nolíte peccare; * quæ dicitis in cordibus vestris, in cubilibus vestris compungímini.
+Sacrificate sacrifícium justitiæ, * et sperate in Domino.
+Multi dicunt: Quis ostendet nobis bona? * signatum est super nos lumen vultus tui, Domine.
+Dedisti lætitiam in corde meo: * a tempore frumenti, vini et ólei sui multiplicati sunt.
+In pace, in idipsum, obdormiam et requiescam; * quoniam tu, Domine, singulariter in spe costituisti me.
+
+[psalmus30] HI.3 HII.3 AI.3 AII.3
+^Psalmus 30.
+In te, Domine, speravi; * non confundar in æternum.
+In tua justitia * líbera me, et éripe me.
+Inclína ad me aurem tuam; * accélera, ut erípias me.
+Esto mihi in Deum protectorem et in domum refugii, * ut salvum me facias.
+Quia fortitudo mea et refugium meum es tu; * et propter nomen tuum educabis me, et pasces me.
+Educes me laqueo hoc, quem statuérunt mihi; quoníam tu es protector meus, Domine: * in manus tuas commendo spiritum meum.
+Redemisti me, Domine, * Deus veritatis.
+
+[psalmus90] HI.3 HI.4 HII.4 HII.5 AI.3 AI.4 AII.3 AII.4
+^Psalmus 90.
+Qui hábitat in adjutorio Altissimi, * in protectione Dei cæli commorabitur.
+Dicet Domino: Susceptor meus es, et refugium meum: * Deus meus, sperabo in eum.
+Quoniam ipse liberabit me de laqueo venantium * et a verbo áspero.
+Scápulis suis obumbrabit tibi; * et sub pennis ejus sperabis.
+Scuto circúmdabit te veritas ejus: non timebis a timore nocturno, * et a jaculo volante per diem;
+A negotio perambulante in tenebris, * a ruina et dæmonio meridiano.
+Cadent a látere tuo mille, et dena millia a dextris tuis; * ad te autem non approximabunt.
+Verúmtamen oculis tuis considerabis; * et retributionem peccatorum videbis.
+Quoniam tu es, Domine, spes mea; * altissimum posuisti refugium tuum.
+Non accédent ad te mala; * et flagellum non appropinquabit tabernaculo tuo.
+Quoniam Angelis suis mandavit da te; * ut custodiant te in omnibus viis tuis
+In manibus portabunt te; * ne quando offendas ad lapidem pedem tuum.
+Super áspidem et basiliscum ambulabis, * et conculcabis leonem et draconem.
+Quoniam in me speravit, liberabo eum; * prótegam eum, quoniam cognovit nomen meum.
+Invocabit me, et ego exaudiam eum: * cum ipso sum in tribulatione.
+Eripiam eum, et glorificabo eum: longitudine dierum adimplebo eum; * et ostendam illi salutare meum.
+
+[psalmus132] HI.4 HI.5 HII.5 AI.4 AI.5 AII.4 AII.5
+^Psalmus 132.
+Ecce quam bonum et quam jucundum * habitare fratres in unum!
+Sicut unguentum in capite, * quod descendit in barbam, in barbam Aaron;
+Quod descendit in oram vestimenti ejus: * sicut ros Hermon, qui descendit in montem Sion.
+Quia illic mandavit Dominus benedictionem, * et vitam usque in sæculum.
+
+[psalmus133] HI.5 HII.5 AI.5 AII.5
+^Psalmus 133.
+Ecce nunc benedícite Dominum, * omnes servi Domini.
+Qui statis in domo Domini, * in atriis domus Dei nostri.
+In noctibus extóllite manus vestras in sancta, * et benedícite Dominum.
+Benedícat te Dominus ex Sion, * qui fecit cælum et terram.
+
+[psalmus116] HI.5 HII.6 AI.5 AII.5
+^Psalmus 116.
+Laudate Dominum, omnes gentes, * et collaudate eum, omnes populi;
+Quoniam confirmata est super nos misericordia ejus, * et veritas Domini manet in æternum.
+
+[epistolella] HI.5 HII.6 AI.5 AII.5
+^Epistolella. I. Cor. 16
+Fratres. Vigilate, orate, state in fide: viríliter ágite, et confortamini in Domino: et omnia vestra in charitate fiant.
+R. Deo gratias.
+
+[responsorium] HI.5 HII.6 AI.5 AII.5
+R. br. Pax multa diligentibus.
+!Iterum:
+Pax multa diligentibus * Legem tuam, Domine.
+V. Et non est illis scandalum.
+R. Legem tuam, Domine.
+V. Gloria Patri, et Filio, et Spiritui Sancto.
+R. Pax multa diligentibus * Legem tuam, Domine.
+
+[salvanos-incipit] HI.5 HII.6 AI.5 AII.5
+Ant. Salva nos.
+
+[nuncdimittis] HI.6 HII.7 AI.6 AII.6
+^Canticum Simeonis. Luc. 2.
+Nunc dimittis, Domine, servum tuum, * secundum verbum tuum, in pace;
+Quia vidérunt oculi mei * Salutare tuum,
+Quod parasti * ante faciem omnium populorum:
+Lumen ad revelationem gentium, * et gloriam plebis tuæ, Israel.
+Gloria Patri... Sicut erat...
+!Iterum:
+Nunc dimittis, Domine, servum tuum, * secundum verbum tuum, in pace.
+
+[salvanos] HI.6 HII.7 AI.6 AII.6
+Ant. Salva nos, Domine, vigilantes:
+R. Custodi nos dormientes:
+V. Ut vigilemus in Christo,
+R. Et requiescamus in pace.
+
+[capitulum] HI.6 HII.7 AI.6 AII.6
+^Capitulum
+Custodi nos, Domine, ut pupillam oculi: * Sub umbra alarum tuarum prótege nos.
+
+[kyrie] HI.6 HI.8 HII.7 HII.9 AI.6 AI.8 AII.6 AII.8
+Kyr. kyr. kyr.
+
+[rubrica-festiva-HI] HI.6
+!In Solemnitatibus Domini, Octavis, Dominicis, festis diebus B. M. V., in Nativitate S. Joannis Baptistæ et Natali SS. Petri et Pauli Apostolorum, dicto, ut supra, Capitulo, statim subjicitur V/. Dominus vobiscum; deinde oratio: Illumina, quæsumus, Domine, tenebras nostras, usque ad finem Completorii. Idemque fiat in omnibus Metropolitana Pontificalibus, tum etiam in aliarum Urbis et Dicecesis Ecclesiarum Festivitatibus Patronalibus, sed a Clero tantum in iis Ecclesiis Divina tunc peragente. Idem etiam servetur a Resurrectione D. N. J. C. úsque ad Octavam Pentecostes inclusive, exceptis diebus Triduanarum Litaniarum. In reliquis vero diebus adjunguntur Preces, ut infrazequæ in officio feriali dicuntur genibus flexis.
+
+[rubrica-festiva-HII] HII.7
+!In Dominicis, fest. S. Joseph et Annunc., dicto, ut supra, Capitulo, statim subjic. V/. Dominus vobiscum; deinde oratio: Illumina, quæsumus, Domine, tenebras nostras, usque ad finem Completorii. Reliquis vero Feriis adjunguntur preces, ut infra, quæ dicuntur genibus flexis:
+
+[rubrica-festiva-AI] AI.6
+!Tempore paschali, dieto, ut supra, capitulo, statim subjicitur V/. Dominus vobiscum; deinde oratio: Illumina, quæsumus, Domine, tenebras nostras, usque ad finem Complet. Tridue Litaniarum vero adjunguntur preces, ut infra, quæ dicuntur genibus flexis:
+
+[rubrica-festiva-AII] AII.6
+!In Solemnitatibus Domini, Octavis, Dominicis, festis diebus B.M.V., in Nativitate S. Joannis Baptistæ et Natali SS. Petri et Pauli Apostolorum, dicto, ut supra, Capitulo, statim subjicitur. V/. Dominus vobiscum; deinde oratio: Illumina, quæsumus, Domine, tenebras nostras, usque ad finem Completorii. Idemque fiat in omnibus Metropolitanæ Pontificalibus, tum etiam in aliarium Urbis et DiOEcis Ecclesiarum Festivitatibus Patronalibus, sed clesiis Divina tunc peragenie. Idem etiam servetur a Resurrectione D.N.J.C. usqe ad Octavam Pentecostes inclusive, exceptis diebus Triduanarum Litaniarum. In requilis vero diebus adjunguntur Preces, ut in fra, quæ in officio feriali dicuntur genibus flexis.
+
+[preces] HI.7 HI.8 HII.7 HII.8 HII.9 AI.6 AI.7 AI.8 AII.6 AII.7 AII.8
+Pater Noster, (secreto).
+V. Et ne nos indúcas in tentationem:
+R. Sed líbera nos a malo.
+V. In pace, in idipsum.
+R. Obdormiam et requiescam.
+^Symbolum Apostolorum.
+Credo in Deum, (secr.) Patrem omnipotentem, creatorem cæli et terræ. Et in Jesum Christum Filium ejus unicum, Dominum nostrum: qui conceptus est de Spiritu Sancto, natus ex Maria Virgine: passus sub Pontio Pilato, crucifixus, mortuus et sepultus: descendit ad inferos; tertia die resurrexit a mortuis: ascendit ad cælos; sedet ad dextram Dei Patris omnipotentis: inde venturus est judicare vivos et mortuos. Credo in Spiritum Sanctum; sanctam Ecclesiam Catholicam: Sanctorum communionem: remissionem peccatorum (alta voce)
+V. Carnis resurrectionem:
+R. Vitam æternam. Amen.
+V. Ego dixi, Domine, miserere mei:
+R. Sana animam meam, quia peccavi tibi.
+V. Convertere, Domine, aliquántulum:
+R. Et deprecabilis esto super servos tuos.
+V. Ostende nobis, Domine, misericordiam tuam:
+R. Et salutare tuum da nobis.
+V. Dominus virtutum nobiscum.
+R. Susceptor noster Deus Jacob.
+V. Domine, exaudi orationem nostram:
+R. Et clamor noster ad te perveniat.
+V. Exsurge, Christe, ádjuva nos:
+R. Et líbera nos propter nomen tuum.
+
+[psalmus12] HI.7 HI.8 HII.8 HII.9 AI.7 AI.8 AII.7 AII.8
+^Psalmus 12
+Usquequo, Domine, obliviscéris me in finem? * quousque avertis faciem tuam a me?
+Quámdiu ponam consilium in anima mea, * dolorem in corde meo per diem?
+Usquequo exaltabitur inimicus meus superme? * réspice et exaudi me, Domine Deus meus.
+Illumina oculos meos ne unquam obdormiam in morte; * nequando dicat inimicus meus: Prævalui adversus eum.
+Qui tríbulant me exsultabunt, si motus fúero: * ego autem in tua misericordia sperabo.
+Exsultavit cor meum in Salutari tuo; cantabo Domino, qui bona tribuit mihi, * et psallam nomini Domini altissimi.
+
+[amen-HII] HII.9
+Amen.
+
+[aversio] HI.8 HII.9 AI.8 AII.8
+V. Domine, averte faciem tuam a peccatis nostris:
+R. Et omnes iniquitates nostras dele.
+
+[dominusvobiscum] HI.8 HII.9 AI.8 AII.8
+V. Dominus vobiscum.
+R. Et cum spiritu tuo.
+
+[oratio] HI.8 HII.9 AI.8 AII.8
+^Oratio
+Illumina, quæsumus, Domine, tenebras nostras, et totíus noctis insidias tu a nobis semper repelle propitius. Noctem istam illumina, quæsumus, Domine sancte, Pater omnipotens æterne Deus: et fac nos famulos tuos sine peccatis obdormire, et virtutibus Angelorum excitari; ut ad diem clarum, te auxiliante, salvi et protecti pervenire mereamur.
+_
+Visita, quæsumus, Domine, habitationem istam, et omnes insidias inimici ab ea longe repelle: et Angeli tui boni habitantes in ea, nos in pace custodiant: et benedictio tua sit super nos semper. Veritas tua, Domine, semper luceat in cordibus nostris, et omnis falsitas inimici destruatur. Per Dominum nostrum Jesum Christum Filium tuum: Qui tecum vivit et regnat in unitate Spiritus Sancti Deus, per omnia sæcula sæculorum.
+R. Amen.
+
+[benedictio] HI.8 HII.9 AI.8 AII.8
+V. Benedicat et exaudiat nos Deus:
+R. Amen
+V. Dormiamus in pace:
+R. Vigilemus in Christo.
+V. Benedicamus Domino
+R. Deo gratias.
+
+[finis] HI.9 HII.10 AI.9 AII.9
+Pater Noster. (secreto).
+V. Et ne nos indúcas in tentationem:
+R. Sed libera nos a malo.
+V. Noctem quietam et finem perfectum tribuat nobis divina Majestas.
+R. Amen.
+
+[rubrica-antiphona] HI.9 AII.9
+!Deinde dicitur una ex seq. ant. pro ratione temporis.
+
+[ant-averegina] HI.9 AII.9
+!Ant. a Nativitate B. M. V. usque ad Nativitatem Domini exclusive.
+Ave, Regina cælorum: Ave, Domina Angelorum.
+Salve, Radix sancta,
+Ex qua mundo Lux est orta.
+Gaude, gloriosa,
+Super omnes speciosa.
+Vale, valde decora,
+Et pro nobis semper Christum exora.
+V. Ora pro nobis, Sancta Dei Genetrix,
+R. Ut digni efficiamur promissoinibus Christi.
+^Oratio
+Porrige nobis, Deus, dexteram tuam; et, intercessione Beatæ Dei Genitricis Mariæ, auxilium nobis supernæ virtutis impende. Per eumdem Christum Dominum nostrum.
+R. Amen.
+
+[ant-alma] HI.9
+!Ant. a Nativitate Dòmini usque ad Quadragesimam exclusive.
+AIma Redemptoris Mater, Quæ pervia cæli porta manes,
+Et stella maris, succurre cadenti,
+Súrgere qui curat, populo.
+Tu, quæ genuisti, natura mirante,
+Tuum Sanctum Genitorem,
+Virgo prius ac posterius,
+Gabrielis ab ore
+Sumens illud Ave,
+Peccatorum miserere.
+V. Post partum Virgo inviolata permansisti,
+R. Dei Genitrix, intercede pro nobis.
+^Oratio
+Gratiam tuam, quæsumus, Domine, mentibus nostris infunde: ut qui, Angelo nunciante, Christi Filii tui Incarnationem cognovimus, per Passionem ejus et Crucem ad Resurrectionis gloriam perducamur. Per cumdem Christum Dominum nostrum.
+R. Amen.
+
+[ant-salve] HII.10
+!Ant. B.M.V., quæ omittitur Fer. VI in Parasceve.
+Salve, Regína, Mater misericórdiae, vita, dulcédo et spes nostra, salve. Ad te clamámus, éxsules filii Evae. Ad te suspirámus geméntes et flentes in hac lacrimárum valle. Eia ergo, advocáta nostra, illos tuos misericórdes óculos ad nos convérte. Et Iesum, benedíctum fructum ventris tui, nobis, post hoc exsílium, osténde. O clemens, o pia, o dulcis Virgo María.
+^Oratio
+Omnipotens sempiterne Deus, qui gloriosæ Virginis Matris Mariæ corpus et animam, ut dignum Filii tui habitaculum éffici mereretur, Spiritu Sancto cooperante, præparasti: da ut, cujus commemoratione lætamur, ejus pia intercessione ab instantibus periculis et a morte perpetua liberemur. Per eundem Christum Dominum nostrum.
+R. Amen.
+
+[ant-reginacaeli] AI.9
+!Deinde dicitur seq. ant. a Pascha Resurr. usque ad Pentecost. inclusive.
+Regina cæli, lætare. Hallelujah;
+Quia quem meruisti portare, Hallelujah.
+Resurrexit, sicut dixit, Hallelujah.
+Ora pro nobis Deum, Hallelujah.
+V. Gaude et lætare, Virgo Maria, Halleujah:
+R. Quia surrexit Dominus vere, Hallelujah.
+^Oratio
+Deus, qui per resurrectionem Filii tui Jesu Christi Domini nostri, universum mundum lætificare dignatus es, tribue quæsum: ut per intercessionem beatissimæ Virgínís Mariæ, perpetuæ capiamus guadia vitæ. Per eumdem Christum Dominum Nostrum.
+R. Amen.
+
+[ant-inviolata] AII.9
+!Ant. a Dominica I post Pentecostem usque ad Nativitate B.M.V. exclusive
+Inviolata, íntegra et casta es, Maria,
+Quae es effecta fulgida cæli porta.
+O Mater alma Christ carissima.
+Súscipe pia laudum præconia.
+Nostra ut pura pectora sint et corpora.
+Te nunc flágiant devota corda et ora.
+Tua per precata dulcissima
+Nobis concedas veniam per sæcula,
+O Benigna, o Regina, o Maria,
+Quæ sola inviolata permansisti.
+V. Ora pro nobis, Sancta Dei Genetrix,
+R. Ut digni efficiamur promissoinibus Christi.
+^Oratio
+Concede nobis famulis tuis, quæsumus, Domine Deus, perpetua mentis et corporis prosperitate gaudére: et gloriosa Beatæ Mariæ semper Virginis intercessione, a præsenti liberari tristita, et æterna pérfrui lætitia. Per Christum Dominum nostrum.
+R. Amen.
+
+[fidelium] HI.9 HII.10 AI.9 AII.9 AII.10
+V. Fidelium animæ per Dei misericordiam, requiescant in pace.
+R. Amen
+
+[confessio] HI.10 HII.10 HII.11 AI.9 AI.10 AII.10
+!Cantata Antiphona B.M.V. et Oratione, prout tempus inciderit, Hebdomadarius facit in Choro Confessionem subsissa voce:
+Confiteor Deo omnipotenti, beatæ Mariæ semper Virgini, beato Michæli Archangelo, beato Joanni Baptistæ, sanctis Apostolis Petro et Paulo, beato Ambrosio confessori, omnibus Sanctis, et vobis, fratres, quia peccavi nimis cogitatione, verbo et opere: mea culpa, mea culpa, mea maxima culpa, Ideo precor beatam Mariam semper Virginem, beatum Michælem Archangelum, beatum. Joannem Baptistam, sanctos Apostolos Petrum et Paulum, beatum Ambrosium confessorem, omnes Sanctos, et vos, fratres, orare pro me ad Dominum nostrum.
+!Chorus respondet: Deo Gratias, et prosequitur:
+Misereatur tui omnipotens Deus: et, dimissis omnibus peccatis tuis, perducat te ad vitam æternam.
+_
+Confiteor Deo omnipotenti, beate Mariam semper Virgini, beato Michæli Archangelo, beato Joanni Baptistæ, sanctis Apostolis Petro et Paulo, beato Ambrosio confessori, omnibus Sanctis, et tibi, pater, quia peccavi nimis cogitatione, verbo et opere: mea culpa, mea culpa, mea maxima culpa. Ideo precor beatam Mariam semper Virginem, beatum Michaelem Archangelum, beatum Joannem Baptistam, sanctos Apostolos Petrum et Paulum, beatum Ambrosium confessorem, omnes Sanctos, et te, pater, orare pro me ad Dominum Deum nostrum.
+!Hebdomadarius statim subdit:
+Misereatur vestri omnipotens Deus: et, dimissis omnibus peccatis vestris, perducat vos ad vitam æternam.
+R. Amen.
+Indulgetiam, absolutionem et remissionem omnium peccatorum nostrorum tribuat nobis omnipotens et misericors Dominus.
+R. Amen
+V. Adjutorium nostrum in nomine Domini:
+R. Qui fecit cælum et terram.
+V. Sit nomen Domini benedictum:
+R. Ex hoc nunc et usque in sæculum.

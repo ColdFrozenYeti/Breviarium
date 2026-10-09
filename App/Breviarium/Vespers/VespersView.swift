@@ -61,8 +61,8 @@ struct VespersView: View {
         }
     }
 
-    /// English on: the parallel rows, which differ by orientation (prose is stacked in
-    /// portrait and side by side in landscape).
+    /// English on: the parallel rows, which differ by orientation (a Matins lesson is
+    /// stacked in portrait and side by side in landscape).
     private func parallelOffice(landscape: Bool) -> ParallelOffice {
         let currentMetrics = self.metrics
         let showRubrics = settings.showRubrics
@@ -92,7 +92,8 @@ struct VespersView: View {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationHeader
-                if settings.showEnglish {
+                // Beta 6: Ambrosian Compline is Latin only, whatever the English setting.
+                if settings.showEnglish, settings.rite != .ambrosianus {
                     parallelReader
                 } else {
                     reader(office)
@@ -218,7 +219,7 @@ struct VespersView: View {
             SettingsView(settings: settings)
         }
         .sheet(isPresented: $showingHourPicker) {
-            HourPickerView(current: selection, officium: settings.officium) { hour in
+            HourPickerView(current: selection, officium: settings.officium, rite: settings.rite) { hour in
                 showingHourPicker = false
                 onSelectHour(hour)
             }
@@ -313,9 +314,10 @@ struct HourPickerView: View {
     /// The office chosen in Settings: the picker lists only its own hours (decided
     /// 2026-09-26).
     let officium: Officium
+    var rite: Rite = .romanus
     let onSelect: (OfficeHour) -> Void
 
-    private var rows: [OfficeHour] { OfficeHour.rows(for: officium) }
+    private var rows: [OfficeHour] { OfficeHour.rows(for: officium, rite: rite) }
 
     var body: some View {
         NavigationStack {

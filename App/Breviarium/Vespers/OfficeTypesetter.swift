@@ -116,15 +116,15 @@ struct OfficeTypesetter {
     /// `docs/psalters-and-english.md` §7): each side set by this same typesetter's
     /// `appendUnit`, so a column follows every typographic rule the Latin-only page does.
     /// - Full width: the page-1 header, rules, headings, psalm titles, anything without
-    ///   English, and, in portrait, prose (chapter, collect), stacked Latin then English.
-    /// - Side by side: antiphons, verses, versicles and responses, rubrics, hymn stanzas,
-    ///   and, in landscape, prose.
+    ///   English, and, in portrait, a Matins lesson, stacked Latin then English.
+    /// - Side by side: everything else, prose included (decided 9 October 2026: stacking
+    ///   a chapter, a collect or a bare *Amen.* spoiled the page), and in landscape the
+    ///   lessons too.
     /// - With the Pius XII psalter, a psalm's Latin verses and its `.englishPsalm` block
     ///   make one row, paired whole.
     func typesetParallel(landscape: Bool) -> ParallelOffice {
         var rows: [ParallelRow] = []
         var sections: [(kind: BreviariumKit.Section.Kind, offset: Int)] = []
-        var currentKind: BreviariumKit.Section.Kind?
         var pendingLatinVerses = NSMutableAttributedString()
 
         func flushLatinVerses() {
@@ -167,7 +167,7 @@ struct OfficeTypesetter {
             flushLatinVerses()
 
             // Beta 5: the grey note under a Roman English text (decision 6 of
-            // `docs/Beta_5_plan.md`), in the English column, or under stacked prose.
+            // `docs/Beta_5_plan.md`), in the English column, or under a stacked lesson.
             if case .unit(_, .englishNote(let note), _, _) = block {
                 let text = build { text in
                     appendParagraph(
@@ -189,7 +189,6 @@ struct OfficeTypesetter {
             case .pageHeader:
                 rows.append(.full(build { appendHeader(to: $0) }, keepWithNext: false))
             case .sectionStart(let kind):
-                currentKind = kind
                 sections.append((kind: kind, offset: rows.count))
                 rows.append(.full(build { text in
                     appendRule(to: text, width: metrics.separatorWidth, color: textColor, before: metrics.separatorSpacingAbove, after: metrics.separatorSpacing)
@@ -220,7 +219,7 @@ struct OfficeTypesetter {
                     continue
                 }
                 let englishText = build { appendUnit(english, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
-                if Self.isProse(unit), currentKind != .hymnus, !landscape {
+                if Self.stacksInPortrait(unit), !landscape {
                     rows.append(.full(latin, keepWithNext: false))
                     rows.append(.full(englishText, keepWithNext: false))
                 } else {
@@ -251,10 +250,11 @@ struct OfficeTypesetter {
         }
     }
 
-    /// Prose (a chapter, a collect, a lesson) is stacked, Latin then English, in portrait.
-    static func isProse(_ unit: BreviariumKit.Unit) -> Bool {
+    /// Only a Matins lesson is stacked, Latin then English, in portrait: two columns of a
+    /// long lesson would be too narrow to read (decided 9 October 2026).
+    static func stacksInPortrait(_ unit: BreviariumKit.Unit) -> Bool {
         switch unit {
-        case .prose, .lesson: true
+        case .lesson: true
         default: false
         }
     }
@@ -282,6 +282,9 @@ struct OfficeTypesetter {
         case .nocturnusIII: "NOCTURNUS III"
         case .teDeum: "TE DEUM"
         case .martyrologium: "MARTYROLOGIUM"
+        case .epistolella: "EPISTOLELLA"
+        case .responsoriumBreve: "RESPONSORIUM BREVE"
+        case .confessio: "CONFESSIO"
         }
     }
 
@@ -404,7 +407,13 @@ struct OfficeTypesetter {
                 to: output, style: paragraphStyle(after: after)
             )
         case .prose(let text, _):
-            appendParagraph(liturgical(text, font: regular, color: textColor), to: output, style: paragraphStyle(after: gap))
+            // A direction on a line of its own, wholly marked by the Kit (Beta 6: a hymn's
+            // *Sequens stropha… dicitur flexis genibus*), is set as a rubric, in italic,
+            // and left out with rubrics off.
+            let wholeRubric = text.first == InlineRubrics.start && text.last == InlineRubrics.end
+                && text.filter { $0 == InlineRubrics.start }.count == 1
+            if wholeRubric, !showRubrics { return }
+            appendParagraph(liturgical(text, font: wholeRubric ? italic : regular, color: textColor), to: output, style: paragraphStyle(after: gap))
         case .lesson(let paragraph):
             // A lesson reads as prose: its verses run on as one paragraph, with a little
             // room before the next paragraph or the *Tu autem*.
