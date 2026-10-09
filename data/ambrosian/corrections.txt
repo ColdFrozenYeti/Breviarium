@@ -1,0 +1,64 @@
+# Corrections and editorial expansions to completorium-1957.txt
+#
+# One per line:  piece | as printed | as shown | kind | where | note
+#   kind: misprint  (an obvious typesetting error; the reading is certain)
+#         doubtful  (looks wrong but the right reading isn't certain: left as printed,
+#                    listed for the user and Church of Ambrose to decide)
+#         expansion (an abbreviation written out; editorial)
+#         ruling    (the user's decision where the source is silent; editorial)
+#         witness   (another part misprints what this transcription takes, correctly,
+#                    from a part that prints it right; noted, nothing to apply)
+# Every line is checked by the data tool: the "as printed" text must occur exactly once
+# in the piece, or the build fails. Doubtful lines are listed but not applied.
+
+hymnus-luxalma | Te quæsum, dum corpora | Te quæsumus, dum corpora | misprint | HII.2 | the line needs eight syllables; quæsumus as in the hymn's other witnesses
+hymnus-luxalma | Utrisuqe custos | Utrisque custos | misprint | HII.2 |
+hymnus-luxalma | Et nun et in perpetuum | Et nunc et in perpetuum | misprint | HII.2 |
+hymnus-luxalma | Ne fraude mentes óbruat. | Ne fraude mentes óbruat, | doubtful | HII.2 | the stanza runs on into "Et labe cor coinquinet"; a comma is likely
+psalmus4 | dilígitis venitatem | dilígitis vanitatem | misprint | HI.2 HII.2 AI.2 AII.2 | vanitatem in every psalter
+psalmus4 | et quæriis mendacium | et quæritis mendacium | misprint | HI.2 HII.2 AI.2 AII.2 |
+psalmus4 | in spe costituisti me | in spe constituisti me | misprint | HI.3 HII.3 AI.3 AII.3 |
+psalmus30 | Educes me laqueo hoc | Educes me de laqueo hoc | doubtful | HI.3 HII.3 AI.3 AII.3 | the Vulgate has "de laqueo"; the Ambrosian psalter may not
+psalmus90 | Quoniam Angelis suis mandavit da te; * ut custodiant te in omnibus viis tuis | Quoniam Angelis suis mandavit de te; * ut custodiant te in omnibus viis tuis. | misprint | HI.4 HII.4 AI.4 AII.4 | "da te" for "de te", and the missing full stop
+psalmus90 | et dena millia a dextris tuis | et decem millia a dextris tuis | doubtful | HI.4 HII.4 AI.4 AII.4 | the Vulgate has "decem millia"; "dena" may be the Ambrosian reading
+psalmus90 | Quoniam ipse liberabit me | Quoniam ipse liberavit me | doubtful | HI.4 HII.4 AI.4 AII.4 | the Vulgate has "liberavit"; the future may be Ambrosian
+psalmus12 | inimicus meus superme? | inimicus meus super me? | misprint | HI.7 HII.8 AI.7 AII.7 |
+nuncdimittis | Gloria Patri... Sicut erat... | Glória Patri et Fílio et Spirítui Sancto. Sicut erat in princípio, et nunc et semper et in sǽcula sæculórum. | expansion | HI.6 HII.7 AI.6 AII.6 | written out as the psalms' Glória (gloriapatri)
+kyrie | Kyr. kyr. kyr. | Kyrie, eleison. Kyrie, eleison. Kyrie, eleison. | expansion | HI.6 HII.7 AI.6 AII.6 | the threefold Kyrie; no accents added (the source's rule)
+preces | Credo in Spiritum Sanctum | Credo in Spiritum Sanctum | witness | HII.8 AI.7 | HII and AI print "Spirtum"; HI's reading is the one transcribed
+preces | remissionem peccatorum (alta voce) | remissionem peccatorum (alta voce) | witness | HII.8 AI.7 | HII and AI print "eccatorum"; HI's reading is the one transcribed
+oratio | in unitate Spiritus Sancti Deus | in unitate Spiritus Sancti Deus | witness | HII.9 | HII prints "Snacti"; HI's reading is the one transcribed
+benedictio | V. Benedicat et exaudiat nos Deus: | V. Benedicat et exaudiat nos Deus: | witness | AI.8 AII.8 | AI and HII print "Beneficat"; HI's reading is the one transcribed
+ant-averegina | promissoinibus Christi | promissionibus Christi | misprint | HI.9 AII.9 |
+ant-alma | AIma Redemptoris Mater | Alma Redemptoris Mater | misprint | HI.9 | a capital I for the l
+ant-alma | Per cumdem Christum | Per eumdem Christum | misprint | HI.9 |
+ant-reginacaeli | Virgo Maria, Halleujah: | Virgo Maria, Hallelujah: | misprint | AI.9 |
+ant-reginacaeli | tribue quæsum: | tribue, quæsumus: | misprint | AI.9 |
+ant-reginacaeli | beatissimæ Virgínís Mariæ | beatissimæ Virgínis Mariæ | misprint | AI.9 | a second, stray accent
+ant-reginacaeli | perpetuæ capiamus guadia vitæ | perpetuæ capiamus gaudia vitæ | misprint | AI.9 |
+ant-reginacaeli | Christum Dominum Nostrum. | Christum Dominum nostrum. | misprint | AI.9 |
+ant-inviolata | usque ad Nativitate B.M.V. exclusive | usque ad Nativitatem B.M.V. exclusive. | misprint | AII.9 |
+ant-inviolata | O Mater alma Christ carissima. | O Mater alma Christi carissima. | misprint | AII.9 |
+ant-inviolata | promissoinibus Christi | promissionibus Christi | misprint | AII.9 |
+ant-inviolata | a præsenti liberari tristita | a præsenti liberari tristitia | misprint | AII.9 |
+confessio | subsissa voce | submissa voce | misprint | HI.10 AI.9 AII.10 | HII prints "submissa"
+confessio | mea maxima culpa, Ideo precor | mea maxima culpa. Ideo precor | misprint | HI.10 HII.10 AI.9 AII.10 | the second Confiteor has the full stop
+confessio | beatum Michælem Archangelum, beatum. Joannem | beatum Michælem Archangelum, beatum Joannem | misprint | HI.10 HII.10 AI.9 AII.10 |
+confessio | beate Mariam semper Virgini | beatæ Mariæ semper Virgini | misprint | HI.10 HII.11 AI.10 AII.10 | the first Confiteor's reading
+confessio | Indulgetiam, absolutionem | Indulgentiam, absolutionem | misprint | HI.10 HII.11 AI.10 AII.10 |
+rubrica-festiva-HI | ut infrazequæ in officio | ut infra, quæ in officio | misprint | HI.6 |
+rubrica-festiva-HI | in omnibus Metropolitana Pontificalibus | in omnibus Metropolitanæ Pontificalibus | misprint | HI.6 | as AII prints it
+rubrica-festiva-HI | et Dicecesis Ecclesiarum | et Diœcesis Ecclesiarum | misprint | HI.6 |
+rubrica-festiva-AI | Tempore paschali, dieto, ut supra | Tempore paschali, dicto, ut supra | misprint | AI.6 |
+rubrica-festiva-AI | Tridue Litaniarum | Triduo Litaniarum | misprint | AI.6 |
+rubrica-festiva-AII | aliarium Urbis et DiOEcis Ecclesiarum | aliarum Urbis et Diœcesis Ecclesiarum | misprint | AII.6 |
+rubrica-festiva-AII | sed clesiis Divina tunc peragenie | sed a Clero tantum in iis Ecclesiis Divina tunc peragente | misprint | AII.6 | a line dropped in typesetting; HI's reading
+rubrica-festiva-AII | usqe ad Octavam | usque ad Octavam | misprint | AII.6 |
+rubrica-festiva-AII | In requilis vero diebus | In reliquis vero diebus | misprint | AII.6 |
+rubrica-festiva-AII | ut in fra, quæ | ut infra, quæ | misprint | AII.6 |
+rubrica-festiva-AII | statim subjicitur. V/. | statim subjicitur V/. | misprint | AII.6 |
+
+# The user's rulings (9 October 2026), where the source is silent:
+dominusvobiscum | V. Dominus vobiscum. | V. Domine, exaudi orationem meam. | ruling | — | with the priest setting off, as in the Roman office (Beta 6 plan, question 7)
+dominusvobiscum | R. Et cum spiritu tuo. | R. Et clamor meus ad te veniat. | ruling | — | with the priest setting off
+confessio | (the whole choir exchange) | one Confiteor (the hebdomadary's, with St Ambrose), without "et vobis, fratres" and "et vos, fratres", then "Misereatur nostri" and "Indulgentiam" | ruling | — | with the priest setting off (question 11); built by the engine, not by text replacement

@@ -6,6 +6,13 @@
 public enum Rite: String, CaseIterable, Codable, Sendable {
     case romanus
     case dominicanus
+    /// Beta 6: the Ambrosian rite, Compline alone (`AmbrosianCompline`). It is not a
+    /// Divinum Officium version: nothing under this rite reads the DO corpus.
+    case ambrosianus
+
+    /// Whether the rite's offices come from Divinum Officium (Roman, Dominican) or from
+    /// a source of its own (Ambrosian).
+    public var usesDivinumOfficium: Bool { self != .ambrosianus }
 
     /// DO's version string (`Tabulae/data.txt`), which `ConditionalContext.rubrica` and
     /// every `$version` test match against.
@@ -13,6 +20,9 @@ public enum Rite: String, CaseIterable, Codable, Sendable {
         switch self {
         case .romanus: "Rubrics 1960 - 1960"
         case .dominicanus: "Ordo Praedicatorum - 1962"
+        // Never passed to DO's logic: no DO version has this name, so a context built
+        // with it would read as the Roman office (`ConditionalContext.rite`).
+        case .ambrosianus: "Ambrosianus - 1957"
         }
     }
 
@@ -22,6 +32,7 @@ public enum Rite: String, CaseIterable, Codable, Sendable {
         switch self {
         case .romanus: ""
         case .dominicanus: "OP"
+        case .ambrosianus: ""
         }
     }
 

@@ -156,6 +156,11 @@ of the Lord or of the I or II class; otherwise the day is *Dominica*. The Ambros
 precedence of Sundays is not in these sources; this affects only the title, never the
 hour, since every Sunday takes the festal form.
 
+**Unsourced:** the weekdays of **Easter week and Pentecost week** are named by the
+*Kalendarium*'s feast, if any, as on any other weekday: the sources don't give the
+precedence of these octaves. It changes only the title, as all of *æstiva prima* takes
+the festal form.
+
 The day title is Latin and follows the app's spelling (§4); the date line and footer are
 the app's own.
 
@@ -249,5 +254,7 @@ so the tests come from the sources:
 - **only from its source**: every unit's text, every day of 2026 with the priest on and
   off, is found in the transcription (after corrections), every piece used has its pages,
   and none of the Roman Compline's own texts appears (*Iube, domne*, *Fratres: Sobrii
-  estote*, *In manus tuas*, *Procul recedant*, *Tu autem, Domine, miserere nobis*; texts the
-  two share, *Converte nos* or Psalm 4, are not listed).
+  estote*, *In manus tuas, Domine*, *Tu autem, Domine, miserere nobis*, *Benedicat et
+  custodiat nos*, *Noctem quietam… concedat nobis Dominus omnipotens*; texts the two share,
+  *Converte nos*, *Te lucis*, Psalm 4 or Psalm 30's *In manus tuas commendo*, are not
+  listed).
