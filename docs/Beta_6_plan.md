@@ -1,7 +1,9 @@
 # Breviarium — Beta 6 Implementation Plan (draft)
 
-**Status: draft, 9 October 2026; the questions are answered (§7), waiting on two inputs:**
-the Ambrosian calendar photos and the owners' written permission. Beta 6 is **Ambrosian Compline**, alone, plus two display fixes the user has
+**Status: under way, 9 October 2026.** The questions are answered (§7) and the calendar
+has arrived (§2a). The user asked on 9 October to move every check of theirs to the end of
+B6-M5 (§8), so the milestones run without waiting; the owners' written permission is still
+to come and doesn't block the work. Beta 6 is **Ambrosian Compline**, alone, plus two display fixes the user has
 seen on the phone.
 
 ## Context
@@ -102,6 +104,28 @@ itself, from the Easter computus and the rules the table embodies (the six-week 
 Advent, the Ambrosian Lent from its first Sunday, the *Triduum Litaniarum*), and the
 table's years up to 2000 become test cases for that computation. The same calendar gives
 the title block its day name.
+
+## 2a. The calendar source (received 9 October 2026)
+
+Six scanned pages, *Rubricæ Generales* pp. 12–17 (Church of Ambrose), from the 1957
+breviary's front matter (printed pages XV–XVIII and the two tables after them):
+
+- **Kalendarium Ambrosianum**, January to December: each day's feast and its Ambrosian
+  rank (*Sol. Dom.* = *Solemnitas Domini*, *Sol. majus*, *Solemne*, *Sol.*, *Privil.*, I and II
+  class), commemorations and vigils, with the epact, dominical letter and Roman date
+  columns.
+- **Elucidatio Kalendarii**: how to use the epacts and letters.
+- **Tabula Paschalis Perpetua**: for each dominical letter and epact, Septuagesima, the 1st
+  Sunday of Lent, Easter, Ascension, Pentecost, Corpus Christi and the 1st Sunday of
+  Advent; with its rules: *Adventus Domini inchoatur Dominica prima post Festum sancti
+  Martini*; Lent begins on the *Dominica in capite Quadragesimæ*; the Ember days; the
+  *tempus clausum* for weddings.
+- **Tabella temporaria festorum mobilium**, 1955–2000: the same dates by year.
+
+The engine computes the movable feasts from Easter and these rules, and the *Tabella*'s
+46 years (1955–2000) are its test cases, with the perpetual table as a second check.
+Only what Compline needs is transcribed now (the ranks that choose the festal form,
+the day's name for the title block); the rest waits for a full Ambrosian office.
 
 ## 3. Rights
 
@@ -248,3 +272,23 @@ engine test that lists them. Plus any case the user has seen that the scan didn'
 
 - The calendar photographs (calendar, perpetual paschal table, movable-feast table).
 - The owners' written permission, when convenient (work doesn't wait on it).
+
+## 8. The user's checks, all at the end of B6-M5 (decided 9 October 2026)
+
+Work goes ahead on Claude's reading of the sources; every judgement is logged where the
+user can check it in one sitting at the end of B6-M5, before the owners' review:
+
+1. **The reading order** of the two-column pages (§1, the † places), in
+   `docs/rubrics-ambrosian-compline.md`, with page references.
+2. **The corrections table**: every misprint corrected, with page and reason; doubtful
+   readings flagged rather than guessed.
+3. **The expansions table**: *Kýrie, eléison*, *Glória Patri*, the user's rulings
+   (*Dómine, exáudi*; the single Confiteor), each marked as editorial.
+4. **The calendar transcription**: every entry used, with its photo and position, and
+   the festal-form decision it drives, as one table to read through.
+5. **The movable feasts**: the computed dates for 1955–2000 against the *Tabella*, and a
+   sample of years after 2000.
+6. **Screenshots** of every form on the phone or from CI: the four parts, festal and
+   ferial, priest on and off, the five Marian antiphons, Good Friday.
+
+If a check turns up a misreading, it's a data edit and a test, not a redesign.
