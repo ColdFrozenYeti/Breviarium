@@ -208,11 +208,20 @@ final class OfficeDataStore {
     /// The colour of each day of a month, for the *Jump to date* calendar (Beta 4),
     /// computed once per month.
     func calendarColors(year: Int, month: Int, rite: Rite = .romanus) -> [Int: CalendarColor] {
-        // Beta 6: the Ambrosian sources give no colours, and the Roman ones would be
-        // wrong, so the Ambrosian calendar shows none.
-        guard rite.usesDivinumOfficium else { return [:] }
         let key = "\(rite.rawValue)|\(year * 100 + month)"
         if let cached = colorCache[key] { return cached }
+        // Beta 6: the Ambrosian colours, by the Missal's rubrics (`AmbrosianCalendar.color`).
+        guard rite.usesDivinumOfficium else {
+            guard let calendar = ambrosianCompline?.calendar else { return [:] }
+            var colors: [Int: CalendarColor] = [:]
+            var (day, m, y) = (1, month, year)
+            while m == month, y == year {
+                colors[day] = calendar.color(day: day, month: m, year: y)
+                (day, m, y) = Computus.addDays(1, day: day, month: m, year: y)
+            }
+            colorCache[key] = colors
+            return colors
+        }
         guard let latinCorpus, let sanctoralCalendar = sanctoralCalendars[rite] else { return [:] }
         var colors: [Int: CalendarColor] = [:]
         var (day, m, y) = (1, month, year)

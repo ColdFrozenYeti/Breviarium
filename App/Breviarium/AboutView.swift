@@ -50,7 +50,7 @@ struct AboutView: View {
             // (`NOTICE.md`; asked for by the user, 9 October 2026).
             Section("Ambrosian source") {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Completorium Ambrosianum and the Ambrosian calendar are transcribed from Church of Ambrose's digitisation of the 1957 Breviarium Ambrosianum (Ad Completorium Quotidianum iuxta ritum Sanctæ Ecclesiæ Mediolanensis, Milan 2025), with spelling normalised and misprints corrected.")
+                    Text("Completorium Ambrosianum is transcribed from Church of Ambrose's digitisation of the 1957 Breviarium Ambrosianum (Ad Completorium Quotidianum iuxta ritum Sanctæ Ecclesiæ Mediolanensis, Milan 2025), and the Ambrosian calendar from their scans of the 1954 Missale Ambrosianum, with spelling normalised and misprints corrected.")
                     Text("Published under CC BY-NC-ND 4.0, and included in Breviarium with the permission of its owners. This transcription is not covered by Breviarium's licence: it may be shared only as part of Breviarium or under Church of Ambrose's own licence.")
                     Text("mrchurch.it")
                         .font(.footnote)
