@@ -92,7 +92,7 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha and Betas 1 to 5 released, Beta 5 being the Dominican rite; next, Beta 6 the Ambrosian rite; Beta 7 the Ambrosian Little Office; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha and Betas 1 to 5 released, Beta 5 being the Dominican rite; next, Beta 6, Ambrosian Compline; then 1.0](docs/images/roadmap.svg)
 
 Why it's in this order, and what each beta depends on, is in
 [`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was

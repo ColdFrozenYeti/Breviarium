@@ -60,7 +60,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - Beta 5 included the Dominican *Officium* choice (the office of the day, the Little Office, and the Office of the Dead if DO has it for the rite), fixtures for every day 2025–2040 plus 2044, the Pius XII psalter if DO offers it for the rite (otherwise *Psalterium* is fixed to the Vulgate under *Dominicanus*), and the Dominican Martyrology where it differs from the Roman (decided 2026-09-27; `docs/Beta_5_plan.md`). DO offers the Pius XII psalter for the rite, so *Psalterium* works under *Dominicanus* too; DO has no Dominican Martyrology, so *Dominicanus* shows the 1960 Roman one (decision 4).
 - **Ambrosian offices (pre-conciliar, 1957 recension):** revised 1 October 2026 after the user's source research (`docs/ambrosian-sources.md`, which governs this work).
   - No complete Ambrosian breviary is available digitally, so the **full Ambrosian office is blocked** until a complete primary source is obtained. Its architecture may be prepared, but no missing content is invented.
-  - Beta 6: **Ambrosian Compline** and the **Ambrosian Office of the Dead**, each a standalone, precisely named office; Beta 7: the **Ambrosian Little Office**. Each starts only after its source's edition, completeness and rights are confirmed.
+  - Beta 6 (decided 2026-10-08, plan `docs/Beta_6_plan.md`): **Ambrosian Compline** alone, from Church of Ambrose's *Ad Completorium Quotidianum* (the 1957 breviary, four seasonal parts) and the *Kalendarium Ambrosianum* with its paschal tables, used with the owners' permission (verbal, written to follow; credited in `NOTICE.md` and on the About screen). Latin only. The **Ambrosian Office of the Dead** and **Little Office** are deferred to after 1.0.
   - **No Roman fallback**: no Roman text, psalm, psalter or rubric fills an Ambrosian gap unless an Ambrosian source says so; never the modern Ambrosian Liturgy of the Hours.
   - Every Ambrosian text keeps its provenance (edition and page). Divinum Officium can't check them; tests come from the sources page by page, with negative tests that no Roman text slips in.
   - The repository is public: raw Ambrosian sources (scans, PDFs, LaTeX) are **not committed** until their redistribution is confirmed.
@@ -72,7 +72,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ## Settings (Universalis-style toggles)
 
-- **Ritus:** Romanus / Dominicanus / Ambrosianus. *Dominicanus* is selectable since Beta 5, with its own *Officium* choice like *Romanus*; *Ambrosianus* is listed as "Coming soon" and stays disabled until it is implemented. Under *Ambrosianus* the UI names only the offices that exist (e.g. *Completorium Ambrosianum*), never implying the full office (decided 2026-10-01).
+- **Ritus:** Romanus / Dominicanus / Ambrosianus. *Dominicanus* is selectable since Beta 5, with its own *Officium* choice like *Romanus*; *Ambrosianus* becomes selectable in Beta 6 with one office, *Completorium Ambrosianum* (decided 2026-10-09), never implying the full office (decided 2026-10-01). Under it the hour picker lists only *Ad Completorium*, and *Psalterium* and English are disabled.
 - **App icon:** *Default*, *Benedictus*, *Gutenberg (mono)* or *Gutenberg*, chosen from a gallery that shows all four at once (added 2026-10-01, four icons since 2026-10-06; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`). Each icon is an icon set in `Assets.xcassets` listed in `project.yml`, with a small `IconPreview…` image for the gallery.
   - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
@@ -160,7 +160,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 
 - **With English on:**
   - Verse material (psalms, canticles, antiphons, hymn stanzas, versicles and responses) is shown **side by side**, Latin left and English right, with each column using the same typographic rules.
-  - **Prose** (chapter, collect, lessons) is **stacked**, Latin then English, in portrait, and shown side by side in landscape.
+  - **Prose** (chapter, collect, the short *Amen.*, *Orémus.*) is side by side too (decided 2026-10-09: stacking spoiled the page). Only the **Matins lessons** are stacked, Latin then English, in portrait, and side by side in landscape.
 - **With English off,** Latin uses the full width.
 - **Alignment** is by structural unit:
   - psalms verse by verse with the Vulgate, whose lines match the English one to one; with the Pius XII psalter, each psalm is paired whole, as Divinum Officium does, since its verse division doesn't match the English (decided 2026-09-24, see `docs/psalters-and-english.md`);
