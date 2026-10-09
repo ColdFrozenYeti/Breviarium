@@ -4252,3 +4252,5 @@ The user's answers to `roadmap-2.0.md`'s questions: the App Store release is **1
 the release pass and the Ambrosian checks; the full Ambrosian office may come into the app,
 so it is a 2.0 step waiting on a complete source; the Monastic office goes to *maybe,
 later*. Votive offices stay first in 2.0.
+The full Ambrosian office would come with Church of Ambrose's help, if the user can
+convince them.
