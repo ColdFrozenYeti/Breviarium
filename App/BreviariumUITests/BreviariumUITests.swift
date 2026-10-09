@@ -344,7 +344,10 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         app.staticTexts["About"].tap()
         XCTAssertTrue(app.navigationBars["About"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Breviarium"].exists)
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MIT License'")).firstMatch.exists)
+        // Beta 6's Ambrosian section sits above the licence, so it may be below the fold.
+        let mit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MIT License'")).firstMatch
+        for _ in 0..<4 where !mit.exists { app.swipeUp() }
+        XCTAssertTrue(mit.exists)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "about-screen"
@@ -764,7 +767,8 @@ final class AmbrosianUITests: BreviariumUITestCase {
         app.buttons["ritusAmbrosianus"].tap()
         let office = app.buttons["officium-diei"]
         XCTAssertTrue(office.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Completorium Ambrosianum"].exists)
+        // The row's text is merged into its button's label.
+        XCTAssertTrue(office.label.contains("Completorium Ambrosianum"), office.label)
         XCTAssertFalse(app.buttons["officium-parvumBMV"].exists)
         capture(app, "b6-ambrosianus-setting")
         office.tap()
