@@ -10,6 +10,11 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "Beta 6", notes: [
+            "Ambrosian Compline (Completorium Ambrosianum, 1957): choose Ambrosianus in Settings, under Ritus. It follows the Ambrosian calendar and its four seasons, with its festal and ferial forms and the Marian antiphon of the season, in Latin.",
+            "With English on, everything but the Matins lessons is shown side by side, so a response no longer sits under its own translation twice.",
+            "More directions are red rubrics: (fit reverentia) and (bow head) in the psalms, the Te Deum's English directions, and the genuflection lines in hymns such as Ave maris stella and Pange lingua.",
+        ]),
         Release(name: "Beta 5", notes: [
             "The Dominican office (Ordo Prædicatorum, 1962): choose Dominicanus in Settings, under Ritus, with the office of the day, the Little Office or the Office of the Dead.",
             "Every hour follows the Order's calendar and books as Divinum Officium has them, checked against it for every day from 2025 to 2040; where its data is in error, the app shows the corrected text.",

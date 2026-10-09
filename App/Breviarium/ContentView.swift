@@ -75,7 +75,7 @@ struct ContentView: View {
         }
     }
 
-    private var shownHour: OfficeHour { selection.shown(in: settings.officium) }
+    private var shownHour: OfficeHour { selection.shown(in: settings.officium, rite: settings.rite) }
 
     private var vespersContent: VespersContent? {
         switch shownHour {
