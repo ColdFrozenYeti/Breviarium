@@ -114,6 +114,9 @@ public struct Section: Equatable, Sendable {
         case martyrologium
         // Beta 5: the Dominican Prime's reading, the Rule of St Augustine or the Gospel.
         case regulaVelEvangelium
+        // Beta 6, Ambrosian Compline: its short reading (the source's own name), short
+        // responsory, and the choir's closing Confiteor.
+        case epistolella, responsoriumBreve, confessio
     }
 
     public var kind: Kind

@@ -9,7 +9,9 @@ public enum InlineRubrics {
     public static let end: Character = "\u{E001}"
 
     /// Every inline direction in the Roman texts at the pinned commit, Latin and English.
-    nonisolated(unsafe) private static let direction = #/\((Fit reverentia(?:, secundum consuetudinem)?:?|genuflectitur|percutit sibi pectus|Sequens versus dicitur flexis genibus|genuflect|Bow head)\)/#
+    /// Matched without regard to case: the psalms write *(fit reverentia)* and *(bow head)*
+    /// in lower case (Psalms 67, 110 and 112), which stayed white until Beta 6.
+    nonisolated(unsafe) private static let direction = #/(?i)\((Fit reverentia(?:, secundum consuetudinem)?:?|genuflectitur|percutit sibi pectus|Sequens versus dicitur flexis genibus|genuflect|Bow head)\)/#
 
     public static func marking(_ text: String) -> String {
         guard !text.contains(start) else { return text }    // already marked where it was built
@@ -25,7 +27,8 @@ public enum InlineRubrics {
     public static func withoutRubrics(_ text: String) -> String {
         guard text.contains(start) else { return text }
         let stripped = text.replacing(#/\s*\u{E000}[^\u{E001}]*\u{E001}/#, with: "")
-        return stripped.trimmingCharacters(in: .whitespaces)
+        // A direction on its own first line (a hymn's *Prima stropha…*) leaves a newline.
+        return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func marking(_ hour: Hour) -> Hour {
