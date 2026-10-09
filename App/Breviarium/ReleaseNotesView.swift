@@ -10,6 +10,13 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.1", notes: [
+            "Ambrosian Compline as prayed: the Pater noster and Ave Maria written out in full, and the whole Pater noster where it is said secretly, as the Credo is.",
+            "The Gloria Patri after each psalm keeps the psalm's alternation of upright and italic verses, and Salva nos, Domine, vigilantes is one antiphon.",
+            "The rubrics the app carries out for you (the festal form, which Marian antiphon is said when) are no longer shown.",
+            "The signs of the cross the Roman Compline has on the texts the two share: Converte nos, Deus in adiutorium, Nunc dimittis, Indulgentiam and Adiutorium nostrum.",
+            "Each prayer is its own paragraph, spaced as in the Roman hours.",
+        ]),
         Release(name: "1.0", notes: [
             "Ambrosian Compline (Completorium Ambrosianum, 1957): choose Ambrosianus in Settings, under Ritus. It follows the Ambrosian calendar and its four seasons, with its festal and ferial forms and the Marian antiphon of the season, in Latin.",
             "With English on, everything but the Matins lessons is shown side by side, so a response no longer sits under its own translation twice.",
