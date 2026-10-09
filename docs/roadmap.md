@@ -1,9 +1,12 @@
 # Roadmap to 1.0
 
+**Complete.** 1.0 was released on 10 October 2026; the road to 2.0 is
+[`roadmap-2.0.md`](roadmap-2.0.md).
+
 Agreed on 25 September 2026, after Beta 2's release. Beta 3 was released on 26
-September, Beta 4 on 27 September and Beta 5, the Dominican rite
-([`Beta_5_plan.md`](Beta_5_plan.md)), on 3 October; Beta 6 is next, once its sources are
-confirmed. The picture in the README is
+September, Beta 4 on 27 September, Beta 5, the Dominican rite
+([`Beta_5_plan.md`](Beta_5_plan.md)), on 3 October, and Beta 6, Ambrosian Compline
+([`Beta_6_plan.md`](Beta_6_plan.md)), as 1.0 on 10 October. The picture in the README is
 [`images/roadmap.svg`](images/roadmap.svg), drawn by `scripts/roadmap-svg.py`. Each beta
 still gets its own plan document (`Beta_N_plan.md`) and approval before any work starts.
 
@@ -22,7 +25,7 @@ can be checked that way, and whatever it lacks cannot.
 | **Beta 5** | **The Dominican rite**: DO's *Ordo Prædicatorum - 1962*, with its own calendar, saints and commons. *Ritus: Dominicanus* becomes selectable. | Yes | Matins; the rite plug-in, built here for the first time on a rite that can be checked |
 | **Beta 6** | **Ambrosian Compline** (revised 8 October 2026), a standalone, precisely named office from Church of Ambrose's 1957 Compline and the *Kalendarium Ambrosianum*, with the provenance model ([`ambrosian-sources.md`](ambrosian-sources.md), plan [`Beta_6_plan.md`](Beta_6_plan.md)). Also: English side by side throughout but for the Matins lessons, and rubrics that weren't red. | **No** | The sources (received 8–9 October); the rite plug-in, proven in Beta 5 |
 | Blocked | **The full Ambrosian office** (the 1957 *Breviarium Ambrosianum*, four volumes, with its calendar). | No | A complete primary source, which isn't available digitally |
-| **1.0** | A release pass: check every hour and rite on the phone, verify landscape, add hyphenation at the largest text size, then freeze. Then the App Store release (planned since 6 October 2026; its prerequisites are in `CLAUDE.md`). | | Everything above; the paid Apple Developer Program |
+| **1.0** | Released 10 October 2026, with Beta 6's work, at the user's decision. The release pass planned here (every hour and rite on the phone, landscape, hyphenation at the largest text size) and the App Store release move to [`roadmap-2.0.md`](roadmap-2.0.md). | | Everything above |
 | After 1.0 | Possible: the Monastic office (DO's *Monastic - 1963*), votive offices where the 1960 rubrics allow them, and the Ambrosian Office of the Dead and Little Office (deferred 8 October 2026, once their sources can be prepared). | Partly | |
 
 - **Matins first:** it completes the Roman office, and both the Little Office and the

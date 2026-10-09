@@ -1,10 +1,10 @@
 # Breviarium — Beta 6 Implementation Plan (draft)
 
-**Status: B6-M0 to B6-M5 built, 10 October 2026; waiting on the user's checks (§8),
-listed in `ambrosian-compline-checks.md`.** The user asked on 9 October to move every
-check of theirs to the end of B6-M5, so the milestones ran without waiting; the owners'
-written permission is still to come and doesn't block the work. Beta 6 is **Ambrosian
-Compline**, alone, plus two display fixes the user has seen on the phone.
+**Status: released as 1.0 on 10 October 2026**
+([ColdFrozenYeti/Breviarium#12](https://github.com/ColdFrozenYeti/Breviarium/pull/12)).
+The user's checks (§8, `ambrosian-compline-checks.md`) and the owners' review and written
+permission are still to come; they are step 1.1 of `roadmap-2.0.md`. Beta 6 is
+**Ambrosian Compline**, alone, plus two display fixes the user has seen on the phone.
 
 ## Context
 
