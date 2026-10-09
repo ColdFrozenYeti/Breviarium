@@ -65,7 +65,7 @@ targets:
         PRODUCT_NAME: Breviarium
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The other Home Screen icons, chosen in Settings (AppIconPicker.swift).
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconBenedictus AppIconGutenbergMono AppIconGutenberg"
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconBenedictus AppIconGutenbergMono AppIconGutenberg AppIconChurchOfAmbrose AppIconWeissenau"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         GENERATE_INFOPLIST_FILE: NO
 

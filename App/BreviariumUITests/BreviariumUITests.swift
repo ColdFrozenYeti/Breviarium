@@ -356,7 +356,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
     }
 
     /// The app icon choice in Settings (added 1 October 2026; a gallery of four since
-    /// 6 October). The switch itself raises a system alert outside the app, so the test
+    /// 6 October, six since 10 October). The switch itself raises a system alert outside the app, so the test
     /// checks the row and the gallery of choices only.
     func testAppIconPicker() {
         let app = launchApp(date: "2026-09-16")
@@ -369,7 +369,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCTAssertTrue(picker.label.contains("Default"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg")] {
+        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
             let tile = app.buttons["appIcon-\(icon)"]
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)

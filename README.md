@@ -69,9 +69,9 @@ office of the day, the Little Office or the Office of the Dead.
   - Scrolling (horizontal pages or vertical scroll)
   - Page turn (slide or page curl)
   - *Ritus*: Romanus or Dominicanus, each with its *Officium* (of the day, the Little
-    Office or the Office of the Dead); Ambrosianus is listed as coming soon
-  - App icon: Default, Benedictus, Gutenberg (mono) or Gutenberg, chosen from a gallery
-    of all four
+    Office or the Office of the Dead), or Ambrosianus, with *Completorium Ambrosianum*
+  - App icon: Default, Benedictus, Gutenberg (mono), Gutenberg, ChurchofAmbrose or
+    Weissenau, chosen from a gallery of all six
   - Release notes, and About with the Divinum Officium licence
 
 The build log, with every decision and every bug traced to the Divinum Officium source
