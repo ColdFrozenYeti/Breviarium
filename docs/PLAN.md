@@ -4245,3 +4245,12 @@ hyphenation at the largest text size), the Ambrosian checks and the App Store re
 to the next roadmap, [`roadmap-2.0.md`](roadmap-2.0.md), a draft for the user's approval:
 1.1 for the release pass and the Ambrosian checks; then votive offices, the Monastic office,
 and the Ambrosian Office of the Dead and Little Office, to 2.0.
+
+### The road to 2.0 settled (10 October 2026)
+
+The user's answers to `roadmap-2.0.md`'s questions: the App Store release is **1.1**, with
+the release pass and the Ambrosian checks; the full Ambrosian office may come into the app,
+so it is a 2.0 step waiting on a complete source; the Monastic office goes to *maybe,
+later*. Votive offices stay first in 2.0.
+The full Ambrosian office would come with Church of Ambrose's help, if the user can
+convince them.
