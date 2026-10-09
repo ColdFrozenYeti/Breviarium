@@ -12,7 +12,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 - **iPhone only**, with a deployment target of **iOS 26.5** and no backwards compatibility.
   - Use SwiftUI and current Swift concurrency.
   - Avoid UIKit unless SwiftUI genuinely cannot do something, and say so first.
-- **Night mode only.** There is no light theme.
+- **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Classic dark* theme and stays the default; 1.2 adds others with their own text, rubric and background colours, light backgrounds (white, sepia) included (`docs/1.2_plan.md`).
 - **No features beyond the brief.** That means:
   - no notifications, prayer tracking, checkmarks, bookmarks, or sync;
   - no chant, audio, or play button;
@@ -40,7 +40,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - The actual signing happens on Windows, in the sideloading tool, with the free Apple ID. Free-tier signatures **expire after 7 days** and must be re-signed; `docs/install-on-iphone.md` covers that routine, including whether it needs a cable.
   - The **bundle identifier stays fixed forever** (`com.epavone.breviarium`) so every re-sign reuses the same App ID instead of burning through the free tier's ~10-new-App-IDs-per-week limit.
   - Design the CI pipeline so that adding TestFlight and App Store builds, once the Apple Developer Program is joined, means adding a signing step on top of the existing unsigned build — not restructuring it. The fixed bundle identifier becomes the App Store app's identifier.
-- **Before the App Store release** (planned since 2026-10-06, as release 1.1 since 2026-10-10; none of it is done yet):
+- **Before the App Store release** (planned since 2026-10-06, with no date or release number: it comes when the user says so, decided 2026-10-10; none of it is done yet):
   - Join the paid Apple Developer Program (about $99 a year); the App Store needs it, and it ends the 7-day re-signing.
   - ~~Add a licence~~ Done 2026-10-06: **GPL-3.0-or-later** (`LICENSE`, `NOTICE.md`), so every version stays free and open source, with an additional permission (section 7) for app-store distribution as long as the source is offered free under the GPL. Divinum Officium's MIT notice stays on the About screen; new files are GPL unless `NOTICE.md` lists them as third-party.
   - Check the rights of every bundled text: Divinum Officium's Latin and English (MIT), the Douay-Rheims (public domain), and the user's icon designs.
@@ -68,7 +68,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Hours:** all eight eventually, Matutinum to Completorium. The alpha and Beta 1 were **Roman Vespers only**; Beta 2 added the other day hours, Lauds to Compline (`docs/Beta_2_plan.md`), Beta 3 added Matins (`docs/Beta_3_plan.md`), Beta 4 the Little Office of Our Lady, the Office of the Dead and the Martyrology (`docs/Beta_4_plan.md`, released 2026-09-27), Beta 5 the Dominican rite, every hour with its Little Office and Office of the Dead (`docs/Beta_5_plan.md`, released 2026-10-03), and Beta 6 Ambrosian Compline (`docs/Beta_6_plan.md`), released as **1.0** on 2026-10-10. The road to 1.0 is in `docs/roadmap.md` (decided 2026-09-25); the road to 2.0 is in `docs/roadmap-2.0.md` (settled 2026-10-10).
 - **The hour picker** lists only the office's own hours (*Ad Matutinum* … *Ad Completorium*), modelled on `design/reference/Hours Picker.png` without its Mass, readings, Angelus and Rosary entries. At launch the app opens the hour for the time of day (decided 2026-09-24): Matins until 05:00, then Lauds, Terce, Sext, None, Vespers and Compline (the schedule is in `ContentView.hourForTimeOfDay`).
 - **Beta 4 (decided 2026-09-25, released 2026-09-27):** the Little Office of Our Lady, the Office of the Dead, and the Martyrology (a separate "hour" in the picker, decided 2026-09-24), and a small dot of the day's liturgical colour in the calendar (added 2026-09-26).
-- **After 1.0** (`docs/roadmap-2.0.md`, settled 2026-10-10): **1.1** is the release pass carried over from 1.0, the Ambrosian checks and **the App Store release**; then, to 2.0, votive offices where the rubrics permit, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office, with Church of Ambrose's help if they agree (the user will ask them). The Monastic office is a *maybe, later*.
+- **After 1.0** (`docs/roadmap-2.0.md`, settled 2026-10-10, revised the same day): **1.1** is the first bugfix release (Ambrosian Compline as prayed); **1.2** adds a choice of fonts and colour themes (`docs/1.2_plan.md`); the release pass carried over from 1.0 and the Ambrosian checks go on alongside; **the App Store release** comes when the user says so; then, to 2.0, votive offices where the rubrics permit, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office, with Church of Ambrose's help if they agree (the user will ask them). The Monastic office is a *maybe, later*.
 
 ## Settings (Universalis-style toggles)
 
@@ -101,7 +101,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 
 ### Colours
 
-Sampled from the screenshot:
+The *Classic dark* theme, sampled from the screenshot (the other themes, from 1.2, are in `docs/1.2_plan.md`):
 
 | Element | Colour |
 |---|---|

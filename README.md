@@ -104,7 +104,7 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha, Betas 1 to 6 and 1.0 released; next, 1.1, the release pass, the Ambrosian checks and the App Store; then 2.0](docs/images/roadmap.svg)
+![Roadmap: Alpha, Betas 1 to 6, 1.0 and 1.1 released; next, 1.2, fonts and colour themes; then 2.0](docs/images/roadmap.svg)
 
 The road to 1.0, and why it went in that order, is in [`docs/roadmap.md`](docs/roadmap.md).
 The road to 2.0 is in [`docs/roadmap-2.0.md`](docs/roadmap-2.0.md): 1.1, the release pass,

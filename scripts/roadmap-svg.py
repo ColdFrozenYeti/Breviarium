@@ -15,7 +15,8 @@ rows = [
     ("done", "Beta 5", "Released", "The Dominican rite (Ordo Prædicatorum, 1962)"),
     ("done", "Beta 6", "Released", "Ambrosian Compline · English side by side · red rubrics"),
     ("done", "1.0", "Released", "10 October 2026: the first roadmap complete"),
-    ("next", "1.1", "Next", "Phone checks · the Ambrosian checks · the App Store"),
+    ("done", "1.1", "Released", "11 October 2026: Ambrosian Compline as prayed"),
+    ("next", "1.2", "Next", "A choice of fonts and colour themes · the phone and Ambrosian checks"),
     ("goal", "2.0", "Goal", "Votive offices · Ambrosian Office of the Dead, Little Office, full office"),
     ("later", "Maybe", "Later", "The Monastic office"),
 ]
@@ -28,7 +29,7 @@ out = []
 a = out.append
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Breviarium roadmap</title>')
-a('<desc id="d">Alpha, Betas 1 to 6 and 1.0 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline. Next: 1.1, the release pass, the Ambrosian checks and the App Store release; then 2.0: votive offices, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office once a complete source is found. Maybe later: the Monastic office.</desc>')
+a('<desc id="d">Alpha, Betas 1 to 6, 1.0 and 1.1 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline. 1.1 fixed Ambrosian Compline as prayed. Next: 1.2, a choice of fonts and colour themes, with the phone and Ambrosian checks alongside; the App Store release when the user decides; then 2.0: votive offices, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office once a complete source is found. Maybe later: the Monastic office.</desc>')
 a(f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>')
 a(f'<text x="{X-24}" y="52" font-family="{serif}" font-size="30" font-weight="700" fill="{WHITE}" letter-spacing="1.5">ROADMAP</text>')
 a(f'<text x="{W-40}" y="52" text-anchor="end" font-family="{sans}" font-size="15" font-style="italic" fill="{RUBRIC}">Alpha to 2.0</text>')
