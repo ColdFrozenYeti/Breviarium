@@ -8,10 +8,16 @@ itself for any date. It is fully offline and night mode only.
 For now it is built and used privately and installed by sideloading with a free Apple ID;
 a public release on the App Store is planned.
 
-## Status: Beta 5
+## Status: 1.0
+
+1.0 (10 October 2026) completes the first roadmap. It adds **Ambrosian Compline**
+(*Completorium Ambrosianum*, from the 1957 breviary, by Church of Ambrose's transcription
+and with its owners' permission), following the Ambrosian calendar with its own Sundays,
+feasts and colours; English side by side throughout but for the Matins lessons; more
+directions in red; and six app icons.
 
 The whole Roman office is here: Matins, Lauds, Prime, Terce, Sext, None, Vespers and
-Compline, in Latin with an optional English translation, in either psalter. Beta 5 adds
+Compline, in Latin with an optional English translation, in either psalter. Beta 5 added
 **the Dominican office** (Divinum Officium's *Ordo Prædicatorum - 1962*): every hour with
 the Order's calendar, saints, commons and hymns, its Little Office and Office of the
 Dead, both psalters, and the Order's English where it exists (else the Roman English of
@@ -81,7 +87,9 @@ and what to carry forward, is in [`docs/alpha-retrospective.md`](docs/alpha-retr
 [`docs/beta-2-retrospective.md`](docs/beta-2-retrospective.md),
 [`docs/beta-3-retrospective.md`](docs/beta-3-retrospective.md),
 [`docs/beta-4-retrospective.md`](docs/beta-4-retrospective.md) and
-[`docs/beta-5-retrospective.md`](docs/beta-5-retrospective.md). Beta 5's plan is
+[`docs/beta-5-retrospective.md`](docs/beta-5-retrospective.md). Ambrosian Compline is
+described in [`docs/rubrics-ambrosian-compline.md`](docs/rubrics-ambrosian-compline.md)
+(its plan: [`docs/Beta_6_plan.md`](docs/Beta_6_plan.md)). Beta 5's plan is
 [`docs/Beta_5_plan.md`](docs/Beta_5_plan.md), and how the Dominican office is put
 together in Divinum Officium, with the errors in its data the app corrects, is in
 [`docs/rubrics-op1962.md`](docs/rubrics-op1962.md). How each day hour is put together is in
@@ -92,10 +100,12 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha and Betas 1 to 5 released, Beta 5 being the Dominican rite; next, Beta 6, Ambrosian Compline; then 1.0](docs/images/roadmap.svg)
+![Roadmap: Alpha, Betas 1 to 6 and 1.0 released; next, 1.1, the release pass and the Ambrosian checks; then 2.0](docs/images/roadmap.svg)
 
-Why it's in this order, and what each beta depends on, is in
-[`docs/roadmap.md`](docs/roadmap.md). The icon, an illuminated B, was
+The road to 1.0, and why it went in that order, is in [`docs/roadmap.md`](docs/roadmap.md).
+The proposed road to 2.0 (votive offices, the Monastic office, the Ambrosian Office of the
+Dead and Little Office) is in [`docs/roadmap-2.0.md`](docs/roadmap-2.0.md), a draft for
+approval. The icon, an illuminated B, was
 made to [`docs/icon-spec.md`](docs/icon-spec.md).
 
 ## Installing on the iPhone
@@ -106,8 +116,8 @@ and is renewed weekly.
 
 1. Get the `.ipa`:
    - **a release:** download it from the repository's
-     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (Beta 5 is
-     `Breviarium-Beta-5.ipa`);
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (1.0 is
+     `Breviarium-1.0.ipa`);
    - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
      workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
      CLI). Given a release tag and a notes file, the same workflow publishes the build as

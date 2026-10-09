@@ -4231,3 +4231,17 @@ Ambrosian calendar now:
 What the rubrics still leave open is in `ambrosian-compline-checks.md` §4: Easter week,
 I class feasts on privileged days, the literal Sunday transfers. Thirteen Ambrosian tests
 pass. Two more app icons, *ChurchofAmbrose* and *Weissenau*, make six.
+
+## 1.0 (10 October 2026)
+
+Beta 6 merged as [ColdFrozenYeti/Breviarium#12](https://github.com/ColdFrozenYeti/Breviarium/pull/12)
+once App CI was green, and the user asked to release it as **1.0**, completing the first
+roadmap. The app now carries a version (`CFBundleShortVersionString` 1.0, build 1), the
+release notes open on *1.0*, and the release is published as a full release, not a
+pre-release (`docs/releases/1.0.md`).
+
+The release pass that `roadmap.md` planned for 1.0 (every hour on the phone, landscape,
+hyphenation at the largest text size), the Ambrosian checks and the App Store release move
+to the next roadmap, [`roadmap-2.0.md`](roadmap-2.0.md), a draft for the user's approval:
+1.1 for the release pass and the Ambrosian checks; then votive offices, the Monastic office,
+and the Ambrosian Office of the Dead and Little Office, to 2.0.
