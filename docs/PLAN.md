@@ -4254,3 +4254,18 @@ so it is a 2.0 step waiting on a complete source; the Monastic office goes to *m
 later*. Votive offices stay first in 2.0.
 The full Ambrosian office would come with Church of Ambrose's help, if the user can
 convince them.
+
+## 1.1
+
+### The first bugfix: Ambrosian Compline as prayed (10 October 2026)
+
+The user prayed Ambrosian Compline of 9 October 2026 on the phone and reported:
+*Pater noster* and *Ave Maria* given by their first words; the *Glória Patri* and *Sicut
+erat* not keeping the psalms' alternation of italics; *Salva nos, Domine, vigilantes* not
+one bold italic antiphon; the long festal rubric shown; the *Pater noster (secreto)* not
+the whole prayer; the rubrics saying which antiphon is said when shown, though the app
+decides it; and formatting throughout. All fixed in the Kit (`AmbrosianCompline.units`,
+`corrections.txt`); the screenshots also showed a loose ` * ` in the *Capitulum* and the
+short responsory (now verses), the responsory's first line set as a response (now
+upright), *Epistolella* repeated above its reference, and three *Amen*s without their full
+stop. `rubrics-ambrosian-compline.md` §2 records each rule. The Ambrosian tests pass.

@@ -109,8 +109,10 @@ public enum AmbrosianSource {
             guard !line.isEmpty, !line.hasPrefix("#") else { return nil }
             let fields = line.components(separatedBy: " | ").map { $0.trimmingCharacters(in: .whitespaces) }
             guard fields.count >= 5, let kind = Correction.Kind(rawValue: fields[3]) else { return nil }
+            // "\n" in a field is a line break (an expansion that runs over several lines).
+            func lines(_ field: String) -> String { field.replacingOccurrences(of: "\\n", with: "\n") }
             return Correction(
-                piece: fields[0], printed: fields[1], shown: fields[2], kind: kind, pages: fields[4],
+                piece: fields[0], printed: lines(fields[1]), shown: lines(fields[2]), kind: kind, pages: fields[4],
                 note: fields.count > 5 ? fields[5...].joined(separator: " | ") : ""
             )
         }

@@ -43,20 +43,40 @@ list.
 | 5 | EPISTOLELLA | `epistolella` | 5 | 1 Cor 16:13–14, ℟. *Deo gratias* |
 | 6 | RESPONSORIUM BREVE | `responsorium` | 5 | reading order across the two columns: check 1 |
 | 7 | CANTICUM | `salvanos-incipit`, `nuncdimittis`, `salvanos` | 5–6 | *Iterum*: the first verse again; reading order: check 1 |
-| 8 | CAPITULUM | `capitulum`, *Hallelujah*, `kyrie`, `rubrica-festiva-<part>` | 6 | the part's own rubric on the festal form (§3.3) |
+| 8 | CAPITULUM | `capitulum`, *Hallelujah*, `kyrie` | 6 | the part's own rubric on the festal form (`rubrica-festiva-<part>`, §3.3) chooses the form and is not shown |
 | 9 | PRECES | `preces`, `psalmus12`, *Glória*, *Hallelujah*, `aversio` | 7–8 | ferial form only; Lent prints *Amen.* (`amen-HII`, HII.9) before *Laus tibi* |
 | 10 | ORATIO | `dominusvobiscum`, `oratio` | 8 | the three collects under one conclusion |
 | 11 | CONCLUSIO | `dominusvobiscum`, `kyrie`, `benedictio`, `finis` | 8–9 | |
-| 12 | ANTIPHONA FINALIS | `rubrica-antiphona` (HI and AII only), the antiphon, `fidelium` | 9 | none on Good Friday (§3.4) |
+| 12 | ANTIPHONA FINALIS | the antiphon, `fidelium` | 9 | none on Good Friday (§3.4); the rubrics saying which antiphon is said when (`rubrica-antiphona`, and each antiphon's own first line) are not shown |
 | 13 | CONFESSIO | `confessio`, or without a priest `confessio-sine-sacerdote` | 10 | §5 |
 
 *Glória Patri* is the piece `gloriapatri`; the source's abbreviated *Gloria Patri… Sicut
 erat…* after the *Nunc dimittis* is written out the same way (an expansion, §6).
 
+**How the hour is shown** (the user's rulings of 10 October 2026, after praying 9 October
+on the phone):
+- **No rubric that the app carries out**: the festal rubric and the rubrics on when each
+  Marian antiphon is said decide what is shown, and are not shown themselves. Rubrics
+  about how the hour is said (*(secreto)*, *Iterum*, the choir's *Confessio*) stay, in red.
+- ***Pater noster* and *Ave Maria*** are written out where the source names them by their
+  first words (the *Introductio*); the *Pater noster (secreto)* of the *preces* and the
+  conclusion is the whole prayer to *debitoribus nostris*, as the *Credo* is printed,
+  before ℣. *Et ne nos inducas*. No accents are added (§4). Logged as expansions (§6).
+- **The *Glória Patri*** is two psalm verses, *Glória Patri et Fílio\* / et Spirítui
+  Sancto.* and *Sicut erat in princípio, et nunc et semper\* / et in sǽcula sæculórum.*,
+  so it keeps the psalm's alternation of upright and italic verses. **Unsourced**: where
+  the asterisks fall (the source prints the doxology as one line); as the Roman office
+  divides it.
+- ***Salva nos, Domine, vigilantes*** with *Custodi nos dormientes*, *Ut vigilemus in
+  Christo* and *Et requiescamus in pace* is one antiphon, in the antiphon's bold italic.
+- **A line with a half-verse asterisk** is set as a verse wherever it stands (the
+  *Capitulum*, the short responsory), and the short responsory's first line (*R. br.*) is
+  upright, as the reader says it.
+
 The source's own red title at the head of a piece (*Hymnus.*, *Capitulum*, *Oratio*) is
-dropped where the section heading already says it; other red titles (*Psalmus 4.*,
-*Epistolella. I. Cor. 16*, *Symbolum Apostolorum.*) are shown as the psalm titles are in
-the Roman hours.
+dropped where the section heading already says it (of *Epistolella. I. Cor. 16* only the
+reference stays); other red titles (*Psalmus 4.*, *Symbolum Apostolorum.*) are shown as the
+psalm titles are in the Roman hours.
 
 ## 3. The calendar
 

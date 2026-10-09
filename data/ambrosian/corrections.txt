@@ -62,3 +62,13 @@ rubrica-festiva-AII | statim subjicitur. V/. | statim subjicitur V/. | misprint 
 dominusvobiscum | V. Dominus vobiscum. | V. Domine, exaudi orationem meam. | ruling | — | with the priest setting off, as in the Roman office (Beta 6 plan, question 7)
 dominusvobiscum | R. Et cum spiritu tuo. | R. Et clamor meus ad te veniat. | ruling | — | with the priest setting off
 confessio | (the whole choir exchange) | one Confiteor (the hebdomadary's, with St Ambrose), without "et vobis, fratres" and "et vos, fratres", then "Misereatur nostri" and "Indulgentiam" | ruling | — | with the priest setting off (question 11); built by the engine, not by text replacement
+
+# The user's rulings of 10 October 2026, after praying 9 October on the phone. Applied:
+# the prayers the source names by their first words are written out (no accents added,
+# the source's rule); "\n" in "as shown" starts a new line, "_" a new paragraph.
+praeparatio | Pater Noster. Ave Maria. | Pater noster, qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris: et ne nos inducas in tentationem: sed libera nos a malo. Amen.\n_\nAve Maria, gratia plena; Dominus tecum: benedicta tu in mulieribus, et benedictus fructus ventris tui, Jesus. Sancta Maria, Mater Dei, ora pro nobis peccatoribus, nunc et in hora mortis nostræ. Amen. | expansion | HI.2 HII.2 AI.2 AII.2 | the user's ruling: the prayers in full
+preces | Pater Noster, (secreto). | Pater noster, (secreto) qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris. | expansion | HI.7 HII.7 AI.6 AII.6 | the user's ruling: the whole prayer, said secretly to "Et ne nos inducas", as the Credo is printed
+finis | Pater Noster. (secreto). | Pater noster, (secreto) qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris. | expansion | HI.9 HII.10 AI.9 AII.9 | as in the preces
+benedictio | R. Amen\nV. Dormiamus | R. Amen.\nV. Dormiamus | misprint | HI.8 HII.9 AI.8 AII.8 | the other Amens have their full stop
+fidelium | R. Amen | R. Amen. | misprint | HI.9 HII.10 AI.9 AII.9 | as above
+confessio | R. Amen\nV. Adjutorium | R. Amen.\nV. Adjutorium | misprint | HI.10 HII.11 AI.10 AII.10 | as above
