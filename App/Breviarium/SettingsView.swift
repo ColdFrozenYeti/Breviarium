@@ -136,7 +136,7 @@ struct OfficiumView: View {
 
     static func label(for officium: Officium, rite: Rite = .romanus) -> String {
         if rite == .ambrosianus { return "Completorium Ambrosianum" }
-        switch officium {
+        return switch officium {
         case .diei: "Officium diei"
         case .parvumBMV: "Officium parvum B.M.V."
         case .defunctorum: "Officium defunctorum"

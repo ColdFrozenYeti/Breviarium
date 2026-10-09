@@ -30,7 +30,7 @@ enum OfficeHour: Hashable {
     func shown(in officium: Officium, rite: Rite = .romanus) -> OfficeHour {
         // Beta 6: the Ambrosian rite has Compline alone.
         if rite == .ambrosianus { return .hour(.completorium) }
-        switch self {
+        return switch self {
         case .hour(let hour): .hour(officium.availableHour(for: hour))
         case .martyrologium: officium == .diei ? self : .hour(officium.availableHour(for: .prima))
         }
