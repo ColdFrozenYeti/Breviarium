@@ -262,7 +262,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["Beta 5"].waitForExistence(timeout: 5) || app.staticTexts["BETA 5"].exists)
+        XCTAssertTrue(app.staticTexts["Beta 6"].waitForExistence(timeout: 5) || app.staticTexts["BETA 6"].exists)
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
