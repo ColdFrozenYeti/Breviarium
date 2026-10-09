@@ -4269,3 +4269,5 @@ decides it; and formatting throughout. All fixed in the Kit (`AmbrosianCompline.
 short responsory (now verses), the responsory's first line set as a response (now
 upright), *Epistolella* repeated above its reference, and three *Amen*s without their full
 stop. `rubrics-ambrosian-compline.md` §2 records each rule. The Ambrosian tests pass.
+The user then confirmed both editorial choices: no accents added to the written-out prayers,
+and the *Glória Patri*'s asterisks where the Roman office puts them.

@@ -61,12 +61,13 @@ on the phone):
 - ***Pater noster* and *Ave Maria*** are written out where the source names them by their
   first words (the *Introductio*); the *Pater noster (secreto)* of the *preces* and the
   conclusion is the whole prayer to *debitoribus nostris*, as the *Credo* is printed,
-  before ℣. *Et ne nos inducas*. No accents are added (§4). Logged as expansions (§6).
+  before ℣. *Et ne nos inducas*. No accents are added (§4; confirmed by the user,
+  10 October 2026). Logged as expansions (§6).
 - **The *Glória Patri*** is two psalm verses, *Glória Patri et Fílio\* / et Spirítui
   Sancto.* and *Sicut erat in princípio, et nunc et semper\* / et in sǽcula sæculórum.*,
-  so it keeps the psalm's alternation of upright and italic verses. **Unsourced**: where
-  the asterisks fall (the source prints the doxology as one line); as the Roman office
-  divides it.
+  so it keeps the psalm's alternation of upright and italic verses. The source prints the
+  doxology as one line; the asterisks, where the Roman office puts them, are the user's
+  ruling (10 October 2026).
 - ***Salva nos, Domine, vigilantes*** with *Custodi nos dormientes*, *Ut vigilemus in
   Christo* and *Et requiescamus in pace* is one antiphon, in the antiphon's bold italic.
 - **A line with a half-verse asterisk** is set as a verse wherever it stands (the
