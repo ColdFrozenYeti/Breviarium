@@ -100,12 +100,12 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha, Betas 1 to 6 and 1.0 released; next, 1.1, the release pass and the Ambrosian checks; then 2.0](docs/images/roadmap.svg)
+![Roadmap: Alpha, Betas 1 to 6 and 1.0 released; next, 1.1, the release pass, the Ambrosian checks and the App Store; then 2.0](docs/images/roadmap.svg)
 
 The road to 1.0, and why it went in that order, is in [`docs/roadmap.md`](docs/roadmap.md).
-The proposed road to 2.0 (votive offices, the Monastic office, the Ambrosian Office of the
-Dead and Little Office) is in [`docs/roadmap-2.0.md`](docs/roadmap-2.0.md), a draft for
-approval. The icon, an illuminated B, was
+The road to 2.0 is in [`docs/roadmap-2.0.md`](docs/roadmap-2.0.md): 1.1, the release pass,
+the Ambrosian checks and the App Store release; then votive offices, the Ambrosian Office of
+the Dead and Little Office, and the full Ambrosian office once a complete source is found. The icon, an illuminated B, was
 made to [`docs/icon-spec.md`](docs/icon-spec.md).
 
 ## Installing on the iPhone

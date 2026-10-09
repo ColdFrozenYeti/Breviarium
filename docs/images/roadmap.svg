@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="850" viewBox="0 0 880 850" role="img" aria-labelledby="t d">
 <title id="t">Breviarium roadmap</title>
-<desc id="d">Alpha, Betas 1 to 6 and 1.0 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline. Next: 1.1, the release pass and the Ambrosian checks; then, proposed for 2.0, votive offices, the Monastic office, and the Ambrosian Office of the Dead and Little Office. The full Ambrosian office is blocked on a source.</desc>
+<desc id="d">Alpha, Betas 1 to 6 and 1.0 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline. Next: 1.1, the release pass, the Ambrosian checks and the App Store release; then 2.0: votive offices, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office once a complete source is found. Maybe later: the Monastic office.</desc>
 <rect width="880" height="850" rx="18" fill="#000000"/>
 <text x="40" y="52" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#FFFFFF" letter-spacing="1.5">ROADMAP</text>
 <text x="840" y="52" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-style="italic" fill="#FF8080">Alpha to 2.0</text>
@@ -52,13 +52,13 @@
 <circle cx="64" cy="646" r="4.5" fill="#FF4D33"/>
 <text x="96" y="648" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">1.1</text>
 <text x="840" y="647" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FF4D33">NEXT</text>
-<text x="96" y="671" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Phone checks, landscape, hyphenation · the Ambrosian checks</text>
+<text x="96" y="671" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Phone checks · the Ambrosian checks · the App Store</text>
 <rect x="54" y="702" width="20" height="20" transform="rotate(45 64 712)" fill="#000000" stroke="#FFFFFF" stroke-width="2"/>
 <text x="96" y="714" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#FFFFFF">2.0</text>
-<text x="840" y="713" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FFFFFF">PROPOSED</text>
-<text x="96" y="737" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Votive offices · Monastic office · Ambrosian Office of the Dead and Little Office</text>
+<text x="840" y="713" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#FFFFFF">GOAL</text>
+<text x="96" y="737" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2">Votive offices · Ambrosian Office of the Dead, Little Office, full office</text>
 <circle cx="64" cy="778" r="7" fill="#000000" stroke="#5C5C5C" stroke-width="1.5" stroke-dasharray="2 3"/>
-<text x="96" y="780" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">Blocked</text>
-<text x="840" y="779" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">WAITING</text>
-<text x="96" y="803" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2" font-style="italic">The full Ambrosian office, on a complete source</text>
+<text x="96" y="780" font-family="'Hoefler Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#B2B2B2">Maybe</text>
+<text x="840" y="779" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.2" fill="#B2B2B2">LATER</text>
+<text x="96" y="803" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#B2B2B2" font-style="italic">The Monastic office</text>
 </svg>
