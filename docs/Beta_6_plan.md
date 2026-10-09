@@ -107,8 +107,12 @@ the title block its day name.
 
 ## 2a. The calendar source (received 9 October 2026)
 
-Six scanned pages, *Rubricæ Generales* pp. 12–17 (Church of Ambrose), from the 1957
-breviary's front matter (printed pages XV–XVIII and the two tables after them):
+Six scanned pages, *Rubricæ Generales* pp. 12–17 (Church of Ambrose), printed pages
+XV–XVIII and the two tables after them. The whole scan, 44 pages, arrived on 10 October
+and shows they are the front matter of the 1954 *Missale Ambrosianum*, not of the 1957
+breviary; it adds the *Series Missarum* (the Sundays' names) and the *Rubricæ generales
+Missalis* (occurrence, §§ 1–3; colours, §§ 38–43), which `rubrics-ambrosian-compline.md`
+§§3.5–3.7 now follow:
 
 - **Kalendarium Ambrosianum**, January to December: each day's feast and its Ambrosian
   rank (*Sol. Dom.* = *Solemnitas Domini*, *Sol. majus*, *Solemne*, *Sol.*, *Privil.*, I and II

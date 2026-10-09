@@ -13,9 +13,15 @@ for the user's check at the end of B6-M5 (`Beta_6_plan.md` §8) and for Church o
 | Source | What it gives | In the repository |
 |---|---|---|
 | *Ad Completorium Quotidianum iuxta ritum Sanctæ Ecclesiæ Mediolanensis*, *Divinum Officium MCMLVII* (Church of Ambrose, Milan 2025), four parts | the text of the hour, its rubrics, its seasons | `data/ambrosian/completorium-1957.txt` (transcription); the PDFs are not committed |
-| *Breviarium Ambrosianum* 1957, *Rubricæ Generales* pp. XV–XVIII and the two tables after them (Church of Ambrose's photographs, pp. 12–17) | the *Kalendarium*, the *Tabula paschalis perpetua*, the *Tabella temporaria festorum mobilium* 1955–2000 | `data/ambrosian/kalendarium.txt` (the *Menses* column); the photographs are not committed |
+| *Missale Ambrosianum*, Milan: Daverio, 1954 (*editio quinta post typicam*), front matter pp. I–XLVIII (Church of Ambrose's scans, received 9 and 10 October 2026) | the *Kalendarium* (pp. XV–XVIII), the *Tabula paschalis perpetua* and *Tabella temporaria* 1955–2000, the *Series Missarum* (pp. X–XI: the names of the Sundays and days of the season), the *Rubricæ generales Missalis* (§§ 1–3: occurrence; §§ 38–43: colours) | `data/ambrosian/kalendarium.txt` (the *Menses* column); the scans are not committed |
 
 Both are used with the owners' permission (`NOTICE.md`; the About screen says so).
+
+The calendar and its rules are the **Missal's** of 1954, not the 1957 breviary's: the
+first scans arrived as "Rubricae Generales" pages, and only the whole scan's title page
+showed which book they are. The Missal's first rule is that *Missa … debet cum Officio diei
+convenire*, so its occurrence rules are the Office's; but the breviary of three years later
+could differ in a feast or a rank, and only its own calendar would show that.
 
 Page references are `part.page`: `HI` *Pars hiemalis prima*, `HII` *hiemalis secunda*, `AI`
 *æstiva prima*, `AII` *æstiva secunda*; `HI.6` is page 6 of *hiemalis prima*. The calendar's
@@ -111,14 +117,20 @@ without the kneeling *preces*. The parts' own rubrics (`rubrica-festiva-*`):
 - *Hiemalis secunda* (HII.7): Sundays, St Joseph (19 March) and the Annunciation (25 March).
 - *Æstiva prima* (AI.6): every day, except the *Triduum Litaniarum*.
 
-**Unsourced:**
-- **Corpus Christi** is festal, as a Solemnity of the Lord, though a fixed calendar can't
-  list it.
-- **St Joseph and the Annunciation in Holy Week** take the ferial form: the rubric names
-  them, but they give way to the week. (Under the Ambrosian rite they may be transferred;
-  the sources here don't say.)
-- **The *Triduum Litaniarum*** (the Ambrosian Rogation days) is taken to be the Monday to
-  Wednesday after the Sunday after the Ascension (Easter + 43 to + 45).
+The form follows the office the day keeps (§3.5): a feast moved to a Monday brings its
+form with it, and one a privileged day impedes doesn't.
+
+- **Corpus Christi** is festal: the *Series Missarum* calls it *In Solemnitate SS.
+  Corporis Christi*, a Solemnity. Its **octave** (the rubric on red, § 40: *in Solemnitate
+  Corporis Domini, et per Octavam*) is festal too, as an octave.
+- **St Joseph and the Annunciation in Holy Week** are not kept: Holy Week is privileged
+  (*Feriæ Hebdomadæ in Authentica … numquam fit de Sancto*, § 3), so the day is ferial.
+- **The *Triduum Litaniarum*** is the Monday to Wednesday after the Sunday after the
+  Ascension: the *Series Missarum* has *Dominica post Ascensionem*, then *Die primo,
+  secundo, tertio in Litaniis*.
+- **Unsourced:** the **Sacred Heart** and the **Holy Family** take the ferial form: the
+  *Series Missarum* calls them *Festum*, not *Solemnitas*, and the rubric names only
+  Solemnities of the Lord.
 
 ### 3.4 The Marian antiphon
 
@@ -140,29 +152,87 @@ Saturday after Pentecost.
 The rubric *Deinde dicitur una ex seq. ant. pro ratione temporis* is printed by HI and AII
 only, which have two antiphons; it is shown there only.
 
-### 3.5 The title block
+### 3.5 The office of the day
 
-- A movable feast of §3.1 is named by the *Tabula*'s heading, written out: *Dominica in
-  Septuagesima*, *Dominica I Quadragesimæ*, *Pascha*, *Ascensio Domini*, *Pentecostes*,
-  *Corpus Christi*, *Dominica I Adventus* (the *Tabula* abbreviates them; expansion).
-- Otherwise the *Kalendarium*'s feast, with its rank above it and its commemoration below
-  (*Commem.*; a *Vigilia seq.* note is left out, as it concerns the next day).
-- In Lent the *Kalendarium* is empty on weekdays but for St Joseph and the Annunciation;
-  a Lenten weekday is named by its weekday.
-- Otherwise the weekday: *Dominica*, *Feria II* … *Feria VI*, *Sabbato*.
+`AmbrosianCalendar.office`, by the Missal's *Rubricæ generales*:
 
-**Unsourced:** on a **Sunday** the *Kalendarium*'s feast is named only if it is a Solemnity
-of the Lord or of the I or II class; otherwise the day is *Dominica*. The Ambrosian
-precedence of Sundays is not in these sources; this affects only the title, never the
-hour, since every Sunday takes the festal form.
+- **The season** (*Proprium de Tempore*): every Sunday and day of the season is named as
+  the *Series Missarum* names its Mass (pp. X–XI). The Sundays: *Dominica I–VI Adventus*;
+  *post Nativitatem Domini*; *I–V post Epiphaniam*, and *VI post Epiphaniam* always on the
+  Sunday before Septuagesima (*Missa quæ semper celebratur Dominica Septuagesimam proxime
+  præcedente*); *in Septuagesima*, *in Sexagesima*, *in Quinquagesima*, *in Quadragesima*;
+  *II–V Quadragesimæ: de Samaritana, de Abraham, de Cæco, de Lazaro*; *Palmarum*; *Pascha*;
+  *I post Pascha, in Albis depositis*; *II–V post Pascha*; *post Ascensionem*; *Pentecostes*;
+  *I post Pentecosten: SS. Trinitatis*; *II–XV post Pentecosten* until 29 August; *I–V
+  post Decollationem*; *I* and *II Octobris*; *III Octobris: in Dedicatione Ecclesiæ
+  Maioris*; *ultima Octobris: in Festo D. N. Iesu Christi Regis*; *I–III post
+  Dedicationem* (counted with Christ the King's Sunday among them: only that count reaches
+  the *Series*' third). The days: the weeks of Lent (*Feria II hebdomadæ I Quadragesimæ*),
+  *Sabbato in traditione Symboli*, *Feria II–IV in Authentica*, *Feria V in Cœna Domini*,
+  *Feria VI in Parasceve*, *Sabbato Sancto*, *Feria II … Sabbato in Albis*, the vigils, the
+  three days *in Litaniis*, *Solemnitas SS. Corporis Christi*, *Festum SS. Cordis Iesu*
+  (the Friday after its octave), *Festum S. Familiæ Iesu, Mariæ, Ioseph* (the Monday after
+  the 3rd Sunday after the Epiphany).
+- **Sundays** (§ 2): *De Dominica Officium et Missa numquam prætermittuntur*. Only a
+  *Solemnitas Domini, non tamen Octava*, takes a Sunday, *cum commemoratione Dominicæ, quæ
+  omittitur in Solemnitatibus Domini primæ classis*. And St Joseph on a Sunday of Lent is
+  kept: the rubric on violet (§ 42) has *in Dominicis Quadragesimæ (nisi Festum S. Ioseph …
+  occurrerit)*.
+- **A saint on a Sunday** moves to the Monday (§ 2: *in feriam secundam immediate
+  sequentem transferuntur officio paris ritus non impeditam*), unless the Monday has a
+  feast of the same rank or higher, which impedes it. The ranks, highest first: *Sol. Dom.*
+  I class, II class, plain; *Sol.* I class, II class, *maius*, plain; *Privil.*; then
+  feasts with no rank (§ 1: *de Solemnitate Domini; vel Dominica; de Festo Solemni, vel
+  Proprio … vel Simplici*).
+- **Privileged days** (§ 3) keep no saint: *Feria sexta et Sabbatum quartæ et quintæ
+  Hebdomadæ Adventus; Feria de Exceptato; Sabbato in Traditione Symboli; Feriæ Hebdomadæ in
+  Authentica, et Triduum Litaniarum*, and the vigils of Christmas, the Epiphany and
+  Pentecost. (The *Kalendarium* lists nothing on 15–23 December, so the days *de Exceptato*
+  need no rule of their own.) Nor do the movable solemnities.
+- **Lent**: the *Kalendarium* lists no saint in March but St Joseph and the Annunciation,
+  and moves the Chair of St Peter at Antioch to 4 February when 22 February is in Lent
+  (*Si Festum incidat in Quadragesimam, celebratur die 4 huius*); no other saint is kept on
+  a day of Lent.
+- **St Ambrose's Deposition** (4 April) is never kept on its date: *cuius commem. semper
+  fit Feria V in Albis*, a commemoration on the Thursday of Easter week.
 
-**Unsourced:** the weekdays of **Easter week and Pentecost week** are named by the
-*Kalendarium*'s feast, if any, as on any other weekday: the sources don't give the
-precedence of these octaves. It changes only the title, as all of *æstiva prima* takes
-the festal form.
+**Unsourced:**
+- **Easter week** keeps no saint: it has its own Masses (*pro Baptizatis*, *de Octava*), but
+  § 3 doesn't list it among the privileged days.
+- The weekdays of **Pentecost week** and of **Corpus Christi's octave** keep their saints
+  (§ 3 doesn't privilege them), and are named *… infra Octavam* when they have none.
+- A **lower feast** on the Monday a Sunday's saint moves to is commemorated; an impeded one
+  is not said at all; a saint on the day of the Holy Family or the Sacred Heart is
+  commemorated.
+- A **Sunday from 2 to 5 January** is named *Dominica post Nativitatem Domini*.
+- § 3 read literally lets a **privileged day impede an I class feast**: the Immaculate
+  Conception falls on the Friday of the 4th week of Advent when Advent begins on
+  12 November (2023, 2028), and is then not kept. The breviary's rubrics may give way to
+  such a feast; these don't say.
 
-The day title is Latin and follows the app's spelling (§4); the date line and footer are
-the app's own.
+### 3.6 The title block
+
+The office's name (§3.5), with the feast's rank above it and its commemorations below:
+the *Kalendarium*'s own (*Commem.*; a *Vigilia seq.* note is left out, as it concerns the
+next day), the Sunday's when a Solemnity takes it, and a lower feast's on the Monday.
+
+### 3.7 The colour
+
+*Jump to date* shows the colour of the office kept (§3.5), by the Missal's rubrics *De
+coloribus paramentorum* (§§ 38–43):
+
+| Colour | The season | Feasts |
+|---|---|---|
+| White | from the vigil of Christmas to the octave of the Epiphany; from Holy Saturday to the Sunday *in Albis depositis*, exclusive; the vigil and day of the Ascension; the Holy Trinity; the Dedication; the 6th Sunday of Advent (*Missus est*) | Solemnities of the Lord not red; Our Lady; the Angels; St John Baptist's Nativity; St Joseph; All Saints; St John the Evangelist; the Conversion of St Paul; both Chairs of St Peter; the Elevation of Ss Ambrose, Protasius and Gervasius; confessors, doctors, popes and bishops; virgins not martyrs; dedications |
+| Red | from the vigil of Pentecost to its octave; the Sundays and weekdays after Pentecost to the Dedication of the cathedral; Corpus Christi and its octave; from the Saturday *in traditione Symboli* to Holy Saturday | the Circumcision; the Sacred Heart; the Holy Cross; the Beheading of St John; apostles and evangelists; the Holy Innocents; martyrs |
+| Green | after the octave of the Epiphany to Septuagesima; after the Sunday *in Albis depositis* to the vigil of Pentecost; after the Dedication to Advent | abbots, St Anthony |
+| Violet | Advent; Septuagesima to Lent; the Sundays of Lent; vigils | matrons |
+| Black | the weekdays of Lent to the Saturday *in traditione Symboli*; the *Triduum Litaniarum* | the dead |
+
+The feast's kind is read from its title in the *Kalendarium* (*Mart.*, *Mm.*, *Apost.*,
+*Abb.*, *Matronæ*, *Virg.*, *Conf.*, *B. M. V.* …), with the named exceptions by date.
+Unsourced: St Anne and St Joachim, *Matris* and *Patris B. M. V.*, are white; a feast whose
+title says none of these takes the season's colour.
 
 ## 4. Spelling
 

@@ -1,7 +1,9 @@
 # Kalendarium Ambrosianum (1957)
 #
-# Transcribed from the 1957 Breviarium Ambrosianum's calendar, pp. XV-XVIII (Church of
-# Ambrose's photographs, "Rubricae Generales" pp. 12-15), used with the owners'
+# Transcribed from the calendar of the Missale Ambrosianum (Milan: Daverio, 1954, "editio
+# quinta post typicam"), pp. XV-XVIII (Church of Ambrose's scans, "Rubricae Generales"
+# pp. 12-15; the scan's title page, received 10 October 2026, shows it is the Missal's
+# front matter, not the 1957 breviary's), used with the owners'
 # permission (NOTICE.md). Only the "Menses" column: each day's feast, its rank and its
 # commemorations, as printed (abbreviations kept; J kept; the data tool applies J -> I).
 # Days the calendar leaves empty are not listed.

@@ -68,31 +68,52 @@ Editorial, each marked in `corrections.txt`:
 
 `docs/ambrosian-compline-checks-tables.md`, *Check 4*: every *Kalendarium* entry, with its
 page, as transcribed, and what the app does with it in 2026 (the part, festal or ferial,
-the title block). **Compare it with the photographs** (pp. XV–XVIII).
+the title block). **Compare it with the scans** (pp. XV–XVIII).
 
-Choices the sources don't make (`rubrics-ambrosian-compline.md` §3). **Confirm or correct
-each:**
+**The calendar is the Missal's.** The whole scan (10 October) shows that the calendar,
+the paschal tables and the general rubrics are the front matter of the 1954 *Missale
+Ambrosianum*, not of the 1957 breviary. The docs, `NOTICE.md` and About now say so. **Is
+there any difference you know of between the 1954 Missal's calendar and the 1957
+breviary's?**
+
+Settled by the Missal's *Series Missarum* and *Rubricæ generales*
+(`rubrics-ambrosian-compline.md` §3.5), and no longer questions:
+- the ***Triduum Litaniarum*** is the Monday to Wednesday after the Sunday after the
+  Ascension;
+- **Corpus Christi** is a *Solemnitas*, so festal, and so is its octave;
+- **St Joseph and the Annunciation in Holy Week** are not kept (Holy Week is privileged);
+- **Sundays**: every Sunday has its name, gives way only to a Solemnity of the Lord (with
+  the Sunday commemorated), and a saint falling on it moves to the Monday; St Joseph on a
+  Sunday of Lent is kept;
+- the **colours**, now shown in *Jump to date* (§3.7).
+
+Choices the sources still don't make. **Confirm or correct each:**
 
 1. The **Monday to Saturday after Pentecost** take *Regina cæli* (neither antiphon's
    rubric names them) and *æstiva prima*'s festal form.
-2. The ***Triduum Litaniarum*** is the Monday to Wednesday after the Sunday after the
-   Ascension (in 2026, 18–20 May), with the ferial form.
-3. **Corpus Christi** takes the festal form, as a Solemnity of the Lord.
-4. **St Joseph and the Annunciation in Holy Week** take the ferial form. (Are they
-   transferred in the Ambrosian rite? Not in these sources.)
-5. On a **Sunday**, the title block names the *Kalendarium*'s feast only if it is a
-   Solemnity of the Lord or of the I or II class; otherwise *Dominica*.
-6. The **octave of Christmas** (26–31 December) and **1 January** take the festal form;
+2. **Easter week** keeps no saint (Friday 10 April 2026 is *Feria VI in Albis*, not
+   St Anselm): § 3 doesn't list it among the privileged days. **Pentecost week** and
+   **Corpus Christi's octave** do keep their saints.
+3. The **Sacred Heart** and the **Holy Family** take the ferial form: the *Series* calls
+   them *Festum*, not *Solemnitas*.
+4. **A literal § 3 impedes I class feasts.** On a privileged day no saint is kept, so the
+   Immaculate Conception on the Friday of the 4th week of Advent (8 December 2023 and
+   2028) is not kept, and its Compline is ferial. **Is it kept, or moved?**
+5. **A literal § 2 moves every saint off a Sunday**, even when the Monday impedes it.
+   Examples: All Saints on Sunday 1 November 2026 moves to Monday 2 November, and All Souls
+   becomes its commemoration; St John on Sunday 27 December 2026 is impeded by the Holy
+   Innocents and not said; the Conversion of St Paul on Sunday 25 January 2026 is impeded
+   by the Holy Family. **Are these right?**
+6. A **lower feast** on that Monday is commemorated; an impeded saint is dropped.
+7. A **Sunday from 2 to 5 January** is named *Dominica post Nativitatem Domini*.
+8. The **octave of Christmas** (26–31 December) and **1 January** take the festal form;
    the Epiphany's days are *Sol. Dom.* in the calendar already.
-7. **Our Lady's feasts** for the festal form are 2 February, 25 March, 2 July, 16 July,
+9. **Our Lady's feasts** for the festal form are 2 February, 25 March, 2 July, 16 July,
    5 August, 15 August, 8 September, 12 September, 15 September, 21 November and
-   8 December: not St Anne, St Joachim or St Joseph.
-8. **The weekdays of Easter week and Pentecost week** show the *Kalendarium*'s saint in
-   the title block (Friday 10 April 2026: *Privil. / S. Anselmi Episc. et Conf.*), since
-   the sources don't say how the octaves take precedence. The hour itself is the same
-   (all of *æstiva prima* is festal). **What should these days be called?**
+   8 December: not St Anne, St Joachim or St Joseph. St Anne and St Joachim are white.
 
-The same file has every day of 2026 (part, form, antiphon, title), to read through.
+The same file has every day of 2026 (part, form, colour, antiphon, title), to read
+through.
 
 ## 5. The movable feasts
 

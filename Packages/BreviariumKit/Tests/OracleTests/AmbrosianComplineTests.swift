@@ -57,7 +57,7 @@ private func allText(_ hour: Hour) -> String {
 
 // MARK: The calendar
 
-/// The *Tabella temporaria festorum mobilium*, 1955-2000 (Rubricæ Generales, p. 17):
+/// The *Tabella temporaria festorum mobilium*, 1955-2000 (*Missale Ambrosianum*, 1954, after p. XVIII):
 /// year, Septuagesima, 1st Sunday of Lent, Easter, Ascension, Pentecost, Corpus Christi,
 /// 1st Sunday of Advent (November), as "D.M".
 private let tabella: [(Int, String, String, String, String, String, String, Int)] = [
@@ -146,14 +146,16 @@ private let tabellaMisprints: Set<String> = ["1995 advent"]
         (28, 12),  // in the octave of Christmas
         (19, 3),   // St Joseph, in Lent
         (7, 4),    // Easter Tuesday
-        (4, 6),    // Corpus Christi (unsourced)
+        (4, 6),    // Corpus Christi, *In Solemnitate* (Series Missarum)
+        (9, 6),    // in Corpus Christi's octave
     ]
     let ferial: [(Int, Int)] = [
         (2, 6),    // a Tuesday, Ss Marcellinus and Peter, no rank
         (21, 7),   // a Solemne saint on a Tuesday: not one of the rubric's days
         (24, 2),   // a weekday of Lent
         (31, 3),   // Tuesday in Holy Week
-        (18, 5), (19, 5), (20, 5),  // the Triduum Litaniarum (unsourced dates)
+        (18, 5), (19, 5), (20, 5),  // the Triduum Litaniarum
+        (12, 6),   // the Sacred Heart, a *Festum*, not a *Solemnitas* (unsourced)
     ]
     for (day, month) in festal { #expect(calendar.isFestal(day: day, month: month, year: 2026), "\(day).\(month)") }
     for (day, month) in ferial { #expect(!calendar.isFestal(day: day, month: month, year: 2026), "\(day).\(month)") }
@@ -161,12 +163,89 @@ private let tabellaMisprints: Set<String> = ["1995 advent"]
 
 @Test func ambrosianTitleBlock() throws {
     let calendar = AmbrosianCalendar(entries: try ambrosianData().calendar)
-    #expect(calendar.titleBlock(day: 7, month: 12, year: 2026).nameLine == "ORDINATIO S. AMBROSII EPISC. CONF. ET DOCT.")
+    func name(_ d: Int, _ m: Int, _ y: Int = 2026) -> String { calendar.titleBlock(day: d, month: m, year: y).nameLine }
+    #expect(name(7, 12) == "ORDINATIO S. AMBROSII EPISC. CONF. ET DOCT.")
     #expect(calendar.titleBlock(day: 7, month: 12, year: 2026).classisLine == "Sol. I cl.")
-    #expect(calendar.titleBlock(day: 5, month: 4, year: 2026).nameLine == "Pascha")
-    #expect(calendar.titleBlock(day: 24, month: 2, year: 2026).nameLine == "Feria III")   // Lent: no saints
-    #expect(calendar.titleBlock(day: 15, month: 1, year: 2026).nameLine == "S. Ioannis Boni Episc. Mediol. et Conf.")
+    #expect(name(5, 4) == "Pascha")
+    #expect(name(24, 2) == "Feria III hebdomadæ I Quadragesimæ")   // Lent: no saints
+    #expect(name(15, 1) == "S. Ioannis Boni Episc. Mediol. et Conf.")
     #expect(calendar.titleBlock(day: 15, month: 1, year: 2026).commemorationLine == "Commem. S. Pauli primi Eremitæ Conf.")
+}
+
+/// The Sundays and the days of the season, as the Missal's *Series Missarum* names them.
+@Test func ambrosianTemporalNames() throws {
+    let calendar = AmbrosianCalendar(entries: try ambrosianData().calendar)
+    func name(_ d: Int, _ m: Int, _ y: Int = 2026) -> String { calendar.titleBlock(day: d, month: m, year: y).nameLine }
+    #expect(name(25, 1) == "Dominica VI post Epiphaniam")       // always the Sunday before Septuagesima
+    #expect(name(26, 1) == "Festum S. Familiæ Iesu, Mariæ, Ioseph")  // Monday after the 3rd Sunday after Epiphany
+    #expect(name(1, 3) == "Dominica II Quadragesimæ: de Samaritana")
+    #expect(name(22, 3) == "Dominica V Quadragesimæ: de Lazaro")
+    #expect(name(28, 3) == "Sabbato in traditione Symboli")
+    #expect(name(29, 3) == "Dominica Palmarum")
+    #expect(name(2, 4) == "Feria V in Cœna Domini")
+    #expect(name(10, 4) == "Feria VI in Albis")
+    #expect(name(12, 4) == "Dominica I post Pascha, in Albis depositis")
+    #expect(name(17, 5) == "Dominica post Ascensionem")
+    #expect(name(18, 5) == "Dies primus in Litaniis")
+    #expect(name(31, 5) == "Dominica I post Pentecosten: SS. Trinitatis")
+    #expect(name(4, 6) == "Solemnitas SS. Corporis Christi")
+    #expect(name(12, 6) == "Festum SS. Cordis Iesu")
+    #expect(name(23, 8) == "Dominica XIII post Pentecosten")
+    #expect(name(30, 8) == "Dominica I post Decollationem")
+    #expect(name(18, 10) == "Dominica III Octobris: in Dedicatione Ecclesiæ Maioris")
+    #expect(name(25, 10) == "Dominica ultima Octobris: in Festo D. N. Iesu Christi Regis")
+    #expect(name(8, 11) == "Dominica III post Dedicationem")
+    #expect(name(15, 11) == "Dominica I Adventus")
+    #expect(name(20, 12) == "Dominica VI Adventus")
+    // The Deposition of St Ambrose, *cuius commem. semper fit Feria V in Albis*.
+    #expect(calendar.titleBlock(day: 9, month: 4, year: 2026).commemorationLine == "Commem. Depositio S. Ambrosii Episc. et Doct.")
+}
+
+/// § 2: a Sunday gives way only to a Solemnity of the Lord; a saint moves to the Monday.
+/// § 3: on a privileged day no saint is kept.
+@Test func ambrosianOccurrence() throws {
+    let calendar = AmbrosianCalendar(entries: try ambrosianData().calendar)
+    func name(_ d: Int, _ m: Int, _ y: Int) -> String { calendar.titleBlock(day: d, month: m, year: y).nameLine }
+    // 2026: the Finding of the Cross (Sol. Dom. II cl.) takes the Sunday, with its commemoration.
+    #expect(name(3, 5, 2026) == "Inventio S. Crucis")
+    #expect(calendar.titleBlock(day: 3, month: 5, year: 2026).commemorationLine == "Commem. Dominica IV post Pascha")
+    // 2024: the Immaculate Conception on the 4th Sunday of Advent moves to the Monday, which
+    // takes Our Lady's festal form; St Syrus, lower, is commemorated.
+    #expect(name(8, 12, 2024) == "Dominica IV Adventus")
+    #expect(name(9, 12, 2024) == "IMMACULATA CONCEPTIO B. M. V.")
+    #expect(calendar.titleBlock(day: 9, month: 12, year: 2024).commemorationLine == "Commem. S. Syri Episc. et Conf.")
+    #expect(calendar.isFestal(day: 9, month: 12, year: 2024))
+    // 2023: St Joseph on a Sunday of Lent is kept (§ 42), with the Sunday commemorated.
+    #expect(name(19, 3, 2023) == "S. IOSEPH SPONSI B. M. V. ET ECCL. CATHOL. PATRONI")
+    // 2027: the Annunciation on Maundy Thursday gives way (Holy Week is privileged).
+    #expect(name(25, 3, 2027) == "Feria V in Cœna Domini")
+    #expect(!calendar.isFestal(day: 25, month: 3, year: 2027))
+    // 2026: the Chair of St Peter at Antioch falls in Lent, so it is kept on 4 February.
+    #expect(name(22, 2, 2026) == "Dominica in Quadragesima")
+    #expect(name(4, 2, 2026) == "Cathedra S. Petri Antiochiæ")
+}
+
+/// The colours (§§ 38–43).
+@Test func ambrosianColors() throws {
+    let calendar = AmbrosianCalendar(entries: try ambrosianData().calendar)
+    let cases: [(Int, Int, CalendarColor)] = [
+        (24, 2, .black),   // a weekday of Lent
+        (1, 3, .violet),   // a Sunday of Lent
+        (28, 3, .red),     // from the Saturday *in traditione Symboli*
+        (7, 4, .white),    // Easter week
+        (12, 4, .green),   // *Dominica in Albis depositis*
+        (18, 5, .black),   // the Litanies
+        (26, 5, .white),   // St Philip Neri, a confessor, in Pentecost week
+        (7, 6, .red),      // a Sunday after Pentecost
+        (25, 10, .white),  // Christ the King
+        (1, 11, .green),   // after the Dedication
+        (15, 11, .violet), // Advent
+        (20, 12, .white),  // the 6th Sunday of Advent, *Missus est*
+        (7, 2, .red),      // St Matthias, an apostle
+        (17, 1, .green),   // St Anthony, an abbot
+        (7, 10, .violet),  // St Bridget, a matron
+    ]
+    for (day, month, color) in cases { #expect(calendar.color(day: day, month: month, year: 2026) == color, "\(day).\(month)") }
 }
 
 // MARK: The hour
@@ -312,7 +391,7 @@ func ambrosianChecksReport() throws {
     }
 
     out += "\n## Every day of 2026\n\n"
-    out += "| Date | Day | Part | Form | Marian antiphon | Title block |\n|---|---|---|---|---|---|\n"
+    out += "| Date | Day | Part | Form | Colour | Marian antiphon | Title block |\n|---|---|---|---|---|---|---|\n"
     let antiphonNames: [AmbrosianCalendar.MarianAntiphon: String] = [
         .aveRegina: "Ave, Regina cælorum", .alma: "Alma Redemptoris", .salve: "Salve, Regina", .reginaCaeli: "Regina cæli", .inviolata: "Inviolata",
     ]
@@ -322,7 +401,7 @@ func ambrosianChecksReport() throws {
         let part = AmbrosianCalendar.part(day: day, month: month, year: year)
         let antiphon = AmbrosianCalendar.marianAntiphon(day: day, month: month, year: year).map { antiphonNames[$0]! } ?? "(none)"
         let festal = calendar.isFestal(day: day, month: month, year: year)
-        out += "| \(day) \(months[month]) | \(weekday) | \(partNames[part]!) | \(festal ? "**festal**" : "ferial") | \(antiphon) | \(cell(title(calendar.titleBlock(day: day, month: month, year: year)))) |\n"
+        out += "| \(day) \(months[month]) | \(weekday) | \(partNames[part]!) | \(festal ? "**festal**" : "ferial") | \(calendar.color(day: day, month: month, year: year).rawValue) | \(antiphon) | \(cell(title(calendar.titleBlock(day: day, month: month, year: year)))) |\n"
         (day, month, year) = Computus.addDays(1, day: day, month: month, year: year)
     }
     try out.write(toFile: ProcessInfo.processInfo.environment["BREVIARIUM_AMBROSIAN_REPORT"]!, atomically: true, encoding: .utf8)

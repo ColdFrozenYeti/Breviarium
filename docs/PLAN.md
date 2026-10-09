@@ -4214,3 +4214,20 @@ Latin only; the title block from the Ambrosian calendar; no colours in *Jump to 
 the About credit; the release notes. `AmbrosianUITests` captures every page of seven
 forms. The user's checks: `ambrosian-compline-checks.md`, with tables generated from the
 engine (`ambrosian-compline-checks-tables.md`).
+
+### B6-M5 — The rest of the calendar (10 October 2026)
+
+The user sent the whole 44-page scan. Its title page shows the calendar and tables are the
+1954 *Missale Ambrosianum*'s front matter, not the 1957 breviary's; the provenance is
+corrected everywhere. From the Missal's *Series Missarum* and *Rubricæ generales*, the
+Ambrosian calendar now:
+- names every Sunday and day of the season;
+- follows § 2 (a Sunday gives way only to a Solemnity of the Lord; a saint on a Sunday
+  moves to the Monday unless impeded) and § 3 (privileged days keep no saint);
+- confirms the *Triduum Litaniarum* dates and Corpus Christi's festal form (and adds its
+  octave);
+- computes the colours (§§ 38–43), now shown in *Jump to date*.
+
+What the rubrics still leave open is in `ambrosian-compline-checks.md` §4: Easter week,
+I class feasts on privileged days, the literal Sunday transfers. Thirteen Ambrosian tests
+pass. Two more app icons, *ChurchofAmbrose* and *Weissenau*, make six.
