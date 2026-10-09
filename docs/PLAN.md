@@ -4172,3 +4172,45 @@ be combined into a GPL work; its notice stays on the About screen. Since the GPL
 App Store's terms are widely held to conflict (VLC was pulled in 2011 over it),
 `NOTICE.md` adds a section 7 permission for app-store distribution, conditional on the
 source being offered free under the GPL. The About screen states the licence.
+
+## Beta 6 (plan: [`Beta_6_plan.md`](Beta_6_plan.md))
+
+Built overnight on 9–10 October 2026, with the user's checks moved to the end of B6-M5.
+
+### B6-M1 — The display fixes
+
+- **Side by side** for every unit but the Matins lessons: the typesetter used to stack
+  all prose in portrait, which put a response such as *Amen* under its own translation.
+- **Directions in white.** Four kinds the user saw, and two more a year-wide scan found
+  (`noDirectionShownInWhite`, every hour of 2026 in both rites, about 6,000 hours,
+  gated by `BREVIARIUM_DIRECTION_SCAN=1`): the lower-case *(fit reverentia)* and *(bow
+  head)* in Psalms 67, 110 and 112; DO's inline small print (the *Te Deum*'s English); a
+  hymn's `!` line (*Pange lingua*'s *Sequens stropha*); and a hymn's small-print line,
+  before the first stanza (*Ave maris stella*, *Veni Creator*: *Prima stropha … flexis
+  genibus*) or inside one (the Dominican *Christe qui lux es*: *Ad hunc Vers.
+  genuflectatur*); and the Missal Gospel's *(Hic genuflectitur)* that the Dominican Prima
+  reads on the Epiphany. All are inline rubrics now, and the scan passes. The fast suite
+  (379 tests) passes.
+
+### B6-M2 — The rules
+
+`docs/rubrics-ambrosian-compline.md`: the order of the hour, piece by piece with its
+pages; the Ambrosian calendar rules (movable feasts, the four parts, the festal form, the
+Marian antiphon, the title block), each unsourced choice marked; the data format.
+
+### B6-M3/M4 — The data and the engine
+
+`data/ambrosian/`: the transcription (41 pieces, every page), `corrections.txt` (36
+misprints, 4 doubtful readings left as printed, 2 expansions, 3 rulings, 4 witnesses)
+and the *Kalendarium*. `AmbrosianCalendar` and `AmbrosianCompline` in the Kit; nothing
+reads Divinum Officium. The movable feasts match the *Tabella* for 1955–2000 but one
+entry, 1995's Advent, which the *Tabella* misprints (19 for 12 November). Ten tests,
+including every day of 2026 checked against the transcription and for Roman texts.
+
+### B6-M5 — The app
+
+*Ambrosianus* in Settings with *Completorium Ambrosianum*; Compline alone in the picker;
+Latin only; the title block from the Ambrosian calendar; no colours in *Jump to date*;
+the About credit; the release notes. `AmbrosianUITests` captures every page of seven
+forms. The user's checks: `ambrosian-compline-checks.md`, with tables generated from the
+engine (`ambrosian-compline-checks-tables.md`).

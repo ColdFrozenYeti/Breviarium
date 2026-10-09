@@ -56,3 +56,12 @@ private let end = InlineRubrics.end
     #expect(defensor.first == "Gubérna tuos fámulos,\n\(start)Ad hunc Vers. genuflectatur\(end)\nQuos Sánguine mercátus es.")
     #expect(InlineRubrics.withoutRubrics(defensor[0]) == "Gubérna tuos fámulos,\nQuos Sánguine mercátus es.")
 }
+
+@Test func aGospelsGenuflectionIsMarked() {
+    // The Dominican Prima reads the day's Gospel from the Missal (`missa/Latin/Sancti/
+    // 01-06.txt`, Pentecost week, Christmas's third Mass); the year-wide scan found it white.
+    #expect(InlineRubrics.marking("cum María Matre eius, (hic genuflectitur) et procidéntes")
+        == "cum María Matre eius, \(start)(hic genuflectitur)\(end) et procidéntes")
+    #expect(InlineRubrics.marking("(Hic genuflectitur) Veni, Sancte Spíritus")
+        == "\(start)(Hic genuflectitur)\(end) Veni, Sancte Spíritus")
+}

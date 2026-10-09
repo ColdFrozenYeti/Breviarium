@@ -10,8 +10,9 @@ public enum InlineRubrics {
 
     /// Every inline direction in the Roman texts at the pinned commit, Latin and English.
     /// Matched without regard to case: the psalms write *(fit reverentia)* and *(bow head)*
-    /// in lower case (Psalms 67, 110 and 112), which stayed white until Beta 6.
-    nonisolated(unsafe) private static let direction = #/(?i)\((Fit reverentia(?:, secundum consuetudinem)?:?|genuflectitur|percutit sibi pectus|Sequens versus dicitur flexis genibus|genuflect|Bow head)\)/#
+    /// in lower case (Psalms 67, 110 and 112), which stayed white until Beta 6, as did the
+    /// Missal Gospels' *(Hic genuflectitur)* that the Dominican Prima reads.
+    nonisolated(unsafe) private static let direction = #/(?i)\((Fit reverentia(?:, secundum consuetudinem)?:?|(?:hic )?genuflectitur|percutit sibi pectus|Sequens versus dicitur flexis genibus|genuflect|Bow head)\)/#
 
     public static func marking(_ text: String) -> String {
         guard !text.contains(start) else { return text }    // already marked where it was built

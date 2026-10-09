@@ -8,7 +8,9 @@ import Testing
 // a rubric (a `.rubric` unit or an inline-rubric span). `BREVIARIUM_DIRECTION_SCAN=1`
 // runs it (it assembles about six thousand hours).
 
-nonisolated(unsafe) private let directionWords = #/(?i)\b(fit reverentia|bow head|genuflect\w*|flexis genibus|kneel\w*|profound bow|secreto|sub silentio|dicitur|dicuntur|omittitur|during the following|is said|are said)\b/#
+nonisolated(unsafe) private let directionWords = #/(?i)\b(fit reverentia|bow head|genuflect\w*|flexis genibus|profound bow|secreto|sub silentio|dicitur|dicuntur|omittitur|during the following)\b/#
+// Not "kneeling", "is said" or "are said": the psalms, hymns and collects use them
+// (*Glorious things are said of thee*, *as we kneel before thee*).
 
 /// The unit's texts with any inline-rubric spans removed.
 private func plainTexts(_ unit: BreviariumKit.Unit) -> [String] {
@@ -18,7 +20,9 @@ private func plainTexts(_ unit: BreviariumKit.Unit) -> [String] {
     case .prose(let t, let e), .antiphon(let t, let e): texts = [t, e ?? ""]
     case .versicleResponse(let v, let r, let ve, let re): texts = [v, r, ve ?? "", re ?? ""]
     case .verse(_, let a, let b, let ae, let be): texts = [a, b, ae ?? "", be ?? ""]
-    case .lesson(let p): texts = p.lines + (p.english ?? [])
+    // The Matins lessons are narrative (*And he kneeled down*); DO marks no direction
+    // inside one.
+    case .lesson: return []
     case .englishPsalm(let verses): texts = verses.flatMap { [$0.firstHalf, $0.secondHalf] }
     case .psalmTitle, .englishNote: return []
     }
@@ -40,8 +44,9 @@ private func plainTexts(_ unit: BreviariumKit.Unit) -> [String] {
                     calendar: calendar, rite: rite
                 )
                 for unit in assembled?.sections.flatMap(\.units) ?? [] {
-                    for text in plainTexts(unit) where text.firstMatch(of: directionWords) != nil {
-                        found["\(rite) \(hour.rawValue): \(text.prefix(140))", default: []].append(String(format: "%04d-%02d-%02d", year, month, day))
+                    for text in plainTexts(unit) {
+                        guard let match = text.firstMatch(of: directionWords) else { continue }
+                        found["\(rite) \(hour.rawValue) [\(match.output.0)]: \(text.prefix(140))", default: []].append(String(format: "%04d-%02d-%02d", year, month, day))
                     }
                 }
             }
