@@ -19,6 +19,15 @@ on:
       - "Packages/BreviariumKit/**"
       - ".github/workflows/app-ci.yml"
   workflow_dispatch:
+    inputs:
+      only_testing:
+        # A run by hand can build the app and run just the UI tests a small app change
+        # needs, e.g. `BreviariumUITests/LaunchAndNavigationUITests/testAppIconPicker`
+        # (xcodebuild's -only-testing; several separated by spaces). Empty runs them all.
+        # The pull request's own runs, and every main push, still run everything.
+        description: "UI tests to run (xcodebuild -only-testing identifiers, space-separated); empty for all"
+        required: false
+        default: ""
 
 # A newer push to the same pull request cancels its older, now-redundant run (macOS
 # minutes cost ~10x Linux ones). Pushes to main never cancel each other, so every main
@@ -95,13 +104,18 @@ jobs:
       # nine tests timed out and the step took 56 minutes instead of 32.
       - name: Run UI tests
         working-directory: App
+        env:
+          ONLY_TESTING: ${{ inputs.only_testing }}
         run: |
+          only=()
+          for t in $ONLY_TESTING; do only+=("-only-testing:$t"); done
           xcodebuild test \
             -project Breviarium.xcodeproj \
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
             -parallel-testing-enabled NO \
-            -resultBundlePath TestResults.xcresult
+            -resultBundlePath TestResults.xcresult \
+            "${only[@]}"
 
       - name: Upload test results
         if: always()
