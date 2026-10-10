@@ -16,6 +16,7 @@ struct ReleaseNotesView: View {
             "Both are chosen from a gallery like the app icon's, each tile showing Easter Sunday's Magnificat antiphon and the canticle's opening as the office sets them.",
             "The page curl is now the default page turn; the slide is still a choice.",
             "Jump to date's colour dots have no outline, and a black day's dot is black on a light theme.",
+            "Three new app icons, Northumberland Simple (the new default), Northumberland and Northumberland Inverted; the first default icon is now called Walters.",
         ]),
         Release(name: "1.1", notes: [
             "Ambrosian Compline as prayed: the Pater noster and Ave Maria written out in full, and the whole Pater noster where it is said secretly, as the Credo is.",

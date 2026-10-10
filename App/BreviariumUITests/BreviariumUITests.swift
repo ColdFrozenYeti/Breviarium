@@ -366,20 +366,33 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         scrollSettings(to: picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertTrue(picker.isEnabled, "alternate icons should be supported")
-        XCTAssertTrue(picker.label.contains("Default"), "the row names the current icon: \(picker.label)")
+        XCTAssertTrue(picker.label.contains("Northumberland Simple"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
+        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
             let tile = app.buttons["appIcon-\(icon)"]
+            // Nine icons are taller than the screen, and the grid is lazy.
+            var swipes = 0
+            while !tile.exists, swipes < 4 {
+                app.swipeUp()
+                swipes += 1
+            }
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)
         }
         Thread.sleep(forTimeInterval: 0.4)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "app-icon-gallery"
+        attachment.name = "app-icon-gallery-end"
         attachment.lifetime = .keepAlways
         add(attachment)
+        app.swipeDown()
+        app.swipeDown()
+        Thread.sleep(forTimeInterval: 0.4)
+        let top = XCTAttachment(screenshot: app.screenshot())
+        top.name = "app-icon-gallery"
+        top.lifetime = .keepAlways
+        add(top)
     }
 }
 

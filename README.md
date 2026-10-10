@@ -80,8 +80,9 @@ office of the day, the Little Office or the Office of the Dead.
   - Page turn (slide or page curl)
   - *Ritus*: Romanus or Dominicanus, each with its *Officium* (of the day, the Little
     Office or the Office of the Dead), or Ambrosianus, with *Completorium Ambrosianum*
-  - App icon: Default, Benedictus, Gutenberg (mono), Gutenberg, ChurchofAmbrose or
-    Weissenau, chosen from a gallery of all six
+  - App icon: Northumberland Simple (the default), Northumberland, Northumberland
+    Inverted, Walters, Benedictus, Gutenberg (mono), Gutenberg, ChurchofAmbrose or
+    Weissenau, chosen from a gallery of all nine
   - Release notes, and About with the Divinum Officium licence
 
 The build log, with every decision and every bug traced to the Divinum Officium source
