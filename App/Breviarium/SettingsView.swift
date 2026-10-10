@@ -63,8 +63,8 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("readingModePicker")
                     Picker("Page turn", selection: $settings.pageTurn) {
-                        Text("Slide").tag(PageTurn.slide)
                         Text("Page curl").tag(PageTurn.curl)
+                        Text("Slide").tag(PageTurn.slide)
                     }
                     .disabled(settings.readingMode == .vertical)
                     .accessibilityIdentifier("pageTurnPicker")

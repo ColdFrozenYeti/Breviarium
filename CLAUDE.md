@@ -152,7 +152,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 
 - **Paging** (decided 2026-09-24, replacing "one page per section group"). An hour is paginated **like a printed book**: the text flows line by line from one page to the next, at any text size or orientation, and a paragraph that doesn't fit continues at the top of the next page. The user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot.
   - A **Scrolling** setting switches between these horizontal pages (the default) and one continuous vertical scroll.
-  - A **Page turn** setting chooses a sideways slide (the default) or a book-like page curl for horizontal pages.
+  - A **Page turn** setting chooses a book-like page curl (the default since 1.2, decided 2026-10-10; a sideways slide before) or a sideways slide for horizontal pages.
   - Both need UIKit/TextKit (SwiftUI cannot flow one text across pages, and the curl exists only in `UIPageViewController`); this is the approved UIKit exception, confined to `App/Breviarium/Vespers/OfficeReaders.swift` and `OfficeTypesetter.swift`.
 - **Text size** scales every serif size and the vertical spacing proportionally. The chrome text scales too, but more gently.
 

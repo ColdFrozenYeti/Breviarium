@@ -16,7 +16,8 @@ enum ReadingMode: String, CaseIterable {
     case horizontal, vertical
 }
 
-/// How a horizontal page turns: a sideways slide, or a book-like page curl.
+/// How a horizontal page turns: a book-like page curl (the default since 1.2, decided
+/// 2026-10-10) or a sideways slide.
 enum PageTurn: String, CaseIterable {
     case slide, curl
 }
@@ -90,7 +91,7 @@ final class SettingsStore: ObservableObject {
         let storedRaw = defaults.string(forKey: Keys.textSize)
         textSize = storedRaw.flatMap { raw in TextSizeSetting.allCases.first { $0.rawValue == raw } } ?? .standard
         readingMode = defaults.string(forKey: Keys.readingMode).flatMap(ReadingMode.init(rawValue:)) ?? .horizontal
-        pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
+        pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .curl
         psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
         officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
         rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus

@@ -25,8 +25,8 @@ struct Theme: Equatable {
 
     /// The liturgical colour dots of the *Jump to date* calendar (Beta 4, decision 4):
     /// red and green as in `design/reference/Calendar.png`, violet and rose lightened to
-    /// read on black; black days get a grey ring (`CalendarDot`). On a light theme every
-    /// dot also gets a thin ring in the chrome colour, or a white day's would vanish.
+    /// read on black; black days get a grey ring, or on a light theme a black dot
+    /// (`CalendarDot`).
     func liturgical(_ color: CalendarColor) -> Color {
         switch color {
         case .white: .white

@@ -118,8 +118,8 @@ struct MonthCalendarView: View {
     }
 }
 
-/// A day's colour dot: filled, or a grey ring for black (decision 4); ringed on a light
-/// theme.
+/// A day's colour dot: filled, or a grey ring for black (decision 4); on a light theme a
+/// black day is a filled black dot, and no dot has a ring (the user, 10 October 2026).
 struct CalendarDot: View {
     @Environment(\.theme) private var theme
     let color: CalendarColor?
@@ -127,12 +127,11 @@ struct CalendarDot: View {
     var body: some View {
         Group {
             if let color {
-                if color == .black {
+                if color == .black, theme.isLight {
+                    // On a light page a black day is a black dot (the user, 10 October 2026).
+                    Circle().fill(Color.black)
+                } else if color == .black {
                     Circle().stroke(theme.liturgical(color), lineWidth: 1.2)
-                } else if theme.isLight {
-                    // On a light page a white day's dot would vanish (1.2): every dot
-                    // gets a thin ring in the chrome colour.
-                    Circle().fill(theme.liturgical(color)).overlay(Circle().stroke(theme.chrome, lineWidth: 0.75))
                 } else {
                     Circle().fill(theme.liturgical(color))
                 }
