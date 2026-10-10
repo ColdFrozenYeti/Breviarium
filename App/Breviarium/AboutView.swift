@@ -6,6 +6,7 @@ import SwiftUI
 /// submodule checkout itself never ships inside the app bundle -- only the compiled data
 /// file does.
 struct AboutView: View {
+    @Environment(\.theme) private var theme
     var body: some View {
         List {
             Section {
@@ -13,7 +14,7 @@ struct AboutView: View {
                     Text("Breviarium")
                         .font(.title2.bold())
                     Text("The traditional Divine Office: the Roman office per the 1960 rubrics, the Dominican office of 1962, and Ambrosian Compline of 1957.")
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .padding(.vertical, 4)
             }
@@ -24,7 +25,7 @@ struct AboutView: View {
                     Text("Breviarium is free software, licensed under the GNU General Public License, version 3 or any later version. You may share and change it; any version you distribute must remain free, with its source.")
                     Text("Copyright © 2026 Eduardo Pavone. Source: github.com/ColdFrozenYeti/Breviarium")
                         .font(.footnote)
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .padding(.vertical, 4)
             }
@@ -38,10 +39,10 @@ struct AboutView: View {
                     // app itself would be making the request.
                     Text("github.com/DivinumOfficium/divinum-officium")
                         .font(.footnote)
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                     Text("Pinned commit: 126a07f91ede04664108abb6fb20ace3f4de14b9")
                         .font(.footnote)
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .padding(.vertical, 4)
             }
@@ -54,7 +55,7 @@ struct AboutView: View {
                     Text("Published under CC BY-NC-ND 4.0, and included in Breviarium with the permission of its owners. This transcription is not covered by Breviarium's licence: it may be shared only as part of Breviarium or under Church of Ambrose's own licence.")
                     Text("mrchurch.it")
                         .font(.footnote)
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .padding(.vertical, 4)
             }
@@ -62,7 +63,7 @@ struct AboutView: View {
             Section("Divinum Officium licence") {
                 Text(Self.divinumOfficiumLicenseText)
                     .font(.footnote)
-                    .foregroundStyle(Theme.chrome)
+                    .foregroundStyle(theme.chrome)
                     .padding(.vertical, 4)
             }
         }

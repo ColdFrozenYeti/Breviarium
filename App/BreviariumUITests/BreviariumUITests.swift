@@ -24,7 +24,7 @@ class BreviariumUITestCase: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
         officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
-        priest: Bool? = nil
+        priest: Bool? = nil, theme: String = "classicDark"
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -39,7 +39,7 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
-            "-settings.rite", rite,
+            "-settings.rite", rite, "-settings.theme", theme,
         ]
         if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
@@ -805,5 +805,71 @@ final class AmbrosianUITests: BreviariumUITestCase {
         captureAllPages(date: "2026-04-07", priest: true, name: "aestiva1-easter")      // Regina caeli, festal
         captureAllPages(date: "2026-01-15", priest: false, name: "hiemalis1-nopriest")  // Alma; Domine, exaudi; one Confiteor
         captureAllPages(date: "2026-11-21", priest: true, name: "hiemalis1-bvm")        // Ave Regina, Our Lady's feast
+    }
+}
+
+/// 1.2-M1: the eight colour themes (`docs/1.2_plan.md` §3), chosen in Settings, each on a
+/// Compline page 1 and its psalmody page at the default and the largest text size; the
+/// Settings sheet and the calendar in a light theme.
+final class ThemeUITests: BreviariumUITestCase {
+    static let themes = ["classicDark", "midnightBlue", "charcoal", "light", "sepia", "vellum", "forest", "rose"]
+
+    func testComplineInEveryTheme() {
+        for theme in Self.themes {
+            for (size, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-09-16", textSize: size, hour: "Completorium", theme: theme)
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m1-theme-\(theme)-\(sizeName)-page1")
+                app.swipeLeft()
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m1-theme-\(theme)-\(sizeName)-page2")
+                app.terminate()
+            }
+        }
+    }
+
+    /// Settings -> Theme chooses a theme, and the office takes it at once.
+    func testThemeSettingAndLightSheets() {
+        let app = launchApp(date: "2026-11-02", hour: "Completorium")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        // Below the text size, out of view at first.
+        app.swipeUp()
+        let picker = app.buttons["themePicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        let lux = app.buttons["Lux"]
+        XCTAssertTrue(lux.waitForExistence(timeout: 5))
+        lux.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m1-theme-settings-lux")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m1-theme-chosen-lux")
+        // The calendar's dots, ringed on a light page.
+        app.buttons["jumpToDateButton"].tap()
+        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["calendarDay-2"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.0)
+        capture(app, "m1-theme-calendar-lux")
+        app.buttons["Cancel"].tap()
+        // The hour picker.
+        app.staticTexts["hourPickerButton"].tap()
+        Thread.sleep(forTimeInterval: 0.8)
+        capture(app, "m1-theme-hours-lux")
+        app.terminate()
+    }
+
+    /// English on: the parallel pages in a dark and a light theme.
+    func testParallelEnglishInThemes() {
+        for theme in ["midnightBlue", "sepia"] {
+            let app = launchApp(date: "2026-09-16", english: true, hour: "Completorium", theme: theme)
+            Thread.sleep(forTimeInterval: 0.4)
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "m1-theme-\(theme)-en-page2")
+            app.terminate()
+        }
     }
 }

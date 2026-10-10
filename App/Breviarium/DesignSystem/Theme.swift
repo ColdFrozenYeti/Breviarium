@@ -2,22 +2,32 @@ import BreviariumKit
 import SwiftUI
 import UIKit
 
-/// Colours from `CLAUDE.md`'s visual spec, sampled from `design/reference/Format.png`.
-/// Night mode only -- there is no light theme.
-enum Theme {
-    static let background = Color.black
-    static let liturgicalText = Color.white
+/// A colour theme (1.2, `docs/1.2_plan.md` §3): the five colours of `CLAUDE.md`'s visual
+/// spec, which *Nox*, the default, takes from `design/reference/Format.png`. Every view
+/// reads the chosen one from the environment (`\.theme`), and `OfficeTypesetter` sets
+/// the office in it.
+struct Theme: Equatable {
+    let background: Color
+    /// Liturgical text, section headings, the day title and the separator rules.
+    let liturgicalText: Color
     /// Rubrics and the date line.
-    static let rubric = Color(red: 1.0, green: 0.502, blue: 0.502)      // #FF8080
-    /// The table-of-contents icon.
-    static let icon = Color(red: 1.0, green: 0.302, blue: 0.200)        // #FF4D33
+    let rubric: Color
+    /// The table-of-contents icon, checkmarks and the selected calendar day.
+    let icon: Color
     /// Chrome text: navigation title, page footer.
-    static let chrome = Color(red: 0.698, green: 0.698, blue: 0.698)    // #B2B2B2
+    let chrome: Color
+    /// A light background: the system parts (status bar, sheets, Settings) turn light too.
+    let isLight: Bool
+
+    var colorScheme: ColorScheme { isLight ? .light : .dark }
+    var uiBackground: UIColor { UIColor(background) }
+    var indicatorStyle: UIScrollView.IndicatorStyle { isLight ? .black : .white }
 
     /// The liturgical colour dots of the *Jump to date* calendar (Beta 4, decision 4):
     /// red and green as in `design/reference/Calendar.png`, violet and rose lightened to
-    /// read on black; black days get a grey ring (`CalendarDot`).
-    static func liturgical(_ color: CalendarColor) -> Color {
+    /// read on black; black days get a grey ring (`CalendarDot`). On a light theme every
+    /// dot also gets a thin ring in the chrome colour, or a white day's would vanish.
+    func liturgical(_ color: CalendarColor) -> Color {
         switch color {
         case .white: .white
         case .red: Color(red: 1.0, green: 0.0, blue: 0.0)            // #FF0000
@@ -27,6 +37,68 @@ enum Theme {
         case .black: Color(red: 0.549, green: 0.549, blue: 0.549)    // #8C8C8C, a ring
         }
     }
+}
+
+/// The eight themes (`docs/1.2_plan.md` §3), shown by their Latin names; the identifiers
+/// stay English (`CLAUDE.md`). Each colour has at least 4.5:1 contrast on its background.
+enum ThemeChoice: String, CaseIterable, Identifiable {
+    case classicDark, midnightBlue, charcoal, light, sepia, vellum, forest, rose
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .classicDark: "Nox"
+        case .midnightBlue: "Media nox"
+        case .charcoal: "Carbo"
+        case .light: "Lux"
+        case .sepia: "Sepia"
+        case .vellum: "Vellum"
+        case .forest: "Silva"
+        case .rose: "Rosa"
+        }
+    }
+
+    var theme: Theme {
+        switch self {
+        case .classicDark:
+            // The colours as sampled since the alpha, unchanged.
+            Theme(
+                background: .black, liturgicalText: .white,
+                rubric: Color(red: 1.0, green: 0.502, blue: 0.502),     // #FF8080
+                icon: Color(red: 1.0, green: 0.302, blue: 0.200),       // #FF4D33
+                chrome: Color(red: 0.698, green: 0.698, blue: 0.698),   // #B2B2B2
+                isLight: false
+            )
+        case .midnightBlue: Theme(hex: 0x0B1530, text: 0xFFFFFF, rubric: 0x8CB8FF, icon: 0x5C9DFF, chrome: 0x98A3BC, isLight: false)
+        case .charcoal: Theme(hex: 0x1C1C1E, text: 0xF2F2F2, rubric: 0xFF8A80, icon: 0xFF5A45, chrome: 0xA1A1A6, isLight: false)
+        case .light: Theme(hex: 0xFFFFFF, text: 0x000000, rubric: 0xB3261E, icon: 0xC62828, chrome: 0x6B6B6B, isLight: true)
+        case .sepia: Theme(hex: 0xF3E9D2, text: 0x3A2E22, rubric: 0x9E2A1E, icon: 0xA8321F, chrome: 0x6B5A45, isLight: true)
+        case .vellum: Theme(hex: 0xFBF7EE, text: 0x000000, rubric: 0x8B1A1A, icon: 0xA61E1E, chrome: 0x6E675C, isLight: true)
+        case .forest: Theme(hex: 0xF2F7EE, text: 0x000000, rubric: 0x1B5E20, icon: 0x1B5E20, chrome: 0x4D5E4F, isLight: true)
+        case .rose: Theme(hex: 0xFCF1F5, text: 0x000000, rubric: 0x9C1352, icon: 0xB0175E, chrome: 0x6B5560, isLight: true)
+        }
+    }
+}
+
+extension Theme {
+    /// A theme from its five sRGB colours, as `docs/1.2_plan.md` §3 lists them.
+    init(hex background: UInt32, text: UInt32, rubric: UInt32, icon: UInt32, chrome: UInt32, isLight: Bool) {
+        func color(_ hex: UInt32) -> Color {
+            Color(
+                red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255
+            )
+        }
+        self.init(
+            background: color(background), liturgicalText: color(text), rubric: color(rubric), icon: color(icon),
+            chrome: color(chrome), isLight: isLight
+        )
+    }
+}
+
+extension EnvironmentValues {
+    /// The chosen theme, set once at the root (`ContentView`); sheets inherit it.
+    @Entry var theme: Theme = ThemeChoice.classicDark.theme
 }
 
 /// The text-size setting `CLAUDE.md` lists under Settings -- scales every serif size and

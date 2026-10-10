@@ -51,11 +51,13 @@ struct OfficeTypesetter {
     let content: VespersContent
     let metrics: Metrics
     let showRubrics: Bool
+    /// The colour theme (1.2); *Nox* unless Settings chose another.
+    var theme: Theme = ThemeChoice.classicDark.theme
 
-    private var textColor: UIColor { UIColor(Theme.liturgicalText) }
-    private var rubricColor: UIColor { UIColor(Theme.rubric) }
-    private var iconColor: UIColor { UIColor(Theme.icon) }
-    private var chromeColor: UIColor { UIColor(Theme.chrome) }
+    private var textColor: UIColor { UIColor(theme.liturgicalText) }
+    private var rubricColor: UIColor { UIColor(theme.rubric) }
+    private var iconColor: UIColor { UIColor(theme.icon) }
+    private var chromeColor: UIColor { UIColor(theme.chrome) }
 
     func typeset() -> TypesetOffice {
         let output = NSMutableAttributedString()

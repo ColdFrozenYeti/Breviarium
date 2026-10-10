@@ -57,6 +57,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(rite.rawValue, forKey: Keys.rite) }
     }
 
+    /// The colour theme (1.2): *Nox*, the look since the alpha, by default.
+    @Published var theme: ThemeChoice {
+        didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -69,6 +74,7 @@ final class SettingsStore: ObservableObject {
         static let psalter = "settings.psalter"
         static let officium = "settings.officium"
         static let rite = "settings.rite"
+        static let theme = "settings.theme"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -88,5 +94,6 @@ final class SettingsStore: ObservableObject {
         psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
         officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
         rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus
+        theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
     }
 }

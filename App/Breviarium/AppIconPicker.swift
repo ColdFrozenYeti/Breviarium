@@ -65,6 +65,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
 
 /// The Settings row: the current icon's name, opening the gallery.
 struct AppIconRow: View {
+    @Environment(\.theme) private var theme
     @State private var current = AppIconChoice.current
 
     var body: some View {
@@ -73,11 +74,11 @@ struct AppIconRow: View {
         } label: {
             HStack {
                 Text("Icon")
-                    .foregroundStyle(Theme.liturgicalText)
+                    .foregroundStyle(theme.liturgicalText)
                 Spacer()
                 Text(current.label)
                     .font(.footnote)
-                    .foregroundStyle(Theme.chrome)
+                    .foregroundStyle(theme.chrome)
             }
         }
         .accessibilityIdentifier("appIconPicker")
@@ -88,6 +89,7 @@ struct AppIconRow: View {
 
 /// Every icon at once, two to a row, as it looks on the Home Screen; a tap chooses one.
 struct AppIconGallery: View {
+    @Environment(\.theme) private var theme
     @Binding var current: AppIconChoice
     private let columns = [GridItem(.flexible(), spacing: 20), GridItem(.flexible(), spacing: 20)]
 
@@ -101,7 +103,7 @@ struct AppIconGallery: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
         }
-        .background(Theme.background)
+        .background(theme.background)
         .navigationTitle("App icon")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -120,16 +122,16 @@ struct AppIconGallery: View {
                     .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 34, style: .continuous)
-                            .strokeBorder(selected ? Theme.icon : .clear, lineWidth: 3)
+                            .strokeBorder(selected ? theme.icon : .clear, lineWidth: 3)
                     }
                 HStack(spacing: 6) {
                     if selected {
                         Image(systemName: "checkmark")
-                            .foregroundStyle(Theme.icon)
+                            .foregroundStyle(theme.icon)
                             .accessibilityHidden(true)
                     }
                     Text(icon.label)
-                        .foregroundStyle(selected ? Theme.liturgicalText : Theme.chrome)
+                        .foregroundStyle(selected ? theme.liturgicalText : theme.chrome)
                 }
                 .font(.subheadline)
             }
