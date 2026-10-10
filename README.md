@@ -8,9 +8,13 @@ itself for any date. It is fully offline and night mode only.
 For now it is built and used privately and installed by sideloading with a free Apple ID;
 a public release on the App Store is planned.
 
-## Status: 1.0
+## Status: 1.1
 
-1.0 (10 October 2026) completes the first roadmap. It adds **Ambrosian Compline**
+1.1 (11 October 2026) is the first bugfix release: Ambrosian Compline as prayed, with
+the prayers written out, the Roman office's signs of the cross on the texts the two share,
+and each prayer its own paragraph ([`docs/releases/1.1.md`](docs/releases/1.1.md)).
+
+1.0 (10 October 2026) completed the first roadmap. It adds **Ambrosian Compline**
 (*Completorium Ambrosianum*, from the 1957 breviary, by Church of Ambrose's transcription
 and with its owners' permission), following the Ambrosian calendar with its own Sundays,
 feasts and colours; English side by side throughout but for the Matins lessons; more
@@ -116,8 +120,8 @@ and is renewed weekly.
 
 1. Get the `.ipa`:
    - **a release:** download it from the repository's
-     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (1.0 is
-     `Breviarium-1.0.ipa`);
+     [Releases](https://github.com/ColdFrozenYeti/Breviarium/releases) page (1.1 is
+     `Breviarium-1.1.ipa`);
    - **or the latest build:** run the **Build IPA** workflow (Actions → Build IPA → Run
      workflow), then fetch it on Windows with `.\scripts\get-ipa.ps1` (needs the GitHub
      CLI). Given a release tag and a notes file, the same workflow publishes the build as

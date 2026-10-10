@@ -8,6 +8,8 @@
 #         ruling    (the user's decision where the source is silent; editorial)
 #         witness   (another part misprints what this transcription takes, correctly,
 #                    from a part that prints it right; noted, nothing to apply)
+#         cross     (a sign of the cross the source doesn't print, added by the user's
+#                    ruling; applied: "+" is the red cross, "✙︎" the small one)
 # Every line is checked by the data tool: the "as printed" text must occur exactly once
 # in the piece, or the build fails. Doubtful lines are listed but not applied.
 
@@ -62,3 +64,24 @@ rubrica-festiva-AII | statim subjicitur. V/. | statim subjicitur V/. | misprint 
 dominusvobiscum | V. Dominus vobiscum. | V. Domine, exaudi orationem meam. | ruling | — | with the priest setting off, as in the Roman office (Beta 6 plan, question 7)
 dominusvobiscum | R. Et cum spiritu tuo. | R. Et clamor meus ad te veniat. | ruling | — | with the priest setting off
 confessio | (the whole choir exchange) | one Confiteor (the hebdomadary's, with St Ambrose), without "et vobis, fratres" and "et vos, fratres", then "Misereatur nostri" and "Indulgentiam" | ruling | — | with the priest setting off (question 11); built by the engine, not by text replacement
+
+# The user's rulings of 10 October 2026, after praying 9 October on the phone. Applied:
+# the prayers the source names by their first words are written out (no accents added,
+# the source's rule); "\n" in "as shown" starts a new line, "_" a new paragraph.
+praeparatio | Pater Noster. Ave Maria. | Pater noster, qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris: et ne nos inducas in tentationem: sed libera nos a malo. Amen.\n_\nAve Maria, gratia plena; Dominus tecum: benedicta tu in mulieribus, et benedictus fructus ventris tui, Jesus. Sancta Maria, Mater Dei, ora pro nobis peccatoribus, nunc et in hora mortis nostræ. Amen. | expansion | HI.2 HII.2 AI.2 AII.2 | the user's ruling: the prayers in full
+preces | Pater Noster, (secreto). | Pater noster, (secreto) qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris. | expansion | HI.7 HII.7 AI.6 AII.6 | the user's ruling: the whole prayer, said secretly to "Et ne nos inducas", as the Credo is printed
+finis | Pater Noster. (secreto). | Pater noster, (secreto) qui es in cælis, sanctificetur nomen tuum: adveniat regnum tuum: fiat voluntas tua, sicut in cælo et in terra. Panem nostrum quotidianum da nobis hodie: et dimitte nobis debita nostra, sicut et nos dimittimus debitoribus nostris. | expansion | HI.9 HII.10 AI.9 AII.9 | as in the preces
+benedictio | R. Amen\nV. Dormiamus | R. Amen.\nV. Dormiamus | misprint | HI.8 HII.9 AI.8 AII.8 | the other Amens have their full stop
+fidelium | R. Amen | R. Amen. | misprint | HI.9 HII.10 AI.9 AII.9 | as above
+confessio | R. Amen\nV. Adjutorium | R. Amen.\nV. Adjutorium | misprint | HI.10 HII.11 AI.10 AII.10 | as above
+
+# The user's ruling of 10 October 2026 ("we're missing some important crosses", comparing
+# the Roman Compline): the source prints no sign of the cross, so the five texts the
+# Ambrosian Compline shares with the Roman one take the cross where the Roman office
+# marks it (Divinum Officium's Psalterium/Common/Prayers.txt), keeping the source's own
+# punctuation. Applied.
+convertenos | V. Converte nos, Deus | V. Converte nos, ✙︎ Deus | cross | — | the small cross, as the Roman "Convérte nos ✙︎ Deus"
+deusinadiutorium | V. Deus, in adjutorium | V. Deus, + in adjutorium | cross | — | as the Roman "Deus + in adjutórium"
+confessio | Indulgentiam, absolutionem | Indulgentiam, + absolutionem | cross | — | as the Roman "Indulgéntiam, + absolutiónem"
+confessio | V. Adjutorium nostrum in nomine | V. Adjutorium nostrum + in nomine | cross | — | as the Roman "Adjutórium nostrum + in nómine Dómini"
+nuncdimittis | Nunc dimittis, Domine, servum tuum, * secundum verbum tuum, in pace; | Nunc dimittis, + Domine, servum tuum, * secundum verbum tuum, in pace; | cross | — | as the Roman "Nunc dimíttis + servum tuum" (Psalm233.txt); the user, 10 October 2026: "the canticle needs a cross". Not on the verse repeated after Iterum

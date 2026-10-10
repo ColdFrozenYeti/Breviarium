@@ -85,10 +85,12 @@ public struct AmbrosianCompline: Sendable {
         // 9 October 2026).
         if lent { steps.append(Step(kind: .hymnus, pieces: ["hymnus-telucis"], droppedHeading: "Hymnus.")) }
         steps += [
-            Step(kind: .epistolella, pieces: ["epistolella"]),
+            Step(kind: .epistolella, pieces: ["epistolella"], droppedHeading: "Epistolella."),
             Step(kind: .responsoriumBreve, pieces: ["responsorium"]),
             Step(kind: .canticum, pieces: ["salvanos-incipit", "nuncdimittis", "salvanos"]),
-            Step(kind: .capitulum, pieces: ["capitulum", praise, "kyrie", "rubrica-festiva-\(part.rawValue)"], droppedHeading: "Capitulum"),
+            // The part's festal rubric (`rubrica-festiva-*`) chooses the form below; it is
+            // not shown (the user, 10 October 2026: the app does what it says).
+            Step(kind: .capitulum, pieces: ["capitulum", praise, "kyrie"], droppedHeading: "Capitulum"),
         ]
         if !festal {
             var preces = ["preces", "psalmus12", "gloriapatri"]
@@ -102,10 +104,10 @@ public struct AmbrosianCompline: Sendable {
             Step(kind: .conclusio, pieces: ["dominusvobiscum", "kyrie", "benedictio", "finis"]),
         ]
         if let antiphon = AmbrosianCalendar.marianAntiphon(day: day, month: month, year: year) {
-            var finalis: [String] = []
-            if part == .hiemalisPrima || part == .aestivaSecunda { finalis.append("rubrica-antiphona") }
-            finalis += [antiphon.rawValue, "fidelium"]
-            steps.append(Step(kind: .antiphonaFinalis, pieces: finalis))
+            // The rubrics that say which antiphon is said when (*Deinde dicitur una ex seq.
+            // ant. pro ratione temporis*, *Ant. a Nativitate Domini usque …*) are not shown:
+            // the app chooses the antiphon for the date (the user, 10 October 2026).
+            steps.append(Step(kind: .antiphonaFinalis, pieces: [antiphon.rawValue, "fidelium"]))
         }
         steps.append(Step(kind: .confessio, pieces: [priest ? "confessio" : "confessio-sine-sacerdote"]))
         return steps
@@ -117,7 +119,14 @@ public struct AmbrosianCompline: Sendable {
     /// `priest`: off, *Dóminus vobíscum* becomes *Dómine, exáudi* (the user's ruling,
     /// 9 October 2026, as in the Roman office).
     static func units(_ piece: AmbrosianPiece, dropping droppedHeading: String?, priest: Bool) -> [Unit] {
-        let psalm = piece.id.hasPrefix("psalmus") || piece.id == "nuncdimittis"
+        // *Salva nos, Domine, vigilantes* with its verses is one antiphon (the user,
+        // 10 October 2026), its four lines set as one, in the antiphon's bold italic.
+        if piece.id == "salvanos" {
+            let lines = piece.lines.map { line in
+                ["Ant. ", "V. ", "R. "].reduce(line) { $0.hasPrefix($1) ? String($0.dropFirst($1.count)) : $0 }
+            }
+            return [.antiphon(lines.joined(separator: "\n"), english: nil)]
+        }
         var units: [Unit] = []
         var block: [String] = []
         var pendingVersicle: String?
@@ -133,7 +142,17 @@ public struct AmbrosianCompline: Sendable {
         }
 
         var lines = piece.lines
-        if let droppedHeading, lines.first == "^\(droppedHeading)" { lines.removeFirst() }
+        if let droppedHeading, let first = lines.first {
+            if first == "^\(droppedHeading)" {
+                lines.removeFirst()
+            } else if first.hasPrefix("^\(droppedHeading) ") {
+                // *Epistolella. I. Cor. 16*: the heading says *Epistolella*; the reference stays.
+                lines[0] = "^" + first.dropFirst(droppedHeading.count + 2)
+            }
+        }
+        // The rubrics over the Marian antiphons only say when each is said (the user,
+        // 10 October 2026: the app works that out).
+        if piece.id.hasPrefix("ant-") { lines.removeAll { $0.hasPrefix("!") } }
         for line in lines {
             if line == "_" {
                 flushVersicle(); flushBlock()
@@ -143,24 +162,35 @@ public struct AmbrosianCompline: Sendable {
             } else if line.hasPrefix("!") {
                 flushVersicle(); flushBlock()
                 units.append(.rubric(String(line.dropFirst()), english: nil))
+            } else if line.hasPrefix("Glória Patri"), let sicut = line.range(of: " Sicut erat") {
+                // The *Glória Patri* as two psalm verses, so that it keeps the psalm's
+                // alternation (the user, 10 October 2026). Where the asterisks fall is
+                // editorial: as the Roman office divides it.
+                flushVersicle(); flushBlock()
+                units.append(Self.gloriaVerse(String(line[..<sicut.lowerBound]), at: " et Spirítui"))
+                units.append(Self.gloriaVerse("Sicut erat" + line[sicut.upperBound...], at: " et in sǽcula"))
             } else if line.hasPrefix("V. ") {
                 flushVersicle(); flushBlock()
                 var text = String(line.dropFirst(3))
                 if !priest, text == "Dominus vobiscum." { text = "Domine, exaudi orationem meam." }
                 pendingVersicle = text
             } else if line.hasPrefix("R. br. ") {
+                // The short responsory's opening line, said by the reader: upright, not an
+                // indented response.
                 flushVersicle(); flushBlock()
-                units.append(.versicleResponse(versicle: "", response: String(line.dropFirst(7))))
+                units.append(.versicleResponse(versicle: String(line.dropFirst(7)), response: ""))
             } else if line.hasPrefix("R. ") {
                 flushBlock()
                 var text = String(line.dropFirst(3))
                 if !priest, text == "Et cum spiritu tuo." { text = "Et clamor meus ad te veniat." }
-                units.append(.versicleResponse(versicle: pendingVersicle ?? "", response: text))
+                units.append(.versicleResponse(versicle: pendingVersicle ?? "", response: text.replacingOccurrences(of: " * ", with: "* ")))
                 pendingVersicle = nil
             } else if line.hasPrefix("Ant. ") {
                 flushVersicle(); flushBlock()
                 units.append(.antiphon(String(line.dropFirst(5)), english: nil))
-            } else if psalm, let star = line.range(of: " * ") {
+            } else if !line.hasPrefix("Ant. "), let star = line.range(of: " * ") {
+                // A line with its half-verse asterisk is a verse: the psalms, the canticle,
+                // and the *Capitulum* and short responsory (the user, 10 October 2026).
                 flushVersicle(); flushBlock()
                 let first = line[..<star.lowerBound].trimmingCharacters(in: .whitespaces) + "*"
                 let second = String(line[star.upperBound...])
@@ -172,6 +202,18 @@ public struct AmbrosianCompline: Sendable {
         }
         flushVersicle(); flushBlock()
         return units
+    }
+}
+
+extension AmbrosianCompline {
+    /// One verse of the *Glória Patri*, divided before `at`.
+    static func gloriaVerse(_ text: String, at split: String) -> Unit {
+        let text = text.trimmingCharacters(in: .whitespaces)
+        guard let range = text.range(of: split) else { return .prose(text, english: nil) }
+        return .verse(
+            reference: "", firstHalf: String(text[..<range.lowerBound]) + "*",
+            secondHalf: String(text[range.lowerBound...]).trimmingCharacters(in: .whitespaces)
+        )
     }
 }
 

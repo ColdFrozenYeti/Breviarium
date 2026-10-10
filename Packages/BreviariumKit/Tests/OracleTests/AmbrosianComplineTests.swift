@@ -285,6 +285,22 @@ private let tabellaMisprints: Set<String> = ["1995 advent"]
     #expect(withPriest.contains("et vobis, fratres"))
 }
 
+/// The user's ruling (10 October 2026): the five texts Ambrosian Compline shares with the
+/// Roman one take its signs of the cross, which the source doesn't print, with a priest
+/// and without.
+@Test func ambrosianComplineCrosses() throws {
+    let compline = AmbrosianCompline(data: try ambrosianData())
+    for priest in [true, false] {
+        let text = allText(compline.assemble(day: 9, month: 10, year: 2026, priest: priest))
+        #expect(text.contains("Converte nos, ✙︎ Deus salutaris noster:"))
+        #expect(text.contains("Deus, + in adiutorium meum intende:"))
+        #expect(text.contains("Indulgentiam, + absolutionem"))
+        #expect(text.contains("Adiutorium nostrum + in nomine Domini:"))
+        #expect(text.contains("Nunc dimittis, + Domine, servum tuum,*"))
+        #expect(text.components(separatedBy: "+").count - 1 == 4, "only the Roman office's crosses")
+    }
+}
+
 /// Every text the hour shows comes from the transcription (`ambrosian-sources.md`: no
 /// Roman fallback, provenance for every text): each unit's text is found in the pieces,
 /// and every piece used has its source pages.
