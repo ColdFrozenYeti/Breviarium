@@ -615,8 +615,10 @@ extension OfficeTypesetter {
     /// The body size of a gallery tile's text: small enough that the antiphon and the
     /// canticle's first verse fit a tile the size of an app icon's (`docs/1.2_plan.md` §4).
     static let sampleBodySize: CGFloat = 11
-    /// A tile, in points: the icon tiles' width, a little taller.
-    static let sampleTileSize = CGSize(width: 160, height: 176)
+    /// A tile, in points: the icon tiles' width, and only as tall as the sample needs in
+    /// Hoefler Text, SF Pro and Comic Neue; IBM Plex Mono's wider lines run off the bottom
+    /// (the user, 10 October 2026: no blank space under the text).
+    static let sampleTileSize = CGSize(width: 160, height: 136)
 
     /// The Theme and Font galleries' fixed preview (`GallerySample`), set exactly as the
     /// office sets it -- the antiphon in bold italic, the verses alternating regular and
