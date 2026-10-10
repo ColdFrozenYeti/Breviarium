@@ -79,25 +79,18 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
-                // 1.2-M1: a plain list of the eight themes, by their Latin names; 1.2-M3
-                // turns it into a gallery like the app icon's.
+                // 1.2-M3: the theme and the font, each chosen from a gallery like the
+                // app icon's (`StyleGalleries.swift`).
                 Section("Theme") {
-                    Picker("Theme", selection: $settings.theme) {
-                        ForEach(ThemeChoice.allCases) { choice in
-                            Text(choice.name).tag(choice)
-                        }
+                    StyleRow(title: "Theme", value: settings.theme.name, identifier: "themePicker") {
+                        ThemeGallery(settings: settings)
                     }
-                    .accessibilityIdentifier("themePicker")
                 }
 
-                // 1.2-M2: the four typefaces by name; 1.2-M3 turns it into a gallery too.
                 Section("Font") {
-                    Picker("Font", selection: $settings.font) {
-                        ForEach(FontChoice.allCases) { choice in
-                            Text(choice.name).tag(choice)
-                        }
+                    StyleRow(title: "Font", value: settings.font.name, identifier: "fontPicker") {
+                        FontGallery(settings: settings)
                     }
-                    .accessibilityIdentifier("fontPicker")
                 }
 
                 Section("App icon") {

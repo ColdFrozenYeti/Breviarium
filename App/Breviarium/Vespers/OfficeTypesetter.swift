@@ -608,3 +608,50 @@ final class ParallelCache {
         return office
     }
 }
+
+// MARK: - The galleries' preview (1.2-M3)
+
+extension OfficeTypesetter {
+    /// The body size of a gallery tile's text: small enough that the antiphon and the
+    /// canticle's first verse fit a tile the size of an app icon's (`docs/1.2_plan.md` §4).
+    static let sampleBodySize: CGFloat = 11
+    /// A tile, in points: the icon tiles' width, a little taller.
+    static let sampleTileSize = CGSize(width: 160, height: 176)
+
+    /// The Theme and Font galleries' fixed preview (`GallerySample`), set exactly as the
+    /// office sets it -- the antiphon in bold italic, the verses alternating regular and
+    /// italic, the ✠ in the rubric colour -- on the theme's background, and cut at the
+    /// tile's bottom. An image rather than a SwiftUI `Text`, which can't carry the
+    /// typesetter's paragraph styles (the indented second half-verse); the drawing stays
+    /// in this file, inside the approved UIKit exception (`CLAUDE.md`, Behaviour).
+    static func sampleImage(_ units: [BreviariumKit.Unit], typeface: FontChoice, theme: Theme) -> UIImage {
+        let content = VespersContent(
+            hour: Hour(sections: []),
+            day: ContentDay(day: 1, month: 1, year: 2000, titleBlock: TitleBlock(classisLine: nil, nameLine: "", commemorationLine: nil)),
+            hourTitle: "", dateLine: "", shortDate: ""
+        )
+        var metrics = Metrics()
+        metrics.scale = sampleBodySize / 19
+        let setter = OfficeTypesetter(content: content, metrics: metrics, showRubrics: true, theme: theme, typeface: typeface)
+        let text = NSMutableAttributedString()
+        var verses = 0
+        for unit in units {
+            var alternate = false
+            if case .verse = unit {
+                alternate = verses % 2 == 1
+                verses += 1
+            }
+            setter.appendUnit(unit, alternateVerse: alternate, trailingSpace: .standard, to: text)
+        }
+        let size = sampleTileSize
+        let inset = metrics.margin * 0.75
+        return UIGraphicsImageRenderer(size: size).image { context in
+            theme.uiBackground.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            text.draw(
+                with: CGRect(x: inset, y: inset, width: size.width - 2 * inset, height: size.height - inset),
+                options: [.usesLineFragmentOrigin], context: nil
+            )
+        }
+    }
+}

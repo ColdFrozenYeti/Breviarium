@@ -42,6 +42,7 @@ struct ContentView: View {
             // The chosen theme (1.2) for every view below, sheets included, and the
             // system's own parts light or dark to match it.
             .environment(\.theme, settings.theme.theme)
+            .environment(\.gallerySample, dataStore.gallerySample)
             .preferredColorScheme(settings.theme.theme.colorScheme)
     }
 

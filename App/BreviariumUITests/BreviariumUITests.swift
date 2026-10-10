@@ -262,7 +262,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["1.1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1.2"].waitForExistence(timeout: 5))
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -843,6 +843,10 @@ final class FontUITests: BreviariumUITestCase {
         XCTAssertTrue(comic.waitForExistence(timeout: 5))
         comic.tap()
         Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m3-gallery-font-chosen-comic")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m2-font-settings-comic")
         app.buttons["Done"].tap()
         XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
@@ -855,6 +859,40 @@ final class FontUITests: BreviariumUITestCase {
             app.swipeLeft()
             Thread.sleep(forTimeInterval: 0.4)
             capture(app, "m2-font-\(font)-en-page2")
+            app.terminate()
+        }
+    }
+}
+
+/// 1.2-M3: the Theme and Font galleries, each tile the fixed Easter *Magnificat* sample
+/// (`docs/1.2_plan.md` §4) -- the Theme page in the current font, the Font page in the
+/// current theme.
+final class GalleryUITests: BreviariumUITestCase {
+    private func openGallery(_ app: XCUIApplication, _ row: String, title: String) {
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        let picker = app.buttons[row]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.8)
+    }
+
+    func testGalleries() {
+        for (theme, font) in [("classicDark", "serif"), ("light", "comic"), ("sepia", "typewriter")] {
+            var app = launchApp(date: "2026-09-16", hour: "Completorium", theme: theme, font: font)
+            openGallery(app, "themePicker", title: "Theme")
+            XCTAssertTrue(app.buttons["theme-\(theme)"].isSelected)
+            capture(app, "m3-gallery-theme-\(theme)-\(font)")
+            app.swipeUp()
+            Thread.sleep(forTimeInterval: 0.6)
+            capture(app, "m3-gallery-theme-\(theme)-\(font)-end")
+            app.terminate()
+            app = launchApp(date: "2026-09-16", hour: "Completorium", theme: theme, font: font)
+            openGallery(app, "fontPicker", title: "Font")
+            XCTAssertTrue(app.buttons["font-\(font)"].isSelected)
+            capture(app, "m3-gallery-font-\(theme)-\(font)")
             app.terminate()
         }
     }
@@ -890,6 +928,11 @@ final class ThemeUITests: BreviariumUITestCase {
         let lux = app.buttons["Lux"]
         XCTAssertTrue(lux.waitForExistence(timeout: 5))
         lux.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m3-gallery-theme-chosen-lux")
+        // Back from the gallery to Settings (1.2-M3: the theme is chosen on a page of its own).
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m1-theme-settings-lux")
         app.buttons["Done"].tap()

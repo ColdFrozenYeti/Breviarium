@@ -43,9 +43,9 @@ targets:
       path: Breviarium/Info.plist
       properties:
         CFBundleDisplayName: Breviarium
-        # The release (1.0 on 10 October 2026, 1.1 on 11 October) and the build number.
-        CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "2"
+        # The release (1.0 on 10 October 2026, 1.1 and 1.2 on 10 October) and the build number.
+        CFBundleShortVersionString: "1.2"
+        CFBundleVersion: "3"
         UILaunchScreen: {}
         # Portrait is the primary layout; landscape is needed too -- CLAUDE.md's
         # parallel-English spec shows prose stacked in portrait but side by side in

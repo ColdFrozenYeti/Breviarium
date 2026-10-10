@@ -10,6 +10,13 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.2", notes: [
+            "Eight colour themes, chosen in Settings, under Theme: Nox (the black page, still the default), Media nox, Carbo, Lux, Sepia, Vellum, Silva and Rosa. Light themes make the whole app light.",
+            "Four fonts, under Font: Hoefler Text (the default), SF Pro, IBM Plex Mono and Comic Neue, each sized to read like Hoefler Text.",
+            "Both are chosen from a gallery like the app icon's, each tile showing Easter Sunday's Magnificat antiphon and the canticle's opening as the office sets them.",
+            "The page curl is now the default page turn; the slide is still a choice.",
+            "Jump to date's colour dots have no outline, and a black day's dot is black on a light theme.",
+        ]),
         Release(name: "1.1", notes: [
             "Ambrosian Compline as prayed: the Pater noster and Ave Maria written out in full, and the whole Pater noster where it is said secretly, as the Credo is.",
             "The Gloria Patri after each psalm keeps the psalm's alternation of upright and italic verses, and Salva nos, Domine, vigilantes is one antiphon.",

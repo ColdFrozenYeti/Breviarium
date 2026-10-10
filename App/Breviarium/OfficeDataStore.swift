@@ -109,6 +109,10 @@ final class OfficeDataStore {
         }
     }
 
+    /// The Theme and Font galleries' fixed preview (1.2): Easter Sunday's *Magnificat*
+    /// antiphon and the canticle's first two verses, from the Vulgate data.
+    private(set) lazy var gallerySample: [BreviariumKit.Unit] = latinCorpora[.vulgate].map(GallerySample.units(corpus:)) ?? []
+
     /// Same as `content(for:day:month:year:…)`, for Vespers (kept for existing callers).
     func vespersContent(day: Int, month: Int, year: Int, priest: Bool, psalter: Psalter = .vulgate, english: Bool = false) -> VespersContent? {
         content(for: .vesperae, day: day, month: month, year: year, priest: priest, psalter: psalter, english: english)

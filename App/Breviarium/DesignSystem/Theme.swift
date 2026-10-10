@@ -99,6 +99,9 @@ extension Theme {
 extension EnvironmentValues {
     /// The chosen theme, set once at the root (`ContentView`); sheets inherit it.
     @Entry var theme: Theme = ThemeChoice.classicDark.theme
+    /// The Theme and Font galleries' fixed preview (1.2, `GallerySample`), read once from
+    /// the bundled data at the root (`ContentView`).
+    @Entry var gallerySample: [BreviariumKit.Unit] = []
 }
 
 /// The text-size setting `CLAUDE.md` lists under Settings -- scales every serif size and
