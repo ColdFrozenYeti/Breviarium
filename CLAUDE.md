@@ -12,7 +12,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 - **iPhone only**, with a deployment target of **iOS 26.5** and no backwards compatibility.
   - Use SwiftUI and current Swift concurrency.
   - Avoid UIKit unless SwiftUI genuinely cannot do something, and say so first.
-- **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Nox* theme (*Classic dark*) and stays the default; 1.2 adds seven others with their own text, rubric and background colours, light backgrounds included, named in Latin (`docs/1.2_plan.md`). Every font and colour ships in the app: no installed or external fonts.
+- **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Nox* theme (*Classic dark*) and stays the default; 1.2 adds seven others with their own text, rubric and background colours, light backgrounds included, named in Latin (`docs/1.2_plan.md`). Every font and colour ships in the app: no installed or external fonts. The Settings rows already in Latin stay Latin; the new *Theme* and *Font* rows are English.
 - **No features beyond the brief.** That means:
   - no notifications, prayer tracking, checkmarks, bookmarks, or sync;
   - no chant, audio, or play button;
