@@ -276,8 +276,17 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let icon = springboard.icons["Breviarium"]
-        for _ in 0..<4 where !(icon.exists && icon.isHittable) {
+        // Whether the icon's centre is on the screen, from its frame: `isHittable` can
+        // fail the test outright on an icon whose page is still sliding in ("Activation
+        // point invalid", seen on CI on 10 October 2026) instead of answering false.
+        func onScreen() -> Bool {
+            guard icon.exists else { return false }
+            let frame = icon.frame
+            return !frame.isEmpty && springboard.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
+        }
+        for _ in 0..<4 where !onScreen() {
             springboard.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.5)
         }
         let attachment = XCTAttachment(screenshot: springboard.screenshot())
         attachment.name = "home-screen-icon"
