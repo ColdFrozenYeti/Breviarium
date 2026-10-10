@@ -157,31 +157,90 @@ struct Metrics {
     var footerSize: CGFloat { 12 * chromeScale }
 }
 
-/// Hoefler Text ships with iOS, so no bundled font is needed -- `CLAUDE.md`'s visual
-/// spec names it as the liturgical serif, to be confirmed by rendering next to the
-/// reference screenshot.
-enum LiturgicalFont {
-    static let regularName = "HoeflerText-Regular"
-    static let italicName = "HoeflerText-Italic"
-    static let blackName = "HoeflerText-Black"
-    static let blackItalicName = "HoeflerText-BlackItalic"
+/// The office's typeface (1.2, `docs/1.2_plan.md` §2): one font per category, each
+/// shipped with iOS or bundled under the SIL Open Font License (`Fonts/`, listed in
+/// `NOTICE.md`), never an installed or downloaded one (`CLAUDE.md`). The chrome stays SF.
+enum FontChoice: String, CaseIterable, Identifiable {
+    /// Hoefler Text, as `CLAUDE.md`'s visual spec names it: the default.
+    case serif
+    /// SF Pro, the iPhone's own.
+    case sans
+    /// IBM Plex Mono (OFL), which has every character the office uses.
+    case typewriter
+    /// Comic Neue (OFL), a free redesign of Comic Sans, readable for dyslexic readers.
+    case comic
 
-    static func regular(_ size: CGFloat) -> Font { .custom(regularName, size: size) }
-    static func italic(_ size: CGFloat) -> Font { .custom(italicName, size: size) }
-    static func black(_ size: CGFloat) -> Font { .custom(blackName, size: size) }
-    /// Antiphons -- bold italic, per direct feedback comparing a real rendering.
-    static func blackItalic(_ size: CGFloat) -> Font { .custom(blackItalicName, size: size) }
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .serif: "Hoefler Text"
+        case .sans: "SF Pro"
+        case .typewriter: "IBM Plex Mono"
+        case .comic: "Comic Neue"
+        }
+    }
+
+    /// Each face scaled so its x-height matches Hoefler Text's (0.41 em, measured on the
+    /// snapshots) at the same point size; the text-size setting scales on top.
+    var scale: CGFloat {
+        switch self {
+        case .serif: 1.0
+        case .sans: 0.41 / 0.526       // SF Pro's x-height 1078/2048
+        case .typewriter: 0.41 / 0.516 // IBM Plex Mono's 516/1000
+        case .comic: 0.41 / 0.487      // Comic Neue's 487/1000
+        }
+    }
+
+    /// The PostScript name of each of the four styles the office uses. `nil` for SF Pro,
+    /// which is the system font.
+    fileprivate func faceName(_ face: LiturgicalUIFont.Face) -> String? {
+        let family: String
+        switch self {
+        case .serif: family = "HoeflerText"
+        case .sans: return nil
+        case .typewriter: family = "IBMPlexMono"
+        case .comic: family = "ComicNeue"
+        }
+        let bold = self == .serif ? "Black" : "Bold"
+        switch face {
+        case .regular: return "\(family)-Regular"
+        case .italic: return "\(family)-Italic"
+        case .black: return "\(family)-\(bold)"
+        case .blackItalic: return "\(family)-\(bold)Italic"
+        }
+    }
+
+    /// Text spelt for the face: Comic Neue has no *ǽ*, so it is written *æ* with a
+    /// combining acute, which the font draws itself (`docs/1.2_plan.md` §2).
+    func spelled(_ text: String) -> String {
+        guard self == .comic, text.contains(where: { $0 == "ǽ" || $0 == "Ǽ" }) else { return text }
+        return text.replacingOccurrences(of: "ǽ", with: "æ\u{301}").replacingOccurrences(of: "Ǽ", with: "Æ\u{301}")
+    }
 }
 
-/// The same faces as `LiturgicalFont`, as `UIFont`s for `OfficeTypesetter`'s TextKit
-/// rendering. Falls back to the system font only if Hoefler Text is ever missing.
-enum LiturgicalUIFont {
-    static func regular(_ size: CGFloat) -> UIFont { font(LiturgicalFont.regularName, size) }
-    static func italic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.italicName, size) }
-    static func black(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackName, size) }
-    static func blackItalic(_ size: CGFloat) -> UIFont { font(LiturgicalFont.blackItalicName, size) }
+/// The chosen face's four styles as `UIFont`s for `OfficeTypesetter`'s TextKit rendering,
+/// at a point size before the face's own `scale`: regular (the text), italic (responses,
+/// rubrics), black or bold (headings, the day title) and black or bold italic (antiphons).
+/// Falls back to the system font only if a face is ever missing.
+struct LiturgicalUIFont {
+    enum Face { case regular, italic, black, blackItalic }
 
-    private static func font(_ name: String, _ size: CGFloat) -> UIFont {
-        UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+    var choice: FontChoice = .serif
+
+    func regular(_ size: CGFloat) -> UIFont { font(.regular, size) }
+    func italic(_ size: CGFloat) -> UIFont { font(.italic, size) }
+    func black(_ size: CGFloat) -> UIFont { font(.black, size) }
+    /// Antiphons -- bold italic, per direct feedback comparing a real rendering.
+    func blackItalic(_ size: CGFloat) -> UIFont { font(.blackItalic, size) }
+
+    private func font(_ face: Face, _ size: CGFloat) -> UIFont {
+        let scaled = size * choice.scale
+        if let name = choice.faceName(face), let font = UIFont(name: name, size: scaled) { return font }
+        let heavy = face == .black || face == .blackItalic
+        let system = UIFont.systemFont(ofSize: scaled, weight: heavy ? .heavy : .regular)
+        guard face == .italic || face == .blackItalic,
+              let descriptor = system.fontDescriptor.withSymbolicTraits(.traitItalic) else { return system }
+        return UIFont(descriptor: descriptor, size: scaled)
     }
 }

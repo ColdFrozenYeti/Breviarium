@@ -60,6 +60,18 @@ struct AboutView: View {
                 .padding(.vertical, 4)
             }
 
+            // 1.2: the two bundled typefaces, whose licence (OFL) asks for its notice.
+            Section("Fonts") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("IBM Plex Mono: Copyright © 2017 IBM Corp., with Reserved Font Name \"Plex\".")
+                    Text("Comic Neue: Copyright 2014 The Comic Neue Project Authors.")
+                    Text("Both are licensed under the SIL Open Font License, version 1.1, whose full text ships inside the app with each font.")
+                        .font(.footnote)
+                        .foregroundStyle(theme.chrome)
+                }
+                .padding(.vertical, 4)
+            }
+
             Section("Divinum Officium licence") {
                 Text(Self.divinumOfficiumLicenseText)
                     .font(.footnote)

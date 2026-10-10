@@ -63,6 +63,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
     }
 
+    /// The office's typeface (1.2): Hoefler Text, the font since the alpha, by default.
+    @Published var font: FontChoice {
+        didSet { defaults.set(font.rawValue, forKey: Keys.font) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -76,6 +81,7 @@ final class SettingsStore: ObservableObject {
         static let officium = "settings.officium"
         static let rite = "settings.rite"
         static let theme = "settings.theme"
+        static let font = "settings.font"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -96,5 +102,6 @@ final class SettingsStore: ObservableObject {
         officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
         rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
+        font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
     }
 }

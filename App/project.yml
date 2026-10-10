@@ -55,6 +55,17 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # The bundled typefaces (1.2), OFL, in Breviarium/Fonts (NOTICE.md). The folder is
+        # scanned as a group, so the files land at the bundle's root.
+        UIAppFonts:
+          - IBMPlexMono-Regular.ttf
+          - IBMPlexMono-Italic.ttf
+          - IBMPlexMono-Bold.ttf
+          - IBMPlexMono-BoldItalic.ttf
+          - ComicNeue-Regular.ttf
+          - ComicNeue-Italic.ttf
+          - ComicNeue-Bold.ttf
+          - ComicNeue-BoldItalic.ttf
         # Fully offline app: no network entitlements, no background modes.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false

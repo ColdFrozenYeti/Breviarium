@@ -57,7 +57,7 @@ struct VespersView: View {
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
             + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)|\(settings.rite.rawValue)"
-            + "|\(settings.theme.rawValue)"
+            + "|\(settings.theme.rawValue)|\(settings.font.rawValue)"
     }
 
     /// The hour's sections in order, for the table of contents.
@@ -73,8 +73,9 @@ struct VespersView: View {
         let currentMetrics = self.metrics
         let showRubrics = settings.showRubrics
         let theme = self.theme
+        let typeface = settings.font
         return parallelCache.office(for: "\(officeKey)|\(landscape)") {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme)
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface)
                 .typesetParallel(landscape: landscape)
         }
     }
@@ -91,8 +92,9 @@ struct VespersView: View {
         let currentMetrics = self.metrics
         let showRubrics = settings.showRubrics
         let theme = self.theme
+        let typeface = settings.font
         return typesetCache.office(for: officeKey) {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme).typeset()
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface).typeset()
         }
     }
 

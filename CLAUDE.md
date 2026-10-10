@@ -116,7 +116,8 @@ The *Nox* theme (the default), sampled from the screenshot (the other themes, fr
 - **Liturgical content** uses an old-style serif, which appears to be **Hoefler Text** (ships with iOS, so no bundled font is needed).
   - Confirm by rendering it next to the screenshot.
   - If it is not a match, propose an alternative. Bundling an OFL font such as EB Garamond is allowed.
-- **Chrome** (navigation title, date line, footer) uses the system sans-serif (SF).
+- **From 1.2, a *Font* setting** chooses the liturgical typeface (`docs/1.2_plan.md` §2): Hoefler Text (the default), SF Pro, IBM Plex Mono or Comic Neue, the last two bundled under the OFL (`App/Breviarium/Fonts/`, `NOTICE.md`). Each is scaled to Hoefler Text's x-height and line pitch; `scripts/font-coverage.py` lists the characters a bundled font lacks.
+- **Chrome** (navigation title, date line, footer) uses the system sans-serif (SF), whatever the font.
 
 ### Page structure, top to bottom
 

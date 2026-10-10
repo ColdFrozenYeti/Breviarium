@@ -90,6 +90,16 @@ struct SettingsView: View {
                     .accessibilityIdentifier("themePicker")
                 }
 
+                // 1.2-M2: the four typefaces by name; 1.2-M3 turns it into a gallery too.
+                Section("Font") {
+                    Picker("Font", selection: $settings.font) {
+                        ForEach(FontChoice.allCases) { choice in
+                            Text(choice.name).tag(choice)
+                        }
+                    }
+                    .accessibilityIdentifier("fontPicker")
+                }
+
                 Section("App icon") {
                     AppIconRow()
                 }

@@ -24,7 +24,7 @@ class BreviariumUITestCase: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
         officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
-        priest: Bool? = nil, theme: String = "classicDark"
+        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif"
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -39,7 +39,7 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
-            "-settings.rite", rite, "-settings.theme", theme,
+            "-settings.rite", rite, "-settings.theme", theme, "-settings.font", font,
         ]
         if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
@@ -811,6 +811,55 @@ final class AmbrosianUITests: BreviariumUITestCase {
 /// 1.2-M1: the eight colour themes (`docs/1.2_plan.md` §3), chosen in Settings, each on a
 /// Compline page 1 and its psalmody page at the default and the largest text size; the
 /// Settings sheet and the calendar in a light theme.
+/// 1.2-M2: a Compline page in each typeface, in *Nox* (`docs/1.2_plan.md` §5).
+final class FontUITests: BreviariumUITestCase {
+    static let fonts = ["serif", "sans", "typewriter", "comic"]
+
+    func testComplineInEveryFont() {
+        for font in Self.fonts {
+            for (size, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-09-16", textSize: size, hour: "Completorium", font: font)
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m2-font-\(font)-\(sizeName)-page1")
+                app.swipeLeft()
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m2-font-\(font)-\(sizeName)-page2")
+                app.terminate()
+            }
+        }
+    }
+
+    /// Settings -> Font chooses a typeface, and the office takes it at once; and English
+    /// on, side by side, in the two bundled fonts.
+    func testFontSettingAndParallelEnglish() {
+        let app = launchApp(date: "2026-09-16", hour: "Completorium")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        let picker = app.buttons["fontPicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        let comic = app.buttons["Comic Neue"]
+        XCTAssertTrue(comic.waitForExistence(timeout: 5))
+        comic.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m2-font-settings-comic")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m2-font-chosen-comic")
+        app.terminate()
+        for font in ["typewriter", "comic"] {
+            let app = launchApp(date: "2026-09-16", english: true, hour: "Completorium", font: font)
+            Thread.sleep(forTimeInterval: 0.4)
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "m2-font-\(font)-en-page2")
+            app.terminate()
+        }
+    }
+}
+
 final class ThemeUITests: BreviariumUITestCase {
     static let themes = ["classicDark", "midnightBlue", "charcoal", "light", "sepia", "vellum", "forest", "rose"]
 
