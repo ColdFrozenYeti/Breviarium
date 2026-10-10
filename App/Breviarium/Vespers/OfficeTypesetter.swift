@@ -51,11 +51,17 @@ struct OfficeTypesetter {
     let content: VespersContent
     let metrics: Metrics
     let showRubrics: Bool
+    /// The colour theme (1.2); *Nox* unless Settings chose another.
+    var theme: Theme = ThemeChoice.classicDark.theme
+    /// The typeface (1.2); Hoefler Text unless Settings chose another.
+    var typeface: FontChoice = .serif
 
-    private var textColor: UIColor { UIColor(Theme.liturgicalText) }
-    private var rubricColor: UIColor { UIColor(Theme.rubric) }
-    private var iconColor: UIColor { UIColor(Theme.icon) }
-    private var chromeColor: UIColor { UIColor(Theme.chrome) }
+    private var fonts: LiturgicalUIFont { LiturgicalUIFont(choice: typeface) }
+
+    private var textColor: UIColor { UIColor(theme.liturgicalText) }
+    private var rubricColor: UIColor { UIColor(theme.rubric) }
+    private var iconColor: UIColor { UIColor(theme.icon) }
+    private var chromeColor: UIColor { UIColor(theme.chrome) }
 
     func typeset() -> TypesetOffice {
         let output = NSMutableAttributedString()
@@ -78,7 +84,7 @@ struct OfficeTypesetter {
                 appendParagraph(
                     NSMutableAttributedString(
                         string: Self.headingText(for: kind),
-                        attributes: [.font: LiturgicalUIFont.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
+                        attributes: [.font: fonts.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
                     ),
                     to: output, style: paragraphStyle(after: metrics.bodySize * 0.9)
                 )
@@ -195,7 +201,7 @@ struct OfficeTypesetter {
                     appendParagraph(
                         NSMutableAttributedString(
                             string: Self.headingText(for: kind),
-                            attributes: [.font: LiturgicalUIFont.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
+                            attributes: [.font: fonts.black(metrics.sectionHeadingSize), .foregroundColor: textColor]
                         ),
                         to: text, style: paragraphStyle(after: metrics.bodySize * 0.9)
                     )
@@ -305,12 +311,12 @@ struct OfficeTypesetter {
         let titleBlock = content.day.titleBlock
         if let classisLine = titleBlock.classisLine {
             appendParagraph(
-                plain(classisLine, font: LiturgicalUIFont.regular(metrics.bodySize)),
+                plain(classisLine, font: fonts.regular(metrics.bodySize)),
                 to: output, style: paragraphStyle(after: metrics.bodySize * 0.2)
             )
         }
         appendParagraph(
-            plain(titleBlock.nameLine, font: LiturgicalUIFont.black(metrics.dayTitleNameSize)),
+            plain(titleBlock.nameLine, font: fonts.black(metrics.dayTitleNameSize)),
             to: output,
             style: paragraphStyle(
                 headIndent: metrics.hangingIndent,
@@ -319,7 +325,7 @@ struct OfficeTypesetter {
         )
         if let commemorationLine = titleBlock.commemorationLine {
             appendParagraph(
-                plain(commemorationLine, font: LiturgicalUIFont.regular(metrics.bodySize)),
+                plain(commemorationLine, font: fonts.regular(metrics.bodySize)),
                 to: output, style: paragraphStyle(after: metrics.bodySize * 0.6)
             )
         }
@@ -341,7 +347,7 @@ struct OfficeTypesetter {
 
         // Item 5: the hour title, centred.
         appendParagraph(
-            plain(content.hourTitle, font: LiturgicalUIFont.regular(metrics.hourTitleSize)),
+            plain(content.hourTitle, font: fonts.regular(metrics.hourTitleSize)),
             to: output, style: paragraphStyle(alignment: .center, after: metrics.bodySize * 0.8)
         )
 
@@ -351,7 +357,7 @@ struct OfficeTypesetter {
             for unit in content.hour.prelude {
                 guard case .rubric(let text, _) = unit else { continue }
                 appendParagraph(
-                    liturgical(text, font: LiturgicalUIFont.italic(metrics.bodySize), color: rubricColor),
+                    liturgical(text, font: fonts.italic(metrics.bodySize), color: rubricColor),
                     to: output, style: paragraphStyle(after: metrics.bodySize * 0.4)
                 )
             }
@@ -364,8 +370,8 @@ struct OfficeTypesetter {
         _ unit: BreviariumKit.Unit, alternateVerse: Bool, trailingSpace: ContentBlock.TrailingSpace,
         to output: NSMutableAttributedString
     ) {
-        let regular = LiturgicalUIFont.regular(metrics.bodySize)
-        let italic = LiturgicalUIFont.italic(metrics.bodySize)
+        let regular = fonts.regular(metrics.bodySize)
+        let italic = fonts.italic(metrics.bodySize)
         let gap = trailingGap(trailingSpace)
 
         switch unit {
@@ -403,7 +409,7 @@ struct OfficeTypesetter {
             // follows -- skipped before a psalm separator, whose own spacing is symmetric.
             let after = trailingSpace == .suppressed ? 0 : metrics.bodySize * 0.5
             appendParagraph(
-                liturgical(text, font: LiturgicalUIFont.blackItalic(metrics.bodySize), color: textColor),
+                liturgical(text, font: fonts.blackItalic(metrics.bodySize), color: textColor),
                 to: output, style: paragraphStyle(after: after)
             )
         case .prose(let text, _):
@@ -444,7 +450,7 @@ struct OfficeTypesetter {
     // MARK: Building blocks
 
     private func plain(_ text: String, font: UIFont) -> NSMutableAttributedString {
-        NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: textColor])
+        NSMutableAttributedString(string: typeface.spelled(text), attributes: [.font: font, .foregroundColor: textColor])
     }
 
     /// Liturgical text with DO's `+` shown as ✠, and the ✠ and a leading or trailing ‡
@@ -453,7 +459,7 @@ struct OfficeTypesetter {
     private func liturgical(_ raw: String, font: UIFont, color: UIColor) -> NSMutableAttributedString {
         // Inline rubrics (Beta 4): a direction inside the text, *(Fit reverentia)*, is
         // marked by the Kit; it's drawn in rubric red, or left out with rubrics off.
-        let marked = showRubrics ? raw : InlineRubrics.withoutRubrics(raw)
+        let marked = typeface.spelled(showRubrics ? raw : InlineRubrics.withoutRubrics(raw))
         var rubricRanges: [NSRange] = []
         var plain = ""
         var rubricStart: Int?
@@ -491,6 +497,14 @@ struct OfficeTypesetter {
         return result
     }
 
+    /// Extra line spacing that gives every typeface Hoefler Text's line pitch at the body
+    /// size, so a page holds about as many lines whatever the font (`docs/1.2_plan.md` §2).
+    private var pitchCorrection: CGFloat {
+        guard typeface != .serif else { return 0 }
+        let hoefler = LiturgicalUIFont(choice: .serif).regular(metrics.bodySize).lineHeight
+        return max(0, hoefler - fonts.regular(metrics.bodySize).lineHeight)
+    }
+
     private func paragraphStyle(
         alignment: NSTextAlignment = .left, firstLineIndent: CGFloat = 0, headIndent: CGFloat = 0,
         before: CGFloat = 0, after: CGFloat = 0, lineSpacing: CGFloat? = nil
@@ -499,7 +513,7 @@ struct OfficeTypesetter {
         style.alignment = alignment
         style.firstLineHeadIndent = firstLineIndent
         style.headIndent = headIndent
-        style.lineSpacing = lineSpacing ?? metrics.extraLineSpacing
+        style.lineSpacing = lineSpacing ?? metrics.extraLineSpacing + pitchCorrection
         style.paragraphSpacingBefore = before
         style.paragraphSpacing = after
         style.lineBreakMode = .byWordWrapping
@@ -592,5 +606,54 @@ final class ParallelCache {
         self.key = key
         cached = office
         return office
+    }
+}
+
+// MARK: - The galleries' preview (1.2-M3)
+
+extension OfficeTypesetter {
+    /// The body size of a gallery tile's text: small enough that the antiphon and the
+    /// canticle's first verse fit a tile the size of an app icon's (`docs/1.2_plan.md` §4).
+    static let sampleBodySize: CGFloat = 11
+    /// A tile, in points: the icon tiles' width, and only as tall as the sample needs in
+    /// Hoefler Text, SF Pro and Comic Neue; IBM Plex Mono's wider lines run off the bottom
+    /// (the user, 10 October 2026: no blank space under the text).
+    static let sampleTileSize = CGSize(width: 160, height: 136)
+
+    /// The Theme and Font galleries' fixed preview (`GallerySample`), set exactly as the
+    /// office sets it -- the antiphon in bold italic, the verses alternating regular and
+    /// italic, the ✠ in the rubric colour -- on the theme's background, and cut at the
+    /// tile's bottom. An image rather than a SwiftUI `Text`, which can't carry the
+    /// typesetter's paragraph styles (the indented second half-verse); the drawing stays
+    /// in this file, inside the approved UIKit exception (`CLAUDE.md`, Behaviour).
+    static func sampleImage(_ units: [BreviariumKit.Unit], typeface: FontChoice, theme: Theme) -> UIImage {
+        let content = VespersContent(
+            hour: Hour(sections: []),
+            day: ContentDay(day: 1, month: 1, year: 2000, titleBlock: TitleBlock(classisLine: nil, nameLine: "", commemorationLine: nil)),
+            hourTitle: "", dateLine: "", shortDate: ""
+        )
+        var metrics = Metrics()
+        metrics.scale = sampleBodySize / 19
+        let setter = OfficeTypesetter(content: content, metrics: metrics, showRubrics: true, theme: theme, typeface: typeface)
+        let text = NSMutableAttributedString()
+        var verses = 0
+        for unit in units {
+            var alternate = false
+            if case .verse = unit {
+                alternate = verses % 2 == 1
+                verses += 1
+            }
+            setter.appendUnit(unit, alternateVerse: alternate, trailingSpace: .standard, to: text)
+        }
+        let size = sampleTileSize
+        let inset = metrics.margin * 0.75
+        return UIGraphicsImageRenderer(size: size).image { context in
+            theme.uiBackground.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            text.draw(
+                with: CGRect(x: inset, y: inset, width: size.width - 2 * inset, height: size.height - inset),
+                options: [.usesLineFragmentOrigin], context: nil
+            )
+        }
     }
 }

@@ -15,6 +15,7 @@ import SwiftUI
 /// earlier "one page per section group", which could not guarantee a page never cuts a
 /// hymn stanza off mid-line (`docs/PLAN.md`, M5).
 struct VespersView: View {
+    @Environment(\.theme) private var theme
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
     /// The hour shown (Beta 2), or the Martyrology (Beta 4), and the hour picker's choice.
@@ -45,6 +46,10 @@ struct VespersView: View {
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
+    /// The page controllers are rebuilt when the page turn or the theme changes: the turn
+    /// is fixed at creation, and the pages' backgrounds are set there.
+    private var readerID: String { "\(settings.pageTurn.rawValue)|\(settings.theme.rawValue)" }
+
     /// The day and the hour: either changing starts the reader at the top.
     private var dateKey: String { "\(content.day.year)-\(content.day.month)-\(content.day.day)|\(selection.key)" }
 
@@ -52,6 +57,7 @@ struct VespersView: View {
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
             + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)|\(settings.rite.rawValue)"
+            + "|\(settings.theme.rawValue)|\(settings.font.rawValue)"
     }
 
     /// The hour's sections in order, for the table of contents.
@@ -66,8 +72,11 @@ struct VespersView: View {
     private func parallelOffice(landscape: Bool) -> ParallelOffice {
         let currentMetrics = self.metrics
         let showRubrics = settings.showRubrics
+        let theme = self.theme
+        let typeface = settings.font
         return parallelCache.office(for: "\(officeKey)|\(landscape)") {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics).typesetParallel(landscape: landscape)
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface)
+                .typesetParallel(landscape: landscape)
         }
     }
 
@@ -82,14 +91,16 @@ struct VespersView: View {
     private var office: TypesetOffice {
         let currentMetrics = self.metrics
         let showRubrics = settings.showRubrics
+        let theme = self.theme
+        let typeface = settings.font
         return typesetCache.office(for: officeKey) {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics).typeset()
+            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface).typeset()
         }
     }
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationHeader
                 // Beta 6: Ambrosian Compline is Latin only, whatever the English setting.
@@ -115,19 +126,20 @@ struct VespersView: View {
         switch settings.readingMode {
         case .vertical:
             VerticalOfficeReader(
-                office: office, officeID: officeKey, dateKey: dateKey, margin: metrics.margin,
+                office: office, officeID: officeKey, dateKey: dateKey, margin: metrics.margin, theme: theme,
                 jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink, onPageChange: updatePage
             )
+            .id(settings.theme)
         case .horizontal:
             GeometryReader { geometry in
                 PagedOfficeReader(
                     office: office, officeID: officeKey, dateKey: dateKey, pageSize: geometry.size, margin: metrics.margin,
-                    curl: settings.pageTurn == .curl, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink,
+                    curl: settings.pageTurn == .curl, theme: theme, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink,
                     onPageChange: updatePage
                 )
             }
             // The page-turn style is fixed when the page controller is created.
-            .id(settings.pageTurn)
+            .id(readerID)
         }
     }
 
@@ -145,16 +157,17 @@ struct VespersView: View {
             case .vertical:
                 ParallelVerticalReader(
                     office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, width: geometry.size.width,
-                    margin: margin, gutter: gutter, jumpTarget: jumpBinding(parallel.sectionOffsets),
+                    margin: margin, gutter: gutter, theme: theme, jumpTarget: jumpBinding(parallel.sectionOffsets),
                     onLink: handleLink, onPageChange: updatePage
                 )
+                .id(settings.theme)
             case .horizontal:
                 ParallelPagedReader(
                     office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, pageSize: geometry.size,
-                    margin: margin, gutter: gutter, curl: settings.pageTurn == .curl,
+                    margin: margin, gutter: gutter, curl: settings.pageTurn == .curl, theme: theme,
                     jumpTarget: jumpBinding(parallel.sectionOffsets), onLink: handleLink, onPageChange: updatePage
                 )
-                .id(settings.pageTurn)
+                .id(readerID)
             }
         }
     }
@@ -186,7 +199,7 @@ struct VespersView: View {
             // `Text`, not a `Button`, so UI tests still find it as static text.
             Text(content.hourTitle)
                 .font(.system(size: metrics.navTitleSize))
-                .foregroundStyle(Theme.chrome)
+                .foregroundStyle(theme.chrome)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture { showingHourPicker = true }
@@ -196,18 +209,18 @@ struct VespersView: View {
                     showingSettings = true
                 } label: {
                     Image(systemName: "gearshape")
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .accessibilityIdentifier("settingsButton")
                 Spacer()
                 Button(action: onPreviousDay) {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .accessibilityIdentifier("previousDayButton")
                 Button(action: onNextDay) {
                     Image(systemName: "chevron.right")
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .accessibilityIdentifier("nextDayButton")
             }
@@ -235,7 +248,7 @@ struct VespersView: View {
         ZStack {
             Text("Page \(pageNumber) of \(pageCount)")
                 .font(.system(size: metrics.footerSize))
-                .foregroundStyle(Theme.chrome)
+                .foregroundStyle(theme.chrome)
                 .accessibilityIdentifier("pageCounter")
             HStack {
                 Spacer()
@@ -244,7 +257,7 @@ struct VespersView: View {
                 } label: {
                     Text(content.shortDate)
                         .font(.system(size: metrics.footerSize))
-                        .foregroundStyle(Theme.chrome)
+                        .foregroundStyle(theme.chrome)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("jumpToDateButton")
@@ -275,7 +288,7 @@ struct VespersView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(theme.colorScheme)
     }
 
     // MARK: Jump to date
@@ -293,7 +306,7 @@ struct VespersView: View {
             // Black to the sheet's edges, under the title bar too, as the hour picker is:
             // the padding sat outside the calendar's own black, in the sheet's grey.
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Theme.background)
+            .background(theme.background)
             .navigationTitle("Jump to date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -302,14 +315,15 @@ struct VespersView: View {
                 }
             }
         }
-        .presentationBackground(Theme.background)
-        .preferredColorScheme(.dark)
+        .presentationBackground(theme.background)
+        .preferredColorScheme(theme.colorScheme)
     }
 }
 
 /// The hour picker (Beta 2), modelled on `design/reference/Hours Picker.png` and reduced to
 /// the office's own hours (`CLAUDE.md`): one row per hour, the current one checked.
 struct HourPickerView: View {
+    @Environment(\.theme) private var theme
     let current: OfficeHour
     /// The office chosen in Settings: the picker lists only its own hours (decided
     /// 2026-09-26).
@@ -328,24 +342,24 @@ struct HourPickerView: View {
                     HStack {
                         Text(hour.title)
                             .font(.system(size: 20))
-                            .foregroundStyle(Theme.liturgicalText)
+                            .foregroundStyle(theme.liturgicalText)
                         Spacer()
                         if hour == current {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(Theme.icon)
+                                .foregroundStyle(theme.icon)
                         }
                     }
                     .padding(.vertical, 6)
                 }
-                .listRowBackground(Theme.background)
+                .listRowBackground(theme.background)
                 .accessibilityIdentifier("hour-\(hour.key)")
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Theme.background)
+            .background(theme.background)
             .navigationTitle("Horæ")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(theme.colorScheme)
     }
 }

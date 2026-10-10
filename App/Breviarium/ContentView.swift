@@ -38,6 +38,16 @@ struct ContentView: View {
     }
 
     var body: some View {
+        page
+            // The chosen theme (1.2) for every view below, sheets included, and the
+            // system's own parts light or dark to match it.
+            .environment(\.theme, settings.theme.theme)
+            .environment(\.gallerySample, dataStore.gallerySample)
+            .preferredColorScheme(settings.theme.theme.colorScheme)
+    }
+
+    @ViewBuilder
+    private var page: some View {
         if let content = vespersContent {
             VespersView(
                 content: content, settings: settings, selection: shownHour,
@@ -50,11 +60,11 @@ struct ContentView: View {
             )
         } else {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                settings.theme.theme.background.ignoresSafeArea()
                 // Includes OfficeDataStore's own diagnostic string -- temporary, while
                 // the bundling pipeline is still being shaken out (see its doc comment).
                 Text("\(shownHour.title) could not be loaded for this date.\n\(dataStore.loadDiagnostic)")
-                    .foregroundStyle(Theme.chrome)
+                    .foregroundStyle(settings.theme.theme.chrome)
                     .padding()
             }
         }

@@ -1,10 +1,10 @@
 import BreviariumKit
 import SwiftUI
 
-/// `CLAUDE.md`'s "Settings (Universalis-style toggles)" screen. Night mode only, like the
-/// rest of the app -- `.preferredColorScheme(.dark)` rather than trusting the system
-/// scheme, since there is no light theme to fall back to.
+/// `CLAUDE.md`'s "Settings (Universalis-style toggles)" screen, light or dark as the
+/// chosen theme is (1.2), rather than following the system's own appearance.
 struct SettingsView: View {
+    @Environment(\.theme) private var theme
     @ObservedObject var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
 
@@ -20,12 +20,12 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 Text(OfficiumView.name(of: rite))
-                                    .foregroundStyle(Theme.liturgicalText)
+                                    .foregroundStyle(theme.liturgicalText)
                                 Spacer()
                                 if settings.rite == rite {
                                     Text(OfficiumView.label(for: settings.officium, rite: rite))
                                         .font(.footnote)
-                                        .foregroundStyle(Theme.chrome)
+                                        .foregroundStyle(theme.chrome)
                                 }
                             }
                         }
@@ -51,7 +51,7 @@ struct SettingsView: View {
                     // Beta 6: Ambrosian Compline is Latin only, in its own psalter.
                     if settings.rite == .ambrosianus {
                         Text("Completorium Ambrosianum is in Latin only, with the Ambrosian psalter.")
-                            .foregroundStyle(Theme.chrome)
+                            .foregroundStyle(theme.chrome)
                     }
                 }
                 .disabled(settings.rite == .ambrosianus)
@@ -63,8 +63,8 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("readingModePicker")
                     Picker("Page turn", selection: $settings.pageTurn) {
-                        Text("Slide").tag(PageTurn.slide)
                         Text("Page curl").tag(PageTurn.curl)
+                        Text("Slide").tag(PageTurn.slide)
                     }
                     .disabled(settings.readingMode == .vertical)
                     .accessibilityIdentifier("pageTurnPicker")
@@ -77,6 +77,20 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                // 1.2-M3: the theme and the font, each chosen from a gallery like the
+                // app icon's (`StyleGalleries.swift`).
+                Section("Theme") {
+                    StyleRow(title: "Theme", value: settings.theme.name, identifier: "themePicker") {
+                        ThemeGallery(settings: settings)
+                    }
+                }
+
+                Section("Font") {
+                    StyleRow(title: "Font", value: settings.font.name, identifier: "fontPicker") {
+                        FontGallery(settings: settings)
+                    }
                 }
 
                 Section("App icon") {
@@ -99,7 +113,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(theme.colorScheme)
     }
 
     private static func label(for size: TextSizeSetting) -> String {
@@ -117,6 +131,7 @@ struct SettingsView: View {
 /// the other two are the votive offices the breviary provides. Choosing one chooses the
 /// rite too.
 struct OfficiumView: View {
+    @Environment(\.theme) private var theme
     @ObservedObject var settings: SettingsStore
     let rite: Rite
 
@@ -153,11 +168,11 @@ struct OfficiumView: View {
                     } label: {
                         HStack {
                             Text(Self.label(for: officium, rite: rite))
-                                .foregroundStyle(Theme.liturgicalText)
+                                .foregroundStyle(theme.liturgicalText)
                             Spacer()
                             if settings.rite == rite, settings.officium == officium {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Theme.icon)
+                                    .foregroundStyle(theme.icon)
                             }
                         }
                     }

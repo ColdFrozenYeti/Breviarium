@@ -1,20 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// Shared setup for every text view showing `OfficeTypesetter` output: read-only, black,
-/// no insets of its own, and links drawn in their own attributes (the date line keeps
+/// Shared setup for every text view showing `OfficeTypesetter` output: read-only, in the
+/// theme's background (1.2), no insets of its own, and links drawn in their own attributes (the date line keeps
 /// its rubric colour, the table-of-contents icon its icon colour).
 @MainActor
 enum OfficeTextViewStyle {
-    static func apply(to textView: UITextView) {
+    static func apply(to textView: UITextView, theme: Theme) {
         textView.isEditable = false
         textView.isSelectable = true
-        textView.backgroundColor = .black
+        textView.backgroundColor = theme.uiBackground
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
         textView.linkTextAttributes = [:]
         textView.dataDetectorTypes = []
-        textView.indicatorStyle = .white
+        textView.indicatorStyle = theme.indicatorStyle
         textView.accessibilityIdentifier = "officeText"
     }
 }
@@ -47,6 +47,8 @@ struct VerticalOfficeReader: UIViewRepresentable {
     /// the reading position.
     let dateKey: String
     let margin: CGFloat
+    /// The colour theme (1.2); `VespersView` recreates the reader when it changes.
+    let theme: Theme
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
     let onPageChange: (Int, Int) -> Void
@@ -55,7 +57,7 @@ struct VerticalOfficeReader: UIViewRepresentable {
 
     func makeUIView(context: Context) -> LayoutReportingTextView {
         let textView = LayoutReportingTextView.makeTextKit1()
-        OfficeTextViewStyle.apply(to: textView)
+        OfficeTextViewStyle.apply(to: textView, theme: theme)
         textView.isScrollEnabled = true
         textView.alwaysBounceVertical = true
         textView.delegate = context.coordinator
@@ -195,6 +197,8 @@ struct PagedOfficeReader: UIViewControllerRepresentable {
     let pageSize: CGSize
     let margin: CGFloat
     let curl: Bool
+    /// The colour theme (1.2), the page's back in a curl included.
+    let theme: Theme
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
     let onPageChange: (Int, Int) -> Void
@@ -214,7 +218,7 @@ struct PagedOfficeReader: UIViewControllerRepresentable {
         }
         controller.dataSource = context.coordinator
         controller.delegate = context.coordinator
-        controller.view.backgroundColor = .black
+        controller.view.backgroundColor = theme.uiBackground
         return controller
     }
 
@@ -379,7 +383,8 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
         guard containers.indices.contains(index) else { return nil }
         if let existing = pages[index] { return existing }
         let page = OfficePageController(
-            index: index, container: containers[index], margin: parent.margin, topInset: Self.pageTopInset, textViewDelegate: self
+            index: index, container: containers[index], margin: parent.margin, topInset: Self.pageTopInset, theme: parent.theme,
+            textViewDelegate: self
         )
         page.onLayout = { [weak self] in
             Task { @MainActor [weak self] in self?.repaginateIfReflowed() }
@@ -468,15 +473,20 @@ final class OfficePageController: UIViewController {
     private let textView: UITextView
     private let margin: CGFloat
     private let topInset: CGFloat
+    private let background: UIColor
 
-    init(index: Int, container: NSTextContainer, margin: CGFloat, topInset: CGFloat, textViewDelegate: any UITextViewDelegate) {
+    init(
+        index: Int, container: NSTextContainer, margin: CGFloat, topInset: CGFloat, theme: Theme,
+        textViewDelegate: any UITextViewDelegate
+    ) {
         self.index = index
         self.margin = margin
         self.topInset = topInset
+        background = theme.uiBackground
         let size = container.size
         textView = UITextView(frame: CGRect(origin: .zero, size: size), textContainer: container)
         super.init(nibName: nil, bundle: nil)
-        OfficeTextViewStyle.apply(to: textView)
+        OfficeTextViewStyle.apply(to: textView, theme: theme)
         textView.isScrollEnabled = false
         textView.delegate = textViewDelegate
         // The container's size is the page: `paginate()` decided which lines it holds. A
@@ -495,7 +505,7 @@ final class OfficePageController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = background
         view.addSubview(textView)
     }
 
@@ -748,10 +758,17 @@ final class ParallelPageView: UIView {
         }
     }
     var onLink: ((URL) -> Void)?
+    /// The theme's background (1.2), which `draw` fills.
+    var background: UIColor = .black {
+        didSet {
+            backgroundColor = background
+            setNeedsDisplay()
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = .black
+        backgroundColor = background
         isOpaque = true
         contentMode = .redraw
         isAccessibilityElement = true
@@ -765,7 +782,7 @@ final class ParallelPageView: UIView {
     }
 
     override func draw(_ rect: CGRect) {
-        UIColor.black.setFill()
+        background.setFill()
         UIRectFill(rect)
         for slice in slices where slice.frame.insetBy(dx: 0, dy: -4).intersects(rect) {
             slice.column.draw(lines: slice.lines, at: slice.origin)
@@ -793,6 +810,7 @@ struct ParallelPagedReader: UIViewControllerRepresentable {
     let margin: CGFloat
     let gutter: CGFloat
     let curl: Bool
+    let theme: Theme
     /// A row index (`ParallelOffice.sectionOffsets`).
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
@@ -813,7 +831,7 @@ struct ParallelPagedReader: UIViewControllerRepresentable {
         }
         controller.dataSource = context.coordinator
         controller.delegate = context.coordinator
-        controller.view.backgroundColor = .black
+        controller.view.backgroundColor = theme.uiBackground
         return controller
     }
 
@@ -860,7 +878,9 @@ final class ParallelPager: NSObject, UIPageViewControllerDataSource, UIPageViewC
     private func pageController(_ index: Int) -> ParallelPageController? {
         guard let layout, layout.pages.indices.contains(index) else { return nil }
         if let existing = pages[index] { return existing }
-        let page = ParallelPageController(index: index, slices: layout.pages[index], margin: parent.margin) { [weak self] url in
+        let page = ParallelPageController(
+            index: index, slices: layout.pages[index], margin: parent.margin, background: parent.theme.uiBackground
+        ) { [weak self] url in
             self?.parent.onLink(url)
         }
         pages[index] = page
@@ -906,10 +926,11 @@ final class ParallelPageController: UIViewController {
     private let pageView = ParallelPageView(frame: .zero)
     private let margin: CGFloat
 
-    init(index: Int, slices: [ColumnSlice], margin: CGFloat, onLink: @escaping (URL) -> Void) {
+    init(index: Int, slices: [ColumnSlice], margin: CGFloat, background: UIColor, onLink: @escaping (URL) -> Void) {
         self.index = index
         self.margin = margin
         super.init(nibName: nil, bundle: nil)
+        pageView.background = background
         pageView.slices = slices
         pageView.onLink = onLink
     }
@@ -921,7 +942,7 @@ final class ParallelPageController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = pageView.background
         view.addSubview(pageView)
     }
 
@@ -943,6 +964,7 @@ struct ParallelVerticalReader: UIViewRepresentable {
     let width: CGFloat
     let margin: CGFloat
     let gutter: CGFloat
+    let theme: Theme
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
     let onPageChange: (Int, Int) -> Void
@@ -957,8 +979,9 @@ struct ParallelVerticalReader: UIViewRepresentable {
             guard let coordinator, let scrollView else { return }
             coordinator.didLayout(scrollView)
         }
-        scrollView.backgroundColor = .black
-        scrollView.indicatorStyle = .white
+        scrollView.backgroundColor = theme.uiBackground
+        scrollView.indicatorStyle = theme.indicatorStyle
+        context.coordinator.pageView.background = theme.uiBackground
         scrollView.alwaysBounceVertical = true
         scrollView.delegate = context.coordinator
         scrollView.addSubview(context.coordinator.pageView)

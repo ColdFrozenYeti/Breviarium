@@ -44,3 +44,11 @@ modifications, as section 7 allows.
   follow). That transcription is not covered by the GPL: it may be redistributed only as
   part of Breviarium or under Church of Ambrose's own licence. The source PDFs are not
   in this repository.
+- **IBM Plex Mono** (`App/Breviarium/Fonts/IBMPlexMono-*.ttf`), the *typewriter* font
+  (1.2): SIL Open Font License 1.1, copyright © 2017 IBM Corp., with Reserved Font Name
+  "Plex"; see `App/Breviarium/Fonts/OFL-IBMPlexMono.txt`, which ships in the app with it.
+- **Comic Neue** (`App/Breviarium/Fonts/ComicNeue-*.ttf`), the *comic* font (1.2): SIL
+  Open Font License 1.1, copyright 2014 The Comic Neue Project Authors; see
+  `App/Breviarium/Fonts/OFL-ComicNeue.txt`, which ships in the app with it. The OFL
+  allows bundling either font in this GPL app, on the App Store too, unmodified and not
+  sold on its own.

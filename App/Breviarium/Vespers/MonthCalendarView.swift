@@ -5,6 +5,7 @@ import SwiftUI
 /// liturgical colour under its number (decision 4). The system `DatePicker` can't mark its
 /// days, hence this grid; the chrome is English, like the rest of the app's chrome.
 struct MonthCalendarView: View {
+    @Environment(\.theme) private var theme
     let selected: SimpleDate
     let colors: @MainActor (_ year: Int, _ month: Int) -> [Int: CalendarColor]
     let onSelect: (SimpleDate) -> Void
@@ -47,13 +48,13 @@ struct MonthCalendarView: View {
                 Spacer()
                 Text("\(Self.monthNames[month - 1]) \(String(year))")
                     .font(.headline)
-                    .foregroundStyle(Theme.liturgicalText)
+                    .foregroundStyle(theme.liturgicalText)
                     .accessibilityIdentifier("calendarMonthTitle")
                 Spacer()
                 Button { move(by: 1) } label: { Image(systemName: "chevron.right") }
                     .accessibilityIdentifier("nextMonthButton")
             }
-            .foregroundStyle(Theme.icon)
+            .foregroundStyle(theme.icon)
 
             let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
             LazyVGrid(columns: columns, spacing: 10) {
@@ -63,7 +64,7 @@ struct MonthCalendarView: View {
                     if cell.hasPrefix("w") {
                         Text(Self.weekdays[Int(cell.dropFirst())!])
                             .font(.caption)
-                            .foregroundStyle(Theme.chrome)
+                            .foregroundStyle(theme.chrome)
                     } else if cell.hasPrefix("b") {
                         Color.clear.frame(height: 44)
                     } else {
@@ -75,11 +76,11 @@ struct MonthCalendarView: View {
             Button("Today") {
                 onSelect(SimpleDate.today())
             }
-            .foregroundStyle(Theme.icon)
+            .foregroundStyle(theme.icon)
             .accessibilityIdentifier("todayButton")
             Spacer()
         }
-        .background(Theme.background)
+        .background(theme.background)
         // Each month's colours are computed once (`OfficeDataStore.calendarColors`); the
         // grid shows first, the dots as soon as they are ready.
         .task(id: year * 100 + month) {
@@ -96,9 +97,9 @@ struct MonthCalendarView: View {
             VStack(spacing: 4) {
                 Text("\(day)")
                     .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Theme.background : Theme.liturgicalText)
+                    .foregroundStyle(isSelected ? theme.background : theme.liturgicalText)
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(isSelected ? Theme.icon : Color.clear))
+                    .background(Circle().fill(isSelected ? theme.icon : Color.clear))
                 CalendarDot(color: monthColors[day])
             }
             .frame(height: 44)
@@ -117,17 +118,22 @@ struct MonthCalendarView: View {
     }
 }
 
-/// A day's colour dot: filled, or a grey ring for black (decision 4).
+/// A day's colour dot: filled, or a grey ring for black (decision 4); on a light theme a
+/// black day is a filled black dot, and no dot has a ring (the user, 10 October 2026).
 struct CalendarDot: View {
+    @Environment(\.theme) private var theme
     let color: CalendarColor?
 
     var body: some View {
         Group {
             if let color {
-                if color == .black {
-                    Circle().stroke(Theme.liturgical(color), lineWidth: 1.2)
+                if color == .black, theme.isLight {
+                    // On a light page a black day is a black dot (the user, 10 October 2026).
+                    Circle().fill(Color.black)
+                } else if color == .black {
+                    Circle().stroke(theme.liturgical(color), lineWidth: 1.2)
                 } else {
-                    Circle().fill(Theme.liturgical(color))
+                    Circle().fill(theme.liturgical(color))
                 }
             } else {
                 Color.clear

@@ -24,7 +24,7 @@ class BreviariumUITestCase: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
         officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
-        priest: Bool? = nil
+        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif"
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -39,7 +39,7 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
-            "-settings.rite", rite,
+            "-settings.rite", rite, "-settings.theme", theme, "-settings.font", font,
         ]
         if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
@@ -262,7 +262,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["1.1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1.2"].waitForExistence(timeout: 5))
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -276,8 +276,17 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let icon = springboard.icons["Breviarium"]
-        for _ in 0..<4 where !(icon.exists && icon.isHittable) {
+        // Whether the icon's centre is on the screen, from its frame: `isHittable` can
+        // fail the test outright on an icon whose page is still sliding in ("Activation
+        // point invalid", seen on CI on 10 October 2026) instead of answering false.
+        func onScreen() -> Bool {
+            guard icon.exists else { return false }
+            let frame = icon.frame
+            return !frame.isEmpty && springboard.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
+        }
+        for _ in 0..<4 where !onScreen() {
             springboard.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.5)
         }
         let attachment = XCTAttachment(screenshot: springboard.screenshot())
         attachment.name = "home-screen-icon"
@@ -366,20 +375,33 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         scrollSettings(to: picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertTrue(picker.isEnabled, "alternate icons should be supported")
-        XCTAssertTrue(picker.label.contains("Default"), "the row names the current icon: \(picker.label)")
+        XCTAssertTrue(picker.label.contains("Northumberland Simple"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Default"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
+        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
             let tile = app.buttons["appIcon-\(icon)"]
+            // Nine icons are taller than the screen, and the grid is lazy.
+            var swipes = 0
+            while !tile.exists, swipes < 4 {
+                app.swipeUp()
+                swipes += 1
+            }
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)
         }
         Thread.sleep(forTimeInterval: 0.4)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "app-icon-gallery"
+        attachment.name = "app-icon-gallery-end"
         attachment.lifetime = .keepAlways
         add(attachment)
+        app.swipeDown()
+        app.swipeDown()
+        Thread.sleep(forTimeInterval: 0.4)
+        let top = XCTAttachment(screenshot: app.screenshot())
+        top.name = "app-icon-gallery"
+        top.lifetime = .keepAlways
+        add(top)
     }
 }
 
@@ -805,5 +827,163 @@ final class AmbrosianUITests: BreviariumUITestCase {
         captureAllPages(date: "2026-04-07", priest: true, name: "aestiva1-easter")      // Regina caeli, festal
         captureAllPages(date: "2026-01-15", priest: false, name: "hiemalis1-nopriest")  // Alma; Domine, exaudi; one Confiteor
         captureAllPages(date: "2026-11-21", priest: true, name: "hiemalis1-bvm")        // Ave Regina, Our Lady's feast
+    }
+}
+
+/// 1.2-M1: the eight colour themes (`docs/1.2_plan.md` §3), chosen in Settings, each on a
+/// Compline page 1 and its psalmody page at the default and the largest text size; the
+/// Settings sheet and the calendar in a light theme.
+/// 1.2-M2: a Compline page in each typeface, in *Nox* (`docs/1.2_plan.md` §5).
+final class FontUITests: BreviariumUITestCase {
+    static let fonts = ["serif", "sans", "typewriter", "comic"]
+
+    func testComplineInEveryFont() {
+        for font in Self.fonts {
+            for (size, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-09-16", textSize: size, hour: "Completorium", font: font)
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m2-font-\(font)-\(sizeName)-page1")
+                app.swipeLeft()
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m2-font-\(font)-\(sizeName)-page2")
+                app.terminate()
+            }
+        }
+    }
+
+    /// Settings -> Font chooses a typeface, and the office takes it at once; and English
+    /// on, side by side, in the two bundled fonts.
+    func testFontSettingAndParallelEnglish() {
+        let app = launchApp(date: "2026-09-16", hour: "Completorium")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        let picker = app.buttons["fontPicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        let comic = app.buttons["Comic Neue"]
+        XCTAssertTrue(comic.waitForExistence(timeout: 5))
+        comic.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m3-gallery-font-chosen-comic")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m2-font-settings-comic")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m2-font-chosen-comic")
+        app.terminate()
+        for font in ["typewriter", "comic"] {
+            let app = launchApp(date: "2026-09-16", english: true, hour: "Completorium", font: font)
+            Thread.sleep(forTimeInterval: 0.4)
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "m2-font-\(font)-en-page2")
+            app.terminate()
+        }
+    }
+}
+
+/// 1.2-M3: the Theme and Font galleries, each tile the fixed Easter *Magnificat* sample
+/// (`docs/1.2_plan.md` §4) -- the Theme page in the current font, the Font page in the
+/// current theme.
+final class GalleryUITests: BreviariumUITestCase {
+    private func openGallery(_ app: XCUIApplication, _ row: String, title: String) {
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        let picker = app.buttons[row]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.8)
+    }
+
+    func testGalleries() {
+        for (theme, font) in [("classicDark", "serif"), ("light", "comic"), ("sepia", "typewriter")] {
+            var app = launchApp(date: "2026-09-16", hour: "Completorium", theme: theme, font: font)
+            openGallery(app, "themePicker", title: "Theme")
+            XCTAssertTrue(app.buttons["theme-\(theme)"].isSelected)
+            capture(app, "m3-gallery-theme-\(theme)-\(font)")
+            app.swipeUp()
+            Thread.sleep(forTimeInterval: 0.6)
+            capture(app, "m3-gallery-theme-\(theme)-\(font)-end")
+            app.terminate()
+            app = launchApp(date: "2026-09-16", hour: "Completorium", theme: theme, font: font)
+            openGallery(app, "fontPicker", title: "Font")
+            XCTAssertTrue(app.buttons["font-\(font)"].isSelected)
+            capture(app, "m3-gallery-font-\(theme)-\(font)")
+            app.terminate()
+        }
+    }
+}
+
+final class ThemeUITests: BreviariumUITestCase {
+    static let themes = ["classicDark", "midnightBlue", "charcoal", "light", "sepia", "vellum", "forest", "rose"]
+
+    func testComplineInEveryTheme() {
+        for theme in Self.themes {
+            for (size, sizeName) in [("standard", "default"), ("largest", "largest")] {
+                let app = launchApp(date: "2026-09-16", textSize: size, hour: "Completorium", theme: theme)
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m1-theme-\(theme)-\(sizeName)-page1")
+                app.swipeLeft()
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m1-theme-\(theme)-\(sizeName)-page2")
+                app.terminate()
+            }
+        }
+    }
+
+    /// Settings -> Theme chooses a theme, and the office takes it at once.
+    func testThemeSettingAndLightSheets() {
+        let app = launchApp(date: "2026-11-02", hour: "Completorium")
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        // Below the text size, out of view at first.
+        app.swipeUp()
+        let picker = app.buttons["themePicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        let lux = app.buttons["Lux"]
+        XCTAssertTrue(lux.waitForExistence(timeout: 5))
+        lux.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m3-gallery-theme-chosen-lux")
+        // Back from the gallery to Settings (1.2-M3: the theme is chosen on a page of its own).
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m1-theme-settings-lux")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "m1-theme-chosen-lux")
+        // The calendar's dots, ringed on a light page.
+        app.buttons["jumpToDateButton"].tap()
+        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["calendarDay-2"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.0)
+        capture(app, "m1-theme-calendar-lux")
+        app.buttons["Cancel"].tap()
+        // The hour picker.
+        app.staticTexts["hourPickerButton"].tap()
+        Thread.sleep(forTimeInterval: 0.8)
+        capture(app, "m1-theme-hours-lux")
+        app.terminate()
+    }
+
+    /// English on: the parallel pages in a dark and a light theme.
+    func testParallelEnglishInThemes() {
+        for theme in ["midnightBlue", "sepia"] {
+            let app = launchApp(date: "2026-09-16", english: true, hour: "Completorium", theme: theme)
+            Thread.sleep(forTimeInterval: 0.4)
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 0.4)
+            capture(app, "m1-theme-\(theme)-en-page2")
+            app.terminate()
+        }
     }
 }

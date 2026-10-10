@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 
 /// The Home Screen icon (added 1 October 2026; four icons since 6 October, six since
-/// 10 October): the user's
+/// 10 October, nine since 1.2, with *Northumberland Simple* the primary one and the first
+/// default renamed *Walters*): the user's
 /// designs, each an icon set in `Assets.xcassets` with a small `IconPreview…` image beside
 /// it, since SwiftUI can't draw an app icon set. iOS remembers the choice itself, so
 /// nothing is stored here.
@@ -11,7 +12,11 @@ import UIKit
 /// one UIKit call, `UIApplication.setAlternateIconName`, and nothing else. Alternate icons
 /// need no entitlement, so a free Apple ID signs them (`CLAUDE.md`).
 enum AppIconChoice: String, CaseIterable, Identifiable {
+    /// The primary icon, *Northumberland Simple* since 1.2.
     case standard
+    case northumberland
+    case northumberlandInverted
+    case walters
     case benedictus
     case gutenbergMono
     case gutenberg
@@ -25,6 +30,9 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     var iconName: String? {
         switch self {
         case .standard: nil
+        case .northumberland: "AppIconNorthumberland"
+        case .northumberlandInverted: "AppIconNorthumberlandInverted"
+        case .walters: "AppIconWalters"
         case .benedictus: "AppIconBenedictus"
         case .gutenbergMono: "AppIconGutenbergMono"
         case .gutenberg: "AppIconGutenberg"
@@ -36,7 +44,10 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     /// The preview drawn in the gallery.
     var previewName: String {
         switch self {
-        case .standard: "IconPreviewDefault"
+        case .standard: "IconPreviewNorthumberlandSimple"
+        case .northumberland: "IconPreviewNorthumberland"
+        case .northumberlandInverted: "IconPreviewNorthumberlandInverted"
+        case .walters: "IconPreviewWalters"
         case .benedictus: "IconPreviewBenedictus"
         case .gutenbergMono: "IconPreviewGutenbergMono"
         case .gutenberg: "IconPreviewGutenberg"
@@ -47,7 +58,10 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .standard: "Default"
+        case .standard: "Northumberland Simple"
+        case .northumberland: "Northumberland"
+        case .northumberlandInverted: "Northumberland Inverted"
+        case .walters: "Walters"
         case .benedictus: "Benedictus"
         case .gutenbergMono: "Gutenberg (mono)"
         case .gutenberg: "Gutenberg"
@@ -65,6 +79,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
 
 /// The Settings row: the current icon's name, opening the gallery.
 struct AppIconRow: View {
+    @Environment(\.theme) private var theme
     @State private var current = AppIconChoice.current
 
     var body: some View {
@@ -73,11 +88,11 @@ struct AppIconRow: View {
         } label: {
             HStack {
                 Text("Icon")
-                    .foregroundStyle(Theme.liturgicalText)
+                    .foregroundStyle(theme.liturgicalText)
                 Spacer()
                 Text(current.label)
                     .font(.footnote)
-                    .foregroundStyle(Theme.chrome)
+                    .foregroundStyle(theme.chrome)
             }
         }
         .accessibilityIdentifier("appIconPicker")
@@ -88,6 +103,7 @@ struct AppIconRow: View {
 
 /// Every icon at once, two to a row, as it looks on the Home Screen; a tap chooses one.
 struct AppIconGallery: View {
+    @Environment(\.theme) private var theme
     @Binding var current: AppIconChoice
     private let columns = [GridItem(.flexible(), spacing: 20), GridItem(.flexible(), spacing: 20)]
 
@@ -101,7 +117,7 @@ struct AppIconGallery: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
         }
-        .background(Theme.background)
+        .background(theme.background)
         .navigationTitle("App icon")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -120,16 +136,16 @@ struct AppIconGallery: View {
                     .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 34, style: .continuous)
-                            .strokeBorder(selected ? Theme.icon : .clear, lineWidth: 3)
+                            .strokeBorder(selected ? theme.icon : .clear, lineWidth: 3)
                     }
                 HStack(spacing: 6) {
                     if selected {
                         Image(systemName: "checkmark")
-                            .foregroundStyle(Theme.icon)
+                            .foregroundStyle(theme.icon)
                             .accessibilityHidden(true)
                     }
                     Text(icon.label)
-                        .foregroundStyle(selected ? Theme.liturgicalText : Theme.chrome)
+                        .foregroundStyle(selected ? theme.liturgicalText : theme.chrome)
                 }
                 .font(.subheadline)
             }

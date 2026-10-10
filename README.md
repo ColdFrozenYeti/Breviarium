@@ -80,8 +80,9 @@ office of the day, the Little Office or the Office of the Dead.
   - Page turn (slide or page curl)
   - *Ritus*: Romanus or Dominicanus, each with its *Officium* (of the day, the Little
     Office or the Office of the Dead), or Ambrosianus, with *Completorium Ambrosianum*
-  - App icon: Default, Benedictus, Gutenberg (mono), Gutenberg, ChurchofAmbrose or
-    Weissenau, chosen from a gallery of all six
+  - App icon: Northumberland Simple (the default), Northumberland, Northumberland
+    Inverted, Walters, Benedictus, Gutenberg (mono), Gutenberg, ChurchofAmbrose or
+    Weissenau, chosen from a gallery of all nine
   - Release notes, and About with the Divinum Officium licence
 
 The build log, with every decision and every bug traced to the Divinum Officium source
@@ -104,7 +105,7 @@ Office of the Dead and the Martyrology in
 
 ## Roadmap
 
-![Roadmap: Alpha, Betas 1 to 6 and 1.0 released; next, 1.1, the release pass, the Ambrosian checks and the App Store; then 2.0](docs/images/roadmap.svg)
+![Roadmap: Alpha, Betas 1 to 6, 1.0 and 1.1 released; next, 1.2, fonts and colour themes; then 2.0](docs/images/roadmap.svg)
 
 The road to 1.0, and why it went in that order, is in [`docs/roadmap.md`](docs/roadmap.md).
 The road to 2.0 is in [`docs/roadmap-2.0.md`](docs/roadmap-2.0.md): 1.1, the release pass,

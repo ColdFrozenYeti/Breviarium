@@ -16,7 +16,8 @@ enum ReadingMode: String, CaseIterable {
     case horizontal, vertical
 }
 
-/// How a horizontal page turns: a sideways slide, or a book-like page curl.
+/// How a horizontal page turns: a book-like page curl (the default since 1.2, decided
+/// 2026-10-10) or a sideways slide.
 enum PageTurn: String, CaseIterable {
     case slide, curl
 }
@@ -57,6 +58,16 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(rite.rawValue, forKey: Keys.rite) }
     }
 
+    /// The colour theme (1.2): *Nox*, the look since the alpha, by default.
+    @Published var theme: ThemeChoice {
+        didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+    }
+
+    /// The office's typeface (1.2): Hoefler Text, the font since the alpha, by default.
+    @Published var font: FontChoice {
+        didSet { defaults.set(font.rawValue, forKey: Keys.font) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -69,6 +80,8 @@ final class SettingsStore: ObservableObject {
         static let psalter = "settings.psalter"
         static let officium = "settings.officium"
         static let rite = "settings.rite"
+        static let theme = "settings.theme"
+        static let font = "settings.font"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -84,9 +97,11 @@ final class SettingsStore: ObservableObject {
         let storedRaw = defaults.string(forKey: Keys.textSize)
         textSize = storedRaw.flatMap { raw in TextSizeSetting.allCases.first { $0.rawValue == raw } } ?? .standard
         readingMode = defaults.string(forKey: Keys.readingMode).flatMap(ReadingMode.init(rawValue:)) ?? .horizontal
-        pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .slide
+        pageTurn = defaults.string(forKey: Keys.pageTurn).flatMap(PageTurn.init(rawValue:)) ?? .curl
         psalter = defaults.string(forKey: Keys.psalter).flatMap(Psalter.init(rawValue:)) ?? .vulgate
         officium = defaults.string(forKey: Keys.officium).flatMap(Officium.init(rawValue:)) ?? .diei
         rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus
+        theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
+        font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
     }
 }
