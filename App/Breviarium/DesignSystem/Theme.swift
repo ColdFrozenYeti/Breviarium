@@ -240,10 +240,14 @@ struct LiturgicalUIFont {
     private func font(_ face: Face, _ size: CGFloat) -> UIFont {
         let scaled = size * choice.scale
         if let name = choice.faceName(face), let font = UIFont(name: name, size: scaled) { return font }
+        // SF Pro (and the fallback): the system font in bold and italic. The italic asks
+        // for both traits at once: `withSymbolicTraits(.traitItalic)` alone drops the
+        // weight, so the antiphons came out regular italic (the user, 11 October 2026).
         let heavy = face == .black || face == .blackItalic
-        let system = UIFont.systemFont(ofSize: scaled, weight: heavy ? .heavy : .regular)
-        guard face == .italic || face == .blackItalic,
-              let descriptor = system.fontDescriptor.withSymbolicTraits(.traitItalic) else { return system }
+        let system = UIFont.systemFont(ofSize: scaled, weight: heavy ? .bold : .regular)
+        guard face == .italic || face == .blackItalic else { return system }
+        let traits: UIFontDescriptor.SymbolicTraits = heavy ? [.traitItalic, .traitBold] : .traitItalic
+        guard let descriptor = system.fontDescriptor.withSymbolicTraits(traits) else { return system }
         return UIFont(descriptor: descriptor, size: scaled)
     }
 }
