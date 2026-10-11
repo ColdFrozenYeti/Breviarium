@@ -99,6 +99,20 @@ jobs:
             -scheme Breviarium \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest"
 
+      # App Store requirements (CLAUDE.md, "Before the App Store release"): the privacy
+      # manifest is in the bundle and valid, and the export-compliance key is set.
+      - name: Check the privacy manifest and export-compliance key
+        working-directory: App
+        run: |
+          set -euo pipefail
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -maxdepth 6 -type d \
+            -path '*/Build/Products/Debug-iphonesimulator/Breviarium.app' | head -1)
+          test -n "$APP"
+          echo "App bundle: $APP"
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          test "$(plutil -extract NSPrivacyTracking raw "$APP/PrivacyInfo.xcprivacy")" = false
+          test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$APP/Info.plist")" = false
+
       # The UI tests are five classes (B5-M0). They run one after another: on three
       # cloned simulators at once (tried 27 September) the macOS runner was too small,
       # nine tests timed out and the step took 56 minutes instead of 32.
