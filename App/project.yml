@@ -66,6 +66,14 @@ targets:
           - ComicNeue-Italic.ttf
           - ComicNeue-Bold.ttf
           - ComicNeue-BoldItalic.ttf
+          - GentiumBookPlus-Regular.ttf
+          - GentiumBookPlus-Italic.ttf
+          - GentiumBookPlus-Bold.ttf
+          - GentiumBookPlus-BoldItalic.ttf
+          - SourceSans3-Regular.ttf
+          - SourceSans3-It.ttf
+          - SourceSans3-Bold.ttf
+          - SourceSans3-BoldIt.ttf
         # Fully offline app: no network entitlements, no background modes.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false

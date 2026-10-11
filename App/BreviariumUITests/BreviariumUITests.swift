@@ -835,7 +835,7 @@ final class AmbrosianUITests: BreviariumUITestCase {
 /// Settings sheet and the calendar in a light theme.
 /// 1.2-M2: a Compline page in each typeface, in *Nox* (`docs/1.2_plan.md` §5).
 final class FontUITests: BreviariumUITestCase {
-    static let fonts = ["serif", "sans", "typewriter", "comic"]
+    static let fonts = ["serif", "gentium", "sans", "sourceSans", "typewriter", "comic"]
 
     func testComplineInEveryFont() {
         for font in Self.fonts {

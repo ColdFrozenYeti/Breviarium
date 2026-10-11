@@ -49,6 +49,16 @@ modifications, as section 7 allows.
   "Plex"; see `App/Breviarium/Fonts/OFL-IBMPlexMono.txt`, which ships in the app with it.
 - **Comic Neue** (`App/Breviarium/Fonts/ComicNeue-*.ttf`), the *comic* font (1.2): SIL
   Open Font License 1.1, copyright 2014 The Comic Neue Project Authors; see
-  `App/Breviarium/Fonts/OFL-ComicNeue.txt`, which ships in the app with it. The OFL
-  allows bundling either font in this GPL app, on the App Store too, unmodified and not
-  sold on its own.
+  `App/Breviarium/Fonts/OFL-ComicNeue.txt`, which ships in the app with it.
+- **Gentium Book Plus** (`App/Breviarium/Fonts/GentiumBookPlus-*.ttf`), a second serif
+  (after 1.2): SIL Open Font License 1.1, copyright (c) 2003-2022 SIL International, with
+  Reserved Font Names "Gentium" and "SIL"; see `App/Breviarium/Fonts/OFL-GentiumBookPlus.txt`,
+  which ships in the app with it. The files are google/fonts' release, unmodified.
+- **Source Sans 3** (`App/Breviarium/Fonts/SourceSans3-*.ttf`), a second sans serif (after
+  1.2): SIL Open Font License 1.1, copyright 2010-2024 Adobe, with Reserved Font Name
+  "Source" (a trademark of Adobe); see `App/Breviarium/Fonts/OFL-SourceSans3.txt`, which
+  ships in the app with it. The files are Adobe's own static TTFs, unmodified, so the
+  reserved name may stay.
+
+The OFL allows bundling these fonts in this GPL app, on the App Store too, unmodified and
+not sold on their own.

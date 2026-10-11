@@ -29,9 +29,12 @@ SOURCES = {
     "English": [DO / "English"],
 }
 FONTS = ROOT / "App/Breviarium/Fonts"
+# Each bundled font's four files: regular, italic, bold, bold italic.
 FAMILIES = {
-    "IBM Plex Mono": "IBMPlexMono",
-    "Comic Neue": "ComicNeue",
+    "IBM Plex Mono": ["IBMPlexMono-Regular", "IBMPlexMono-Italic", "IBMPlexMono-Bold", "IBMPlexMono-BoldItalic"],
+    "Comic Neue": ["ComicNeue-Regular", "ComicNeue-Italic", "ComicNeue-Bold", "ComicNeue-BoldItalic"],
+    "Gentium Book Plus": ["GentiumBookPlus-Regular", "GentiumBookPlus-Italic", "GentiumBookPlus-Bold", "GentiumBookPlus-BoldItalic"],
+    "Source Sans 3": ["SourceSans3-Regular", "SourceSans3-It", "SourceSans3-Bold", "SourceSans3-BoldIt"],
 }
 STYLES = ["Regular", "Italic", "Bold", "BoldItalic"]
 # Characters the typesetter never draws as text: control and formatting characters.
@@ -78,8 +81,8 @@ def main():
     print()
 
     failed = False
-    for family, prefix in FAMILIES.items():
-        cmaps = {style: set(TTFont(FONTS / f"{prefix}-{style}.ttf").getBestCmap()) for style in STYLES}
+    for family, files in FAMILIES.items():
+        cmaps = {style: set(TTFont(FONTS / f"{name}.ttf").getBestCmap()) for style, name in zip(STYLES, files)}
         print(f"== {family}")
         for lang, (counts, example) in corpora.items():
             missing = collections.defaultdict(list)
