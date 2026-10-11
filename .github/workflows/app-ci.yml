@@ -101,7 +101,7 @@ jobs:
 
       # App Store requirements (CLAUDE.md, "Before the App Store release"): the privacy
       # manifest is in the bundle and valid, and the export-compliance key is set.
-      - name: Check the privacy manifest and export-compliance key
+      - name: Check the privacy manifest, export-compliance key and device family
         working-directory: App
         run: |
           set -euo pipefail
@@ -112,6 +112,8 @@ jobs:
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
           test "$(plutil -extract NSPrivacyTracking raw "$APP/PrivacyInfo.xcprivacy")" = false
           test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$APP/Info.plist")" = false
+          # iPhone only: an iPad family here makes App Store Connect demand iPad orientations.
+          test "$(plutil -extract UIDeviceFamily json -o - "$APP/Info.plist")" = "[1]"
 
       # The UI tests are five classes (B5-M0). They run one after another: on three
       # cloned simulators at once (tried 27 September) the macOS runner was too small,
