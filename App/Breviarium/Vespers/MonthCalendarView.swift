@@ -120,7 +120,7 @@ struct MonthCalendarView: View {
 
 /// A day's colour dot: filled, or a grey ring for black (decision 4); on a light theme a
 /// black day is a filled black dot (the user, 10 October 2026), and a white day's dot has
-/// a fine grey edge, without which it vanishes into the page (the user, 11 October 2026).
+/// a fine gold edge, without which it vanishes into the page (the user, 11 October 2026).
 struct CalendarDot: View {
     @Environment(\.theme) private var theme
     let color: CalendarColor?
@@ -133,7 +133,7 @@ struct CalendarDot: View {
                     Circle().fill(Color.black)
                 } else if color == .white, theme.isLight {
                     Circle().fill(Color.white)
-                        .overlay(Circle().strokeBorder(theme.chrome, lineWidth: 0.75))
+                        .overlay(Circle().strokeBorder(Self.gold, lineWidth: 1))
                 } else if color == .black {
                     Circle().stroke(theme.liturgical(color), lineWidth: 1.2)
                 } else {
@@ -145,4 +145,7 @@ struct CalendarDot: View {
         }
         .frame(width: 6, height: 6)
     }
+
+    /// The white dot's edge on a light theme: an old gold, dark enough to read on white.
+    private static let gold = Color(red: 0.722, green: 0.569, blue: 0.184) // #B8912F
 }
