@@ -1,0 +1,129 @@
+name: TestFlight
+
+# Signs the app and uploads it to App Store Connect, for TestFlight and, later, the App
+# Store (2026-10-11, after the paid Apple Developer Program was joined). Manual only:
+# click "Run workflow"; the build appears in App Store Connect -> TestFlight after
+# Apple's processing, usually 10-30 minutes.
+#
+# It is build-ipa.yml's unsigned build with signing on top, as CLAUDE.md asks: the app is
+# archived unsigned, exactly as before, and the export step signs it with Apple's
+# cloud-managed distribution certificate and an App Store profile that Xcode fetches or
+# creates through the App Store Connect API key. No certificate, private key or
+# profile is stored anywhere; the runner holds the key only for the job.
+#
+# Secrets (repository Settings -> Secrets and variables -> Actions):
+#   ASC_KEY_P8     the API key file's whole text (-----BEGIN PRIVATE KEY----- ...)
+#   ASC_KEY_ID     the key's ID
+#   ASC_ISSUER_ID  the issuer ID shown above the keys list
+#   APPLE_TEAM_ID  the team ID (developer.apple.com -> Membership details)
+# The key needs the Admin role: cloud-managed certificates require it.
+#
+# The build number is 100 + this workflow's run number, so every upload is unique and
+# higher than the sideloaded builds' (project.yml's CFBundleVersion); the version
+# (CFBundleShortVersionString) comes from project.yml unchanged.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-26
+    env:
+      XCODE_VERSION: "26.5"
+
+    steps:
+      - name: Check the secrets are set
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=0
+          for name in ASC_KEY_P8 ASC_KEY_ID ASC_ISSUER_ID APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then echo "::error::Secret $name is not set"; missing=1; fi
+          done
+          exit $missing
+
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Generate the bundled data file
+        working-directory: Packages/BreviariumKit
+        run: swift run BreviariumData ../../data/divinum-officium ../../App/Breviarium/breviarium-data.json
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: App
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER=$((100 + GITHUB_RUN_NUMBER))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          xcodegen generate
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Breviarium/Info.plist
+          echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Breviarium/Info.plist) ($BUILD_NUMBER)"
+
+      - name: Archive (unsigned, as build-ipa.yml builds)
+        working-directory: App
+        run: |
+          xcodebuild archive \
+            -project Breviarium.xcodeproj \
+            -scheme Breviarium \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/Breviarium.xcarchive \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Sign and upload to App Store Connect
+        working-directory: App
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          chmod 600 "$KEY"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/Breviarium.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          rm -f "$KEY"
+          echo "Uploaded build $BUILD_NUMBER; it appears in App Store Connect -> TestFlight once Apple has processed it." >> "$GITHUB_STEP_SUMMARY"
