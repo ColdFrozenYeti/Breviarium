@@ -275,7 +275,7 @@ engine test that lists them. Plus any case the user has seen that the scan didn'
 ### Still needed from the user
 
 - The calendar photographs (calendar, perpetual paschal table, movable-feast table).
-- The owners' written permission, when convenient (work doesn't wait on it).
+- The owners' written permission, when convenient (work doesn't wait on it). Given on 11 October 2026.
 
 ## 8. The user's checks, all at the end of B6-M5 (decided 9 October 2026)
 
