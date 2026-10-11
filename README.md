@@ -143,7 +143,7 @@ weekly re-sign routine, and a short checklist to run on the phone after each ins
 | `docs/` | The plan and build log, the 1960 Vespers and day-hours rubrics references, the Divinum Officium file format, and setup and install guides. |
 | `design/reference/` | Universalis night-mode screenshots, the visual reference. |
 | `scripts/` | Test runners, fixture generators, and the Windows `.ipa` fetcher. |
-| `site/` | The website the App Store listing links to: the privacy policy and support pages, deployed to GitHub Pages by `pages.yml`. |
+| `site/` | The website the App Store listing links to: the privacy policy and support pages, deployed to GitHub Pages at [breviarium.eduardopavone.eu](https://breviarium.eduardopavone.eu/) by `pages.yml`. |
 
 ## Development
 
