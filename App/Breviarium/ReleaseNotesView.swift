@@ -16,6 +16,7 @@ struct ReleaseNotesView: View {
             "Settings are regrouped: Sacerdos, Rubricæ, English and Psalterium together, and text size, theme and font under Appearance.",
             "On a light theme, a white day's dot in Jump to date has a fine gold edge.",
             "IBM Plex Mono and Gentium Book Plus keep Hoefler Text's line spacing more closely.",
+            "Runs on any version of iOS 26, not only 26.5 and later.",
         ]),
         Release(name: "1.2", notes: [
             "Eight colour themes, chosen in Settings, under Theme: Nox (the black page, still the default), Media nox, Carbo, Lux, Sepia, Vellum, Silva and Rosa. Light themes make the whole app light.",

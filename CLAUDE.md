@@ -9,7 +9,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 - **Fully offline.** The app makes no network calls of any kind: no analytics, no crash reporting, no remote fonts, and no update checks. Do not add network entitlements. Everything, including all texts, ships inside the app bundle.
 - **No third-party dependencies** in the app or the engine: Apple frameworks and the Swift standard library only. Build and CI tooling may use whatever is convenient, as long as nothing from it is linked into the app.
 - **The app computes the office itself.** There is no precomputed ordo with an expiry date, and any date must work.
-- **iPhone only**, with a deployment target of **iOS 26.5** and no backwards compatibility.
+- **iPhone only**, with a deployment target of **iOS 26.0** (lowered from 26.5 on 2026-10-11, so every iPhone on iOS 26 can install it) and no compatibility with iOS 18 or earlier.
   - Use SwiftUI and current Swift concurrency.
   - Avoid UIKit unless SwiftUI genuinely cannot do something, and say so first.
 - **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Nox* theme (*Classic dark*) and stays the default; 1.2 adds seven others with their own text, rubric and background colours, light backgrounds included, named in Latin (`docs/1.2_plan.md`). Every font and colour ships in the app: no installed or external fonts. The Settings rows already in Latin stay Latin; the new *Theme* and *Font* rows are English.

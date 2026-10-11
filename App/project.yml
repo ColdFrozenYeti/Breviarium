@@ -3,7 +3,7 @@ name: Breviarium
 options:
   bundleIdPrefix: com.epavone.breviarium
   deploymentTarget:
-    iOS: "26.5"
+    iOS: "26.0"
   createIntermediateGroups: true
 
 settings:
@@ -17,7 +17,7 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1" # iPhone only
-    IPHONEOS_DEPLOYMENT_TARGET: "26.5"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
 packages:
