@@ -75,6 +75,19 @@ struct AboutView: View {
                 .padding(.vertical, 4)
             }
 
+            // The app icons (sources confirmed 2026-10-11): the Gutenberg pair's source image
+            // is CC BY 2.0, which asks for its credit wherever the icons are distributed.
+            Section("App icons") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("The app icons are Eduardo Pavone's designs, made from images on Wikisource. All are public domain but the Gutenberg pair.")
+                    Text("Gutenberg and Gutenberg (mono): adapted from an image by the Biblioteca General Antonio Machado, licensed under Creative Commons Attribution 2.0 Generic (CC BY 2.0).")
+                    Text("creativecommons.org/licenses/by/2.0")
+                        .font(.footnote)
+                        .foregroundStyle(theme.chrome)
+                }
+                .padding(.vertical, 4)
+            }
+
             Section("Divinum Officium licence") {
                 Text(Self.divinumOfficiumLicenseText)
                     .font(.footnote)

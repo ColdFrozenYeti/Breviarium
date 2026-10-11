@@ -13,7 +13,8 @@ PURPOSE. See the GNU General Public License for more details.
 
 This covers everything in this repository that is not listed under *Third-party
 material* below: the app, `BreviariumKit`, the data tool, the tests, the scripts, the
-documentation and the app icons.
+documentation and the app icons, except the source image of the two Gutenberg icons
+(see *App icons* below).
 
 ## Additional permission (GNU GPL version 3, section 7)
 
@@ -25,6 +26,26 @@ General Public License, provided that the Corresponding Source of the work is ma
 available to every recipient, free of charge, under the terms of the GNU General Public
 License. You may remove this additional permission from your own copies or
 modifications, as section 7 allows.
+
+## App icons
+
+All nine app icons are Eduardo Pavone's designs, each made from an image on Wikisource
+(sources confirmed 11 October 2026):
+
+| Icon | Source image |
+|---|---|
+| Northumberland Simple, Northumberland, Northumberland Inverted | public domain |
+| Walters | public domain |
+| Benedictus | public domain |
+| Weissenau | public domain |
+| ChurchofAmbrose | public domain |
+| Gutenberg, Gutenberg (mono) | Creative Commons Attribution 2.0 Generic, credit Biblioteca General Antonio Machado |
+
+The two Gutenberg icons are adapted into app icons from
+an image by the **Biblioteca General Antonio Machado**, licensed under
+[CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). That attribution, the licence
+and the note of the adaptation are shown on the app's About screen, as the licence
+requires, and must be kept with every copy of those icons.
 
 ## Third-party material
 
