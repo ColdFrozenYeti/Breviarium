@@ -28,11 +28,11 @@ SHOTS = [
     ("promo-03-english", "Latin and English,\nside by side", "Douay-Rheims and Divinum Officium"),
     ("promo-04-hours", "Every hour, from\nMatins to Compline", "With the Martyrology after Prime"),
     ("promo-05-calendar", "Any day,\nany year", "Computed on your phone, with its colour"),
-    ("promo-02-christmas-psalmody", "Set like a\nprinted book", "Turn the page, or scroll"),
-    ("promo-06-vellum-matins", "Eight themes,\nsix typefaces", "Dark for the night office, light for the day"),
+    ("promo-07-easter-lauds", "Through the\nwhole year", "Easter Lauds, in the Media nox theme"),
+    ("promo-08-themes", "Eight themes,\nsix typefaces", "Dark for the night, light for the day"),
+    ("promo-06-vellum-matins", "Matins, with\nevery lesson", "All Saints, in the Vellum theme"),
     ("promo-09-dominican", "The Dominican\noffice too", "Ordo Prædicatorum, 1962"),
     ("promo-10-ambrosian", "And Ambrosian\nCompline", "From the 1957 Ambrosian breviary"),
-    ("promo-07-easter-lauds", "Through the\nwhole year", "Easter Lauds, in the Media nox theme"),
     ("promo-11-settings", "Fully offline", "No account, no tracking, no data collected"),
 ]
 
