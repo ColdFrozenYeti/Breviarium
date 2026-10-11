@@ -2,7 +2,11 @@ name: Website
 
 # The privacy policy and support pages the App Store listing links to (2026-10-11),
 # served by GitHub Pages from site/, with the app's own Gentium Book Plus and icon
-# copied in at deploy time. Needs Settings -> Pages -> Source: GitHub Actions.
+# copied in at deploy time, at https://breviarium.eduardopavone.eu/ (decided 2026-10-11).
+# Needs Settings -> Pages -> Source: GitHub Actions, the custom domain set there, and a
+# DNS CNAME record breviarium -> coldfrozenyeti.github.io at the domain's registrar
+# (GoDaddy). The CNAME file in site/ records the domain; Actions deployments take it
+# from Settings, not from the file.
 on:
   push:
     branches: [main]
