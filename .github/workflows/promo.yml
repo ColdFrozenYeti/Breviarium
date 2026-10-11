@@ -1,0 +1,104 @@
+name: Promo captures
+
+# Promotional stills and screen recordings (2026-10-11), run by hand, or by a push to a
+# branch other than main that changes the promo tests (a dispatch needs the workflow on
+# main, and this lets the captures be tried before it is). Builds the
+# app, boots an iPhone 17 Pro Max simulator (6.9", the App Store's required screenshot
+# size) with a clean status bar, records its screen while PromoUITests runs, and uploads
+# the stills, the raw recording and a timestamped test log to cut it by. The editing
+# (captions, frames, the App Store preview) is done off CI, with ffmpeg.
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - ".github/workflows/promo.yml"
+      - "App/BreviariumUITests/PromoUITests.swift"
+  workflow_dispatch:
+    inputs:
+      device:
+        description: "Simulator to capture on"
+        required: false
+        default: "iPhone 17 Pro Max"
+
+jobs:
+  capture:
+    runs-on: macos-26
+    env:
+      XCODE_VERSION: "26.5"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Generate the bundled data file
+        working-directory: Packages/BreviariumKit
+        run: swift run BreviariumData ../../data/divinum-officium ../../App/Breviarium/breviarium-data.json
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: App
+        run: xcodegen generate
+
+      - name: Boot the simulator with a clean status bar
+        env:
+          DEVICE: ${{ inputs.device || 'iPhone 17 Pro Max' }}
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, os, sys
+          name = os.environ["DEVICE"]
+          runtimes = json.load(sys.stdin)["devices"]
+          ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
+          print(next(d["udid"] for r in ios for d in runtimes[r] if d["name"] == name))')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active \
+            --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+
+      - name: Build for testing
+        working-directory: App
+        run: |
+          xcodebuild build-for-testing -project Breviarium.xcodeproj -scheme Breviarium \
+            -destination "id=$UDID" -derivedDataPath build
+
+      - name: Run the promo tests while recording the screen
+        working-directory: App
+        env:
+          TEST_RUNNER_BREVIARIUM_PROMO: "1"
+        run: |
+          set -uo pipefail
+          mkdir -p Promo
+          perl -MTime::HiRes=time -e 'printf "%.3f\n", time' > Promo/recording-start.txt
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force Promo/recording.mov &
+          REC=$!
+          sleep 3
+          xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
+            -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
+            -only-testing:BreviariumUITests/PromoUITests -resultBundlePath Promo.xcresult 2>&1 \
+            | perl -MTime::HiRes=time -ne '$|=1; printf "%.3f %s", time, $_' | tee Promo/test-log.txt
+          STATUS=${PIPESTATUS[0]}
+          sleep 2
+          kill -INT "$REC"
+          wait "$REC" || true
+          exit "$STATUS"
+
+      - name: Extract the stills
+        if: always()
+        working-directory: App
+        run: |
+          mkdir -p Promo/stills
+          xcrun xcresulttool export attachments --path Promo.xcresult --output-path Promo/stills --legacy || true
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: promo
+          path: App/Promo
+          if-no-files-found: ignore
