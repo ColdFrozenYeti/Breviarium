@@ -74,6 +74,10 @@ targets:
           - SourceSans3-It.ttf
           - SourceSans3-Bold.ttf
           - SourceSans3-BoldIt.ttf
+        # The app uses no encryption beyond what iOS itself provides (it makes no network
+        # calls at all), so App Store Connect needn't ask about export compliance on
+        # every upload.
+        ITSAppUsesNonExemptEncryption: false
         # Fully offline app: no network entitlements, no background modes.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
