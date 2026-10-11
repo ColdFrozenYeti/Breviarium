@@ -61,8 +61,8 @@ requires, and must be kept with every copy of those icons.
   paschal tables and the *Rubricæ generales*, from their scans of the 1954 *Missale
   Ambrosianum*. Published under CC BY-NC-ND 4.0; their owners have given Breviarium
   permission to include an adapted transcription (normalised spelling, corrected
-  misprints) in this free app (verbal permission, 9 October 2026; written confirmation to
-  follow). That transcription is not covered by the GPL: it may be redistributed only as
+  misprints) in this free app (verbal permission, 9 October 2026, confirmed in writing on
+  11 October 2026). That transcription is not covered by the GPL: it may be redistributed only as
   part of Breviarium or under Church of Ambrose's own licence. The source PDFs are not
   in this repository.
 - **IBM Plex Mono** (`App/Breviarium/Fonts/IBMPlexMono-*.ttf`), the *typewriter* font
