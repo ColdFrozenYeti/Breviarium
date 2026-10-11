@@ -60,12 +60,15 @@ struct AboutView: View {
                 .padding(.vertical, 4)
             }
 
-            // 1.2: the two bundled typefaces, whose licence (OFL) asks for its notice.
+            // The bundled typefaces (1.2, two more since), whose licence (OFL) asks for its
+            // notice.
             Section("Fonts") {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("IBM Plex Mono: Copyright © 2017 IBM Corp., with Reserved Font Name \"Plex\".")
                     Text("Comic Neue: Copyright 2014 The Comic Neue Project Authors.")
-                    Text("Both are licensed under the SIL Open Font License, version 1.1, whose full text ships inside the app with each font.")
+                    Text("Gentium Book Plus: Copyright (c) 2003-2022 SIL International, with Reserved Font Names \"Gentium\" and \"SIL\".")
+                    Text("Source Sans 3: Copyright 2010-2024 Adobe, with Reserved Font Name \"Source\". Source is a trademark of Adobe in the United States and/or other countries.")
+                    Text("All four are licensed under the SIL Open Font License, version 1.1, whose full text ships inside the app with each font.")
                         .font(.footnote)
                         .foregroundStyle(theme.chrome)
                 }

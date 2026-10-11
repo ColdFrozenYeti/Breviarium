@@ -33,20 +33,20 @@ struct SettingsView: View {
                     }
                 }
 
+                // What the office says: one block since 1.2.1 (the user, 11 October 2026).
                 Section {
                     Toggle("Sacerdos vel diaconus adest", isOn: $settings.priestPresent)
                     Toggle("Rubricæ", isOn: $settings.showRubrics)
-                }
-
-                Section {
                     Toggle("English translation", isOn: $settings.showEnglish)
                         .accessibilityIdentifier("englishToggle")
+                        .disabled(settings.rite == .ambrosianus)
                     // Latin labels, like the other toggles (Beta 1 open question 1).
                     Picker("Psalterium", selection: $settings.psalter) {
                         Text("Vulgata").tag(Psalter.vulgate)
                         Text("Pii XII").tag(Psalter.pius12)
                     }
                     .accessibilityIdentifier("psalterPicker")
+                    .disabled(settings.rite == .ambrosianus)
                 } footer: {
                     // Beta 6: Ambrosian Compline is Latin only, in its own psalter.
                     if settings.rite == .ambrosianus {
@@ -54,7 +54,6 @@ struct SettingsView: View {
                             .foregroundStyle(theme.chrome)
                     }
                 }
-                .disabled(settings.rite == .ambrosianus)
 
                 Section("Reading") {
                     Picker("Scrolling", selection: $settings.readingMode) {
@@ -70,24 +69,19 @@ struct SettingsView: View {
                     .accessibilityIdentifier("pageTurnPicker")
                 }
 
-                Section("Text size") {
+                // How the page looks: the text size, then the theme and the font, each
+                // chosen from a gallery like the app icon's (`StyleGalleries.swift`); one
+                // block since 1.2.1 (the user, 11 October 2026).
+                Section("Appearance") {
                     Picker("Text size", selection: $settings.textSize) {
                         ForEach(TextSizeSetting.allCases, id: \.self) { size in
                             Text(Self.label(for: size)).tag(size)
                         }
                     }
                     .pickerStyle(.segmented)
-                }
-
-                // 1.2-M3: the theme and the font, each chosen from a gallery like the
-                // app icon's (`StyleGalleries.swift`).
-                Section("Theme") {
                     StyleRow(title: "Theme", value: settings.theme.name, identifier: "themePicker") {
                         ThemeGallery(settings: settings)
                     }
-                }
-
-                Section("Font") {
                     StyleRow(title: "Font", value: settings.font.name, identifier: "fontPicker") {
                         FontGallery(settings: settings)
                     }

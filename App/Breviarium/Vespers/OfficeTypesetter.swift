@@ -497,12 +497,15 @@ struct OfficeTypesetter {
         return result
     }
 
-    /// Extra line spacing that gives every typeface Hoefler Text's line pitch at the body
-    /// size, so a page holds about as many lines whatever the font (`docs/1.2_plan.md` §2).
+    /// The difference between Hoefler Text's line height and the typeface's at the body
+    /// size, added to the line spacing so a page holds about as many lines whatever the
+    /// font (`docs/1.2_plan.md` §2). It is negative for a font with taller lines (Gentium
+    /// Book Plus, IBM Plex Mono), which then take less of the extra spacing; the spacing
+    /// never goes below zero, so the tallest keep a slightly looser pitch.
     private var pitchCorrection: CGFloat {
         guard typeface != .serif else { return 0 }
         let hoefler = LiturgicalUIFont(choice: .serif).regular(metrics.bodySize).lineHeight
-        return max(0, hoefler - fonts.regular(metrics.bodySize).lineHeight)
+        return hoefler - fonts.regular(metrics.bodySize).lineHeight
     }
 
     private func paragraphStyle(
@@ -513,7 +516,7 @@ struct OfficeTypesetter {
         style.alignment = alignment
         style.firstLineHeadIndent = firstLineIndent
         style.headIndent = headIndent
-        style.lineSpacing = lineSpacing ?? metrics.extraLineSpacing + pitchCorrection
+        style.lineSpacing = lineSpacing ?? max(0, metrics.extraLineSpacing + pitchCorrection)
         style.paragraphSpacingBefore = before
         style.paragraphSpacing = after
         style.lineBreakMode = .byWordWrapping

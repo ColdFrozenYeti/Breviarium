@@ -10,6 +10,13 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.3", notes: [
+            "Two more fonts, under Font: Gentium Book Plus, a second serif, and Source Sans 3, a second sans serif.",
+            "SF Pro sets antiphons and headings in bold, as the other fonts do.",
+            "Settings are regrouped: Sacerdos, Rubricæ, English and Psalterium together, and text size, theme and font under Appearance.",
+            "On a light theme, a white day's dot in Jump to date has a fine gold edge.",
+            "IBM Plex Mono and Gentium Book Plus keep Hoefler Text's line spacing more closely.",
+        ]),
         Release(name: "1.2", notes: [
             "Eight colour themes, chosen in Settings, under Theme: Nox (the black page, still the default), Media nox, Carbo, Lux, Sepia, Vellum, Silva and Rosa. Light themes make the whole app light.",
             "Four fonts, under Font: Hoefler Text (the default), SF Pro, IBM Plex Mono and Comic Neue, each sized to read like Hoefler Text.",

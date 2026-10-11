@@ -166,8 +166,12 @@ struct Metrics {
 enum FontChoice: String, CaseIterable, Identifiable {
     /// Hoefler Text, as `CLAUDE.md`'s visual spec names it: the default.
     case serif
+    /// Gentium Book Plus (OFL), a second serif (the user, 11 October 2026).
+    case gentium
     /// SF Pro, the iPhone's own.
     case sans
+    /// Source Sans 3 (OFL), a second sans serif (the user, 11 October 2026).
+    case sourceSans
     /// IBM Plex Mono (OFL), which has every character the office uses.
     case typewriter
     /// Comic Neue (OFL), a free redesign of Comic Sans, readable for dyslexic readers.
@@ -178,7 +182,9 @@ enum FontChoice: String, CaseIterable, Identifiable {
     var name: String {
         switch self {
         case .serif: "Hoefler Text"
+        case .gentium: "Gentium Book Plus"
         case .sans: "SF Pro"
+        case .sourceSans: "Source Sans 3"
         case .typewriter: "IBM Plex Mono"
         case .comic: "Comic Neue"
         }
@@ -189,28 +195,31 @@ enum FontChoice: String, CaseIterable, Identifiable {
     var scale: CGFloat {
         switch self {
         case .serif: 1.0
+        case .gentium: 0.41 / 0.454    // Gentium Book Plus's 930/2048
         case .sans: 0.41 / 0.526       // SF Pro's x-height 1078/2048
+        case .sourceSans: 0.41 / 0.486 // Source Sans 3's 486/1000
         case .typewriter: 0.41 / 0.516 // IBM Plex Mono's 516/1000
         case .comic: 0.41 / 0.487      // Comic Neue's 487/1000
         }
     }
 
-    /// The PostScript name of each of the four styles the office uses. `nil` for SF Pro,
-    /// which is the system font.
+    /// The PostScript name of each of the four styles the office uses, as each font names
+    /// them. `nil` for SF Pro, which is the system font.
     fileprivate func faceName(_ face: LiturgicalUIFont.Face) -> String? {
-        let family: String
+        let names: [String]  // regular, italic, black or bold, black or bold italic
         switch self {
-        case .serif: family = "HoeflerText"
+        case .serif: names = ["HoeflerText-Regular", "HoeflerText-Italic", "HoeflerText-Black", "HoeflerText-BlackItalic"]
+        case .gentium: names = ["GentiumBookPlus", "GentiumBookPlus-Italic", "GentiumBookPlus-Bold", "GentiumBookPlus-BoldItalic"]
         case .sans: return nil
-        case .typewriter: family = "IBMPlexMono"
-        case .comic: family = "ComicNeue"
+        case .sourceSans: names = ["SourceSans3-Regular", "SourceSans3-It", "SourceSans3-Bold", "SourceSans3-BoldIt"]
+        case .typewriter: names = ["IBMPlexMono-Regular", "IBMPlexMono-Italic", "IBMPlexMono-Bold", "IBMPlexMono-BoldItalic"]
+        case .comic: names = ["ComicNeue-Regular", "ComicNeue-Italic", "ComicNeue-Bold", "ComicNeue-BoldItalic"]
         }
-        let bold = self == .serif ? "Black" : "Bold"
         switch face {
-        case .regular: return "\(family)-Regular"
-        case .italic: return "\(family)-Italic"
-        case .black: return "\(family)-\(bold)"
-        case .blackItalic: return "\(family)-\(bold)Italic"
+        case .regular: return names[0]
+        case .italic: return names[1]
+        case .black: return names[2]
+        case .blackItalic: return names[3]
         }
     }
 
@@ -240,10 +249,14 @@ struct LiturgicalUIFont {
     private func font(_ face: Face, _ size: CGFloat) -> UIFont {
         let scaled = size * choice.scale
         if let name = choice.faceName(face), let font = UIFont(name: name, size: scaled) { return font }
+        // SF Pro (and the fallback): the system font in bold and italic. The italic asks
+        // for both traits at once: `withSymbolicTraits(.traitItalic)` alone drops the
+        // weight, so the antiphons came out regular italic (the user, 11 October 2026).
         let heavy = face == .black || face == .blackItalic
-        let system = UIFont.systemFont(ofSize: scaled, weight: heavy ? .heavy : .regular)
-        guard face == .italic || face == .blackItalic,
-              let descriptor = system.fontDescriptor.withSymbolicTraits(.traitItalic) else { return system }
+        let system = UIFont.systemFont(ofSize: scaled, weight: heavy ? .bold : .regular)
+        guard face == .italic || face == .blackItalic else { return system }
+        let traits: UIFontDescriptor.SymbolicTraits = heavy ? [.traitItalic, .traitBold] : .traitItalic
+        guard let descriptor = system.fontDescriptor.withSymbolicTraits(traits) else { return system }
         return UIFont(descriptor: descriptor, size: scaled)
     }
 }

@@ -262,7 +262,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["1.2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1.3"].waitForExistence(timeout: 5))
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
@@ -835,7 +835,7 @@ final class AmbrosianUITests: BreviariumUITestCase {
 /// Settings sheet and the calendar in a light theme.
 /// 1.2-M2: a Compline page in each typeface, in *Nox* (`docs/1.2_plan.md` §5).
 final class FontUITests: BreviariumUITestCase {
-    static let fonts = ["serif", "sans", "typewriter", "comic"]
+    static let fonts = ["serif", "gentium", "sans", "sourceSans", "typewriter", "comic"]
 
     func testComplineInEveryFont() {
         for font in Self.fonts {
