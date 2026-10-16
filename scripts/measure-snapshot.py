@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure text lines in UI snapshot PNGs, in points, for comparison with design/reference/.
+"""Measure text lines in UI snapshot PNGs, in points, for comparison with the visual specification in CLAUDE.md.
 
 Every horizontal band of non-black pixels is one "line" (a text line, a rule, an icon).
 Prints each line's top, bottom, height and x-extent in points (pixels divided by --scale,
@@ -9,7 +9,7 @@ the next line's top, which makes stanza gaps and paragraph spacing visible direc
 Build tooling only (Pillow); nothing here is linked into the app.
 
 Usage:
-  scripts/measure-snapshot.py design/reference/Format.png
+  scripts/measure-snapshot.py snapshot.png
   scripts/measure-snapshot.py --pitch snapshot.png
   scripts/measure-snapshot.py reference.png ours.png     # measures both, one after the other
 """

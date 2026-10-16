@@ -68,7 +68,7 @@ office of the day, the Little Office or the Office of the Dead.
   - With English on, Latin and English run side by side, with the chapter, collect and
     lessons stacked in portrait. With the Pius XII psalter, each psalm's English is shown whole
     beside it.
-  - The layout follows `design/reference/`: the date line, day title, table of contents,
+  - The layout follows the visual specification in `CLAUDE.md`: the date line, day title, table of contents,
     section headings, and a *Page N of M* footer.
 - **Settings:**
   - *Sacerdos vel diaconus adest* (*Dominus vobiscum* or *Domine, exaudi*)
@@ -141,7 +141,6 @@ weekly re-sign routine, and a short checklist to run on the phone after each ins
 | `data/divinum-officium/` | Divinum Officium, as a git submodule pinned to one commit (see `data/SOURCE.md`). |
 | `data/oracle-fixtures/` | Divinum Officium's own rendered hours, used as the tests' reference: every day 2025–2040 for each hour, in each psalter and in Latin with English, a spot-check set with the other option combinations, and the 2044 hold-out year. |
 | `docs/` | The plan and build log, the 1960 Vespers and day-hours rubrics references, the Divinum Officium file format, and setup and install guides. |
-| `design/reference/` | Universalis night-mode screenshots, the visual reference. |
 | `scripts/` | Test runners, fixture generators, and the Windows `.ipa` fetcher. |
 | `site/` | The website the App Store listing links to: the privacy policy and support pages, deployed to GitHub Pages at [breviarium.eduardopavone.eu](https://breviarium.eduardopavone.eu/) by `pages.yml`. |
 
@@ -184,7 +183,7 @@ What the tests check:
 **The app** is built only on GitHub Actions macOS runners:
 
 - `app-ci.yml` builds for the simulator and runs the UI tests. It uploads the snapshot
-  PNGs as an artifact, which is how the layout is compared against `design/reference/`.
+  PNGs as an artifact, which is how the layout is measured against `CLAUDE.md`'s visual specification.
 - `build-ipa.yml` produces the unsigned `.ipa`.
 
 [`CLAUDE.md`](CLAUDE.md) holds the project rules: scope, visual specification, testing
