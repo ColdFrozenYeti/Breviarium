@@ -34,3 +34,7 @@ App/Breviarium/breviarium-data.json
 data/oracle-fixtures/raw/
 data/oracle-fixtures/raw-holdout/
 data/oracle-fixtures/raw-*/
+
+# Universalis's screenshots, kept locally only: Universalis asked on 2026-10-16 that they
+# stay out of this public repository (see CLAUDE.md, Visual specification)
+design/reference/
