@@ -11,7 +11,7 @@ struct ReleaseNotesView: View {
 
     private static let releases: [Release] = [
         Release(name: "1.4", notes: [
-            "Compline's chapter, short responsory and versicle are each a section of their own, as at Lauds and Vespers.",
+            "At Prime, Terce, Sext, None and Compline, the chapter, short responsory and versicle are each a section of their own, as at Lauds and Vespers.",
             "At Compline, Noctem quiétam is set in italic as a response, and so is the Amen after Misereátur and Indulgéntiam.",
             "The Glória Patri after Deus in adiutórium keeps its upright and italic halves: Glória Patri upright, Sicut erat and the Allelúia in italic.",
             "A little space before every Orémus.",

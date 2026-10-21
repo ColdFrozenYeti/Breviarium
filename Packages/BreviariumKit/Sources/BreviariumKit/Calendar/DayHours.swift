@@ -376,8 +376,8 @@ extension HourAssembler {
     /// chapter (the office's own, Terce taking Lauds'; else the psalter's for the season or
     /// the day), then the short responsory and its versicle, the office's own or the
     /// psalter's. Compline's are fixed: `[Completorium]`, `[Responsory Completorium]` and
-    /// `[Versum 4]`, each a section of its own as at Lauds and Vespers (1.4); the little
-    /// hours keep the three in one.
+    /// `[Versum 4]`. The chapter, the responsory and the versicle are each a section of
+    /// their own, as at Lauds and Vespers (1.4).
     func assembleMinorCapitulum(
         hour: CanonicalHour, winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
     ) -> [Section] {
@@ -486,8 +486,12 @@ extension HourAssembler {
             return Self.unitsFromLines(latinLines, english: englishLines)
         }
         guard hour == .completorium else {
-            units.append(contentsOf: responsoryUnits(latinResponsory, englishResponsory))
-            return [Section(kind: .capitulum, units: units)]
+            let latinLines = shortResponsoryLines(latinResponsory, resolver: resolver, winner: winner, macroContext: macroContext, english: false)
+            let englishLines = englishResponsory.map {
+                shortResponsoryLines($0, resolver: englishResolver ?? resolver, winner: winner, macroContext: macroContext, english: true)
+            }
+            return ([Section(kind: .capitulum, units: units)] + Self.responsoryAndVersicleSections(latin: latinLines, english: englishLines))
+                .filter { !$0.units.isEmpty }
         }
         return [
             Section(kind: .capitulum, units: units),
@@ -839,11 +843,11 @@ extension HourAssembler {
                         ).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                     }
                     units.append(contentsOf: Self.pairedStanzas(latin: stanzas(chunk.lines.map(processed)), english: englishLines.map(stanzas)))
-                } else if kind == .capitulum, section.hasSuffix("Completorium"),
+                } else if kind == .capitulum,
                     let parts = Self.complineChapterParts(heading: currentHeading, latin: chunk.lines.map(processed), english: englishLines)
                 {
-                    // The Little Office's Compline (1.4): its chapter, then the responsory
-                    // or versicle each in a section of its own, as in the office of the day.
+                    // The Little Office (1.4): its chapter, then the responsory or versicle
+                    // each in a section of its own, as in the office of the day.
                     for (offset, part) in parts.enumerated() {
                         if offset > 0 {
                             if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
@@ -861,7 +865,7 @@ extension HourAssembler {
         return Hour(sections: sections)
     }
 
-    /// A special Compline's `#Capitulum Versus` or `#Capitulum Responsorium` lines, cut at
+    /// A special hour's `#Capitulum Versus` or `#Capitulum Responsorium (Versus)` lines, cut at
     /// DO's `_` separators into the chapter and the responsory or versicle that follow,
     /// each with its section; nil when the lines don't divide as the heading says.
     static func complineChapterParts(
@@ -1024,8 +1028,41 @@ extension HourAssembler {
         }
         let latin = responsory(resolver, english: false)
         let english = englishResolver.map { responsory($0, english: true) }
-        units.append(contentsOf: Self.unitsFromLines(latin, english: english))
-        return [Section(kind: .capitulum, units: units)]
+        return [Section(kind: .capitulum, units: units)] + Self.responsoryAndVersicleSections(latin: latin, english: english)
+    }
+
+    /// A little hour's short responsory and its versicle, its lines already processed, as
+    /// two sections (1.4): DO's last `_` separates the versicle from the responsory, in
+    /// the psalter's, the office's own (`SanctiOP/12-25` `[Responsory Nona]`) and the
+    /// Dominican Lent's (`[Responsory Quad TertiaOP]`). Lines with no `_` are a responsory
+    /// when they have one (an `R.br.`, or more than a versicle's two lines), else a
+    /// versicle alone. If the English doesn't divide as the Latin does, the two stay in
+    /// one section, so that no English is lost.
+    static func responsoryAndVersicleSections(latin: [String], english: [String]?) -> [Section] {
+        func groups(_ lines: [String]) -> [[String]] {
+            var result: [[String]] = [[]]
+            for line in lines {
+                if line.trimmingCharacters(in: .whitespaces) == "_" { result.append([]) } else { result[result.count - 1].append(line) }
+            }
+            return result.filter { group in group.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty } }
+        }
+        func joined(_ groups: some Collection<[String]>) -> [String] { Array(groups.joined(separator: ["_"])) }
+        let latinGroups = groups(latin)
+        guard !latinGroups.isEmpty else { return [] }
+        let englishGroups = english.map(groups)
+        guard englishGroups == nil || englishGroups?.count == latinGroups.count else {
+            return [Section(kind: .responsoriumBreve, units: unitsFromLines(latin, english: english))]
+        }
+        if latinGroups.count == 1 {
+            let lines = latinGroups[0]
+            let isResponsory = lines.contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("R.br.") }
+                || lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count > 2
+            return [Section(kind: isResponsory ? .responsoriumBreve : .versus, units: unitsFromLines(lines, english: englishGroups?[0]))]
+        }
+        return [
+            Section(kind: .responsoriumBreve, units: unitsFromLines(joined(latinGroups.dropLast()), english: englishGroups.map { joined($0.dropLast()) })),
+            Section(kind: .versus, units: unitsFromLines(latinGroups[latinGroups.count - 1], english: englishGroups?.last)),
+        ].filter { !$0.units.isEmpty }
     }
 
     /// `specprima.pl:64-72`: the chapter of Prime is `[Dominica]`'s, except on ferias and
