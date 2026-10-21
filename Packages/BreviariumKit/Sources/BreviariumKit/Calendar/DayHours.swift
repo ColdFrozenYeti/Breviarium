@@ -376,7 +376,8 @@ extension HourAssembler {
     /// chapter (the office's own, Terce taking Lauds'; else the psalter's for the season or
     /// the day), then the short responsory and its versicle, the office's own or the
     /// psalter's. Compline's are fixed: `[Completorium]`, `[Responsory Completorium]` and
-    /// `[Versum 4]`.
+    /// `[Versum 4]`, each a section of its own as at Lauds and Vespers (1.4); the little
+    /// hours keep the three in one.
     func assembleMinorCapitulum(
         hour: CanonicalHour, winner: OccurrenceResult, resolver: SectionResolver, macroContext: MacroContext, englishResolver: SectionResolver?
     ) -> [Section] {
@@ -404,12 +405,20 @@ extension HourAssembler {
             units.append(contentsOf: Self.capitulumUnits(latin: texts.latin, english: texts.english, thanks: deoGratias))
         }
 
-        // The short responsory and versicle.
+        // The short responsory and versicle. At Compline the versicle is kept apart, for a
+        // section of its own.
         var latinResponsory = ""
         var englishResponsory: String?
-        func append(_ location: (path: String, section: String)?, separator: Bool) {
+        var latinVersicle = ""
+        var englishVersicle: String?
+        func append(_ location: (path: String, section: String)?, separator: Bool, versicle: Bool = false) {
             guard let location, resolver.sectionExists(path: location.path, section: location.section) else { return }
             let raw = rawBoth(path: location.path, section: location.section, resolver: resolver, englishResolver: englishResolver)
+            if versicle {
+                latinVersicle += raw.latin
+                if let english = raw.english { englishVersicle = (englishVersicle ?? "") + english }
+                return
+            }
             if separator, !latinResponsory.isEmpty { latinResponsory += "\n_\n" }
             latinResponsory += raw.latin
             if let english = raw.english {
@@ -428,9 +437,9 @@ extension HourAssembler {
                 append((special, "Responsory \(name)"), separator: false)
             } else if resolver.sectionExists(path: special, section: "Versum \(name)") {
                 append((special, "Responsory breve \(name)"), separator: false)
-                append((special, "Versum \(name)"), separator: true)
+                append((special, "Versum \(name)"), separator: true, versicle: true)
             }
-            if !dominican { append((special, "Versum 4"), separator: true) }
+            if !dominican { append((special, "Versum 4"), separator: true, versicle: true) }
         } else {
             let versumSubstitute: String? = switch hour {
             case .tertia: "Nocturn 2 Versum"
@@ -469,12 +478,22 @@ extension HourAssembler {
                 }
             }
         }
-        let latinLines = shortResponsoryLines(latinResponsory, resolver: resolver, winner: winner, macroContext: macroContext, english: false)
-        let englishLines = englishResponsory.map {
-            shortResponsoryLines($0, resolver: englishResolver ?? resolver, winner: winner, macroContext: macroContext, english: true)
+        func responsoryUnits(_ latin: String, _ english: String?) -> [Unit] {
+            let latinLines = shortResponsoryLines(latin, resolver: resolver, winner: winner, macroContext: macroContext, english: false)
+            let englishLines = english.map {
+                shortResponsoryLines($0, resolver: englishResolver ?? resolver, winner: winner, macroContext: macroContext, english: true)
+            }
+            return Self.unitsFromLines(latinLines, english: englishLines)
         }
-        units.append(contentsOf: Self.unitsFromLines(latinLines, english: englishLines))
-        return [Section(kind: .capitulum, units: units)]
+        guard hour == .completorium else {
+            units.append(contentsOf: responsoryUnits(latinResponsory, englishResponsory))
+            return [Section(kind: .capitulum, units: units)]
+        }
+        return [
+            Section(kind: .capitulum, units: units),
+            Section(kind: .responsoriumBreve, units: responsoryUnits(latinResponsory, englishResponsory)),
+            Section(kind: .versus, units: responsoryUnits(latinVersicle, englishVersicle)),
+        ].filter { !$0.units.isEmpty }
     }
 
     /// A section's text with conditionals and `@`/`$` references resolved but its `&`
@@ -781,12 +800,14 @@ extension HourAssembler {
         var sections: [Section] = []
         var units: [Unit] = []
         var kind = Section.Kind.introductio
+        var currentHeading = ""
         var psalmNumber = 0
         for (index, chunk) in latin.enumerated() {
             if let heading = chunk.heading {
                 if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
                 units = []
                 kind = Self.specialHourKind(heading) ?? kind
+                currentHeading = heading
             } else if let psalm = chunk.psalm {
                 psalmNumber += 1
                 let (title, content) = psalmUnits(number: psalm, resolver: resolver, macroContext: macroContext, englishResolver: englishResolver)
@@ -818,6 +839,19 @@ extension HourAssembler {
                         ).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                     }
                     units.append(contentsOf: Self.pairedStanzas(latin: stanzas(chunk.lines.map(processed)), english: englishLines.map(stanzas)))
+                } else if kind == .capitulum, section.hasSuffix("Completorium"),
+                    let parts = Self.complineChapterParts(heading: currentHeading, latin: chunk.lines.map(processed), english: englishLines)
+                {
+                    // The Little Office's Compline (1.4): its chapter, then the responsory
+                    // or versicle each in a section of its own, as in the office of the day.
+                    for (offset, part) in parts.enumerated() {
+                        if offset > 0 {
+                            if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
+                            units = []
+                            kind = part.kind
+                        }
+                        units.append(contentsOf: Self.unitsFromLines(part.latin, english: part.english))
+                    }
                 } else {
                     units.append(contentsOf: Self.unitsFromLines(chunk.lines.map(processed), english: englishLines))
                 }
@@ -825,6 +859,30 @@ extension HourAssembler {
         }
         if !units.isEmpty { sections.append(Section(kind: kind, units: units)) }
         return Hour(sections: sections)
+    }
+
+    /// A special Compline's `#Capitulum Versus` or `#Capitulum Responsorium` lines, cut at
+    /// DO's `_` separators into the chapter and the responsory or versicle that follow,
+    /// each with its section; nil when the lines don't divide as the heading says.
+    static func complineChapterParts(
+        heading: String, latin: [String], english: [String]?
+    ) -> [(kind: Section.Kind, latin: [String], english: [String]?)]? {
+        var kinds: [Section.Kind] = [.capitulum]
+        if heading.contains("Responsorium") { kinds.append(.responsoriumBreve) }
+        if heading.contains("Versus") { kinds.append(.versus) }
+        guard kinds.count > 1 else { return nil }
+        func groups(_ lines: [String]) -> [[String]] {
+            var result: [[String]] = [[]]
+            for line in lines {
+                if line.trimmingCharacters(in: .whitespaces) == "_" { result.append([]) } else { result[result.count - 1].append(line) }
+            }
+            return result.filter { group in group.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty } }
+        }
+        let latinGroups = groups(latin)
+        guard latinGroups.count == kinds.count else { return nil }
+        let englishGroups = english.map(groups)
+        guard englishGroups == nil || englishGroups?.count == kinds.count else { return nil }
+        return kinds.indices.map { (kinds[$0], latinGroups[$0], englishGroups?[$0]) }
     }
 
     /// The section a `#Heading` of a special hour opens, by its first word.

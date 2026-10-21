@@ -70,15 +70,50 @@ public struct HourAssembler {
         _ hour: CanonicalHour, day: Int, month: Int, year: Int, priest: Bool, officium: Officium = .diei
     ) -> Hour? {
         guard officium.hours.contains(hour) else { return nil }
-        guard context.rite == .dominicanus else {
-            return assembleUnmarked(hour, day: day, month: month, year: year, priest: priest, officium: officium).map(InlineRubrics.marking)
+        let marked: Hour?
+        if context.rite == .dominicanus {
+            // Decisions 5 and 6 of `docs/Beta_5_plan.md`: the Dominican English (`DominicanEnglish`).
+            let alterations = DominicanAlterations()
+            let assembled = SectionResolver.$alterations.withValue(alterations) {
+                assembleUnmarked(hour, day: day, month: month, year: year, priest: priest, officium: officium)
+            }
+            marked = assembled.map { DominicanEnglish.apply(to: InlineRubrics.marking($0), alterations: englishCorpus == nil ? nil : alterations) }
+        } else {
+            marked = assembleUnmarked(hour, day: day, month: month, year: year, priest: priest, officium: officium).map(InlineRubrics.marking)
         }
-        // Decisions 5 and 6 of `docs/Beta_5_plan.md`: the Dominican English (`DominicanEnglish`).
-        let alterations = DominicanAlterations()
-        let assembled = SectionResolver.$alterations.withValue(alterations) {
-            assembleUnmarked(hour, day: day, month: month, year: year, priest: priest, officium: officium)
+        return hour == .completorium && context.rite != .ambrosianus ? marked.map(Self.complineResponses) : marked
+    }
+
+    /// Compline's blessing and absolutions as their parts are said (1.4): the blessing
+    /// *Noctem quiétam*, given in answer to *Iube, Dómine, benedícere*, is set as a
+    /// response; and the *Amen* that ends *Misereátur* and *Indulgéntiam* (one line in
+    /// DO) is the choir's response to them, as the Ambrosian Compline already sets it.
+    static func complineResponses(_ hour: Hour) -> Hour {
+        func amenSplit(_ text: String) -> (body: String, amen: String)? {
+            guard let range = text.range(of: #"\s+(Amen\.)$"#, options: .regularExpression) else { return nil }
+            let body = String(text[..<range.lowerBound])
+            return body.isEmpty ? nil : (body, "Amen.")
         }
-        return assembled.map { DominicanEnglish.apply(to: InlineRubrics.marking($0), alterations: englishCorpus == nil ? nil : alterations) }
+        var hour = hour
+        for index in hour.sections.indices {
+            hour.sections[index].units = hour.sections[index].units.map { unit in
+                guard case .prose(let text, let english) = unit else { return unit }
+                if text.hasPrefix("Noctem quiétam") {
+                    return .versicleResponse(versicle: "", response: text, versicleEnglish: english.map { _ in "" }, responseEnglish: english)
+                }
+                if text.range(of: "^(Misereátur|Misereatur|Indulgéntiam|Indulgentiam)", options: .regularExpression) != nil,
+                    let latin = amenSplit(text)
+                {
+                    let englishSplit = english.flatMap(amenSplit)
+                    return .versicleResponse(
+                        versicle: latin.body, response: latin.amen,
+                        versicleEnglish: englishSplit?.body ?? english, responseEnglish: englishSplit.map { _ in "Amen." }
+                    )
+                }
+                return unit
+            }
+        }
+        return hour
     }
 
     /// The hour as DO's text gives it, before `InlineRubrics` marks its inline directions.

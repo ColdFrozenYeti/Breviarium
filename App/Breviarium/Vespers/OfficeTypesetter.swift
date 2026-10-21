@@ -419,7 +419,10 @@ struct OfficeTypesetter {
             let wholeRubric = text.first == InlineRubrics.start && text.last == InlineRubrics.end
                 && text.filter { $0 == InlineRubrics.start }.count == 1
             if wholeRubric, !showRubrics { return }
-            appendParagraph(liturgical(text, font: wholeRubric ? italic : regular, color: textColor), to: output, style: paragraphStyle(after: gap))
+            // The Introductio's *Allelúia* takes its response's italic (`ContentBlock`).
+            appendParagraph(
+                liturgical(text, font: wholeRubric || alternateVerse ? italic : regular, color: textColor), to: output, style: paragraphStyle(after: gap)
+            )
         case .lesson(let paragraph):
             // A lesson reads as prose: its verses run on as one paragraph, with a little
             // room before the next paragraph or the *Tu autem*.
