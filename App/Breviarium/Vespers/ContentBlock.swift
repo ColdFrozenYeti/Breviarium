@@ -16,7 +16,8 @@ enum ContentBlock: Identifiable {
     /// with its own antiphon and opens the next with its own, so two `.antiphon` units
     /// with nothing between them is exactly a psalm boundary.
     case psalmSeparator(afterIndex: Int)
-    /// `alternateVerse` is true when this `.verse` unit should render as a whole in
+    /// `alternateVerse` is true when this `.verse` unit (or the Introductio's *Allelúia*
+    /// after its doxology) should render as a whole in
     /// italics -- direct feedback: alternate verses of a psalm should read "as if said
     /// by one person and then another" (verse 1 italic, verse 2 not, verse 3 italic...
     /// confirmed against the real Bea Psalm135, where verse 10 "Qui percússit..." is
@@ -88,13 +89,25 @@ enum ContentBlock: Identifiable {
                     }
                     verseCount = 0
                 }
+                // 1.4: in the Introductio the *Glória Patri* answers *Deus in adiutórium* as
+                // its next versicle and response (upright, then italic), and the *Allelúia*
+                // (or *Laus tibi*) after it belongs to the response.
+                let previous = localIndex > 0 ? units[localIndex - 1] : nil
+                if section.kind == .introductio, case .verse = unit, case .versicleResponse = previous { verseCount = 1 }
                 var alternateVerse = false
                 if case .verse = unit, !inResponsory {
                     alternateVerse = verseCount.isMultiple(of: 2)
                     verseCount += 1
                 }
+                if section.kind == .introductio, case .prose = unit, case .verse = previous {
+                    alternateVerse = !verseCount.isMultiple(of: 2)
+                }
                 var trailingSpace: TrailingSpace = .standard
                 if case .prose = unit, localIndex + 1 < units.count, case .prose = units[localIndex + 1] {
+                    trailingSpace = .stanzaBreak
+                }
+                // 1.4: a little room before every *Orémus*, as between the collect's parts.
+                if localIndex + 1 < units.count, case .prose(let next, _) = units[localIndex + 1], Self.isOremus(next) {
                     trailingSpace = .stanzaBreak
                 }
                 blocks.append(.unit(index: unitIndex, unit: unit, alternateVerse: alternateVerse, trailingSpace: trailingSpace))
@@ -103,5 +116,10 @@ enum ContentBlock: Identifiable {
             }
         }
         return blocks
+    }
+
+    /// *Orémus.* (or the Dominican *Oremus.*) on a line of its own.
+    static func isOremus(_ text: String) -> Bool {
+        text == "Orémus." || text == "Oremus."
     }
 }
