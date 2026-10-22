@@ -884,7 +884,7 @@ extension HourAssembler {
         }
         let latinGroups = groups(latin)
         guard latinGroups.count == kinds.count else { return nil }
-        let englishGroups = english.map(groups)
+        let englishGroups = Self.wholeEnglish(latin: latin, english: english).map(groups)
         guard englishGroups == nil || englishGroups?.count == kinds.count else { return nil }
         return kinds.indices.map { (kinds[$0], latinGroups[$0], englishGroups?[$0]) }
     }
@@ -1049,6 +1049,7 @@ extension HourAssembler {
         func joined(_ groups: some Collection<[String]>) -> [String] { Array(groups.joined(separator: ["_"])) }
         let latinGroups = groups(latin)
         guard !latinGroups.isEmpty else { return [] }
+        let english = Self.wholeEnglish(latin: latin, english: english)
         let englishGroups = english.map(groups)
         guard englishGroups == nil || englishGroups?.count == latinGroups.count else {
             return [Section(kind: .responsoriumBreve, units: unitsFromLines(latin, english: english))]
@@ -1063,6 +1064,14 @@ extension HourAssembler {
             Section(kind: .responsoriumBreve, units: unitsFromLines(joined(latinGroups.dropLast()), english: englishGroups.map { joined($0.dropLast()) })),
             Section(kind: .versus, units: unitsFromLines(latinGroups[latinGroups.count - 1], english: englishGroups?.last)),
         ].filter { !$0.units.isEmpty }
+    }
+
+    /// The English of a chapter block (the chapter, responsory and versicle), or nil when
+    /// DO shows none: DO pairs the block's lines as a whole and drops its English when the
+    /// counts differ (Dominican Terce on many days), so the parts mustn't pair on their own.
+    static func wholeEnglish(latin: [String], english: [String]?) -> [String]? {
+        guard let english, unitsFromLines(latin, english: english) != unitsFromLines(latin) else { return nil }
+        return english
     }
 
     /// `specprima.pl:64-72`: the chapter of Prime is `[Dominica]`'s, except on ferias and
