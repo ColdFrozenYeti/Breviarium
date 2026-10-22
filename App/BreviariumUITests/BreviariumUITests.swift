@@ -275,7 +275,11 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         _ = launchApp(date: "2026-09-16")
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let icon = springboard.icons["Breviarium"]
+        // The app switcher can still hold an icon of the same name just after Home, which
+        // made `icon.frame` fail on two matches (CI, 21 October 2026): look only among the
+        // Home Screen's icons, and take the first.
+        let homeScreen = springboard.otherElements["Home screen icons"]
+        let icon = (homeScreen.exists ? homeScreen.icons : springboard.icons).matching(identifier: "Breviarium").firstMatch
         // Whether the icon's centre is on the screen, from its frame: `isHittable` can
         // fail the test outright on an icon whose page is still sliding in ("Activation
         // point invalid", seen on CI on 10 October 2026) instead of answering false.
