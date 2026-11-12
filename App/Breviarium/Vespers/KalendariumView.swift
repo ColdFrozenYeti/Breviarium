@@ -11,7 +11,8 @@ import SwiftUI
 ///   of its colour; a name too long for the line in an Ordo's abbreviations
 ///   (`Kalendarium.shortName`), and cut off if that is still too long;
 /// - today framed in the theme's icon colour;
-/// - the months down the right edge, to jump to one, and the year and *Today* at the foot.
+/// - the year and *Today* at the foot; no month index (dropped 2026-11-12, so the rows run
+///   the full width).
 ///
 /// Every row comes from the engine (`OfficeDataStore.kalendarium`); this view only lays it
 /// out. Tapping a day opens it, at the hour already chosen.
@@ -50,7 +51,6 @@ struct KalendariumView: View {
         "Ianuarius", "Februarius", "Martius", "Aprilis", "Maius", "Iunius",
         "Iulius", "Augustus", "September", "October", "November", "December",
     ]
-    static let monthIndex = ["Ian", "Feb", "Mar", "Apr", "Mai", "Iun", "Iul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     static func rowID(_ day: Int, _ month: Int) -> String { "d\(month)-\(day)" }
     static func monthID(_ month: Int) -> String { "m\(month)" }
@@ -60,29 +60,24 @@ struct KalendariumView: View {
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
-                ZStack(alignment: .trailing) {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                            ForEach(1...12, id: \.self) { month in
-                                Section {
-                                    ForEach(entries(year, month), id: \.day) { entry in
-                                        row(entry)
-                                    }
-                                } header: {
-                                    monthBand(month)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        ForEach(1...12, id: \.self) { month in
+                            Section {
+                                ForEach(entries(year, month), id: \.day) { entry in
+                                    row(entry)
                                 }
+                            } header: {
+                                monthBand(month)
                             }
                         }
-                        // Room for the month index on the right and the buttons below.
-                        .padding(.trailing, 30)
-                        .padding(.bottom, 80)
                     }
-                    .onAppear { scroll(proxy) }
-                    .onChange(of: scrollTarget) { scroll(proxy) }
-                    .onChange(of: year) { scroll(proxy) }
-
-                    monthIndexColumn
+                    // Room for the buttons below.
+                    .padding(.bottom, 80)
                 }
+                .onAppear { scroll(proxy) }
+                .onChange(of: scrollTarget) { scroll(proxy) }
+                .onChange(of: year) { scroll(proxy) }
                 .overlay(alignment: .bottom) { footer }
             }
             .background(theme.background)
@@ -161,7 +156,7 @@ struct KalendariumView: View {
                 }
             }
             .padding(.leading, 8)
-            .padding(.trailing, 4)
+            .padding(.trailing, 16)
             .padding(.vertical, 8 * scale)
             .contentShape(Rectangle())
             .overlay {
@@ -214,24 +209,7 @@ struct KalendariumView: View {
     /// The white dot's edge on a light theme: an old gold, dark enough to read on white.
     static let gold = Color(red: 0.722, green: 0.569, blue: 0.184) // #B8912F
 
-    // MARK: The month index and the foot
-
-    private var monthIndexColumn: some View {
-        VStack(spacing: 2) {
-            ForEach(1...12, id: \.self) { month in
-                Button {
-                    scrollTarget = Self.monthID(month)
-                } label: {
-                    Text(Self.monthIndex[month - 1])
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(theme.icon)
-                        .frame(width: 30, height: 18)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("kalendariumIndex-\(month)")
-            }
-        }
-    }
+    // MARK: The foot
 
     private var footer: some View {
         HStack {

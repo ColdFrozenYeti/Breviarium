@@ -162,7 +162,7 @@ Measured from the user's screenshot of Universalis's calendar list (12 November 
 - A year as a list of months. Each month opens with a **band**, about 29 pt high, slightly lighter than the background, with the month and year (*November 2026*) in SF semibold at body size, 17 pt from the left; it stays pinned while its month scrolls.
 - **One row per day, each one line and all the same height** (decided 2026-11-12), divided by fine rules (0.5 pt, the chrome colour, inset 16 pt), with about 8 pt above and below the text: the **day number**, the **class** as a Roman numeral (*III*, smaller, chrome grey; nothing for a feria), the **name**, in SF at about 17 pt, bold for a I or II class day, and a **dot of its colour** at the end. A name too long for its line is shown in an Ordo's abbreviations (`Kalendarium.shortName`: *Feria V hebd. XXIII post Oct. Pent.*), and cut off if it still doesn't fit.
 - **Today** is framed in the theme's icon colour.
-- A column of **months** (*Ian* … *Dec*) down the right edge jumps to a month; two capsule buttons at the foot give the **year** (‹ 2026 ›) and **Today**.
+- The rows run the full width: no month index down the right edge (dropped 2026-11-12). Two capsule buttons at the foot give the **year** (‹ 2026 ›) and **Today**.
 - It opens on the day shown and follows *Ritus*; a tap on a day opens it at the hour already chosen. The calendar button (under *Menus: Standard*), the date line and the footer's date open it.
 
 ### Behaviour

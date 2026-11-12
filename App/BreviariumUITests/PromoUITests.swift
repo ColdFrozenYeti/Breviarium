@@ -130,9 +130,13 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
         pause(2.5)
-        app.buttons["kalendariumIndex-3"].tap()
-        pause(1.5)
-        app.buttons["kalendariumDay-3-28"].tap()
+        // It opens on 1 March; Easter, the 28th, is further down.
+        let easter = app.buttons["kalendariumDay-3-28"]
+        for _ in 0..<8 where !(easter.exists && easter.isHittable) {
+            app.swipeUp()
+            pause(0.6)
+        }
+        easter.tap()
         pause(2.5)
         app.swipeLeft()
         pause(2.0)

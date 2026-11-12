@@ -690,8 +690,7 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
     }
     /// The Kalendarium (1.4): November 2026 opens on the day shown, framed as today, with
     /// each day's colour (All Souls black, the Lateran white, St Martin of Tours white);
-    /// December's Gaudete rose; the month index, the year and Today move it; a tap opens
-    /// the day.
+    /// December's Gaudete rose; the year and Today move it; a tap opens the day.
     func testKalendarium() {
         let app = launchApp(date: "2026-11-02")
         app.buttons["calendarButton"].tap()
@@ -701,13 +700,13 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         Thread.sleep(forTimeInterval: 1.5)
         XCTAssertEqual(allSouls.value as? String, "black")
         capture(app, "m14-kalendarium-2026-11")
-        app.buttons["kalendariumIndex-12"].tap()
-        Thread.sleep(forTimeInterval: 1.5)
-        XCTAssertEqual(app.buttons["kalendariumDay-12-13"].value as? String, "rose")
+        let gaudete = app.buttons["kalendariumDay-12-13"]
+        for _ in 0..<12 where !(gaudete.exists && gaudete.isHittable) {
+            app.swipeUp()
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertEqual(gaudete.value as? String, "rose")
         capture(app, "m14-kalendarium-2026-12")
-        app.buttons["kalendariumIndex-3"].tap()
-        Thread.sleep(forTimeInterval: 1.5)
-        capture(app, "m14-kalendarium-2026-03")
         app.buttons["nextYearButton"].tap()
         XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2027"))
         Thread.sleep(forTimeInterval: 1.5)
