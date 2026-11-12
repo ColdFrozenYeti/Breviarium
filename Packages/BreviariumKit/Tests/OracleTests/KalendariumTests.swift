@@ -85,6 +85,8 @@ func kalendariumMatchesTheEngine(_ year: Int, _ m: Int, _ rite: Rite) {
         == "S. Alfonsi Mariæ de Ligorio Ep. Conf. et Eccl. Doct.")
     #expect(Kalendarium.shortName("Ss. Septem Fratrum Martyrum, ac Rufinæ et Secundæ Virginum et Martyrum")
         == "Ss. Septem Fratrum Mm., ac Rufinæ et Secundæ Virg. et Mm.")
+    #expect(Kalendarium.shortName("In Commemoratione Omnium Fidelium Defunctorum")
+        == "In Comm. Omnium Fidelium Defunctorum")
     #expect(Kalendarium.shortName("S. Martini Papæ et Martyris") == "S. Martini Papæ et Mart.")
     #expect(Kalendarium.shortName("Feria II infra Hebdomadam I Adventus") == "Feria II hebd. I Adventus")
     #expect(Kalendarium.shortName("Dominica III Post Pentecosten infra Octavam SSmi Cordis D.N.I.C")

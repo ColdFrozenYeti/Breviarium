@@ -86,6 +86,11 @@ struct KalendariumView: View {
                 .overlay(alignment: .bottom) { footer }
             }
             .background(theme.background)
+            // An opaque bar, without iOS 26's soft scroll edge: rows scrolled past the
+            // pinned month band would otherwise show through above it.
+            .toolbarBackground(theme.background, for: .navigationBar)
+            .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+            .scrollEdgeEffectHidden(true, for: .top)
             .navigationTitle("Kalendarium")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

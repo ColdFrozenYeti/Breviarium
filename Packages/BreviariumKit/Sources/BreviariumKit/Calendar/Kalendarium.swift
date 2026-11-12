@@ -85,6 +85,7 @@ public enum Kalendarium {
     private static let abbreviations: [(String, String)] = [
         (#"\bFeria Secunda\b"#, "Feria II"), (#"\bFeria Tertia\b"#, "Feria III"), (#"\bFeria Quarta\b"#, "Feria IV"),
         (#"\bFeria Quinta\b"#, "Feria V"), (#"\bFeria Sexta\b"#, "Feria VI"),
+        (#"\bIn Commemoratione\b"#, "In Comm."),
         (#"\binfra Hebdomadam\b"#, "hebd."), (#"\bHebdomadam\b"#, "hebd."), (#"\bHebdomadæ\b"#, "hebd."),
         (#"\bpost Octavam Pentecostes\b"#, "post Oct. Pent."), (#"\bpost Pentecosten\b"#, "post Pent."),
         (#"\bpost Octavam Paschæ\b"#, "post Oct. Paschæ"), (#"\bpost Epiphaniam\b"#, "post Epiph."),
