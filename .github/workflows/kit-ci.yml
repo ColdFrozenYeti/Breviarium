@@ -51,7 +51,9 @@ jobs:
   build-and-test:
     needs: changes
     if: needs.changes.outputs.run == 'true'
-    runs-on: ubuntu-latest
+    # Pinned (12 November 2026): ubuntu-latest moved to 26.04, where
+    # setup-swift fails with "Unsupported Linux platform".
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
