@@ -43,6 +43,9 @@ struct VespersView: View {
     @State private var pageNumber = 1
     @State private var pageCount = 1
     @State private var appliedInitialSection = false
+    /// *Menus: Hidden* (1.4): the menus brought back by a tap, until the next page turn.
+    @State private var menusRevealed = false
+    @State private var hideMenusTask: Task<Void, Never>?
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
@@ -57,7 +60,7 @@ struct VespersView: View {
     private var officeKey: String {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
             + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)|\(settings.rite.rawValue)"
-            + "|\(settings.theme.rawValue)|\(settings.font.rawValue)"
+            + "|\(settings.theme.rawValue)|\(settings.font.rawValue)|\(settings.menus == .hidden)"
     }
 
     /// The hour's sections in order, for the table of contents.
@@ -74,8 +77,12 @@ struct VespersView: View {
         let showRubrics = settings.showRubrics
         let theme = self.theme
         let typeface = settings.font
+        let showsTableOfContents = settings.menus != .hidden
         return parallelCache.office(for: "\(officeKey)|\(landscape)") {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface)
+            OfficeTypesetter(
+                content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface,
+                showsTableOfContents: showsTableOfContents
+            )
                 .typesetParallel(landscape: landscape)
         }
     }
@@ -93,8 +100,12 @@ struct VespersView: View {
         let showRubrics = settings.showRubrics
         let theme = self.theme
         let typeface = settings.font
+        let showsTableOfContents = settings.menus != .hidden
         return typesetCache.office(for: officeKey) {
-            OfficeTypesetter(content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface).typeset()
+            OfficeTypesetter(
+                content: content, metrics: currentMetrics, showRubrics: showRubrics, theme: theme, typeface: typeface,
+                showsTableOfContents: showsTableOfContents
+            ).typeset()
         }
     }
 
@@ -181,50 +192,97 @@ struct VespersView: View {
     }
 
     private func updatePage(_ number: Int, _ count: Int) {
+        // A page turn hides the menus a tap brought back (*Menus: Hidden*, 1.4).
+        if number != pageNumber, menusRevealed {
+            menusRevealed = false
+            hideMenusTask?.cancel()
+        }
         pageNumber = number
         pageCount = count
     }
 
     // MARK: Item 1 -- navigation title
 
+    /// The menus' look (1.4): *Standard* in the theme's rubric colour, *Prayer* in grey,
+    /// and *Hidden* drawn as *Prayer* while a tap has brought them back.
+    private var menuColor: Color { settings.menus == .standard ? theme.rubric : theme.chrome }
+
+    /// Whether the menus are on screen: always, except under *Hidden* until a tap.
+    private var menusShown: Bool { settings.menus != .hidden || menusRevealed }
+
     /// A leading gear icon and trailing day-navigation chevrons aren't themselves part of
     /// `CLAUDE.md`'s visual spec (which only describes the centred title here), but
     /// Settings and date navigation both need *some* entry point and the spec doesn't say
-    /// where -- small, chrome-coloured icons in this row's otherwise-empty corners were
-    /// the chosen option among a few discussed, since they keep every other element of
-    /// the reference screenshot untouched.
+    /// where -- small icons in this row's otherwise-empty corners keep every other
+    /// element of the reference screenshot untouched. Since 1.4 (`docs/1.4_plan.md`) they
+    /// are in the rubric colour by default, the title reads as the picker it is, and a
+    /// calendar button opens the calendar; *Prayer* keeps the earlier grey row.
+    ///
+    /// Under *Hidden* the row keeps its height, invisible, so the pages never reflow when
+    /// the menus come and go; a tap on it brings them back.
     private var navigationHeader: some View {
         ZStack {
-            // The title opens the hour picker (Universalis's own behaviour). A tappable
-            // `Text`, not a `Button`, so UI tests still find it as static text.
-            Text(content.hourTitle)
-                .font(.system(size: metrics.navTitleSize))
-                .foregroundStyle(theme.chrome)
+            Button {
+                showingHourPicker = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text(content.hourTitle)
+                        .font(.system(size: metrics.navTitleSize))
+                    if settings.menus == .standard {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: metrics.navTitleSize * 0.75, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(menuColor)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
-                .onTapGesture { showingHourPicker = true }
-                .accessibilityIdentifier("hourPickerButton")
-            HStack {
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(content.hourTitle)
+            .accessibilityIdentifier("hourPickerButton")
+            HStack(spacing: 14) {
                 Button {
                     showingSettings = true
                 } label: {
                     Image(systemName: "gearshape")
-                        .foregroundStyle(theme.chrome)
+                        .foregroundStyle(menuColor)
                 }
                 .accessibilityIdentifier("settingsButton")
                 Spacer()
+                if settings.menus == .standard {
+                    Button {
+                        showingDatePicker = true
+                    } label: {
+                        Image(systemName: "calendar")
+                            .foregroundStyle(menuColor)
+                    }
+                    .accessibilityIdentifier("calendarButton")
+                }
                 Button(action: onPreviousDay) {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(theme.chrome)
+                        .foregroundStyle(menuColor)
                 }
                 .accessibilityIdentifier("previousDayButton")
                 Button(action: onNextDay) {
                     Image(systemName: "chevron.right")
-                        .foregroundStyle(theme.chrome)
+                        .foregroundStyle(menuColor)
                 }
                 .accessibilityIdentifier("nextDayButton")
             }
             .padding(.horizontal, metrics.margin)
+        }
+        .opacity(menusShown ? 1 : 0)
+        .allowsHitTesting(menusShown)
+        .overlay {
+            if !menusShown {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { revealMenus() }
+                    .accessibilityElement()
+                    .accessibilityLabel("Show menus")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityIdentifier("showMenusTop")
+            }
         }
         .padding(.top, 8)
         .padding(.bottom, 4)
@@ -239,17 +297,43 @@ struct VespersView: View {
         }
     }
 
+    /// *Hidden* (1.4): the menus come back for a moment, until the next page turn or
+    /// five seconds, whichever is first.
+    private func revealMenus() {
+        menusRevealed = true
+        hideMenusTask?.cancel()
+        hideMenusTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            // Not while a sheet the menus opened is up: it would lose its anchor.
+            if !showingSettings, !showingHourPicker, !showingDatePicker, !showingToc { menusRevealed = false }
+        }
+    }
+
     // MARK: Item 10 -- footer
 
     private var footer: some View {
         // Three independent slots (nothing on the left, per CLAUDE.md) rather than an
         // HStack of Spacers, so the centre text lands on the true midpoint. The short
         // date doubles as a jump-to-date control (the date line on page 1 is the other).
+        // Under *Hidden* (1.4) only a bare page number is left, and a tap on it brings
+        // the menus back.
         ZStack {
-            Text("Page \(pageNumber) of \(pageCount)")
-                .font(.system(size: metrics.footerSize))
-                .foregroundStyle(theme.chrome)
-                .accessibilityIdentifier("pageCounter")
+            if menusShown {
+                Text("Page \(pageNumber) of \(pageCount)")
+                    .font(.system(size: metrics.footerSize))
+                    .foregroundStyle(theme.chrome)
+                    .accessibilityIdentifier("pageCounter")
+            } else {
+                Text("\(pageNumber)")
+                    .font(.system(size: metrics.footerSize))
+                    .foregroundStyle(theme.chrome)
+                    .padding(.horizontal, 24)
+                    .contentShape(Rectangle())
+                    .onTapGesture { revealMenus() }
+                    .accessibilityHint("Shows the menus")
+                    .accessibilityIdentifier("pageNumber")
+            }
             HStack {
                 Spacer()
                 Button {
@@ -257,11 +341,13 @@ struct VespersView: View {
                 } label: {
                     Text(content.shortDate)
                         .font(.system(size: metrics.footerSize))
-                        .foregroundStyle(theme.chrome)
+                        .foregroundStyle(menuColor)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("jumpToDateButton")
             }
+            .opacity(menusShown ? 1 : 0)
+            .allowsHitTesting(menusShown)
         }
         .padding(.horizontal, metrics.margin)
         .padding(.vertical, 10)

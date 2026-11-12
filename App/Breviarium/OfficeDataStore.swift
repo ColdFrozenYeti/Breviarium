@@ -52,6 +52,7 @@ final class OfficeDataStore {
     /// Beta 6: Ambrosian Compline, from its own sources (`BreviariumKit.AmbrosianCompline`).
     private var ambrosianCompline: AmbrosianCompline?
     private var colorCache: [String: [Int: CalendarColor]] = [:]
+    private var kalendariumCache: [String: [KalendariumEntry]] = [:]
 
     /// What happened while loading the bundle, for the fallback UI to show verbatim --
     /// temporary, diagnostic-only scaffolding while the bundling pipeline is still being
@@ -239,5 +240,22 @@ final class OfficeDataStore {
         }
         colorCache[key] = colors
         return colors
+    }
+
+    /// A month of the *Kalendarium* (1.4), computed once per month and rite: every row
+    /// comes from the engine (`BreviariumKit.Kalendarium`), as the hours' own title does.
+    func kalendarium(year: Int, month: Int, rite: Rite) -> [KalendariumEntry] {
+        let key = "\(rite.rawValue)|\(year * 100 + month)"
+        if let cached = kalendariumCache[key] { return cached }
+        let entries: [KalendariumEntry]
+        if rite.usesDivinumOfficium {
+            guard let latinCorpus, let sanctoralCalendar = sanctoralCalendars[rite] else { return [] }
+            entries = Kalendarium.month(year: year, month: month, rite: rite, corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar)
+        } else {
+            guard let calendar = ambrosianCompline?.calendar else { return [] }
+            entries = Kalendarium.month(year: year, month: month, ambrosian: calendar)
+        }
+        kalendariumCache[key] = entries
+        return entries
     }
 }

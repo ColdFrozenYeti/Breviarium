@@ -117,7 +117,7 @@ final class PromoUITests: BreviariumUITestCase {
         XCTAssertTrue(app.buttons["hour-Completorium"].waitForExistence(timeout: 5))
         pause(2.0)
         app.buttons["hour-Completorium"].tap()
-        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Completorium"].waitForExistence(timeout: 5))
         pause(2.0)
         app.swipeLeft()
         pause(2.0)

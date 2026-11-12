@@ -24,7 +24,7 @@ class BreviariumUITestCase: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
         officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
-        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif"
+        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif", menus: String = "standard"
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -39,11 +39,17 @@ class BreviariumUITestCase: XCTestCase {
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
-            "-settings.rite", rite, "-settings.theme", theme, "-settings.font", font,
+            "-settings.rite", rite, "-settings.theme", theme, "-settings.font", font, "-settings.menus", menus,
         ]
         if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
-        XCTAssertTrue(app.staticTexts[expectedTitle ?? Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
+        // The hour title is the hour picker's button (1.4); under *Menus: Hidden* only the
+        // page number is left.
+        if menus == "hidden" {
+            XCTAssertTrue(app.staticTexts["pageNumber"].waitForExistence(timeout: 5))
+        } else {
+            XCTAssertTrue(app.buttons[expectedTitle ?? Self.titles[hour] ?? "Ad Vesperas"].waitForExistence(timeout: 5))
+        }
         return app
     }
     func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 5) -> Bool {
@@ -525,7 +531,7 @@ final class DayHoursUITests: BreviariumUITestCase {
     /// The hour picker opens from the title and switches the hour.
     func testHourPickerSwitchesTheHour() {
         let app = launchApp(date: "2026-09-16")
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         let lauds = app.buttons["hour-Laudes"]
         XCTAssertTrue(lauds.waitForExistence(timeout: 5))
         let picker = XCTAttachment(screenshot: app.screenshot())
@@ -533,7 +539,7 @@ final class DayHoursUITests: BreviariumUITestCase {
         picker.lifetime = .keepAlways
         add(picker)
         lauds.tap()
-        XCTAssertTrue(app.staticTexts["Ad Laudes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Laudes"].waitForExistence(timeout: 5))
     }
     /// Page 1 and page 2 of every day hour, for a ferial day and a I class feast, plus
     /// Lauds of 16 September 2026 (the title block's commemoration example) and Compline
@@ -607,7 +613,7 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
     /// hours (decided 2026-09-26). The Martyrology follows Prime, in the day's office only.
     func testOfficiumSettingAndHourPicker() {
         let app = launchApp(date: "2026-09-16", hour: "Laudes")
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         let prima = app.buttons["hour-Prima"]
         XCTAssertTrue(prima.waitForExistence(timeout: 5))
         let martyrology = app.buttons["hour-martyrologium"]
@@ -627,7 +633,7 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["Done"].tap()
 
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         XCTAssertTrue(app.buttons["hour-Matutinum"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["hour-Laudes"].exists)
         XCTAssertTrue(app.buttons["hour-Vespera"].exists)
@@ -728,7 +734,7 @@ final class DominicanUITests: BreviariumUITestCase {
         diei.tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["Ad Laudes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Laudes"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.4)
         capture(app, "b5-rosary-Laudes-after-setting")
         app.terminate()
@@ -801,7 +807,7 @@ final class AmbrosianUITests: BreviariumUITestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         capture(app, "b6-settings-ambrosianus")
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Completorium"].waitForExistence(timeout: 5))
         app.terminate()
     }
 
@@ -875,7 +881,7 @@ final class FontUITests: BreviariumUITestCase {
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m2-font-settings-comic")
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Completorium"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m2-font-chosen-comic")
         app.terminate()
@@ -962,7 +968,7 @@ final class ThemeUITests: BreviariumUITestCase {
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m1-theme-settings-lux")
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["Ad Completorium"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ad Completorium"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m1-theme-chosen-lux")
         // The calendar's dots, ringed on a light page.
@@ -973,10 +979,39 @@ final class ThemeUITests: BreviariumUITestCase {
         capture(app, "m1-theme-calendar-lux")
         app.buttons["Cancel"].tap()
         // The hour picker.
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         Thread.sleep(forTimeInterval: 0.8)
         capture(app, "m1-theme-hours-lux")
         app.terminate()
+    }
+
+    /// *Menus* (1.4): Standard in the rubric colour, Prayer in grey, and Hidden with only
+    /// the page number, which a tap turns back into the menus until the next page turn.
+    func testMenuStyles() {
+        for theme in ["classicDark", "light"] {
+            for menus in ["standard", "prayer", "hidden"] {
+                let app = launchApp(date: "2026-09-16", theme: theme, menus: menus)
+                Thread.sleep(forTimeInterval: 0.4)
+                capture(app, "m14-menus-\(menus)-\(theme)-page1")
+                if menus == "standard" { XCTAssertTrue(app.buttons["calendarButton"].exists) }
+                if menus == "prayer" { XCTAssertFalse(app.buttons["calendarButton"].exists) }
+                if menus == "hidden" {
+                    XCTAssertFalse(app.staticTexts["pageCounter"].exists)
+                    XCTAssertEqual(app.staticTexts["pageNumber"].label, "1")
+                    app.staticTexts["pageNumber"].tap()
+                    XCTAssertTrue(app.staticTexts["pageCounter"].waitForExistence(timeout: 3))
+                    capture(app, "m14-menus-hidden-\(theme)-revealed")
+                    app.swipeLeft()
+                    XCTAssertTrue(app.staticTexts["pageNumber"].waitForExistence(timeout: 3))
+                    XCTAssertTrue(waitForLabel(app.staticTexts["pageNumber"], "2"))
+                    capture(app, "m14-menus-hidden-\(theme)-page2")
+                    // The top strip brings them back too.
+                    app.descendants(matching: .any)["showMenusTop"].tap()
+                    XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 3))
+                }
+                app.terminate()
+            }
+        }
     }
 
     /// English on: the parallel pages in a dark and a light theme.
