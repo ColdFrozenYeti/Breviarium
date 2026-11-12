@@ -132,7 +132,7 @@ final class PromoUITests: BreviariumUITestCase {
         pause(2.5)
         app.buttons["kalendariumIndex-3"].tap()
         pause(1.5)
-        app.buttons["kalendariumDay-28"].tap()
+        app.buttons["kalendariumDay-3-28"].tap()
         pause(2.5)
         app.swipeLeft()
         pause(2.0)

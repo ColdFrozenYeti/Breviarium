@@ -696,14 +696,14 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         let app = launchApp(date: "2026-11-02")
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
-        let allSouls = app.buttons["kalendariumDay-2"]
+        let allSouls = app.buttons["kalendariumDay-11-2"]
         XCTAssertTrue(allSouls.waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 1.5)
         XCTAssertEqual(allSouls.value as? String, "black")
         capture(app, "m14-kalendarium-2026-11")
         app.buttons["kalendariumIndex-12"].tap()
         Thread.sleep(forTimeInterval: 1.5)
-        XCTAssertEqual(app.buttons["kalendariumDay-13"].value as? String, "rose")
+        XCTAssertEqual(app.buttons["kalendariumDay-12-13"].value as? String, "rose")
         capture(app, "m14-kalendarium-2026-12")
         app.buttons["kalendariumIndex-3"].tap()
         Thread.sleep(forTimeInterval: 1.5)
@@ -714,7 +714,7 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         capture(app, "m14-kalendarium-2027-01")
         app.buttons["kalendariumTodayButton"].tap()
         XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2026"))
-        let martin = app.buttons["kalendariumDay-11"]
+        let martin = app.buttons["kalendariumDay-11-11"]
         XCTAssertTrue(martin.waitForExistence(timeout: 5))
         martin.tap()
         XCTAssertTrue(waitForLabel(app.buttons["jumpToDateButton"], "11-Nov-26"))
@@ -989,7 +989,7 @@ final class ThemeUITests: BreviariumUITestCase {
         // The Kalendarium's dots, ringed on a light page.
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["kalendariumDay-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["kalendariumDay-11-2"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 2.0)
         capture(app, "m1-theme-calendar-lux")
         app.buttons["Close"].tap()

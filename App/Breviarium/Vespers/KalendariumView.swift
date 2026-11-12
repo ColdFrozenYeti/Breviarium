@@ -175,7 +175,7 @@ struct KalendariumView: View {
         .id(Self.rowID(entry.day, entry.month))
         .accessibilityElement(children: .combine)
         .accessibilityValue(entry.color?.rawValue ?? "")
-        .accessibilityIdentifier("kalendariumDay-\(entry.day)")
+        .accessibilityIdentifier("kalendariumDay-\(entry.month)-\(entry.day)")
     }
 
     private func name(_ text: String, major: Bool) -> some View {
