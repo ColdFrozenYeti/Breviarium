@@ -96,18 +96,16 @@ jobs:
             years: 2037-2040
           # Beta 4: the Little Office (every hour, 2026-2027) and the Office of the Dead
           # (Matins, Lauds, Vespers, 2026), both psalters and the 2044 hold-outs.
-          - name: little office
+          # One job since 1.4 (about 18 and 8 minutes apart), so the matrix stays within
+          # the free plan's 20 concurrent Linux jobs.
+          - name: little office and office of the dead
             filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
-            votives: C12
-          - name: office of the dead
-            filter: "votiveAudit|votiveBeaAudit|votiveHoldout2044"
-            votives: C9
           # Beta 5: the Dominican office (`Ordo Praedicatorum - 1962`), every hour in both
           # psalters, the 2044 hold-out, and its Little Office and Office of the Dead.
           # Split by four years and by office like the Roman ones (each over 90 minutes as
           # two jobs of eight years).
-          - name: dominican day hours 2025-2028 and 2044
-            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+          - name: dominican day hours 2025-2028
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
             hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
             years: 2025-2028
           - name: dominican day hours 2029-2032
@@ -122,10 +120,14 @@ jobs:
             filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
             hours: Vespera,Completorium,Tertia,Sexta,Nona,Prima,Laudes
             years: 2037-2040
-          - name: dominican matins 2025-2028 and 2044
-            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit|dominicanHoldout2044"
+          - name: dominican matins 2025-2028
+            filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
             hours: Matutinum
             years: 2025-2028
+          # The Dominican 2044 hold-out (every hour, priest on and off), its own job since
+          # 1.4: inside the 2025-2028 jobs it made the day hours one 48 minutes long.
+          - name: dominican 2044 hold-out
+            filter: "dominicanHoldout2044"
           - name: dominican matins 2029-2032
             filter: "dominicanFullRangeAudit|dominicanFullRangeBeaAudit"
             hours: Matutinum

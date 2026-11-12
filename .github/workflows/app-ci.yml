@@ -58,12 +58,17 @@ jobs:
           PR_HEAD_REF: ${{ github.head_ref }}
         run: scripts/ci-needs-run.sh app-ci.yml '^(App/|Packages/BreviariumKit/|\.github/workflows/app-ci\.yml)'
 
-  build-and-test:
+  # Build once (build-for-testing), then run the UI-test classes on five runners at once
+  # (1.4). On one runner they took 61 of App CI's 65 minutes, one class after another;
+  # three cloned simulators on one runner were tried on 27 September and timed out, so
+  # each group gets a runner of its own (free for a public repository; five is the free
+  # plan's macOS concurrency).
+  build:
     needs: changes
     if: needs.changes.outputs.run == 'true'
     runs-on: macos-26
     env:
-      # Pinned explicitly rather than trusting the runner image's rolling default —
+      # Pinned explicitly rather than trusting the runner image's rolling default --
       # see docs/PLAN.md, Risks ("Xcode/SDK version drift"). Confirmed present on the
       # macos-26 GA image as of M0; revisit if GitHub deprecates that image.
       XCODE_VERSION: "26.5"
@@ -91,13 +96,14 @@ jobs:
         working-directory: App
         run: xcodegen generate
 
-      - name: Build for simulator
+      - name: Build for testing
         working-directory: App
         run: |
-          xcodebuild build \
+          xcodebuild build-for-testing \
             -project Breviarium.xcodeproj \
             -scheme Breviarium \
-            -destination "platform=iOS Simulator,name=iPhone 17,OS=latest"
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
+            -derivedDataPath DerivedData
 
       # App Store requirements (CLAUDE.md, "Before the App Store release"): the privacy
       # manifest is in the bundle and valid, and the export-compliance key is set.
@@ -105,10 +111,8 @@ jobs:
         working-directory: App
         run: |
           set -euo pipefail
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -maxdepth 6 -type d \
-            -path '*/Build/Products/Debug-iphonesimulator/Breviarium.app' | head -1)
-          test -n "$APP"
-          echo "App bundle: $APP"
+          APP=DerivedData/Build/Products/Debug-iphonesimulator/Breviarium.app
+          test -d "$APP"
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
           test "$(plutil -extract NSPrivacyTracking raw "$APP/PrivacyInfo.xcprivacy")" = false
           test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$APP/Info.plist")" = false
@@ -117,19 +121,74 @@ jobs:
           # Runs on any iOS 26 (decided 2026-10-11), not only 26.5.
           test "$(plutil -extract MinimumOSVersion raw "$APP/Info.plist")" = 26.0
 
-      # The UI tests are five classes (B5-M0). They run one after another: on three
-      # cloned simulators at once (tried 27 September) the macOS runner was too small,
-      # nine tests timed out and the step took 56 minutes instead of 32.
+      # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.
+      - name: Pack the test build
+        working-directory: App/DerivedData/Build
+        run: tar -czf "$GITHUB_WORKSPACE/test-build.tar.gz" Products
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: test-build
+          path: test-build.tar.gz
+          retention-days: 1
+
+  ui-tests:
+    needs: build
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # Balanced on the classes' times in run 196 (22 October 2026), in seconds:
+        # VespersMatrix 590, Matins 500, DayHours 394, Ambrosian 344, LaunchAndNavigation
+        # 336, VotiveOffices 229, Theme 211, Dominican 163, Font 142, Gallery 105.
+        # PromoUITests is left out: it skips itself outside promo.yml.
+        include:
+          - group: vespers
+            classes: VespersMatrixUITests
+          - group: matins
+            classes: MatinsUITests GalleryUITests
+          - group: day-hours
+            classes: DayHoursUITests ThemeUITests
+          - group: ambrosian-votive
+            classes: AmbrosianUITests VotiveOfficesUITests
+          - group: launch-dominican-font
+            classes: LaunchAndNavigationUITests DominicanUITests FontUITests
+    name: ui-tests (${{ matrix.group }})
+    env:
+      XCODE_VERSION: "26.5"
+    steps:
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: test-build
+
+      - name: Unpack the test build
+        run: |
+          mkdir -p build
+          tar -xzf test-build.tar.gz -C build
+
       - name: Run UI tests
-        working-directory: App
         env:
+          CLASSES: ${{ matrix.classes }}
           ONLY_TESTING: ${{ inputs.only_testing }}
         run: |
+          set -euo pipefail
+          XCTESTRUN=$(ls build/Products/*.xctestrun | head -1)
           only=()
-          for t in $ONLY_TESTING; do only+=("-only-testing:$t"); done
-          xcodebuild test \
-            -project Breviarium.xcodeproj \
-            -scheme Breviarium \
+          if [ -n "$ONLY_TESTING" ]; then
+            # A run by hand: only the asked-for tests that belong to this group's classes.
+            for t in $ONLY_TESTING; do
+              class=$(echo "$t" | cut -d/ -f2)
+              for c in $CLASSES; do [ "$class" = "$c" ] && only+=("-only-testing:$t"); done
+            done
+            if [ ${#only[@]} -eq 0 ]; then echo "No asked-for test is in this group."; exit 0; fi
+          else
+            for c in $CLASSES; do only+=("-only-testing:BreviariumUITests/$c"); done
+          fi
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" \
             -parallel-testing-enabled NO \
             -resultBundlePath TestResults.xcresult \
@@ -139,27 +198,46 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ui-test-results
-          path: App/TestResults.xcresult
+          name: ui-test-results-${{ matrix.group }}
+          path: TestResults.xcresult
           if-no-files-found: ignore
 
       # Snapshot tests attach a named PNG (XCTAttachment, .lifetime = .keepAlways) per
-      # screen/config -- extracted here so they can be downloaded and compared against
-      # design/reference/ without opening the (Mac-only) .xcresult bundle itself.
+      # screen/config -- extracted here so they can be downloaded and measured without
+      # opening the (Mac-only) .xcresult bundle itself.
       - name: Extract snapshot PNGs
         if: always()
-        working-directory: App
         run: |
           mkdir -p Snapshots
-          xcrun xcresulttool export attachments \
-            --path TestResults.xcresult \
-            --output-path Snapshots \
-            --legacy || echo "No attachments found (tests may have failed before capturing any)."
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path TestResults.xcresult \
+              --output-path Snapshots \
+              --legacy || echo "No attachments found (tests may have failed before capturing any)."
+          fi
 
       - name: Upload snapshot PNGs
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          name: snapshots-${{ matrix.group }}
+          path: Snapshots
+          if-no-files-found: ignore
+
+  # One `snapshots` artifact as before, with a folder per group.
+  snapshots:
+    needs: ui-tests
+    if: always() && needs.ui-tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: snapshots-*
+          path: Snapshots
+
+      - name: Upload snapshot PNGs
+        uses: actions/upload-artifact@v7
+        with:
           name: snapshots
-          path: App/Snapshots
+          path: Snapshots
           if-no-files-found: ignore
