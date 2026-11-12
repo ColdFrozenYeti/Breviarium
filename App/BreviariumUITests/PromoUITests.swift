@@ -45,15 +45,15 @@ final class PromoUITests: BreviariumUITestCase {
 
         // The hour picker and the calendar.
         app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Laudes")
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         XCTAssertTrue(app.buttons["hour-Laudes"].waitForExistence(timeout: 5))
         pause(1.0)
         capture(app, "promo-04-hours")
         app.terminate()
 
         app = launchApp(date: "2026-12-25", pageTurn: "curl")
-        app.buttons["jumpToDateButton"].tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
         pause(2.0)
         capture(app, "promo-05-calendar")
         app.terminate()
@@ -113,7 +113,7 @@ final class PromoUITests: BreviariumUITestCase {
     func testTour2Hours() {
         let app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(1.5)
-        app.staticTexts["hourPickerButton"].tap()
+        app.buttons["hourPickerButton"].tap()
         XCTAssertTrue(app.buttons["hour-Completorium"].waitForExistence(timeout: 5))
         pause(2.0)
         app.buttons["hour-Completorium"].tap()
@@ -127,10 +127,12 @@ final class PromoUITests: BreviariumUITestCase {
     func testTour3Calendar() {
         let app = launchApp(date: "2027-03-01", pageTurn: "curl", hour: "Laudes")
         pause(1.5)
-        app.buttons["jumpToDateButton"].tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
         pause(2.5)
-        app.buttons["calendarDay-28"].tap()
+        app.buttons["kalendariumIndex-3"].tap()
+        pause(1.5)
+        app.buttons["kalendariumDay-28"].tap()
         pause(2.5)
         app.swipeLeft()
         pause(2.0)

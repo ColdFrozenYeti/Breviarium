@@ -317,11 +317,15 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         app.buttons["previousDayButton"].tap()
         XCTAssertTrue(waitForLabel(date, "15-Sep-26"))
     }
-    /// M6's own manual checklist also names "jump-to-date": the footer date opens it.
-    func testFooterDateOpensJumpToDateSheet() {
+    /// The footer date and the calendar button open the Kalendarium (1.4, which
+    /// replaced *Jump to date*).
+    func testFooterDateAndCalendarButtonOpenKalendarium() {
         let app = launchApp(date: "2026-09-16")
         app.buttons["jumpToDateButton"].tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
+        app.buttons["Close"].tap()
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
     }
     /// The date line on page 1 is an in-text link to the same sheet. Skipped, not failed,
     /// if the system doesn't expose UITextView links to UI tests.
@@ -330,7 +334,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         let dateLink = app.links["Dies 16 septembris 2026"]
         try XCTSkipUnless(dateLink.waitForExistence(timeout: 5), "UITextView link not exposed to accessibility")
         dateLink.tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
     }
     /// Book-style pagination: several pages at the default size, the counter advancing on
     /// a swipe, and more pages at the largest text size (the text re-flows; nothing is
@@ -684,25 +688,36 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
             app.terminate()
         }
     }
-    /// The Jump to date calendar's colour dots: November 2026 (black, green, red, white,
-    /// violet), December (rose, violet, white, red) and March (rose, violet, white, red).
-    func testCalendarColourDots() {
+    /// The Kalendarium (1.4): November 2026 opens on the day shown, framed as today, with
+    /// each day's colour (All Souls black, the Lateran white, St Martin of Tours white);
+    /// December's Gaudete rose; the month index, the year and Today move it; a tap opens
+    /// the day.
+    func testKalendarium() {
         let app = launchApp(date: "2026-11-02")
-        app.buttons["jumpToDateButton"].tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["calendarDay-2"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 2.0)
-        XCTAssertEqual(app.buttons["calendarDay-2"].value as? String, "black")
-        capture(app, "b4-calendar-2026-11")
-        app.buttons["nextMonthButton"].tap()
-        Thread.sleep(forTimeInterval: 2.0)
-        XCTAssertEqual(app.buttons["calendarDay-13"].value as? String, "rose")
-        capture(app, "b4-calendar-2026-12")
-        for _ in 0..<9 { app.buttons["previousMonthButton"].tap() }
-        Thread.sleep(forTimeInterval: 2.0)
-        capture(app, "b4-calendar-2026-03")
-        app.buttons["calendarDay-15"].tap()
-        XCTAssertTrue(waitForLabel(app.buttons["jumpToDateButton"], "15-Mar-26"))
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
+        let allSouls = app.buttons["kalendariumDay-2"]
+        XCTAssertTrue(allSouls.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertEqual(allSouls.value as? String, "black")
+        capture(app, "m14-kalendarium-2026-11")
+        app.buttons["kalendariumIndex-12"].tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertEqual(app.buttons["kalendariumDay-13"].value as? String, "rose")
+        capture(app, "m14-kalendarium-2026-12")
+        app.buttons["kalendariumIndex-3"].tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        capture(app, "m14-kalendarium-2026-03")
+        app.buttons["nextYearButton"].tap()
+        XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2027"))
+        Thread.sleep(forTimeInterval: 1.5)
+        capture(app, "m14-kalendarium-2027-01")
+        app.buttons["kalendariumTodayButton"].tap()
+        XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2026"))
+        let martin = app.buttons["kalendariumDay-11"]
+        XCTAssertTrue(martin.waitForExistence(timeout: 5))
+        martin.tap()
+        XCTAssertTrue(waitForLabel(app.buttons["jumpToDateButton"], "11-Nov-26"))
     }
     /// The Te Deum's inline directions, red with rubrics on and gone with them off.
     func testTeDeumInlineRubrics() {
@@ -971,13 +986,13 @@ final class ThemeUITests: BreviariumUITestCase {
         XCTAssertTrue(app.buttons["Ad Completorium"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.6)
         capture(app, "m1-theme-chosen-lux")
-        // The calendar's dots, ringed on a light page.
-        app.buttons["jumpToDateButton"].tap()
-        XCTAssertTrue(app.navigationBars["Jump to date"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["calendarDay-2"].waitForExistence(timeout: 5))
+        // The Kalendarium's dots, ringed on a light page.
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["kalendariumDay-2"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 2.0)
         capture(app, "m1-theme-calendar-lux")
-        app.buttons["Cancel"].tap()
+        app.buttons["Close"].tap()
         // The hour picker.
         app.buttons["hourPickerButton"].tap()
         Thread.sleep(forTimeInterval: 0.8)

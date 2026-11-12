@@ -155,6 +155,16 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
     - right: short date, e.g. `16-Sep-26`;
     - left: nothing (Universalis's audio button is omitted).
 
+### Kalendarium (1.4)
+
+Measured from the user's screenshot of Universalis's calendar list (12 November 2026, at about 2.37 px per point; the image is not committed), with the user's changes: no weekday, and our columns. It replaced *Jump to date* (`App/Breviarium/Vespers/KalendariumView.swift`).
+
+- A year as a list of months. Each month opens with a **band**, about 29 pt high, slightly lighter than the background, with the month and year (*November 2026*) in SF semibold at body size, 17 pt from the left; it stays pinned while its month scrolls.
+- **One row per day**, divided by fine rules (0.5 pt, the chrome colour, inset 16 pt), with about 8 pt above and below the text: the **day number**, the **class** as a Roman numeral (*III*, smaller, chrome grey; nothing for a feria), and the **name**, in SF at about 17 pt, bold for a I or II class day, with a **dot of its colour** after the last word. Long names are shortened in an Ordo's abbreviations (`Kalendarium.shortName`: *Feria V hebd. XXIII post Oct. Pent.*), and what is still too long is cut off after two lines.
+- **Today** is framed in the theme's icon colour.
+- A column of **months** (*Ian* … *Dec*) down the right edge jumps to a month; two capsule buttons at the foot give the **year** (‹ 2026 ›) and **Today**.
+- It opens on the day shown and follows *Ritus*; a tap on a day opens it at the hour already chosen. The calendar button (under *Menus: Standard*), the date line and the footer's date open it.
+
 ### Behaviour
 
 - **Paging** (decided 2026-09-24, replacing "one page per section group"). An hour is paginated **like a printed book**: the text flows line by line from one page to the next, at any text size or orientation, and a paragraph that doesn't fit continues at the top of the next page. The user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot.

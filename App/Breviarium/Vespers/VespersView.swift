@@ -21,8 +21,10 @@ struct VespersView: View {
     /// The hour shown (Beta 2), or the Martyrology (Beta 4), and the hour picker's choice.
     let selection: OfficeHour
     let onSelectHour: (OfficeHour) -> Void
-    /// Each day's colour for a month of the *Jump to date* calendar (Beta 4).
-    let calendarColors: @MainActor (_ year: Int, _ month: Int) -> [Int: CalendarColor]
+    /// A month of the *Kalendarium* (1.4), which replaced *Jump to date*.
+    let kalendarium: @MainActor (_ year: Int, _ month: Int) -> [KalendariumEntry]
+    /// Today, which the Kalendarium frames (the fixed date in UI tests).
+    let today: SimpleDate
     /// Date navigation lives one level up in `ContentView`, which owns the displayed date
     /// -- this view only ever asks for a move, never computes one itself.
     let onPreviousDay: () -> Void
@@ -33,7 +35,7 @@ struct VespersView: View {
 
     @State private var showingToc = false
     @State private var showingSettings = false
-    @State private var showingDatePicker = false
+    @State private var showingKalendarium = false
     @State private var showingHourPicker = false
     @State private var typesetCache = TypesetCache()
     @State private var parallelCache = ParallelCache()
@@ -129,7 +131,7 @@ struct VespersView: View {
             appliedInitialSection = true
             jumpSection = sectionKinds.first { $0.rawValue == initialSection }
         }
-        .sheet(isPresented: $showingDatePicker) { datePickerSheet }
+        .sheet(isPresented: $showingKalendarium) { kalendariumSheet }
     }
 
     @ViewBuilder
@@ -187,7 +189,8 @@ struct VespersView: View {
         if url == OfficeLink.tableOfContents {
             showingToc = true
         } else if url == OfficeLink.jumpToDate {
-            showingDatePicker = true
+            // The date line opens the Kalendarium (1.4).
+            showingKalendarium = true
         }
     }
 
@@ -251,7 +254,7 @@ struct VespersView: View {
                 Spacer()
                 if settings.menus == .standard {
                     Button {
-                        showingDatePicker = true
+                        showingKalendarium = true
                     } label: {
                         Image(systemName: "calendar")
                             .foregroundStyle(menuColor)
@@ -306,7 +309,7 @@ struct VespersView: View {
             try? await Task.sleep(for: .seconds(5))
             guard !Task.isCancelled else { return }
             // Not while a sheet the menus opened is up: it would lose its anchor.
-            if !showingSettings, !showingHourPicker, !showingDatePicker, !showingToc { menusRevealed = false }
+            if !showingSettings, !showingHourPicker, !showingKalendarium, !showingToc { menusRevealed = false }
         }
     }
 
@@ -337,7 +340,7 @@ struct VespersView: View {
             HStack {
                 Spacer()
                 Button {
-                    showingDatePicker = true
+                    showingKalendarium = true
                 } label: {
                     Text(content.shortDate)
                         .font(.system(size: metrics.footerSize))
@@ -377,32 +380,20 @@ struct VespersView: View {
         .preferredColorScheme(theme.colorScheme)
     }
 
-    // MARK: Jump to date
+    // MARK: The Kalendarium
 
-    private var datePickerSheet: some View {
-        NavigationStack {
-            MonthCalendarView(
-                selected: SimpleDate(day: content.day.day, month: content.day.month, year: content.day.year),
-                colors: calendarColors
-            ) { date in
-                showingDatePicker = false
+    /// The *Kalendarium* (1.4), from the calendar button, the date line and the footer's
+    /// date: it replaced *Jump to date*.
+    private var kalendariumSheet: some View {
+        KalendariumView(
+            selected: SimpleDate(day: content.day.day, month: content.day.month, year: content.day.year),
+            today: today, scale: settings.textSize.chromeScale, entries: kalendarium,
+            onSelect: { date in
+                showingKalendarium = false
                 onJump(date)
-            }
-            .padding()
-            // Black to the sheet's edges, under the title bar too, as the hour picker is:
-            // the padding sat outside the calendar's own black, in the sheet's grey.
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.background)
-            .navigationTitle("Jump to date")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showingDatePicker = false }
-                }
-            }
-        }
-        .presentationBackground(theme.background)
-        .preferredColorScheme(theme.colorScheme)
+            },
+            onClose: { showingKalendarium = false }
+        )
     }
 }
 
