@@ -6,9 +6,10 @@ import SwiftUI
 /// (measured from the user's screenshot; `CLAUDE.md`, "Kalendarium"):
 ///
 /// - a band with the month and year at the top of each month, pinned while it scrolls;
-/// - a row per day, divided by fine rules: the day's number, its class (*III*), and its
-///   name (bold for a I or II class day) with a dot of its colour after it; a long name
-///   in an Ordo's abbreviations (`Kalendarium.shortName`), cut off after two lines;
+/// - a row per day, every row one line and the same height, divided by fine rules: the
+///   day's number, its class (*III*), its name (bold for a I or II class day), and a dot
+///   of its colour; a name too long for the line in an Ordo's abbreviations
+///   (`Kalendarium.shortName`), and cut off if that is still too long;
 /// - today framed in the theme's icon colour;
 /// - the months down the right edge, to jump to one, and the year and *Today* at the foot.
 ///
@@ -136,10 +137,23 @@ struct KalendariumView: View {
                     .font(.system(size: nameSize * 0.8))
                     .foregroundStyle(theme.chrome)
                     .frame(width: 40 * scale, alignment: .leading)
-                name(entry)
-                    .lineLimit(2)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // The whole name if it fits the line, else the abbreviated one, cut off
+                // if it still doesn't (decided 2026-11-12: one line, equal rows).
+                ViewThatFits(in: .horizontal) {
+                    name(entry.titleBlock.nameLine, major: Self.isMajor(entry.classis))
+                        .fixedSize(horizontal: true, vertical: false)
+                    name(entry.shortName, major: Self.isMajor(entry.classis))
+                        .truncationMode(.tail)
+                }
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let color = entry.color {
+                    let (symbol, tint) = dot(color)
+                    Image(systemName: symbol)
+                        .font(.system(size: nameSize * 0.62))
+                        .foregroundStyle(tint)
+                        .padding(.leading, 6)
+                }
             }
             .padding(.leading, 8)
             .padding(.trailing, 4)
@@ -164,17 +178,10 @@ struct KalendariumView: View {
         .accessibilityIdentifier("kalendariumDay-\(entry.day)")
     }
 
-    /// The name with the colour's dot after it, on its last line like Universalis's.
-    private func name(_ entry: KalendariumEntry) -> Text {
-        let font: Font = .system(size: nameSize, weight: Self.isMajor(entry.classis) ? .bold : .regular)
-        var text = Text(entry.shortName).font(font).foregroundStyle(theme.liturgicalText)
-        if let color = entry.color {
-            let (symbol, tint) = dot(color)
-            text = text + Text(" ") + Text(Image(systemName: symbol))
-                .font(.system(size: nameSize * 0.62))
-                .foregroundStyle(tint)
-        }
-        return text
+    private func name(_ text: String, major: Bool) -> some View {
+        Text(text)
+            .font(.system(size: nameSize, weight: major ? .bold : .regular))
+            .foregroundStyle(theme.liturgicalText)
     }
 
     /// A I or II class day is bold (Universalis bolds Sundays and feasts); the Ambrosian

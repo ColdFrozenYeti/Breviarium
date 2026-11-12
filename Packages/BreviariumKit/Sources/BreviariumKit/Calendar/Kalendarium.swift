@@ -21,7 +21,7 @@ public struct KalendariumEntry: Equatable, Sendable {
     public var classis: String?
     /// The day's title block: the rank line and the name (no line below it).
     public var titleBlock: TitleBlock
-    /// The name as the row shows it: `Kalendarium.shortName` of the title block's name.
+    /// The name in an Ordo's abbreviations, for a row too narrow for the whole name.
     public var shortName: String { Kalendarium.shortName(titleBlock.nameLine) }
     public var color: CalendarColor?
 
@@ -68,16 +68,12 @@ public enum Kalendarium {
         }
     }
 
-    /// Names longer than this are shortened (`shortName`): about two lines of a row.
-    public static let shortNameThreshold = 44
-
-    /// A long name in the abbreviations of a printed Ordo (decided 2026-11-12: "names that
-    /// are too long should be shortened, and if impossible, cut off" -- the row cuts off
-    /// what is still too long). Spelling only, no liturgy: *Feria Quinta infra Hebdomadam
-    /// XXIII post Octavam Pentecostes* becomes *Feria V hebd. XXIII post Oct. Pent.* Names
-    /// of `shortNameThreshold` characters or fewer are left whole.
+    /// A name in the abbreviations of a printed Ordo (decided 2026-11-12: "names that are
+    /// too long should be shortened, and if impossible, cut off", on one line). The row
+    /// shows the whole name when it fits on its line, this one when it doesn't, and cuts
+    /// off what is still too long. Spelling only, no liturgy: *Feria Quinta infra
+    /// Hebdomadam XXIII post Octavam Pentecostes* becomes *Feria V hebd. XXIII post Oct. Pent.*
     public static func shortName(_ name: String) -> String {
-        guard name.count > shortNameThreshold else { return name }
         var result = name
         for (pattern, replacement) in abbreviations {
             result = result.replacingOccurrences(of: pattern, with: replacement, options: [.regularExpression, .caseInsensitive])

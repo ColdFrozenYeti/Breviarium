@@ -77,7 +77,7 @@ func kalendariumMatchesTheEngine(_ year: Int, _ m: Int, _ rite: Rite) {
     #expect(entry(13, 12, 2026)?.color == .rose)
 }
 
-/// Long names in the abbreviations of an Ordo; short ones whole.
+/// Names in the abbreviations of an Ordo.
 @Test func kalendariumShortNames() {
     #expect(Kalendarium.shortName("Feria Quinta infra Hebdomadam XXIII post Octavam Pentecostes")
         == "Feria V hebd. XXIII post Oct. Pent.")
@@ -85,13 +85,10 @@ func kalendariumMatchesTheEngine(_ year: Int, _ m: Int, _ rite: Rite) {
         == "S. Alfonsi Mariæ de Ligorio Ep. Conf. et Eccl. Doct.")
     #expect(Kalendarium.shortName("Ss. Septem Fratrum Martyrum, ac Rufinæ et Secundæ Virginum et Martyrum")
         == "Ss. Septem Fratrum Mm., ac Rufinæ et Secundæ Virg. et Mm.")
-    #expect(Kalendarium.shortName("S. Martini Papæ et Martyris") == "S. Martini Papæ et Martyris")
+    #expect(Kalendarium.shortName("S. Martini Papæ et Martyris") == "S. Martini Papæ et Mart.")
+    #expect(Kalendarium.shortName("Feria II infra Hebdomadam I Adventus") == "Feria II hebd. I Adventus")
     #expect(Kalendarium.shortName("Dominica III Post Pentecosten infra Octavam SSmi Cordis D.N.I.C")
         == "Dominica III post Pent. infra Oct. SSmi Cordis D.N.I.C")
-    // Every row's name is at most a little over two lines once shortened, in a whole year.
-    guard RealCorpus.bundle != nil else { return }
-    let longest = (1...12).flatMap { month(2026, $0) }.map(\.shortName).max { $0.count < $1.count } ?? ""
-    #expect(longest.count <= 80, "\(longest)")
 }
 
 @Test func kalendariumAmbrosian() throws {
