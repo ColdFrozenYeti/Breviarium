@@ -248,7 +248,8 @@ jobs:
   # One `snapshots` artifact as before, with a folder per group.
   snapshots:
     needs: ui-tests
-    if: always() && needs.ui-tests.result != 'skipped'
+    # !cancelled(), not always(): always() kept this job queued after a cancel.
+    if: ${{ !cancelled() && needs.ui-tests.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
