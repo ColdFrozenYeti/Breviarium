@@ -247,7 +247,7 @@ struct KalendariumView: View {
             }
             .padding(.horizontal, 20)
             .frame(height: 48)
-            .background(Capsule().fill(theme.background.overlay(theme.chrome.opacity(0.22))))
+            .background(Capsule().fill(theme.chrome.opacity(0.22)).background(Capsule().fill(theme.background)))
             Spacer()
             Button {
                 year = today.year
@@ -256,7 +256,7 @@ struct KalendariumView: View {
                 Text("Today")
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .background(Capsule().fill(theme.background.overlay(theme.chrome.opacity(0.22))))
+                    .background(Capsule().fill(theme.chrome.opacity(0.22)).background(Capsule().fill(theme.background)))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("kalendariumTodayButton")
