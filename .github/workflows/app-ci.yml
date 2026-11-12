@@ -133,6 +133,9 @@ jobs:
           retention-days: 1
 
   ui-tests:
+    # A hung simulator once held a group for 90 minutes (2026-11-12); the longest group
+    # takes about 25.
+    timeout-minutes: 45
     needs: build
     runs-on: macos-26
     strategy:
@@ -189,6 +192,10 @@ jobs:
           fi
           echo "Simulator: $UDID"
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          # Boot it before the tests: a cold boot during the first launch has timed out
+          # and left xcodebuild waiting for good.
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
 
       - name: Run UI tests
         env:
@@ -212,6 +219,10 @@ jobs:
             -xctestrun "$XCTESTRUN" \
             -destination "id=$SIM_UDID" \
             -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 600 \
+            -maximum-test-execution-time-allowance 900 \
+            -retry-tests-on-failure -test-iterations 2 \
             -resultBundlePath TestResults.xcresult \
             "${only[@]}"
 
