@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// Promotional stills and screen-recorded tours (2026-10-11), for the App Store listing
@@ -5,6 +6,8 @@ import XCTest
 /// `TEST_RUNNER_BREVIARIUM_PROMO=1` and records the simulator's screen; App CI skips
 /// them. The stills are attachments like the snapshot tests'; each tour is paced for
 /// video, and the workflow cuts the recording at the "Test Case ... started" lines.
+/// The workflow runs them on an iPhone and on an iPad (1.4); the iPhone's stills and tours
+/// skip on the iPad and the iPad's (landscape, the two-page spread) on the iPhone.
 final class PromoUITests: BreviariumUITestCase {
     override func setUpWithError() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["BREVIARIUM_PROMO"] == "1", "promo captures run in promo.yml only")
@@ -12,6 +15,22 @@ final class PromoUITests: BreviariumUITestCase {
     }
 
     private func pause(_ seconds: TimeInterval) { Thread.sleep(forTimeInterval: seconds) }
+
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    /// A capture of the window, which in landscape keeps the screen's own orientation:
+    /// `compose.py` turns it upright.
+    private func captureWindow(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    private func turnLandscape() {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        pause(1.5)
+    }
 
     private func openSettingsRow(_ app: XCUIApplication, _ row: String, title: String) {
         app.buttons["settingsButton"].tap()
@@ -26,7 +45,8 @@ final class PromoUITests: BreviariumUITestCase {
 
     // MARK: Stills
 
-    func testPromoStills() {
+    func testPromoStills() throws {
+        try XCTSkipIf(isPad, "the iPad has its own stills")
         // Christmas Vespers, page 1 and the psalmody, in Nox.
         var app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(0.8)
@@ -100,7 +120,8 @@ final class PromoUITests: BreviariumUITestCase {
     // MARK: Tours, recorded as video
 
     /// Christmas Vespers, turning pages with the curl.
-    func testTour1Pages() {
+    func testTour1Pages() throws {
+        try XCTSkipIf(isPad, "the iPad has its own tour")
         let app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(2.5)
         for _ in 0..<3 {
@@ -110,7 +131,8 @@ final class PromoUITests: BreviariumUITestCase {
     }
 
     /// The hour picker, to Compline.
-    func testTour2Hours() {
+    func testTour2Hours() throws {
+        try XCTSkipIf(isPad, "the iPad has its own tour")
         let app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(1.5)
         app.buttons["hourPickerButton"].tap()
@@ -124,7 +146,8 @@ final class PromoUITests: BreviariumUITestCase {
     }
 
     /// The calendar, with the colour of each day, to Easter.
-    func testTour3Calendar() {
+    func testTour3Calendar() throws {
+        try XCTSkipIf(isPad, "the iPad has its own tour")
         let app = launchApp(date: "2027-03-01", pageTurn: "curl", hour: "Laudes")
         pause(1.5)
         app.buttons["calendarButton"].tap()
@@ -143,7 +166,8 @@ final class PromoUITests: BreviariumUITestCase {
     }
 
     /// Parallel English.
-    func testTour4English() {
+    func testTour4English() throws {
+        try XCTSkipIf(isPad, "the iPad has its own tour")
         let app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
         pause(2.0)
         for _ in 0..<2 {
@@ -153,7 +177,8 @@ final class PromoUITests: BreviariumUITestCase {
     }
 
     /// Settings -> Theme -> Vellum, and the office takes it.
-    func testTour5Themes() {
+    func testTour5Themes() throws {
+        try XCTSkipIf(isPad, "the iPad has its own tour")
         let app = launchApp(date: "2026-11-01", pageTurn: "curl", hour: "Matutinum")
         pause(1.5)
         openSettingsRow(app, "themePicker", title: "Theme")
@@ -170,5 +195,92 @@ final class PromoUITests: BreviariumUITestCase {
         pause(2.0)
         app.swipeLeft()
         pause(2.0)
+    }
+
+    // MARK: The iPad (1.4), in landscape
+
+    /// The iPad's stills for its App Store screenshots: the two-page spread, Latin and
+    /// English on facing pages, the Kalendarium, the hours, the themes and the rites.
+    func testPromoStillsIPad() throws {
+        try XCTSkipUnless(isPad, "iPad only")
+        // Christmas Vespers on a spread.
+        var app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        turnLandscape()
+        captureWindow(app, "ipad-01-spread")
+        app.terminate()
+
+        // Facing pages.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
+        turnLandscape()
+        app.swipeLeft()
+        pause(1.5)
+        captureWindow(app, "ipad-02-facing")
+        app.terminate()
+
+        // The Kalendarium.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        turnLandscape()
+        app.buttons["calendarButton"].tap()
+        XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
+        pause(2.0)
+        captureWindow(app, "ipad-03-calendar")
+        app.terminate()
+
+        // The hour picker.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Laudes")
+        turnLandscape()
+        app.buttons["hourPickerButton"].tap()
+        XCTAssertTrue(app.buttons["hour-Laudes"].waitForExistence(timeout: 5))
+        pause(1.0)
+        captureWindow(app, "ipad-04-hours")
+        app.terminate()
+
+        // Matins of All Saints in Vellum and Gentium, facing pages.
+        app = launchApp(date: "2026-11-01", pageTurn: "curl", english: true, hour: "Matutinum", theme: "vellum", font: "gentium")
+        turnLandscape()
+        captureWindow(app, "ipad-05-vellum-matins")
+        app.terminate()
+
+        // The theme gallery.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", theme: "sepia")
+        turnLandscape()
+        openSettingsRow(app, "themePicker", title: "Theme")
+        pause(1.0)
+        captureWindow(app, "ipad-06-themes")
+        app.terminate()
+
+        // The Dominican office on St Dominic's day, and Ambrosian Compline.
+        app = launchApp(date: "2027-08-04", pageTurn: "curl", hour: "Vespera", rite: "dominicanus")
+        turnLandscape()
+        captureWindow(app, "ipad-07-dominican")
+        app.terminate()
+
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", rite: "ambrosianus")
+        turnLandscape()
+        captureWindow(app, "ipad-08-ambrosian")
+        app.terminate()
+
+        // Settings.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        turnLandscape()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        pause(1.0)
+        captureWindow(app, "ipad-09-settings")
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
+    }
+
+    /// Christmas Vespers on a spread, the curl turning a leaf about the spine.
+    func testTourIPadSpread() throws {
+        try XCTSkipUnless(isPad, "iPad only")
+        let app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        turnLandscape()
+        pause(1.5)
+        for _ in 0..<3 {
+            app.swipeLeft()
+            pause(2.2)
+        }
+        XCUIDevice.shared.orientation = .portrait
     }
 }

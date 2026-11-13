@@ -7,6 +7,8 @@ name: Promo captures
 # size) with a clean status bar, records its screen while PromoUITests runs, and uploads
 # the stills, the raw recording and a timestamped test log to cut it by. The editing
 # (captions, frames, the App Store preview) is done off CI, with ffmpeg.
+# From 1.4 it also runs on an iPad Pro 13-inch, for the iPad's screenshots (2752x2064
+# in landscape, composed by scripts/promo/compose.py --ipad).
 on:
   push:
     branches-ignore: [main]
@@ -14,15 +16,21 @@ on:
       - ".github/workflows/promo.yml"
       - "App/BreviariumUITests/PromoUITests.swift"
   workflow_dispatch:
-    inputs:
-      device:
-        description: "Simulator to capture on"
-        required: false
-        default: "iPhone 17 Pro Max"
 
 jobs:
   capture:
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # The App Store's required sizes: 6.9" iPhone, and 13" iPad (1.4). The name is
+        # matched as a prefix, as the iPad Pro's chip in the name changes by Xcode.
+        include:
+          - kind: iphone
+            device: "iPhone 17 Pro Max"
+          - kind: ipad
+            device: "iPad Pro 13-inch"
+    name: capture (${{ matrix.kind }})
     env:
       XCODE_VERSION: "26.5"
     steps:
@@ -46,7 +54,7 @@ jobs:
 
       - name: Boot the simulator with a clean status bar
         env:
-          DEVICE: ${{ inputs.device || 'iPhone 17 Pro Max' }}
+          DEVICE: ${{ matrix.device }}
         run: |
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c '
@@ -54,7 +62,7 @@ jobs:
           name = os.environ["DEVICE"]
           runtimes = json.load(sys.stdin)["devices"]
           ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
-          print(next(d["udid"] for r in ios for d in runtimes[r] if d["name"] == name))')
+          print(next(d["udid"] for r in ios for d in sorted(runtimes[r], key=lambda d: d["name"], reverse=True) if d["name"].startswith(name)))')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID"
@@ -99,6 +107,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: promo
+          name: promo-${{ matrix.kind }}
           path: App/Promo
           if-no-files-found: ignore

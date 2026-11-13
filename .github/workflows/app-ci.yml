@@ -149,19 +149,22 @@ jobs:
         # 212; each job also spends about 7 minutes setting up. `ipad_classes` run after
         # the others, on an iPad Air 11-inch (M3) (1.4): five jobs at once is the free
         # plan's macOS limit, so the iPad joins a group rather than adding a sixth job.
+        # In run 43476364041 the iPad pass took about 14 minutes (3.5 of tests, the rest
+        # making and booting the iPad), so it runs after the quickest group, not Matins
+        # (which took 12 minutes alone there).
         # PromoUITests is left out: it skips itself outside promo.yml.
         include:
           - group: vespers-font
             classes: VespersMatrixUITests FontUITests
-          - group: matins-ipad
+          - group: matins
             classes: MatinsUITests
-            ipad_classes: IPadUITests
           - group: day-hours-votive
             classes: DayHoursUITests VotiveOfficesUITests
           - group: launch-theme
             classes: LaunchAndNavigationUITests ThemeUITests
-          - group: dominican-ambrosian-gallery
+          - group: dominican-ambrosian-gallery-ipad
             classes: DominicanUITests AmbrosianUITests GalleryUITests
+            ipad_classes: IPadUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "26.5"
