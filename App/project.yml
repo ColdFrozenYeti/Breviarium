@@ -16,7 +16,7 @@ settings:
     # opened directly in Xcode on an actual Mac.
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
-    TARGETED_DEVICE_FAMILY: "1" # iPhone only
+    TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad (1.4)
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
@@ -55,6 +55,13 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # The iPad (1.4): every orientation, as iPad multitasking requires; the reader
+        # takes any window size (a two-page spread when wide, `OfficeReaders.swift`).
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         # The bundled typefaces (1.2), OFL, in Breviarium/Fonts (NOTICE.md). The folder is
         # scanned as a group, so the files land at the bundle's root.
         UIAppFonts:
@@ -89,12 +96,12 @@ targets:
         # per-week cap. Do not change this without a very good reason.
         PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium
         PRODUCT_NAME: Breviarium
-        # iPhone only (CLAUDE.md). Set here as well as in the project settings above:
-        # XcodeGen's iOS preset sets TARGETED_DEVICE_FAMILY "1,2" on every iOS target,
-        # which overrode the project's "1" and made the app universal, until App Store
-        # Connect rejected the first upload for lacking iPad multitasking orientations
-        # (error 90474, 2026-10-11).
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad from 1.4 (decided 2026-11-12, after App Review's 4.2 rejection
+        # on an iPad). Set here as well as in the project settings above, explicitly: it
+        # was "1" until 1.4, and XcodeGen's preset would otherwise decide. The iPad needs
+        # all four orientations for multitasking (App Store Connect error 90474,
+        # 2026-10-11), given below.
+        TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The other Home Screen icons, chosen in Settings (AppIconPicker.swift).
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconNorthumberland AppIconNorthumberlandInverted AppIconWalters AppIconBenedictus AppIconGutenbergMono AppIconGutenberg AppIconChurchOfAmbrose AppIconWeissenau"

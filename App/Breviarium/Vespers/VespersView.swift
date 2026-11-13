@@ -16,6 +16,7 @@ import SwiftUI
 /// hymn stanza off mid-line (`docs/PLAN.md`, M5).
 struct VespersView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let content: VespersContent
     @ObservedObject var settings: SettingsStore
     /// The hour shown (Beta 2), or the Martyrology (Beta 4), and the hour picker's choice.
@@ -48,6 +49,10 @@ struct VespersView: View {
     /// *Menus: Hidden* (1.4): the menus brought back by a tap, until the next page turn.
     @State private var menusRevealed = false
     @State private var hideMenusTask: Task<Void, Never>?
+    /// The reading position, kept when a reader is recreated (an iPad turned, 1.4).
+    @State private var readingAnchor = ReadingAnchor()
+    /// The reader's area, for the footer of a spread.
+    @State private var readerSize: CGSize = .zero
 
     private var metrics: Metrics { Metrics(scale: settings.textSize.serifScale, chromeScale: settings.textSize.chromeScale) }
 
@@ -63,6 +68,24 @@ struct VespersView: View {
         "\(dateKey)|\(settings.priestPresent)|\(settings.showRubrics)|\(settings.textSize.rawValue)"
             + "|\(settings.psalter.rawValue)|\(settings.showEnglish)|\(settings.officium.rawValue)|\(settings.rite.rawValue)"
             + "|\(settings.theme.rawValue)|\(settings.font.rawValue)|\(settings.menus == .hidden)"
+    }
+
+    /// Two pages side by side (1.4): horizontal pages in a window wider than tall with
+    /// room for two pages of at least about 500 pt -- an iPad in landscape, never an
+    /// iPhone (the widest is 956 pt). Every other window shows one page.
+    private func isSpread(_ size: CGSize) -> Bool {
+        settings.readingMode == .horizontal && size.width > size.height && size.width >= 1000
+    }
+
+    /// English shown: off under the Ambrosian rite (Beta 6: Latin only).
+    private var englishShown: Bool { settings.showEnglish && settings.rite != .ambrosianus }
+
+    /// A page's side margin: the spec's 28 pt at the default size, widened on an iPad's
+    /// wide page so that a line holds no more than about 34 em. (Only where the window is
+    /// of regular height: an iPhone in landscape keeps the spec's margins.)
+    private func pageMargin(pageWidth: CGFloat) -> CGFloat {
+        guard verticalSizeClass == .regular else { return metrics.margin }
+        return max(metrics.margin, ((pageWidth - 34 * metrics.bodySize) / 2).rounded())
     }
 
     /// The hour's sections in order, for the table of contents.
@@ -117,11 +140,14 @@ struct VespersView: View {
             VStack(spacing: 0) {
                 navigationHeader
                 // Beta 6: Ambrosian Compline is Latin only, whatever the English setting.
-                if settings.showEnglish, settings.rite != .ambrosianus {
-                    parallelReader
-                } else {
-                    reader(office)
+                Group {
+                    if englishShown {
+                        parallelReader
+                    } else {
+                        reader(office)
+                    }
                 }
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { readerSize = $0 }
                 footer
             }
         }
@@ -138,21 +164,26 @@ struct VespersView: View {
     private func reader(_ office: TypesetOffice) -> some View {
         switch settings.readingMode {
         case .vertical:
-            VerticalOfficeReader(
-                office: office, officeID: officeKey, dateKey: dateKey, margin: metrics.margin, theme: theme,
-                jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink, onPageChange: updatePage
-            )
+            GeometryReader { geometry in
+                VerticalOfficeReader(
+                    office: office, officeID: officeKey, dateKey: dateKey, margin: pageMargin(pageWidth: geometry.size.width),
+                    theme: theme, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink, onPageChange: updatePage
+                )
+            }
             .id(settings.theme)
         case .horizontal:
             GeometryReader { geometry in
+                let spread = isSpread(geometry.size)
+                let pageWidth = spread ? (geometry.size.width / 2).rounded() : geometry.size.width
                 PagedOfficeReader(
-                    office: office, officeID: officeKey, dateKey: dateKey, pageSize: geometry.size, margin: metrics.margin,
-                    curl: settings.pageTurn == .curl, theme: theme, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink,
+                    office: office, officeID: officeKey, dateKey: dateKey, pageSize: geometry.size,
+                    margin: pageMargin(pageWidth: pageWidth), curl: settings.pageTurn == .curl, spread: spread, theme: theme,
+                    anchor: readingAnchor, jumpTarget: jumpBinding(office.sectionOffsets), onLink: handleLink,
                     onPageChange: updatePage
                 )
+                // The page turn and the spine are fixed when the page controller is created.
+                .id("\(readerID)|\(spread)")
             }
-            // The page-turn style is fixed when the page controller is created.
-            .id(readerID)
         }
     }
 
@@ -175,12 +206,16 @@ struct VespersView: View {
                 )
                 .id(settings.theme)
             case .horizontal:
+                // On an iPad spread (1.4) the pages face each other, Latin and English,
+                // each with the margins of a single page.
+                let spread = isSpread(geometry.size)
                 ParallelPagedReader(
                     office: parallel, officeID: "\(officeKey)|\(landscape)", dateKey: dateKey, pageSize: geometry.size,
-                    margin: margin, gutter: gutter, curl: settings.pageTurn == .curl, theme: theme,
+                    margin: spread ? pageMargin(pageWidth: (geometry.size.width / 2).rounded()) : margin, gutter: gutter,
+                    curl: settings.pageTurn == .curl, spread: spread, theme: theme, anchor: readingAnchor,
                     jumpTarget: jumpBinding(parallel.sectionOffsets), onLink: handleLink, onPageChange: updatePage
                 )
-                .id(readerID)
+                .id("\(readerID)|\(spread)")
             }
         }
     }
@@ -323,12 +358,12 @@ struct VespersView: View {
         // the menus back.
         ZStack {
             if menusShown {
-                Text("Page \(pageNumber) of \(pageCount)")
+                Text("Page \(pageLabel) of \(pageCount)")
                     .font(.system(size: metrics.footerSize))
                     .foregroundStyle(theme.chrome)
                     .accessibilityIdentifier("pageCounter")
             } else {
-                Text("\(pageNumber)")
+                Text(pageLabel)
                     .font(.system(size: metrics.footerSize))
                     .foregroundStyle(theme.chrome)
                     .padding(.horizontal, 24)
@@ -354,6 +389,13 @@ struct VespersView: View {
         }
         .padding(.horizontal, metrics.margin)
         .padding(.vertical, 10)
+    }
+
+    /// The page shown, or on an iPad spread with English off the two pages shown
+    /// (`3–4`); facing Latin and English count as one page.
+    private var pageLabel: String {
+        guard isSpread(readerSize), !englishShown, pageNumber < pageCount else { return "\(pageNumber)" }
+        return "\(pageNumber)–\(pageNumber + 1)"
     }
 
     // MARK: Table of contents

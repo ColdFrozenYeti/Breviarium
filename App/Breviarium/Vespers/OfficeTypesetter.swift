@@ -207,14 +207,14 @@ struct OfficeTypesetter {
                         ),
                         to: text, style: paragraphStyle(after: metrics.bodySize * 0.9)
                     )
-                }, keepWithNext: true))
+                }, keepWithNext: true, mirrored: true))
             case .psalmSeparator:
                 rows.append(.full(build { text in
                     appendRule(
                         to: text, width: metrics.separatorWidth * 0.4, color: textColor.withAlphaComponent(0.4),
                         before: metrics.bodySize * 0.5, after: metrics.bodySize * 0.5
                     )
-                }, keepWithNext: true))
+                }, keepWithNext: true, mirrored: true))
             case .unit(_, let unit, let alternate, let trailing):
                 let latin = build { appendUnit(unit, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
                 guard latin.length > 0 else { continue }
@@ -581,8 +581,11 @@ struct OfficeTypesetter {
 /// One row of the parallel layout: full width, or Latin and English side by side.
 /// `keepWithNext`: never the last thing on a page (a heading, a psalm title).
 /// `keepTogether`: never split across pages (a versicle and its response).
+/// `mirrored`: on an iPad's facing pages (1.4), set on the English page as well as the
+/// Latin (a section's rule and heading, the rule between psalms); any other full row is
+/// on the Latin page alone.
 enum ParallelRow {
-    case full(NSAttributedString, keepWithNext: Bool)
+    case full(NSAttributedString, keepWithNext: Bool, mirrored: Bool = false)
     case pair(latin: NSAttributedString, english: NSAttributedString, keepTogether: Bool)
 }
 

@@ -183,22 +183,259 @@ final class LayoutReportingTextView: UITextView {
 
 // MARK: - Horizontal: book pages
 
+/// The reading position the paged readers share with `VespersView` (1.4): a reader
+/// recreated for a new window shape (an iPad turned, so a spread or one page), a new page
+/// turn or a new theme opens where the last one was, on the same day and hour.
+@MainActor
+final class ReadingAnchor {
+    var dateKey = ""
+    /// The first character of the page shown (English off).
+    var character: Int?
+    /// The first row on the page shown (English on).
+    var row: Int?
+}
+
+/// A page of the book, by its number.
+@MainActor
+protocol BookPage: UIViewController {
+    var index: Int { get }
+}
+
+/// The page turning both paged readers share (1.4): one page at a time, or, on a wide
+/// iPad window, two-page spreads like an open book, turned by a sideways slide or a page
+/// curl. A curl turns one leaf about the spine (`UIPageViewController`'s `.mid` spine,
+/// double-sided); a slide moves a whole spread (`SpreadController`). An odd last page
+/// has a blank page beside it.
+@MainActor
+class BookPager: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+    weak var controller: UIPageViewController?
+    /// The page shown, or the left page of the spread shown.
+    var currentIndex = 0
+    private(set) var spread = false
+    private var pageBackground: UIColor = .black
+    private var spreads: [Int: SpreadController] = [:]
+    private var blank: BlankPageController?
+
+    /// The page controller for a reader: the transition and the spine are fixed when it
+    /// is created, so `VespersView` recreates the reader when either changes.
+    static func makeController(curl: Bool, spread: Bool, background: UIColor) -> UIPageViewController {
+        let controller: UIPageViewController
+        if curl {
+            let spine: UIPageViewController.SpineLocation = spread ? .mid : .min
+            controller = UIPageViewController(
+                transitionStyle: .pageCurl, navigationOrientation: .horizontal,
+                options: [.spineLocation: NSNumber(value: spine.rawValue)]
+            )
+            controller.isDoubleSided = spread
+        } else {
+            controller = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
+        }
+        controller.view.backgroundColor = background
+        return controller
+    }
+
+    func configure(spread: Bool, background: UIColor) {
+        self.spread = spread
+        pageBackground = background
+    }
+
+    // MARK: For the readers
+
+    /// How many pages the book has.
+    var pageCount: Int { 0 }
+    /// A page of the book, made on demand and kept.
+    func page(_ index: Int) -> UIViewController? { nil }
+    /// Called before the page after `index` is asked for: the book can grow.
+    func ensurePages(after index: Int) {}
+    /// The page shown has changed.
+    func pageDidChange() {}
+    /// The reader turned the page.
+    func didTurnPage() { pageDidChange() }
+
+    /// The pages were laid out again: spreads and the blank page are made anew.
+    func clearSpreads() {
+        spreads.removeAll()
+        blank = nil
+    }
+
+    // MARK: Showing a page
+
+    /// A page, or the blank page beside an odd last page in a spread.
+    private func anyPage(_ index: Int) -> UIViewController? {
+        guard index >= 0 else { return nil }
+        if index < pageCount { return page(index) }
+        if spread, index == pageCount, index % 2 == 1 { return blankPage(index) }
+        return nil
+    }
+
+    private func blankPage(_ index: Int) -> BlankPageController {
+        if let blank, blank.index == index { return blank }
+        let page = BlankPageController(index: index, background: pageBackground)
+        blank = page
+        return page
+    }
+
+    private func spreadController(_ number: Int) -> SpreadController? {
+        guard number >= 0, 2 * number < pageCount, let left = anyPage(2 * number) else { return nil }
+        let right = anyPage(2 * number + 1) ?? blankPage(2 * number + 1)
+        if let cached = spreads[number], cached.left === left, cached.right === right { return cached }
+        let controller = SpreadController(index: number, left: left, right: right, background: pageBackground)
+        spreads[number] = controller
+        return controller
+    }
+
+    /// Shows the page `index`, or the spread that holds it.
+    func show(page index: Int) {
+        guard let controller else { return }
+        let target = spread ? max(0, index - index % 2) : max(0, index)
+        let direction: UIPageViewController.NavigationDirection = target >= currentIndex ? .forward : .reverse
+        let shown: [UIViewController]
+        if spread, controller.transitionStyle == .pageCurl {
+            guard let left = anyPage(target) else { return }
+            shown = [left, anyPage(target + 1) ?? blankPage(target + 1)]
+        } else if spread {
+            guard let pair = spreadController(target / 2) else { return }
+            shown = [pair]
+        } else {
+            guard let page = anyPage(target) else { return }
+            shown = [page]
+        }
+        currentIndex = target
+        controller.setViewControllers(shown, direction: direction, animated: false)
+        pageDidChange()
+    }
+
+    // MARK: UIPageViewControllerDataSource
+
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
+        if let pair = viewController as? SpreadController { return spreadController(pair.index - 1) }
+        guard let page = viewController as? any BookPage else { return nil }
+        return anyPage(page.index - 1)
+    }
+
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
+        if let pair = viewController as? SpreadController {
+            ensurePages(after: 2 * pair.index + 1)
+            return spreadController(pair.index + 1)
+        }
+        guard let page = viewController as? any BookPage else { return nil }
+        ensurePages(after: page.index)
+        return anyPage(page.index + 1)
+    }
+
+    // MARK: UIPageViewControllerDelegate
+
+    func pageViewController(
+        _ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
+        previousViewControllers: [UIViewController], transitionCompleted completed: Bool
+    ) {
+        guard completed, let first = pageViewController.viewControllers?.first else { return }
+        if let pair = first as? SpreadController {
+            currentIndex = 2 * pair.index
+        } else if let page = first as? any BookPage {
+            currentIndex = page.index
+        } else {
+            return
+        }
+        didTurnPage()
+    }
+}
+
+/// Two pages side by side, for a slide between spreads (1.4), with a faint rule at the
+/// spine. (A curl shows its two pages itself, about its own spine.)
+final class SpreadController: UIViewController {
+    let index: Int
+    let left: UIViewController
+    let right: UIViewController
+    private let background: UIColor
+    private let spine = UIView()
+
+    init(index: Int, left: UIViewController, right: UIViewController, background: UIColor) {
+        self.index = index
+        self.left = left
+        self.right = right
+        self.background = background
+        super.init(nibName: nil, bundle: nil)
+        for page in [left, right] {
+            // A page left in a spread laid out before is moved into this one.
+            if page.parent != nil {
+                page.willMove(toParent: nil)
+                page.view.removeFromSuperview()
+                page.removeFromParent()
+            }
+            addChild(page)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = background
+        for page in [left, right] {
+            view.addSubview(page.view)
+            page.didMove(toParent: self)
+        }
+        var white: CGFloat = 0
+        background.getWhite(&white, alpha: nil)
+        spine.backgroundColor = (white > 0.5 ? UIColor.black : UIColor.white).withAlphaComponent(0.12)
+        view.addSubview(spine)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let half = (view.bounds.width / 2).rounded()
+        left.view.frame = CGRect(x: 0, y: 0, width: half, height: view.bounds.height)
+        right.view.frame = CGRect(x: half, y: 0, width: view.bounds.width - half, height: view.bounds.height)
+        spine.frame = CGRect(x: half - 0.25, y: 16, width: 0.5, height: max(0, view.bounds.height - 32))
+    }
+}
+
+/// The empty page beside an odd last page in a spread.
+final class BlankPageController: UIViewController, BookPage {
+    let index: Int
+    private let background: UIColor
+
+    init(index: Int, background: UIColor) {
+        self.index = index
+        self.background = background
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = background
+    }
+}
+
 /// Horizontal reading mode: the hour flows through page-sized TextKit containers, one
 /// line after another, exactly like a printed book -- a paragraph that doesn't fit
 /// continues at the top of the next page, at any text size or orientation. Turned by a
-/// sideways slide or, if chosen in Settings, a page curl (`UIPageViewController`'s
-/// transition style can't change after creation, so `VespersView` recreates this view
-/// when that setting changes).
+/// sideways slide or, if chosen in Settings, a page curl; on a wide iPad window, two
+/// pages at a time (1.4). `UIPageViewController`'s transition and spine can't change
+/// after creation, so `VespersView` recreates this view when either would.
 struct PagedOfficeReader: UIViewControllerRepresentable {
     let office: TypesetOffice
     let officeID: String
     let dateKey: String
-    /// The whole area available for a page, between the navigation header and the footer.
+    /// The whole area available for the pages, between the navigation header and the
+    /// footer: one page, or a spread of two.
     let pageSize: CGSize
     let margin: CGFloat
     let curl: Bool
+    /// Two pages side by side (1.4, an iPad's wide window).
+    var spread = false
     /// The colour theme (1.2), the page's back in a curl included.
     let theme: Theme
+    var anchor: ReadingAnchor?
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
     let onPageChange: (Int, Int) -> Void
@@ -206,19 +443,9 @@ struct PagedOfficeReader: UIViewControllerRepresentable {
     func makeCoordinator() -> OfficePager { OfficePager(parent: self) }
 
     func makeUIViewController(context: Context) -> UIPageViewController {
-        let controller: UIPageViewController
-        if curl {
-            controller = UIPageViewController(
-                transitionStyle: .pageCurl, navigationOrientation: .horizontal,
-                options: [.spineLocation: NSNumber(value: UIPageViewController.SpineLocation.min.rawValue)]
-            )
-            controller.isDoubleSided = false
-        } else {
-            controller = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
-        }
+        let controller = BookPager.makeController(curl: curl, spread: spread, background: theme.uiBackground)
         controller.dataSource = context.coordinator
         controller.delegate = context.coordinator
-        controller.view.backgroundColor = theme.uiBackground
         return controller
     }
 
@@ -231,9 +458,7 @@ struct PagedOfficeReader: UIViewControllerRepresentable {
 /// Owns the TextKit chain behind `PagedOfficeReader`: one text storage and layout
 /// manager, and one text container per page, added until the whole hour is laid out.
 @MainActor
-final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate, UITextViewDelegate,
-    OfficeLinkHandling
-{
+final class OfficePager: BookPager, UITextViewDelegate, OfficeLinkHandling {
     static let pageTopInset: CGFloat = 8
     static let pageBottomInset: CGFloat = 8
 
@@ -245,8 +470,6 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
     private var containers: [NSTextContainer] = []
     /// One controller per page, reused: a text container can back only one text view.
     private var pages: [Int: OfficePageController] = [:]
-    private var currentIndex = 0
-    private weak var controller: UIPageViewController?
     /// Each page's glyphs as `paginate()` left them, to notice a later reflow.
     private var pageRanges: [NSRange] = []
     private var reflows = 0
@@ -263,35 +486,44 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
 
     func update(_ controller: UIPageViewController) {
         self.controller = controller
+        configure(spread: parent.spread, background: parent.theme.uiBackground)
         let size = parent.pageSize
-        let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)"
+        let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)|\(parent.spread)"
         if key != layoutKey, size.width > 1, size.height > 1 {
-            let keepPosition = parent.dateKey == dateKey && !containers.isEmpty
-            let anchor = keepPosition ? firstCharacter(ofPage: currentIndex) : 0
+            var anchor: Int?
+            if parent.dateKey == dateKey, !containers.isEmpty {
+                anchor = firstCharacter(ofPage: currentIndex)
+            } else if containers.isEmpty, let shared = parent.anchor, shared.dateKey == parent.dateKey {
+                // A reader recreated for a new window shape, page turn or theme.
+                anchor = shared.character
+            }
             layoutKey = key
             dateKey = parent.dateKey
             reflows = 0
             jumpCharacter = nil
             paginate()
-            show(page: keepPosition ? page(containingCharacter: anchor) : 0, in: controller)
+            show(page: anchor.map(page(containingCharacter:)) ?? 0)
         }
         if let target = parent.jumpTarget, !containers.isEmpty {
             let character = headingCharacter(afterSeparatorAt: target)
             jumpCharacter = character
-            show(page: page(containingCharacter: character), in: controller)
+            show(page: page(containingCharacter: character))
             Task { @MainActor [weak self] in self?.parent.jumpTarget = nil }
         }
     }
 
+    /// One page's text area: half the reader's width in a spread.
     private var pageTextSize: CGSize {
-        CGSize(
-            width: max(1, parent.pageSize.width - 2 * parent.margin),
+        let pageWidth = parent.spread ? (parent.pageSize.width / 2).rounded() : parent.pageSize.width
+        return CGSize(
+            width: max(1, pageWidth - 2 * parent.margin),
             height: max(1, parent.pageSize.height - Self.pageTopInset - Self.pageBottomInset)
         )
     }
 
     private func paginate() {
         pages.removeAll()
+        clearSpreads()
         while !layoutManager.textContainers.isEmpty {
             layoutManager.removeTextContainer(at: 0)
         }
@@ -329,14 +561,14 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
     /// or reference was left alone at a page's foot (25 September 2026, Compline and
     /// None). The next pagination sees the settled layout; a few passes at most.
     private func repaginateIfReflowed() {
-        guard let controller, reflows < 3, !containers.isEmpty else { return }
+        guard controller != nil, reflows < 3, !containers.isEmpty else { return }
         let reflowed = containers.count != pageRanges.count
             || zip(containers, pageRanges).contains { layoutManager.glyphRange(for: $0.0) != $0.1 }
         guard reflowed else { return }
         reflows += 1
         let anchor = jumpCharacter ?? firstCharacter(ofPage: currentIndex)
         paginate()
-        show(page: page(containingCharacter: anchor), in: controller)
+        show(page: page(containingCharacter: anchor))
     }
 
     /// The top of the run of `OfficeTypesetter.keepWithNext` lines that ends the page's
@@ -393,14 +625,6 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
         return page
     }
 
-    private func show(page index: Int, in controller: UIPageViewController) {
-        guard let page = pageController(index) else { return }
-        let direction: UIPageViewController.NavigationDirection = index >= currentIndex ? .forward : .reverse
-        currentIndex = index
-        controller.setViewControllers([page], direction: direction, animated: false)
-        report()
-    }
-
     /// Adds pages when the last no longer reaches the end of the hour. The text can reflow
     /// after `paginate()` (page 1's header settles once it is on screen), and a fixed page
     /// count then lost the end of the hour (25 September 2026: Compline stopped
@@ -425,30 +649,20 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
         extendIfNeeded()
         let current = currentIndex + 1
         let total = max(1, containers.count)
+        if let anchor = parent.anchor {
+            anchor.dateKey = parent.dateKey
+            anchor.character = firstCharacter(ofPage: currentIndex)
+        }
         Task { @MainActor [weak self] in self?.parent.onPageChange(current, total) }
     }
 
-    // MARK: UIPageViewControllerDataSource
+    // MARK: BookPager
 
-    func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
-        guard let page = viewController as? OfficePageController else { return nil }
-        return pageController(page.index - 1)
-    }
-
-    func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
-        guard let page = viewController as? OfficePageController else { return nil }
-        extendIfNeeded()
-        return pageController(page.index + 1)
-    }
-
-    // MARK: UIPageViewControllerDelegate
-
-    func pageViewController(
-        _ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
-        previousViewControllers: [UIViewController], transitionCompleted completed: Bool
-    ) {
-        guard completed, let page = pageViewController.viewControllers?.first as? OfficePageController else { return }
-        currentIndex = page.index
+    override var pageCount: Int { containers.count }
+    override func page(_ index: Int) -> UIViewController? { pageController(index) }
+    override func ensurePages(after index: Int) { extendIfNeeded() }
+    override func pageDidChange() { report() }
+    override func didTurnPage() {
         jumpCharacter = nil
         report()
     }
@@ -467,7 +681,8 @@ final class OfficePager: NSObject, UIPageViewControllerDataSource, UIPageViewCon
 }
 
 /// One page: a non-scrolling text view bound to that page's text container.
-final class OfficePageController: UIViewController {
+final class OfficePageController: UIViewController, BookPage {
+
     let index: Int
     var onLayout: (() -> Void)?
     private let textView: UITextView
@@ -644,16 +859,21 @@ struct ParallelLayout {
     /// Each row's page and its top on that page, for jumps and for keeping the position.
     let rowPositions: [(page: Int, y: CGFloat)]
 
-    init(office: ParallelOffice, width: CGFloat, pageHeight: CGFloat, gutter: CGFloat) {
-        let columnWidth = max(1, (width - gutter) / 2)
+    /// `facing` (1.4, an iPad's spread): `width` is one page's text width, the Latin is
+    /// set on the left page and the English on the right, `gutter` apart, and each page
+    /// of this layout is a whole spread. A full row is on the left page alone, unless it
+    /// is `mirrored` (a section's rule and heading), which is on both.
+    init(office: ParallelOffice, width: CGFloat, pageHeight: CGFloat, gutter: CGFloat, facing: Bool = false) {
+        let columnWidth = facing ? max(1, width) : max(1, (width - gutter) / 2)
         let rows: [[(ColumnLayout, CGFloat)]] = office.rows.map { row in
             switch row {
-            case .full(let text, _):
-                return [(ColumnLayout(text: text, width: width), 0)]
+            case .full(let text, _, let mirrored):
+                let column = ColumnLayout(text: text, width: width)
+                return facing && mirrored ? [(column, 0), (column, columnWidth + gutter)] : [(column, 0)]
             case .pair(let latin, let english, _):
                 return [
-                    (ColumnLayout(text: latin, width: columnWidth, hyphenate: true), 0),
-                    (ColumnLayout(text: english, width: columnWidth, hyphenate: true), columnWidth + gutter),
+                    (ColumnLayout(text: latin, width: columnWidth, hyphenate: !facing), 0),
+                    (ColumnLayout(text: english, width: columnWidth, hyphenate: !facing), columnWidth + gutter),
                 ]
             }
         }
@@ -671,7 +891,7 @@ struct ParallelLayout {
             let keepWithNext: Bool
             let keepTogether: Bool
             switch office.rows[index] {
-            case .full(_, let keep): (keepWithNext, keepTogether) = (keep, false)
+            case .full(_, let keep, _): (keepWithNext, keepTogether) = (keep, false)
             case .pair(_, _, let keep): (keepWithNext, keepTogether) = (false, keep)
             }
             var starts = columns.map { _ in 0 }
@@ -802,6 +1022,8 @@ final class ParallelPageView: UIView {
 }
 
 /// The parallel office in book pages: `PagedOfficeReader`'s counterpart for English on.
+/// On a wide iPad window (1.4) the pages face each other, Latin on the left and English
+/// on the right, level unit by unit (`ParallelLayout`'s `facing`).
 struct ParallelPagedReader: UIViewControllerRepresentable {
     let office: ParallelOffice
     let officeID: String
@@ -810,7 +1032,10 @@ struct ParallelPagedReader: UIViewControllerRepresentable {
     let margin: CGFloat
     let gutter: CGFloat
     let curl: Bool
+    /// Facing pages (1.4).
+    var spread = false
     let theme: Theme
+    var anchor: ReadingAnchor?
     /// A row index (`ParallelOffice.sectionOffsets`).
     @Binding var jumpTarget: Int?
     let onLink: (URL) -> Void
@@ -819,19 +1044,9 @@ struct ParallelPagedReader: UIViewControllerRepresentable {
     func makeCoordinator() -> ParallelPager { ParallelPager(parent: self) }
 
     func makeUIViewController(context: Context) -> UIPageViewController {
-        let controller: UIPageViewController
-        if curl {
-            controller = UIPageViewController(
-                transitionStyle: .pageCurl, navigationOrientation: .horizontal,
-                options: [.spineLocation: NSNumber(value: UIPageViewController.SpineLocation.min.rawValue)]
-            )
-            controller.isDoubleSided = false
-        } else {
-            controller = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
-        }
+        let controller = BookPager.makeController(curl: curl, spread: spread, background: theme.uiBackground)
         controller.dataSource = context.coordinator
         controller.delegate = context.coordinator
-        controller.view.backgroundColor = theme.uiBackground
         return controller
     }
 
@@ -841,45 +1056,90 @@ struct ParallelPagedReader: UIViewControllerRepresentable {
     }
 }
 
+/// The pages of `ParallelLayout`. On facing pages each page of the layout is a spread,
+/// split into a Latin page and an English page: the footer counts spreads, since both
+/// sides hold the same text.
 @MainActor
-final class ParallelPager: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+final class ParallelPager: BookPager {
     var parent: ParallelPagedReader
     private var layoutKey = ""
     private var dateKey = ""
     private var layout: ParallelLayout?
     private var pages: [Int: ParallelPageController] = [:]
-    private var currentIndex = 0
+    /// One page's text width, on facing pages.
+    private var pageTextWidth: CGFloat = 0
 
     init(parent: ParallelPagedReader) {
         self.parent = parent
+        super.init()
     }
 
+    private var facing: Bool { parent.spread }
+
+    /// The layout's page shown (a spread, on facing pages).
+    private var layoutPage: Int { facing ? currentIndex / 2 : currentIndex }
+
     func update(_ controller: UIPageViewController) {
+        self.controller = controller
+        configure(spread: parent.spread, background: parent.theme.uiBackground)
         let size = parent.pageSize
-        let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)"
+        let key = "\(parent.officeID)|\(Int(size.width))x\(Int(size.height))|\(parent.margin)|\(parent.spread)"
         if key != layoutKey, size.width > 1, size.height > 1 {
-            let anchorRow = parent.dateKey == dateKey ? layout?.firstRow(onPage: currentIndex) : nil
+            var anchorRow: Int?
+            if parent.dateKey == dateKey, let layout {
+                anchorRow = layout.firstRow(onPage: layoutPage)
+            } else if layout == nil, let shared = parent.anchor, shared.dateKey == parent.dateKey {
+                anchorRow = shared.row
+            }
             layoutKey = key
             dateKey = parent.dateKey
             pages.removeAll()
-            let newLayout = ParallelLayout(
-                office: parent.office, width: max(1, size.width - 2 * parent.margin),
-                pageHeight: max(1, size.height - OfficePager.pageTopInset - OfficePager.pageBottomInset), gutter: parent.gutter
-            )
+            clearSpreads()
+            let pageHeight = max(1, size.height - OfficePager.pageTopInset - OfficePager.pageBottomInset)
+            let newLayout: ParallelLayout
+            if facing {
+                // Each page has its own margins: the two text areas are two margins apart.
+                pageTextWidth = max(1, (size.width / 2).rounded() - 2 * parent.margin)
+                newLayout = ParallelLayout(
+                    office: parent.office, width: pageTextWidth, pageHeight: pageHeight, gutter: 2 * parent.margin, facing: true
+                )
+            } else {
+                newLayout = ParallelLayout(
+                    office: parent.office, width: max(1, size.width - 2 * parent.margin), pageHeight: pageHeight, gutter: parent.gutter
+                )
+            }
             layout = newLayout
-            show(page: anchorRow.map(newLayout.page(ofRow:)) ?? 0, in: controller)
+            show(page: anchorRow.map { bookPage(ofRow: $0, in: newLayout) } ?? 0)
         }
         if let target = parent.jumpTarget, let layout {
-            show(page: layout.page(ofRow: target), in: controller)
+            show(page: bookPage(ofRow: target, in: layout))
             Task { @MainActor [weak self] in self?.parent.jumpTarget = nil }
         }
     }
 
+    private func bookPage(ofRow row: Int, in layout: ParallelLayout) -> Int {
+        facing ? 2 * layout.page(ofRow: row) : layout.page(ofRow: row)
+    }
+
+    /// A book page's slices: on facing pages, the left or right half of a spread, moved
+    /// to the page's own origin.
+    private func slices(ofPage index: Int) -> [ColumnSlice]? {
+        guard let layout else { return nil }
+        guard facing else { return layout.pages.indices.contains(index) ? layout.pages[index] : nil }
+        guard layout.pages.indices.contains(index / 2) else { return nil }
+        let split = pageTextWidth + parent.margin
+        let spread = layout.pages[index / 2]
+        if index % 2 == 0 { return spread.filter { $0.origin.x < split } }
+        return spread.filter { $0.origin.x >= split }.map {
+            ColumnSlice(column: $0.column, lines: $0.lines, origin: CGPoint(x: $0.origin.x - pageTextWidth - 2 * parent.margin, y: $0.origin.y))
+        }
+    }
+
     private func pageController(_ index: Int) -> ParallelPageController? {
-        guard let layout, layout.pages.indices.contains(index) else { return nil }
         if let existing = pages[index] { return existing }
+        guard let slices = slices(ofPage: index) else { return nil }
         let page = ParallelPageController(
-            index: index, slices: layout.pages[index], margin: parent.margin, background: parent.theme.uiBackground
+            index: index, slices: slices, margin: parent.margin, background: parent.theme.uiBackground
         ) { [weak self] url in
             self?.parent.onLink(url)
         }
@@ -887,41 +1147,29 @@ final class ParallelPager: NSObject, UIPageViewControllerDataSource, UIPageViewC
         return page
     }
 
-    private func show(page index: Int, in controller: UIPageViewController) {
-        guard let page = pageController(index) else { return }
-        let direction: UIPageViewController.NavigationDirection = index >= currentIndex ? .forward : .reverse
-        currentIndex = index
-        controller.setViewControllers([page], direction: direction, animated: false)
-        report()
-    }
-
     private func report() {
-        let current = currentIndex + 1
-        let total = max(1, layout?.pages.count ?? 1)
+        let spreads = layout?.pages.count ?? 1
+        let current = layoutPage + 1
+        let total = max(1, spreads)
+        if let anchor = parent.anchor, let layout {
+            anchor.dateKey = parent.dateKey
+            anchor.row = layout.firstRow(onPage: layoutPage)
+        }
         Task { @MainActor [weak self] in self?.parent.onPageChange(current, total) }
     }
 
-    func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
-        guard let page = viewController as? ParallelPageController else { return nil }
-        return pageController(page.index - 1)
+    // MARK: BookPager
+
+    override var pageCount: Int {
+        let count = layout?.pages.count ?? 0
+        return facing ? 2 * count : count
     }
 
-    func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
-        guard let page = viewController as? ParallelPageController else { return nil }
-        return pageController(page.index + 1)
-    }
-
-    func pageViewController(
-        _ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
-        previousViewControllers: [UIViewController], transitionCompleted completed: Bool
-    ) {
-        guard completed, let page = pageViewController.viewControllers?.first as? ParallelPageController else { return }
-        currentIndex = page.index
-        report()
-    }
+    override func page(_ index: Int) -> UIViewController? { pageController(index) }
+    override func pageDidChange() { report() }
 }
 
-final class ParallelPageController: UIViewController {
+final class ParallelPageController: UIViewController, BookPage {
     let index: Int
     private let pageView = ParallelPageView(frame: .zero)
     private let margin: CGFloat
