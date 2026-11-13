@@ -11,6 +11,9 @@ struct ReleaseNotesView: View {
 
     private static let releases: [Release] = [
         Release(name: "1.4", notes: [
+            "The iPad, natively: in landscape the hour lies open like a book, two pages at a time, the page curl turning a leaf about the spine. With English on, the Latin is on the left page and the English on the right, level line by line. In portrait, one page, as on the iPhone.",
+            "The Kalendarium, in place of Jump to date: the year a day to a row, each with its class, its name and its colour, from the same calendar the hours use. Tap a day to open it. It opens from the new calendar button, the date line or the footer's date.",
+            "Menus, under Appearance: Standard (the new default) draws the gear, the hour picker, the calendar and the day arrows in the theme's rubric colour; Prayer keeps the earlier quiet grey; Hidden leaves only the prayer and the page number, and a tap on the number or the top of the page brings the menus back.",
             "At Prime, Terce, Sext, None and Compline, the chapter, short responsory and versicle are each a section of their own, as at Lauds and Vespers.",
             "At Compline, Noctem quiétam is set in italic as a response, and so is the Amen after Misereátur and Indulgéntiam.",
             "The Glória Patri after Deus in adiutórium keeps its upright and italic halves: Glória Patri upright, Sicut erat and the Allelúia in italic.",
