@@ -36,9 +36,15 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         pause(0.8)
-        app.swipeUp()
+        // Swiped until the row is loaded: one swipe was not enough in an iPad's shorter
+        // landscape sheet (1.4).
         let button = app.buttons[row]
+        scrollSettings(to: button, in: app)
         XCTAssertTrue(button.waitForExistence(timeout: 5))
+        if !button.isHittable {
+            app.collectionViews.firstMatch.swipeUp()
+            pause(0.6)
+        }
         button.tap()
         XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
     }
