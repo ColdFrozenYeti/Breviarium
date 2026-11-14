@@ -5,11 +5,13 @@ name: TestFlight
 # click "Run workflow"; the build appears in App Store Connect -> TestFlight after
 # Apple's processing, usually 10-30 minutes.
 #
-# It is build-ipa.yml's unsigned build with signing on top, as CLAUDE.md asks: the app is
-# archived unsigned, exactly as before, and the export step signs it with Apple's
-# cloud-managed distribution certificate and an App Store profile that Xcode fetches or
-# creates through the App Store Connect API key. No certificate, private key or
-# profile is stored anywhere; the runner holds the key only for the job.
+# It is build-ipa.yml's build with signing on top, as CLAUDE.md asks. Until 1.5 the app
+# was archived unsigned; since 1.5 the archive is signed through the App Store Connect
+# API key (Apple's cloud-managed development certificate), so the widgets' App Group
+# entitlement is embedded, and the export re-signs it with Apple's cloud-managed
+# distribution certificate and an App Store profile that Xcode fetches or creates. No
+# certificate, private key or profile is stored anywhere; the runner holds the key only
+# for the job.
 #
 # Secrets (repository Settings -> Secrets and variables -> Actions):
 #   ASC_KEY_P8     the API key file's whole text (-----BEGIN PRIVATE KEY----- ...)
@@ -74,10 +76,38 @@ jobs:
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
           xcodegen generate
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Breviarium/Info.plist
+          # The widget extension's too (1.5): App Store Connect refuses an extension
+          # whose version differs from its app's.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" BreviariumWidget/Info.plist
           echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Breviarium/Info.plist) ($BUILD_NUMBER)"
 
-      - name: Archive (unsigned, as build-ipa.yml builds)
+      # The API key, for the archive's signing and the export's (1.5); removed at the end
+      # of the job whatever happens (the last step).
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          chmod 600 "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+
+      # Signed at the archive (1.5), not unsigned as before: an unsigned archive embeds no
+      # entitlements, so the export would sign the app and the widget without the App
+      # Group the widgets read the app's settings through. An ad-hoc signature (no
+      # certificate) was tried first and refused: "Ad Hoc code signing is not allowed
+      # with SDK 'iOS 26.5'" (run 43631738200). So the archive is signed automatically,
+      # with Apple's cloud-managed development certificate, through the same API key; Xcode
+      # registers the widget's App ID and the App Group and makes the profiles. The export
+      # then re-signs for distribution, keeping the entitlements.
+      - name: Archive (signed through the API key, to keep the App Group entitlement)
         working-directory: App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcodebuild archive \
             -project Breviarium.xcodeproj \
@@ -86,23 +116,34 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath build/Breviarium.xcarchive \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM=""
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+
+      # The App Group (1.5) must be in both signatures, or the widgets can't follow the
+      # app's settings on the phone. Checked on the archive: the export uploads straight
+      # to App Store Connect and leaves no .ipa behind, and it keeps these entitlements.
+      - name: Check the App Group is in the app's and the widget's signatures
+        working-directory: App
+        run: |
+          set -euo pipefail
+          APP=build/Breviarium.xcarchive/Products/Applications/Breviarium.app
+          for BUNDLE in "$APP" "$APP/PlugIns/BreviariumWidget.appex"; do
+            codesign -d --entitlements :- "$BUNDLE" 2>/dev/null | grep -q group.com.epavone.breviarium \
+              || { echo "::error::No App Group entitlement in $BUNDLE"; exit 1; }
+          done
 
       - name: Sign and upload to App Store Connect
         working-directory: App
         env:
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
-          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
-          chmod 600 "$KEY"
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -122,8 +163,11 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath build/export \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-          rm -f "$KEY"
           echo "Uploaded build $BUILD_NUMBER; it appears in App Store Connect -> TestFlight once Apple has processed it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the App Store Connect key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8

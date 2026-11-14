@@ -10,6 +10,11 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.5", notes: [
+            "Widgets on the Home Screen: the day, with its colour, class and name, and the hour for the time of day with its antiphon (the Benedictus at Lauds, the Magnificat at Vespers, the Nunc dimittis at Compline). Where an hour has no antiphon, the day's title stands in its place.",
+            "On the Lock Screen: the day's name and class, the hour, or the Breviarium B in a ring.",
+            "The widgets follow your Ritus, Officium, Psalterium, Theme and Font, and a tap opens that hour on that day. They come with the App Store and TestFlight build.",
+        ]),
         Release(name: "1.4", notes: [
             "The iPad, natively: in landscape the hour lies open like a book, two pages at a time, the page curl turning a leaf about the spine. With English on, the Latin is on the left page and the English on the right, level line by line. In portrait, one page, as on the iPhone.",
             "The Kalendarium, in place of Jump to date: the year a day to a row, each with its class, its name and its colour, from the same calendar the hours use. Tap a day to open it. It opens from the new calendar button, the date line or the footer's date.",

@@ -5,20 +5,45 @@ import SwiftUI
 struct BreviariumApp: App {
     var body: some Scene {
         WindowGroup {
-            // `BREVIARIUM_SNAPSHOT_SECTION` (a section's raw name, e.g. `hymnus`) opens the
-            // office at that section, as the table of contents would, so UI tests can
-            // capture a specific section's page deterministically.
-            ContentView(
-                dateSource: Self.launchDateSource,
-                initialSection: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_SECTION"],
-                // `BREVIARIUM_SNAPSHOT_HOUR` (DO's name, e.g. `Vespera`, `Laudes`, or
-                // `martyrologium`) pins the hour, which otherwise follows the time of day.
-                initialHour: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_HOUR"].flatMap { name in
-                    name == "martyrologium" ? .martyrologium : CanonicalHour(rawValue: name).map(OfficeHour.hour)
-                }
-            )
+            #if DEBUG
+            // The widgets' gallery (1.5), for the UI tests' snapshots only.
+            if let page = ProcessInfo.processInfo.environment["BREVIARIUM_WIDGET_GALLERY"] {
+                WidgetGalleryView(page: page, date: Self.galleryDate, clockHour: Self.galleryClockHour)
+            } else {
+                contentView
+            }
+            #else
+            contentView
+            #endif
         }
     }
+
+    /// The office (always, outside the debug-only widget gallery).
+    private var contentView: some View {
+        // `BREVIARIUM_SNAPSHOT_SECTION` (a section's raw name, e.g. `hymnus`) opens the
+        // office at that section, as the table of contents would, so UI tests can
+        // capture a specific section's page deterministically.
+        ContentView(
+            dateSource: Self.launchDateSource,
+            initialSection: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_SECTION"],
+            // `BREVIARIUM_SNAPSHOT_HOUR` (DO's name, e.g. `Vespera`, `Laudes`, or
+            // `martyrologium`) pins the hour, which otherwise follows the time of day.
+            initialHour: ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_HOUR"].flatMap { name in
+                name == "martyrologium" ? .martyrologium : CanonicalHour(rawValue: name).map(OfficeHour.hour)
+            }
+        )
+    }
+
+    #if DEBUG
+    private static var galleryDate: SimpleDate {
+        if case .fixed(let day, let month, let year) = launchDateSource { return SimpleDate(day: day, month: month, year: year) }
+        return .today()
+    }
+
+    private static var galleryClockHour: Int {
+        ProcessInfo.processInfo.environment["BREVIARIUM_WIDGET_CLOCK"].flatMap { Int($0) } ?? 18
+    }
+    #endif
 
     /// Normally "now" -- overridable via the `BREVIARIUM_SNAPSHOT_DATE` environment
     /// variable (`yyyy-MM-dd`) so UI tests can capture deterministic snapshots for a

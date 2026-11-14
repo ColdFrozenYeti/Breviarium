@@ -4,7 +4,8 @@
   Breviarium's privacy manifest, required for the App Store. The app is fully offline
   (CLAUDE.md): it tracks nothing, collects nothing and has no tracking domains. The one
   required-reason API it uses is UserDefaults, in SettingsStore, for its own settings
-  (reason CA92.1: read and written by the app itself only).
+  (reason CA92.1: read and written by the app itself only), and from 1.5 to share five
+  of them with its widgets through their App Group (reason 1C8F.1).
 -->
 <plist version="1.0">
 <dict>
@@ -22,6 +23,7 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<string>1C8F.1</string>
 			</array>
 		</dict>
 	</array>

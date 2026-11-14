@@ -44,6 +44,25 @@ public enum CanonicalHour: String, CaseIterable, Sendable, Codable {
     /// Terce, Sext and None.
     public var isLittleHour: Bool { self == .tertia || self == .sexta || self == .nona }
 
+    /// The hour the app opens at a time of day (decided 2026-09-24): Matins until 05:00,
+    /// then Lauds, Terce, Sext, None, Vespers and Compline. `clockHour` is 0-23, local
+    /// time. The app's launch and the widgets (1.5) both use it.
+    public static func forTimeOfDay(clockHour: Int) -> CanonicalHour {
+        switch clockHour {
+        case ..<5: .matutinum
+        case ..<9: .laudes
+        case ..<12: .tertia
+        case ..<15: .sexta
+        case ..<17: .nona
+        case ..<20: .vesperae
+        default: .completorium
+        }
+    }
+
+    /// The clock hours at which `forTimeOfDay` changes hour, midnight included: a widget's
+    /// timeline has an entry at each.
+    public static let timeOfDayBoundaries = [0, 5, 9, 12, 15, 17, 20]
+
     /// Vespers and Compline belong to the office whose Vespers is said that evening
     /// (`Concurrence`); the other hours to the day's own office (`Occurrence`).
     public var followsConcurrence: Bool { self == .vesperae || self == .completorium }
