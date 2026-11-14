@@ -24,10 +24,10 @@ enum WidgetLook: Sendable {
 /// The line limits (`docs/1.5_plan.md` §3, decided 2026-11-14): a text keeps its size and
 /// past its limit ends with an ellipsis; nothing is shrunk to fit.
 enum WidgetLines {
-    static let daySmallName = 3
+    static let daySmallName = 4
     static let dayMediumName = 2
-    static let dayMediumCommemoration = 1
-    static let hourMediumText = 3
+    static let dayMediumCommemoration = 2
+    static let hourMediumText = 5
     static let hourLargeText = 10
     static let lockRectangularName = 1
 }
@@ -54,7 +54,8 @@ struct WidgetFace: View {
             case .hourMedium: hourMedium(day)
             case .hourLarge: hourLarge(day)
             case .lockRectangular: lockRectangular(day)
-            case .lockInline: Text(day.hourTitle)
+            // The system sets the inline face in its own font and tint.
+            case .lockInline: Text(day.hourTitle).foregroundStyle(text)
             case .lockCircular: lockCircular(day)
             }
         } else {
@@ -67,11 +68,8 @@ struct WidgetFace: View {
 
     private func daySmall(_ day: WidgetDay) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                dot(day.color, size: 9)
-                if let classis = day.titleBlock.classisLine { serif(classis, size: 13) }
-            }
-            serif(day.titleBlock.nameLine, size: 17, face: .black)
+            classLine(day)
+            nameLine(day, size: 17)
                 .lineLimit(WidgetLines.daySmallName)
             Spacer(minLength: 0)
             serif(day.hourTitle, size: 15)
@@ -82,12 +80,11 @@ struct WidgetFace: View {
     private func dayMedium(_ day: WidgetDay) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline) {
-                dot(day.color, size: 9)
-                if let classis = day.titleBlock.classisLine { serif(classis, size: 13) }
+                classLine(day)
                 Spacer(minLength: 8)
                 dateLine(day, size: 14)
             }
-            serif(day.titleBlock.nameLine, size: 18, face: .black)
+            nameLine(day, size: 18)
                 .lineLimit(WidgetLines.dayMediumName)
             if let commemoration = day.titleBlock.commemorationLine {
                 serif(commemoration, size: 13)
@@ -119,11 +116,8 @@ struct WidgetFace: View {
                 Spacer(minLength: 0)
                 dateLine(day, size: 15)
             }
-            HStack(spacing: 6) {
-                dot(day.color, size: 9)
-                if let classis = day.titleBlock.classisLine { serif(classis, size: 13) }
-            }
-            serif(day.titleBlock.nameLine, size: 18, face: .black)
+            classLine(day)
+            nameLine(day, size: 18)
                 .lineLimit(2)
             // The section rule of the page (`CLAUDE.md`, item 7), at a widget's scale.
             Rectangle()
@@ -167,6 +161,31 @@ struct WidgetFace: View {
 
     // MARK: Pieces
 
+    /// The colour dot and the class (*III. classis*); a day without a class line (the
+    /// Ambrosian days, the ferias) has its dot beside its name instead (`nameLine`).
+    @ViewBuilder
+    private func classLine(_ day: WidgetDay) -> some View {
+        if let classis = day.titleBlock.classisLine {
+            HStack(spacing: 6) {
+                dot(day.color, size: 9)
+                serif(classis, size: 13)
+            }
+        }
+    }
+
+    /// The day's name, in the title's black weight, after the dot when there's no class line.
+    @ViewBuilder
+    private func nameLine(_ day: WidgetDay, size: CGFloat) -> some View {
+        if day.titleBlock.classisLine == nil {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                dot(day.color, size: 9)
+                serif(day.titleBlock.nameLine, size: size, face: .black)
+            }
+        } else {
+            serif(day.titleBlock.nameLine, size: size, face: .black)
+        }
+    }
+
     /// The antiphon, in the page's antiphon face (bold italic), or, when the hour has
     /// none, the day's title, in the title's face (decided 2026-11-14).
     private func hourText(_ day: WidgetDay, size: CGFloat) -> Text {
@@ -195,12 +214,13 @@ struct WidgetFace: View {
     }
 
     /// The day's liturgical colour, as the Kalendarium's dots draw it; a ring when tinted,
-    /// where a colour would be lost.
+    /// where a colour would be lost, and for white on a light theme, where it would vanish.
     @ViewBuilder
     private func dot(_ color: CalendarColor?, size: CGFloat) -> some View {
         if let color {
-            if look == .tinted || color == .black {
-                Circle().strokeBorder(look == .tinted ? text : theme.liturgical(color), lineWidth: 1.5).frame(width: size, height: size)
+            if look == .tinted || color == .black || (color == .white && theme.isLight) {
+                let ring = look == .tinted || color == .white ? text : theme.liturgical(color)
+                Circle().strokeBorder(ring, lineWidth: 1.5).frame(width: size, height: size)
             } else {
                 Circle().fill(theme.liturgical(color)).frame(width: size, height: size)
             }

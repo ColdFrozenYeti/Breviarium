@@ -24,7 +24,8 @@ final class WidgetGalleryUITests: BreviariumUITestCase {
         ]
         app.launch()
         XCTAssertTrue(app.otherElements["widgetGallery"].waitForExistence(timeout: 10) || app.staticTexts.firstMatch.waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 0.5)
+        // Past the launch's own fade-in: a capture at half a second came out washed out.
+        Thread.sleep(forTimeInterval: 2.0)
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "widget-\(device)-\(name)"
         shot.lifetime = .keepAlways
