@@ -21,15 +21,21 @@ enum WidgetLook: Sendable {
     case fullColor, tinted
 }
 
-/// The line limits (`docs/1.5_plan.md` §3, decided 2026-11-14): a text keeps its size and
-/// past its limit ends with an ellipsis; nothing is shrunk to fit.
-enum WidgetLines {
-    static let daySmallName = 4
-    static let dayMediumName = 2
-    static let dayMediumCommemoration = 2
-    static let hourMediumText = 5
-    static let hourLargeText = 10
-    static let lockRectangularName = 1
+/// The type sizes and line limits (`docs/1.5_plan.md` §3, decided 2026-11-14): the day's
+/// name and the hour's text take the largest of their sizes that fits whole, centred in
+/// the room they have; when even the smallest doesn't fit, it ends at its line limit with
+/// an ellipsis. Nothing is ever shrunk below the smallest size.
+enum WidgetType {
+    static let daySmallName: [CGFloat] = [30, 27, 24, 21, 19, 17]
+    static let daySmallNameLines = 4
+    static let dayMediumName: [CGFloat] = [30, 27, 24, 21, 19, 18]
+    static let dayMediumNameLines = 2
+    static let dayMediumCommemorationLines = 2
+    static let hourMedium: [CGFloat] = [22, 20, 18, 16, 15]
+    static let hourMediumLines = 5
+    static let hourLarge: [CGFloat] = [28, 25, 22, 20, 18, 16]
+    static let hourLargeLines = 10
+    static let lockRectangularNameLines = 1
 }
 
 /// One widget's content, without its background: the widget sets that as its container
@@ -47,7 +53,10 @@ struct WidgetFace: View {
     private var chrome: Color { look == .fullColor ? theme.chrome : .white.opacity(0.6) }
 
     var body: some View {
-        if let day {
+        if layout == .lockCircular {
+            // The same at every hour: the app's logo (decided 2026-11-14).
+            lockCircular
+        } else if let day {
             switch layout {
             case .daySmall: daySmall(day)
             case .dayMedium: dayMedium(day)
@@ -56,7 +65,7 @@ struct WidgetFace: View {
             case .lockRectangular: lockRectangular(day)
             // The system sets the inline face in its own font and tint.
             case .lockInline: Text(day.hourTitle).foregroundStyle(text)
-            case .lockCircular: lockCircular(day)
+            case .lockCircular: lockCircular
             }
         } else {
             // The data failed to load: an empty face, never an explanation (`CLAUDE.md`).
@@ -66,46 +75,55 @@ struct WidgetFace: View {
 
     // MARK: The faces
 
+    // The day widgets show the day alone, without the hour: a tap opens the hour anyway
+    // (decided 2026-11-14).
+
     private func daySmall(_ day: WidgetDay) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             classLine(day)
-            nameLine(day, size: 17)
-                .lineLimit(WidgetLines.daySmallName)
-            Spacer(minLength: 0)
-            serif(day.hourTitle, size: 15)
+            fitting(WidgetType.daySmallName) { size, limited in
+                nameLine(day, size: size)
+                    .lineLimit(limited ? WidgetType.daySmallNameLines : nil)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func dayMedium(_ day: WidgetDay) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 classLine(day)
                 Spacer(minLength: 8)
                 dateLine(day, size: 14)
             }
-            nameLine(day, size: 18)
-                .lineLimit(WidgetLines.dayMediumName)
-            if let commemoration = day.titleBlock.commemorationLine {
-                serif(commemoration, size: 13)
-                    .lineLimit(WidgetLines.dayMediumCommemoration)
+            fitting(WidgetType.dayMediumName) { size, limited in
+                VStack(alignment: .leading, spacing: 4) {
+                    nameLine(day, size: size)
+                        .lineLimit(limited ? WidgetType.dayMediumNameLines : nil)
+                    if let commemoration = day.titleBlock.commemorationLine {
+                        serif(commemoration, size: 14)
+                            .lineLimit(WidgetType.dayMediumCommemorationLines)
+                    }
+                }
             }
-            Spacer(minLength: 0)
-            serif(day.hourTitle, size: 15)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func hourMedium(_ day: WidgetDay) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 serif(day.hourTitle, size: 18)
                 Spacer(minLength: 8)
                 dot(day.color, size: 9)
             }
-            hourText(day, size: 15)
-                .lineLimit(WidgetLines.hourMediumText)
-            Spacer(minLength: 0)
+            fitting(WidgetType.hourMedium) { size, limited in
+                hourText(day, size: size)
+                    .lineLimit(limited ? WidgetType.hourMediumLines : nil)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -117,8 +135,12 @@ struct WidgetFace: View {
                 dateLine(day, size: 15)
             }
             classLine(day)
-            nameLine(day, size: 18)
-                .lineLimit(2)
+            // Where the hour has no antiphon, the day's title is its text (below): it
+            // isn't shown twice.
+            if day.hourTextIsAntiphon {
+                nameLine(day, size: 18)
+                    .lineLimit(2)
+            }
             // The section rule of the page (`CLAUDE.md`, item 7), at a widget's scale.
             Rectangle()
                 .fill(text)
@@ -127,10 +149,11 @@ struct WidgetFace: View {
                 .padding(.vertical, 10)
             serif(day.hourTitle, size: 22)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 6)
-            hourText(day, size: 16)
-                .lineLimit(WidgetLines.hourLargeText)
-            Spacer(minLength: 0)
+            fitting(WidgetType.hourLarge) { size, limited in
+                hourText(day, size: size)
+                    .lineLimit(limited ? WidgetType.hourLargeLines : nil)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -139,24 +162,36 @@ struct WidgetFace: View {
         VStack(alignment: .leading, spacing: 0) {
             serif(day.hourTitle, size: 15, face: .black)
             serif(day.titleBlock.nameLine, size: 14)
-                .lineLimit(WidgetLines.lockRectangularName)
+                .lineLimit(WidgetType.lockRectangularNameLines)
             if let classis = day.titleBlock.classisLine { serif(classis, size: 13) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func lockCircular(_ day: WidgetDay) -> some View {
+    /// The app's logo, the default icon's *B* traced to a vector (`scripts/widget-logo.py`),
+    /// in a ring; drawn as a template, so the system tints it.
+    private var lockCircular: some View {
         ZStack {
             Circle().fill(Color.white.opacity(0.15))
             Circle().strokeBorder(Color.white, lineWidth: 2.5)
-            serif(Self.initial(of: day.hourTitle), size: 26, face: .black)
+            Image("WidgetLogo")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(Color.white)
+                .padding(13)
         }
     }
 
-    /// The hour's initial for the circular face: *V* for *Ad Vesperas*.
-    static func initial(of hourTitle: String) -> String {
-        let word = hourTitle.hasPrefix("Ad ") ? hourTitle.dropFirst(3) : Substring(hourTitle)
-        return word.first.map(String.init) ?? ""
+    /// The largest of `sizes` at which `make` fits whole in the height it's offered;
+    /// failing that, the smallest, with its line limit (`limited`).
+    private func fitting<Content: View>(_ sizes: [CGFloat], @ViewBuilder _ make: @escaping (CGFloat, Bool) -> Content) -> some View {
+        ViewThatFits(in: .vertical) {
+            ForEach(Array(sizes.dropLast()), id: \.self) { size in
+                make(size, false).fixedSize(horizontal: false, vertical: true)
+            }
+            make(sizes.last ?? 15, true)
+        }
     }
 
     // MARK: Pieces
