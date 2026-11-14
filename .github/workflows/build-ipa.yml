@@ -98,6 +98,12 @@ jobs:
           # an ordinary resource, unused by the app itself.
           rm -rf Payload/Breviarium.app/PlugIns
           if find Payload -name '*.appex' | grep -q .; then echo "An extension is still in the .ipa" >&2; exit 1; fi
+          # No entitlements either: the build is unsigned, so the App Group (1.5) the
+          # TestFlight build carries isn't embedded, and the free Apple ID signs the app
+          # as before.
+          if codesign -d --entitlements :- Payload/Breviarium.app 2>/dev/null | grep -q application-groups; then
+            echo "The sideloaded app carries an App Group entitlement" >&2; exit 1
+          fi
           ditto -c -k --sequesterRsrc --keepParent Payload Breviarium.ipa
 
       - uses: actions/upload-artifact@v7

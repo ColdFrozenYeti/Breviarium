@@ -110,6 +110,9 @@ targets:
         # per-week cap. Do not change this without a very good reason.
         PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium
         PRODUCT_NAME: Breviarium
+        # The App Group the widgets read the app's settings through (1.5). Applied only
+        # where the build is signed: never in build-ipa.yml's unsigned sideload build.
+        CODE_SIGN_ENTITLEMENTS: Breviarium/Breviarium.entitlements
         # iPhone and iPad from 1.4 (decided 2026-11-12, after App Review's 4.2 rejection
         # on an iPad). Set here as well as in the project settings above, explicitly: it
         # was "1" until 1.4, and XcodeGen's preset would otherwise decide. The iPad needs
@@ -122,9 +125,9 @@ targets:
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         GENERATE_INFOPLIST_FILE: NO
 
-  # The widgets (1.5, docs/1.5_plan.md): the day, the hour and the Lock Screen. No App
-  # Group or other capability; its settings are its own (App Intents). It reads the data
-  # pack and the fonts from the app's bundle, which contains it.
+  # The widgets (1.5, docs/1.5_plan.md): the day, the hour and the Lock Screen. They
+  # follow the app's settings through the App Group (the one capability, TestFlight and
+  # App Store build only); the data pack and the fonts come from the app's bundle.
   BreviariumWidget:
     type: app-extension
     platform: iOS
@@ -138,7 +141,6 @@ targets:
         product: BreviariumKit
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
-      - sdk: AppIntents.framework
     info:
       path: BreviariumWidget/Info.plist
       properties:
@@ -153,6 +155,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium.widget
         PRODUCT_NAME: BreviariumWidget
+        CODE_SIGN_ENTITLEMENTS: BreviariumWidget/BreviariumWidget.entitlements
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES

@@ -56,13 +56,31 @@ final class WidgetGalleryUITests: BreviariumUITestCase {
         capture("day", date: "2026-04-03", clock: 10, name: "2026-04-03-terce-day")
     }
 
-    /// The options under Edit Widget: the Pius XII psalter, the Ambrosian rite, a light
-    /// theme and another font.
+    /// The app's settings the widgets follow (decided 2026-11-14): the Pius XII psalter,
+    /// the Ambrosian rite, a light theme and another font.
     func testTheWidgetsOwnSettings() {
         capture("hour", date: "2026-11-16", clock: 10, name: "2026-11-16-terce-pius12-hour", psalter: "pius12")
         capture("hour", date: "2026-11-14", clock: 21, name: "2026-11-14-ambrosian-hour", rite: "ambrosianus")
         capture("day", date: "2026-12-24", clock: 18, name: "2026-12-24-vespers-lux-day", theme: "light", font: "gentium")
         capture("hour", date: "2026-12-24", clock: 18, name: "2026-12-24-vespers-sepia-comic-hour", theme: "sepia", font: "comic")
+    }
+
+    /// The commemoration line outside Lauds, as Divinum Officium prints it for the hour:
+    /// at Vespers on 8 December 2026 (*Commemoratio: Feria III infra Hebdomadam II
+    /// Adventus*), at Matins on 16 September 2026 (*Tempora: …*), and at first Vespers of
+    /// a Sunday (*Vespera de sequenti; nihil de præcedenti*).
+    func testCommemorationsOutsideLauds() {
+        capture("day", date: "2026-12-08", clock: 18, name: "2026-12-08-vespers-day")
+        capture("hour", date: "2026-12-08", clock: 18, name: "2026-12-08-vespers-hour")
+        capture("day", date: "2026-09-16", clock: 4, name: "2026-09-16-matins-day")
+        capture("day", date: "2026-11-14", clock: 18, name: "2026-11-14-vespers-day")
+    }
+
+    /// The rectangular Lock Screen face: a long name on two lines with its class, and a
+    /// short one on a single line, each block centred (decided 2026-11-14).
+    func testLockScreenNames() {
+        capture("lock", date: "2026-09-16", clock: 6, name: "2026-09-16-lauds-lock-long")
+        capture("lock", date: "2026-12-25", clock: 6, name: "2026-12-25-lauds-lock-short")
     }
 
     /// A tap on a widget opens its hour and date (`breviarium://open?…`), whatever the

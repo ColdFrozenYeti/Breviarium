@@ -134,6 +134,12 @@ jobs:
           plutil -lint "$EXT/PrivacyInfo.xcprivacy"
           test "$(plutil -extract NSPrivacyTracking raw "$EXT/PrivacyInfo.xcprivacy")" = false
           test -s "$APP/breviarium-widget.pack"
+          # The App Group the widgets follow the app's settings through (1.5), in both
+          # signatures (the simulator build is signed to run locally).
+          for BUNDLE in "$APP" "$EXT"; do
+            codesign -d --entitlements :- "$BUNDLE" 2>/dev/null | grep -q group.com.epavone.breviarium \
+              || { echo "No App Group entitlement in $BUNDLE" >&2; exit 1; }
+          done
           test "$(plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$APP/Info.plist")" = breviarium
 
       # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.

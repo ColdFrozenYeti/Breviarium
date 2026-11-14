@@ -1,5 +1,6 @@
 import BreviariumKit
 import Foundation
+import WidgetKit
 
 /// `CLAUDE.md`'s "Settings (Universalis-style toggles)" -- `UserDefaults`-backed, since
 /// this is a single-user, fully offline app with no iCloud entitlement a free Apple ID
@@ -60,28 +61,43 @@ final class SettingsStore: ObservableObject {
     }
     /// The Vulgate by default, the Pius XII (Bea) psalter as an option (`CLAUDE.md`).
     @Published var psalter: Psalter {
-        didSet { defaults.set(psalter.rawValue, forKey: Keys.psalter) }
+        didSet {
+            defaults.set(psalter.rawValue, forKey: Keys.psalter)
+            shareWithWidgets()
+        }
     }
 
     /// The office said under the Roman rite (Beta 4, decided 2026-09-26): the day's by
     /// default, the Little Office of Our Lady, or the Office of the Dead.
     @Published var officium: Officium {
-        didSet { defaults.set(officium.rawValue, forKey: Keys.officium) }
+        didSet {
+            defaults.set(officium.rawValue, forKey: Keys.officium)
+            shareWithWidgets()
+        }
     }
 
     /// The rite (Beta 5): *Romanus* by default, or *Dominicanus*, each with its offices.
     @Published var rite: Rite {
-        didSet { defaults.set(rite.rawValue, forKey: Keys.rite) }
+        didSet {
+            defaults.set(rite.rawValue, forKey: Keys.rite)
+            shareWithWidgets()
+        }
     }
 
     /// The colour theme (1.2): *Nox*, the look since the alpha, by default.
     @Published var theme: ThemeChoice {
-        didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+        didSet {
+            defaults.set(theme.rawValue, forKey: Keys.theme)
+            shareWithWidgets()
+        }
     }
 
     /// The office's typeface (1.2): Hoefler Text, the font since the alpha, by default.
     @Published var font: FontChoice {
-        didSet { defaults.set(font.rawValue, forKey: Keys.font) }
+        didSet {
+            defaults.set(font.rawValue, forKey: Keys.font)
+            shareWithWidgets()
+        }
     }
 
     /// The reader's menus (1.4): *Standard* by default.
@@ -126,5 +142,15 @@ final class SettingsStore: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
         font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
         menus = defaults.string(forKey: Keys.menus).flatMap(MenuStyle.init(rawValue:)) ?? .standard
+        // The widgets follow these (1.5): a fresh install, or a build from before 1.5,
+        // shares them once at launch.
+        shareWithWidgets()
+    }
+
+    /// Copies the five settings the widgets follow into the App Group (`WidgetSettings`),
+    /// and has every widget redraw when they changed (decided 2026-11-14).
+    private func shareWithWidgets() {
+        let shared = WidgetSettings(rite: rite, officium: officium, psalter: psalter, theme: theme, font: font)
+        if shared.save() { WidgetCenter.shared.reloadAllTimelines() }
     }
 }

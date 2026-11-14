@@ -2,8 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   The widget extension's privacy manifest (1.5). Like the app, it is fully offline
-  (CLAUDE.md): it tracks nothing and collects nothing. It uses no required-reason API:
-  its settings are stored by the system (App Intents), not in UserDefaults.
+  (CLAUDE.md): it tracks nothing and collects nothing. Its one required-reason API is
+  UserDefaults, to read the app's settings from their shared App Group (reason 1C8F.1:
+  data shared between apps and extensions of the same App Group).
 -->
 <plist version="1.0">
 <dict>
@@ -14,6 +15,15 @@
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

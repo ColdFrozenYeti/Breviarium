@@ -8,8 +8,8 @@ import UIKit
 /// widgets' own faces (`WidgetFace`) at the device's widget sizes, from the same data
 /// file the widget reads. Opened by `BREVIARIUM_WIDGET_GALLERY` (`day`, `hour`, `lock`
 /// or `tinted`), on `BREVIARIUM_SNAPSHOT_DATE` at the clock hour
-/// `BREVIARIUM_WIDGET_CLOCK`, configured like the app's settings (Ritus, Officium,
-/// Psalterium, Theme, Font).
+/// `BREVIARIUM_WIDGET_CLOCK`, under the app's settings (Ritus, Officium, Psalterium,
+/// Theme, Font), read as the widget reads them, from the App Group (`WidgetSettings`).
 struct WidgetGalleryView: View {
     let page: String
     let date: SimpleDate
@@ -18,10 +18,18 @@ struct WidgetGalleryView: View {
 
     private static let office = WidgetData.office(inBundleAt: Bundle.main.bundleURL)
 
+    /// What the widget reads (1.5): the settings `SettingsStore` shares through the App
+    /// Group, so the captures go through the widget's own path, not the app's.
+    private var shared: WidgetSettings {
+        _ = settings  // `SettingsStore` shares the launch arguments' settings when created.
+        return WidgetSettings.load()
+    }
+
     private var day: WidgetDay? {
-        Self.office?.day(
+        let shared = shared
+        return Self.office?.day(
             CanonicalHour.forTimeOfDay(clockHour: clockHour), day: date.day, month: date.month, year: date.year,
-            rite: settings.rite, officium: settings.officium, psalter: settings.psalter
+            rite: shared.rite, officium: shared.officium, psalter: shared.psalter
         )
     }
 
@@ -57,8 +65,8 @@ struct WidgetGalleryView: View {
     /// A Home Screen widget: its background, the system's corner radius and content
     /// margins (16 points on iPhone and iPad).
     private func tile(_ layout: WidgetLayout, _ size: CGSize, look: WidgetLook = .fullColor) -> some View {
-        let theme = settings.theme.theme
-        return WidgetFace(day: day, layout: layout, theme: theme, font: settings.font, look: look)
+        let theme = shared.theme.theme
+        return WidgetFace(day: day, layout: layout, theme: theme, font: shared.font, look: look)
             .padding(16)
             .frame(width: size.width, height: size.height)
             .background(look == .fullColor ? theme.background : Color.white.opacity(0.14))
@@ -68,7 +76,7 @@ struct WidgetGalleryView: View {
 
     /// A Lock Screen widget: no background or margins, drawn white as the system tints it.
     private func lock(_ layout: WidgetLayout, _ size: CGSize) -> some View {
-        WidgetFace(day: day, layout: layout, theme: settings.theme.theme, font: settings.font, look: .tinted)
+        WidgetFace(day: day, layout: layout, theme: shared.theme.theme, font: shared.font, look: .tinted)
             .frame(width: size.width, height: size.height, alignment: layout == .lockInline ? .center : .leading)
             .overlay(Rectangle().strokeBorder(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 0.5, dash: [3])))
             .accessibilityIdentifier("widget-\(layout.rawValue)")

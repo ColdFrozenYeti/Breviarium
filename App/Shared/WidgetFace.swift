@@ -35,7 +35,7 @@ enum WidgetType {
     static let hourMediumLines = 5
     static let hourLarge: [CGFloat] = [28, 25, 22, 20, 18, 16]
     static let hourLargeLines = 10
-    static let lockRectangularNameLines = 1
+    static let lockRectangularNameLines = 2
 }
 
 /// One widget's content, without its background: the widget sets that as its container
@@ -158,14 +158,15 @@ struct WidgetFace: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// The day alone (decided 2026-11-14): its name on at most two lines, then its class,
+    /// the block centred in the widget's height.
     private func lockRectangular(_ day: WidgetDay) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            serif(day.hourTitle, size: 15, face: .black)
-            serif(day.titleBlock.nameLine, size: 14)
+        VStack(alignment: .leading, spacing: 1) {
+            serif(day.titleBlock.nameLine, size: 15, face: .black)
                 .lineLimit(WidgetType.lockRectangularNameLines)
             if let classis = day.titleBlock.classisLine { serif(classis, size: 13) }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     /// The app's logo, the default icon's *B* traced to a vector (`scripts/widget-logo.py`),

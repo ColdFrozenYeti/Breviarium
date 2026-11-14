@@ -79,7 +79,12 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" BreviariumWidget/Info.plist
           echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Breviarium/Info.plist) ($BUILD_NUMBER)"
 
-      - name: Archive (unsigned, as build-ipa.yml builds)
+      # Ad-hoc signed (identity "-", no certificate and no team) rather than unsigned
+      # (1.5): an unsigned archive embeds no entitlements, and the export below would then
+      # sign the app and the widget without the App Group the widgets read the app's
+      # settings through. The export re-signs with the distribution certificate, keeping
+      # the entitlements; the step after it checks they survived.
+      - name: Archive (ad-hoc signed, to keep the App Group entitlement)
         working-directory: App
         run: |
           xcodebuild archive \
@@ -89,9 +94,10 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath build/Breviarium.xcarchive \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             DEVELOPMENT_TEAM=""
 
       - name: Sign and upload to App Store Connect
@@ -129,4 +135,14 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           rm -f "$KEY"
+          # The App Group (1.5) must be in both signatures, or the widgets can't follow
+          # the app's settings on the phone.
+          IPA=$(ls build/export/*.ipa 2>/dev/null | head -1)
+          if [ -n "$IPA" ]; then
+            rm -rf build/check && mkdir -p build/check && unzip -q "$IPA" -d build/check
+            for BUNDLE in build/check/Payload/Breviarium.app build/check/Payload/Breviarium.app/PlugIns/BreviariumWidget.appex; do
+              codesign -d --entitlements :- "$BUNDLE" 2>/dev/null | grep -q group.com.epavone.breviarium \
+                || { echo "::error::No App Group entitlement in $BUNDLE"; exit 1; }
+            done
+          fi
           echo "Uploaded build $BUILD_NUMBER; it appears in App Store Connect -> TestFlight once Apple has processed it." >> "$GITHUB_STEP_SUMMARY"
