@@ -9,6 +9,13 @@ after that.
 This was researched fresh rather than from memory (see Sources at the end) since
 sideloading tools change quickly.
 
+**No widgets in the sideloaded build (from 1.5).** The widgets need their own extension
+and an App Group to read the app's settings, and a free Apple ID can sign neither. So
+`build-ipa.yml` leaves both out of the `.ipa`: it has no `PlugIns/` folder and carries no
+entitlements, and your free Apple ID signs the app alone, exactly as before. The app works
+the same without them. The widgets come with the TestFlight and App Store build
+(`testflight.yml`), signed with the paid membership.
+
 ## Which tool: AltStore/AltServer, not Sideloadly
 
 Both are free, both currently support iOS 26, and both work from Windows with a free
