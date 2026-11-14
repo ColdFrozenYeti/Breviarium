@@ -55,6 +55,8 @@ struct OfficeTypesetter {
     var theme: Theme = ThemeChoice.classicDark.theme
     /// The typeface (1.2); Hoefler Text unless Settings chose another.
     var typeface: FontChoice = .serif
+    /// Page 1's table-of-contents icon (item 4), left out under *Menus: Hidden* (1.4).
+    var showsTableOfContents = true
 
     private var fonts: LiturgicalUIFont { LiturgicalUIFont(choice: typeface) }
 
@@ -205,14 +207,14 @@ struct OfficeTypesetter {
                         ),
                         to: text, style: paragraphStyle(after: metrics.bodySize * 0.9)
                     )
-                }, keepWithNext: true))
+                }, keepWithNext: true, mirrored: true))
             case .psalmSeparator:
                 rows.append(.full(build { text in
                     appendRule(
                         to: text, width: metrics.separatorWidth * 0.4, color: textColor.withAlphaComponent(0.4),
                         before: metrics.bodySize * 0.5, after: metrics.bodySize * 0.5
                     )
-                }, keepWithNext: true))
+                }, keepWithNext: true, mirrored: true))
             case .unit(_, let unit, let alternate, let trailing):
                 let latin = build { appendUnit(unit, alternateVerse: alternate, trailingSpace: trailing, to: $0) }
                 guard latin.length > 0 else { continue }
@@ -330,7 +332,14 @@ struct OfficeTypesetter {
             )
         }
 
-        // Item 4: the table-of-contents icon, right-aligned.
+        // Item 4: the table-of-contents icon, right-aligned (not under *Menus: Hidden*).
+        if showsTableOfContents { appendTableOfContentsIcon(to: output) }
+
+        // Item 5: the hour title, centred.
+        appendHourTitle(to: output)
+    }
+
+    private func appendTableOfContentsIcon(to output: NSMutableAttributedString) {
         let attachment = TableOfContentsAttachment()
         let configuration = UIImage.SymbolConfiguration(pointSize: metrics.bodySize, weight: .regular)
         attachment.image = UIImage(systemName: "list.bullet", withConfiguration: configuration)?
@@ -344,8 +353,9 @@ struct OfficeTypesetter {
         icon.addAttribute(.link, value: OfficeLink.tableOfContents, range: NSRange(location: 0, length: icon.length))
         // `Format.png` measures 12pt from the icon to the hour title (0.8x body gave 21pt).
         appendParagraph(icon, to: output, style: paragraphStyle(alignment: .right, after: metrics.bodySize * 0.33))
+    }
 
-        // Item 5: the hour title, centred.
+    private func appendHourTitle(to output: NSMutableAttributedString) {
         appendParagraph(
             plain(content.hourTitle, font: fonts.regular(metrics.hourTitleSize)),
             to: output, style: paragraphStyle(alignment: .center, after: metrics.bodySize * 0.8)
@@ -571,8 +581,11 @@ struct OfficeTypesetter {
 /// One row of the parallel layout: full width, or Latin and English side by side.
 /// `keepWithNext`: never the last thing on a page (a heading, a psalm title).
 /// `keepTogether`: never split across pages (a versicle and its response).
+/// `mirrored`: on an iPad's facing pages (1.4), set on the English page as well as the
+/// Latin (a section's rule and heading, the rule between psalms); any other full row is
+/// on the Latin page alone.
 enum ParallelRow {
-    case full(NSAttributedString, keepWithNext: Bool)
+    case full(NSAttributedString, keepWithNext: Bool, mirrored: Bool = false)
     case pair(latin: NSAttributedString, english: NSAttributedString, keepTogether: Bool)
 }
 

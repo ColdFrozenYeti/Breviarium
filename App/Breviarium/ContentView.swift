@@ -37,6 +37,15 @@ struct ContentView: View {
         }
     }
 
+    /// Today, for the Kalendarium's frame: the fixed date under UI tests, so their
+    /// captures don't change with the day they run.
+    private var today: SimpleDate {
+        switch dateSource {
+        case .now: .today()
+        case .fixed(let day, let month, let year): SimpleDate(day: day, month: month, year: year)
+        }
+    }
+
     var body: some View {
         page
             // The chosen theme (1.2) for every view below, sheets included, and the
@@ -52,7 +61,8 @@ struct ContentView: View {
             VespersView(
                 content: content, settings: settings, selection: shownHour,
                 onSelectHour: { selection = $0 },
-                calendarColors: { year, month in dataStore.calendarColors(year: year, month: month, rite: settings.rite) },
+                kalendarium: { year, month in dataStore.kalendarium(year: year, month: month, rite: settings.rite) },
+                today: today,
                 onPreviousDay: { displayedDate = SimpleDate(Computus.addDays(-1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onNextDay: { displayedDate = SimpleDate(Computus.addDays(1, day: displayedDate.day, month: displayedDate.month, year: displayedDate.year)) },
                 onJump: { newDate in displayedDate = newDate },

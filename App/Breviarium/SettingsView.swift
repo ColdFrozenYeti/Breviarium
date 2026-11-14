@@ -55,7 +55,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Reading") {
+                Section {
                     Picker("Scrolling", selection: $settings.readingMode) {
                         Text("Horizontal").tag(ReadingMode.horizontal)
                         Text("Vertical").tag(ReadingMode.vertical)
@@ -67,6 +67,18 @@ struct SettingsView: View {
                     }
                     .disabled(settings.readingMode == .vertical)
                     .accessibilityIdentifier("pageTurnPicker")
+                    // 1.4: the reader's menus, visible by default.
+                    Picker("Menus", selection: $settings.menus) {
+                        ForEach(MenuStyle.allCases, id: \.self) { style in
+                            Text(style.label).tag(style)
+                        }
+                    }
+                    .accessibilityIdentifier("menusPicker")
+                } header: {
+                    Text("Reading")
+                } footer: {
+                    Text(Self.menusFooter(settings.menus))
+                        .foregroundStyle(theme.chrome)
                 }
 
                 // How the page looks: the text size, then the theme and the font, each
@@ -108,6 +120,14 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(theme.colorScheme)
+    }
+
+    private static func menusFooter(_ style: MenuStyle) -> String {
+        switch style {
+        case .standard: "The menus in the theme's rubric colour, with a calendar button."
+        case .prayer: "Quiet grey menus. Tap the hour's name for the hours."
+        case .hidden: "Only the prayer and the page number. Tap the page number or the top of the page for the menus."
+        }
     }
 
     private static func label(for size: TextSizeSetting) -> String {

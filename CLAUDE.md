@@ -9,7 +9,7 @@ Read this file at the start of every session. If a decision here conflicts with 
 - **Fully offline.** The app makes no network calls of any kind: no analytics, no crash reporting, no remote fonts, and no update checks. Do not add network entitlements. Everything, including all texts, ships inside the app bundle.
 - **No third-party dependencies** in the app or the engine: Apple frameworks and the Swift standard library only. Build and CI tooling may use whatever is convenient, as long as nothing from it is linked into the app.
 - **The app computes the office itself.** There is no precomputed ordo with an expiry date, and any date must work.
-- **iPhone only**, with a deployment target of **iOS 26.0** (lowered from 26.5 on 2026-10-11, so every iPhone on iOS 26 can install it) and no compatibility with iOS 18 or earlier.
+- **iPhone and iPad** (iPad from 1.4, decided 2026-11-12 after App Review's 4.2 rejection, which was made on an iPad running the iPhone-only app in its compatibility window; `docs/1.4_plan.md`), with a deployment target of **iOS 26.0** (lowered from 26.5 on 2026-10-11, so every iPhone on iOS 26 can install it) and no compatibility with iOS 18 or earlier. The iPad has the same settings as the iPhone and none of its own.
   - Use SwiftUI and current Swift concurrency.
   - Avoid UIKit unless SwiftUI genuinely cannot do something, and say so first.
 - **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Nox* theme (*Classic dark*) and stays the default; 1.2 adds seven others with their own text, rubric and background colours, light backgrounds included, named in Latin (`docs/1.2_plan.md`). Every font and colour ships in the app: no installed or external fonts. The Settings rows already in Latin stay Latin; the new *Theme* and *Font* rows are English.
@@ -18,7 +18,7 @@ Read this file at the start of every session. If a decision here conflicts with 
   - no chant, audio, or play button;
   - no Mass propers, Rosary, or Angelus.
 
-  This is a breviary in a phone.
+  This is a breviary in a phone. The **Kalendarium** (1.4, decided 2026-11-12) is in the brief: a month of days, one row each with the class, the day's name and its colour, opening any day's office. It replaces *Jump to date*, and it adds no calendar logic: every row comes from the engine the hours already use.
 - **No explanatory text in the office.** The only non-liturgical text is section headings, the date line, the day title block, the page footer, and (Dominican office only) the grey note under a borrowed Roman English text. Rubrics are shown in red when the rubrics toggle is on, including directions inside a text such as *(Fit reverentia)* and *(genuflectitur)* (decided 2026-09-26).
 - **No capability a free Apple ID can't sign.** The user has no paid Apple Developer Program membership and installs by sideloading (see below), so the app must never declare, and no feature may ever need, iCloud, push notifications, App Groups, widgets/extensions, or associated domains — a personal-team free-tier signature can't cover any of them. If a future feature would need one, stop and flag it before building it rather than building it and finding out at sign time. This holds until the paid membership is joined for the App Store release; even then the app stays offline, so none of these is expected to be needed.
 
@@ -49,7 +49,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
   - Review the design against Apple's App Review Guidelines, in particular copycat apps (4.1): the app is "modelled closely" on Universalis's night mode. **The design stays as it is** (decided 2026-10-11, and agreed by Universalis on 2026-10-16, above). Ask the user before changing the design.
   - ~~Privacy manifest and export compliance~~ Done 2026-10-11: `App/Breviarium/PrivacyInfo.xcprivacy` (no tracking, no data collected, `UserDefaults` for the app's own settings, reason CA92.1) and `ITSAppUsesNonExemptEncryption = NO` in `project.yml`; App CI checks both are in the built app. Keep the manifest in step if the app ever uses another required-reason API.
   - ~~Prepare the App Store listing~~ Done 2026-10-11: a privacy label of "no data collected" (the app is fully offline), screenshots (`scripts/promo/compose.py`, from `promo.yml`; 1320x2868, with 1206x2622 copies for the 6.3" slot), the header and search results assets (`scripts/promo/creative.py`), and the privacy policy and support pages App Store Connect requires (`site/`, on GitHub Pages by `.github/workflows/pages.yml` at `breviarium.eduardopavone.eu`, the user's own domain, in the Nox look; written 2026-10-11, contact `epavone06+breviarium@gmail.com`).
-  - **Submitted for review** on 2026-10-11: version 1.3, build 103 (iOS 26.0 and later). Once it is live, the App Store is the normal way to install, TestFlight is for trying a version before release, and sideloading is a fallback; update `docs/install-on-iphone.md` and this file then.
+  - **Submitted for review** on 2026-10-11: version 1.3, build 103 (iOS 26.0 and later). App Review first asked for more information (Guideline 2.1: a screen recording, the app's purpose, how to use it, external services, regional differences and third-party rights), which the user answered; then, on 2026-10-28, on an iPad Air 11" (M3), it **rejected 1.3 under Guideline 4.2, Minimum Functionality** ("does not provide sufficient content and features to be useful, unique, and app-like"). **1.4 answers it** (`docs/1.4_plan.md`, decided 2026-11-12): visible menus, the Kalendarium and native iPad support. The user resubmits once 1.4 builds. Once it is live, the App Store is the normal way to install, TestFlight is for trying a version before release, and sideloading is a fallback; update `docs/install-on-iphone.md` and this file then.
 - **Visual iteration without a simulator on hand**
   - Snapshot tests render each key screen at fixed sizes in the iOS simulator on CI.
   - Download the artifacts and measure them against the visual specification below. Report differences concretely (element, measured value, expected value), fix them, and repeat.
@@ -79,6 +79,7 @@ The user does not own a Mac and will not buy one. Design every workflow around t
 - **Ritus:** Romanus / Dominicanus / Ambrosianus. *Dominicanus* is selectable since Beta 5, with its own *Officium* choice like *Romanus*; *Ambrosianus* becomes selectable in Beta 6 with one office, *Completorium Ambrosianum* (decided 2026-10-09), never implying the full office (decided 2026-10-01). Under it the hour picker lists only *Ad Completorium*, and *Psalterium* and English are disabled.
 - **App icon:** *Northumberland Simple* (the default since 1.2), *Northumberland*, *Northumberland Inverted*, *Walters* (the default before 1.2), *Benedictus*, *Gutenberg (mono)*, *Gutenberg*, *ChurchofAmbrose* or *Weissenau*, chosen from a gallery that shows them all at once (added 2026-10-01, four icons since 2026-10-06, six since 2026-10-10, nine in 1.2; `AppIconPicker.swift`, the one UIKit call `setAlternateIconName`). Each icon is an icon set in `Assets.xcassets` listed in `project.yml`, with a small `IconPreview…` image for the gallery.
   - **Officium**, under *Romanus* (Beta 4, decided 2026-09-26): *Officium diei* (the default), *Officium parvum B.M.V.* or *Officium defunctorum*. The hour picker lists only the chosen office's own hours (the Dead: Matins, Lauds, Vespers). The *Martyrologium* row follows *Ad Primam*, in the day's office only: the Little Office and the Office of the Dead don't have it (decided 2026-09-26, after trying Beta 4 on the phone). When the clock's hour isn't in the office, the app opens the nearest earlier hour it has.
+- **Menus** (1.4, `docs/1.4_plan.md`; English, like *Theme* and *Font*): *Standard* (the default: the gear, the hour title as a picker with a small chevron, a calendar button and the day arrows, all in the theme's rubric colour), *Prayer* (the look before 1.4: the plain title and grey chrome, no calendar button) or *Hidden* (only the prayer and a bare page number, `3`; page 1 keeps the date line and the day title; tapping the page number or the top strip brings the menus back until the next page turn).
 - **Theme** and **Font** (1.2, `docs/1.2_plan.md`): the eight colour themes and the six typefaces, each chosen from a gallery like the app icon's (`StyleGalleries.swift`), whose tiles show the same fixed sample, Easter Sunday's *Magnificat* antiphon and the canticle's opening (`GallerySample`), set by the office's own typesetter.
 - **Sacerdos vel diaconus adest:** on gives *Dominus vobiscum*; off gives *Domine, exaudi orationem meam*.
 - **Rubricæ:** show or hide rubrics.
@@ -154,12 +155,23 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
     - right: short date, e.g. `16-Sep-26`;
     - left: nothing (Universalis's audio button is omitted).
 
+### Kalendarium (1.4)
+
+Measured from the user's screenshot of Universalis's calendar list (12 November 2026, at about 2.37 px per point; the image is not committed), with the user's changes: no weekday, and our columns. It replaced *Jump to date* (`App/Breviarium/Vespers/KalendariumView.swift`).
+
+- A year as a list of months. Each month opens with a **band**, about 29 pt high, slightly lighter than the background, with the month and year (*November 2026*) in SF semibold at body size, 17 pt from the left; it stays pinned while its month scrolls.
+- **One row per day, each one line and all the same height** (decided 2026-11-12), divided by fine rules (0.5 pt, the chrome colour, inset 16 pt), with about 8 pt above and below the text: the **day number**, the **class** as a Roman numeral (*III*, smaller, chrome grey; nothing for a feria), the **name**, in SF at about 17 pt, bold for a I or II class day, and a **dot of its colour** at the end. A name too long for its line is shown in an Ordo's abbreviations (`Kalendarium.shortName`: *Feria V hebd. XXIII post Oct. Pent.*), and cut off if it still doesn't fit.
+- **Today** is framed in the theme's icon colour.
+- The rows run the full width: no month index down the right edge (dropped 2026-11-12). Two capsule buttons at the foot give the **year** (‹ 2026 ›) and **Today**.
+- It opens on the day shown and follows *Ritus*; a tap on a day opens it at the hour already chosen. The calendar button (under *Menus: Standard*), the date line and the footer's date open it.
+
 ### Behaviour
 
 - **Paging** (decided 2026-09-24, replacing "one page per section group"). An hour is paginated **like a printed book**: the text flows line by line from one page to the next, at any text size or orientation, and a paragraph that doesn't fit continues at the top of the next page. The user swipes horizontally between pages. The header elements (items 2–6) appear on page 1 only, as in the screenshot.
   - A **Scrolling** setting switches between these horizontal pages (the default) and one continuous vertical scroll.
   - A **Page turn** setting chooses a book-like page curl (the default since 1.2, decided 2026-10-10; a sideways slide before) or a sideways slide for horizontal pages.
   - Both need UIKit/TextKit (SwiftUI cannot flow one text across pages, and the curl exists only in `UIPageViewController`); this is the approved UIKit exception, confined to `App/Breviarium/Vespers/OfficeReaders.swift` and `OfficeTypesetter.swift`.
+  - **On iPad** (1.4), a wide window shows horizontal pages as a **two-page spread**, like an open book, with page 1's header on the left page; a portrait or narrow window shows one page as on the iPhone.
 - **Text size** scales every serif size and the vertical spacing proportionally. The chrome text scales too, but more gently.
 
 ### Parallel English
@@ -167,6 +179,7 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
 - **With English on:**
   - Verse material (psalms, canticles, antiphons, hymn stanzas, versicles and responses) is shown **side by side**, Latin left and English right, with each column using the same typographic rules.
   - **Prose** (chapter, collect, the short *Amen.*, *Orémus.*) is side by side too (decided 2026-10-09: stacking spoiled the page). Only the **Matins lessons** are stacked, Latin then English, in portrait, and side by side in landscape.
+- **On an iPad spread** (1.4), English on puts the **Latin on the left page and the English on the right**, level unit by unit, like a facing-page edition; each spread is one page in the footer.
 - **With English off,** Latin uses the full width.
 - **Alignment** is by structural unit:
   - psalms verse by verse with the Vulgate, whose lines match the English one to one; with the Pius XII psalter, each psalm is paired whole, as Divinum Officium does, since its verse division doesn't match the English (decided 2026-09-24, see `docs/psalters-and-english.md`);
@@ -242,13 +255,13 @@ The size ratios below are deliberate and win over the screenshot (decided 2026-0
   - a I class feast;
   - a Holy Week day.
 
-  Each is rendered with English off and on, in portrait (plus landscape with English on), at the default and the largest text size.
+  Each is rendered with English off and on, in portrait (plus landscape with English on), at the default and the largest text size. From 1.4 an iPad Air 11" (M3) job adds the spread and facing-page English in landscape, portrait, vertical scrolling, the slide page turn, the Kalendarium and *Menus: Hidden*.
 - **Never "fix" a failing oracle test by editing the fixture.** If you believe DO is wrong on a date, stop and show the evidence: the relevant Codex Rubricarum 1960 section, with DO's output next to ours.
 
 ## Working conventions
 
 - Work milestone by milestone. At the end of each one, summarise what was built, show the test results (and snapshot images for UI work), and wait for approval.
 - Keep commits small and descriptive.
-- **CI costs about an hour per push** to a pull request: a full round takes about 50 minutes (22 audit jobs, the longest the Dominican day hours at about 38; App CI about 48), accepted on 2026-10-03 so that every push keeps every check. Split an audit job that grows past 40 minutes. Batch docs changes, and don't push while a pull request's checks are running unless the push fixes them (added 2026-09-27).
+- **CI costs about an hour per push** to a pull request: a full round took about 65 minutes before 1.4 (App CI 65, its UI tests one class after another; 21 audit jobs, the longest the Dominican day hours with the 2044 hold-out at 48), accepted on 2026-10-03 so that every push keeps every check. Since 1.4 App CI builds once and runs its UI tests on five runners at once, and the Dominican 2044 hold-out is its own audit job (`docs/1.4_plan.md`, M-CI), aiming at about 25 minutes for App CI and 35 for the audits. Split an audit job that grows past 40 minutes, and rebalance App CI's test groups when one grows past 15. Batch docs changes, and don't push while a pull request's checks are running unless the push fixes them (added 2026-09-27).
 - Code is in English, except for Latin identifiers where they are the natural domain terms (`Vesperae`, `Commemoratio`).
 - When liturgical correctness is uncertain, ask. Do not improvise rubrics.

@@ -51,7 +51,7 @@ final class OfficeDataStore {
     private let sanctoralCalendars: [Rite: SanctoralCalendar]
     /// Beta 6: Ambrosian Compline, from its own sources (`BreviariumKit.AmbrosianCompline`).
     private var ambrosianCompline: AmbrosianCompline?
-    private var colorCache: [String: [Int: CalendarColor]] = [:]
+    private var kalendariumCache: [String: [KalendariumEntry]] = [:]
 
     /// What happened while loading the bundle, for the fallback UI to show verbatim --
     /// temporary, diagnostic-only scaffolding while the bundling pipeline is still being
@@ -209,35 +209,22 @@ final class OfficeDataStore {
         )
     }
 
-    /// The colour of each day of a month, for the *Jump to date* calendar (Beta 4),
-    /// computed once per month.
-    func calendarColors(year: Int, month: Int, rite: Rite = .romanus) -> [Int: CalendarColor] {
+    /// A month of the *Kalendarium* (1.4, which replaced *Jump to date* and its colour
+    /// dots), computed once per month and rite: every row comes from the engine
+    /// (`BreviariumKit.Kalendarium`), as the hours' own title does, and its colour from
+    /// the same `CalendarColor` the dots had (Ambrosian: `AmbrosianCalendar.color`).
+    func kalendarium(year: Int, month: Int, rite: Rite) -> [KalendariumEntry] {
         let key = "\(rite.rawValue)|\(year * 100 + month)"
-        if let cached = colorCache[key] { return cached }
-        // Beta 6: the Ambrosian colours, by the Missal's rubrics (`AmbrosianCalendar.color`).
-        guard rite.usesDivinumOfficium else {
-            guard let calendar = ambrosianCompline?.calendar else { return [:] }
-            var colors: [Int: CalendarColor] = [:]
-            var (day, m, y) = (1, month, year)
-            while m == month, y == year {
-                colors[day] = calendar.color(day: day, month: m, year: y)
-                (day, m, y) = Computus.addDays(1, day: day, month: m, year: y)
-            }
-            colorCache[key] = colors
-            return colors
+        if let cached = kalendariumCache[key] { return cached }
+        let entries: [KalendariumEntry]
+        if rite.usesDivinumOfficium {
+            guard let latinCorpus, let sanctoralCalendar = sanctoralCalendars[rite] else { return [] }
+            entries = Kalendarium.month(year: year, month: month, rite: rite, corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar)
+        } else {
+            guard let calendar = ambrosianCompline?.calendar else { return [] }
+            entries = Kalendarium.month(year: year, month: month, ambrosian: calendar)
         }
-        guard let latinCorpus, let sanctoralCalendar = sanctoralCalendars[rite] else { return [:] }
-        var colors: [Int: CalendarColor] = [:]
-        var (day, m, y) = (1, month, year)
-        while m == month, y == year {
-            let context = ConditionalContextBuilder.build(
-                day: day, month: m, year: y, ad: "Laudes", rubrica: rite.doVersion, corpus: latinCorpus, sanctoralCalendar: sanctoralCalendar
-            )
-            colors[day] = LiturgicalCalendarEngine(corpus: latinCorpus, context: context, sanctoralCalendar: sanctoralCalendar)
-                .calendarColor(day: day, month: m, year: y)
-            (day, m, y) = Computus.addDays(1, day: day, month: m, year: y)
-        }
-        colorCache[key] = colors
-        return colors
+        kalendariumCache[key] = entries
+        return entries
     }
 }

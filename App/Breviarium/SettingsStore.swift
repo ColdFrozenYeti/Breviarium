@@ -22,6 +22,22 @@ enum PageTurn: String, CaseIterable {
     case slide, curl
 }
 
+/// The reader's menus (1.4, `docs/1.4_plan.md`): *Standard* (the default, in the theme's
+/// rubric colour, with a picker chevron on the hour title and a calendar button), *Prayer*
+/// (the plain grey look before 1.4) or *Hidden* (only the prayer and a bare page number;
+/// a tap on the page number or the top strip brings the menus back for a moment).
+enum MenuStyle: String, CaseIterable {
+    case standard, prayer, hidden
+
+    var label: String {
+        switch self {
+        case .standard: "Standard"
+        case .prayer: "Prayer"
+        case .hidden: "Hidden"
+        }
+    }
+}
+
 @MainActor
 final class SettingsStore: ObservableObject {
     @Published var priestPresent: Bool {
@@ -68,6 +84,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(font.rawValue, forKey: Keys.font) }
     }
 
+    /// The reader's menus (1.4): *Standard* by default.
+    @Published var menus: MenuStyle {
+        didSet { defaults.set(menus.rawValue, forKey: Keys.menus) }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -82,6 +103,7 @@ final class SettingsStore: ObservableObject {
         static let rite = "settings.rite"
         static let theme = "settings.theme"
         static let font = "settings.font"
+        static let menus = "settings.menus"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -103,5 +125,6 @@ final class SettingsStore: ObservableObject {
         rite = defaults.string(forKey: Keys.rite).flatMap(Rite.init(rawValue:)) ?? .romanus
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
         font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
+        menus = defaults.string(forKey: Keys.menus).flatMap(MenuStyle.init(rawValue:)) ?? .standard
     }
 }

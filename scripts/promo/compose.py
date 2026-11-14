@@ -3,9 +3,11 @@
 
 Each image is 1320x2868 (6.9" iPhone, the App Store's required size): a caption in the
 app's own bundled fonts above the screenshot, which sits in a rounded frame on a dark
-ground. Build tooling only (Pillow); nothing here ships in the app.
+ground. With --ipad (1.4), 2752x2064, the 13" iPad's size in landscape, from the iPad's
+stills (the two-page spread), turned upright first. Build tooling only (Pillow); nothing
+here ships in the app.
 
-    python3 -B scripts/promo/compose.py <stills-dir> <out-dir>
+    python3 -B scripts/promo/compose.py [--ipad] <stills-dir> <out-dir>
 """
 import sys
 from pathlib import Path
@@ -15,6 +17,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parents[2]
 FONTS = ROOT / "App/Breviarium/Fonts"
 W, H = 1320, 2868
+IPAD = False
 
 INK = (255, 255, 255)
 RUBRIC = (255, 128, 128)  # #FF8080, the Nox theme's rubric red
@@ -34,6 +37,19 @@ SHOTS = [
     ("promo-09-dominican", "The Dominican\noffice too", "Ordo Prædicatorum, 1962"),
     ("promo-10-ambrosian", "And Ambrosian\nCompline", "From the 1957 Ambrosian breviary"),
     ("promo-11-settings", "Fully offline", "No account, no tracking, no data collected"),
+]
+
+# The iPad's (1.4): one line each, above a landscape screenshot.
+SHOTS_IPAD = [
+    ("ipad-01-spread", "The traditional Divine Office", "Breviarium Romanum, 1960 rubrics, as an open book"),
+    ("ipad-02-facing", "Latin and English, on facing pages", "Douay-Rheims and Divinum Officium"),
+    ("ipad-03-calendar", "Any day, any year", "The Kalendarium, computed on your iPad"),
+    ("ipad-04-hours", "Every hour, from Matins to Compline", "With the Martyrology after Prime"),
+    ("ipad-05-vellum-matins", "Matins, with every lesson", "All Saints, in the Vellum theme"),
+    ("ipad-06-themes", "Eight themes, six typefaces", "Dark for the night, light for the day"),
+    ("ipad-07-dominican", "The Dominican office too", "Ordo Prædicatorum, 1962"),
+    ("ipad-08-ambrosian", "And Ambrosian Compline", "From the 1957 Ambrosian breviary"),
+    ("ipad-09-settings", "Fully offline", "No account, no tracking, no data collected"),
 ]
 
 
@@ -65,23 +81,26 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
 
     title_font = font("GentiumBookPlus-Bold.ttf", 112)
     sub_font = font("SourceSans3-Regular.ttf", 50)
-    y = 190
+    y = 120 if IPAD else 190
     for line in caption.split("\n"):
         width = draw.textlength(line, font=title_font)
         draw.text(((W - width) / 2, y), line, font=title_font, fill=INK)
         y += 132
-    y += 44
+    y += 44 if not IPAD else 24
     draw.line([(W / 2 - 70, y), (W / 2 + 70, y)], fill=GOLD, width=4)
-    y += 40
+    y += 40 if not IPAD else 28
     width = draw.textlength(subline, font=sub_font)
     draw.text(((W - width) / 2, y), subline, font=sub_font, fill=RUBRIC)
 
     shot = Image.open(still).convert("RGB")
-    top = 760
+    if IPAD and shot.height > shot.width:
+        # A landscape window's capture keeps the screen's orientation (landscape left).
+        shot = shot.rotate(90, expand=True)
+    top = 470 if IPAD else 760
     scale = (H - top + 120) / shot.height  # runs off the bottom edge a little
     scale = min(scale, 0.84 * W / shot.width)
     shot = shot.resize((round(shot.width * scale), round(shot.height * scale)), Image.LANCZOS)
-    radius = round(150 * scale)
+    radius = round((60 if IPAD else 150) * scale)
     framed = rounded(shot, radius)
     x = (W - shot.width) // 2
 
@@ -99,15 +118,21 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
 
 
 def main() -> None:
-    stills, out = Path(sys.argv[1]), Path(sys.argv[2])
+    global W, H, IPAD
+    args = sys.argv[1:]
+    if args and args[0] == "--ipad":
+        IPAD = True
+        W, H = 2752, 2064
+        args = args[1:]
+    stills, out = Path(args[0]), Path(args[1])
     out.mkdir(parents=True, exist_ok=True)
-    for index, (name, caption, subline) in enumerate(SHOTS, start=1):
+    for index, (name, caption, subline) in enumerate(SHOTS_IPAD if IPAD else SHOTS, start=1):
         matches = sorted(stills.glob(f"{name}*.png"))
         if not matches:
             print(f"missing: {name}")
             continue
         image = compose(matches[0], caption, subline)
-        target = out / f"{index:02d}-{name.removeprefix('promo-')[3:]}.png"
+        target = out / f"{index:02d}-{name.split('-', 2)[2]}.png"
         image.save(target, optimize=True)
         print(target)
 

@@ -23,10 +23,10 @@ struct Theme: Equatable {
     var uiBackground: UIColor { UIColor(background) }
     var indicatorStyle: UIScrollView.IndicatorStyle { isLight ? .black : .white }
 
-    /// The liturgical colour dots of the *Jump to date* calendar (Beta 4, decision 4):
+    /// The liturgical colour dots of the *Kalendarium* (1.4; *Jump to date* before, Beta 4, decision 4):
     /// red and green as in `design/reference/Calendar.png`, violet and rose lightened to
     /// read on black; black days get a grey ring, or on a light theme a black dot
-    /// (`CalendarDot`).
+    /// (`KalendariumView.dot`).
     func liturgical(_ color: CalendarColor) -> Color {
         switch color {
         case .white: .white
