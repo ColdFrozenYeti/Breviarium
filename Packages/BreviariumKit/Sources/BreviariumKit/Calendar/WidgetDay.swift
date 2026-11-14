@@ -26,6 +26,15 @@ public struct WidgetDay: Equatable, Sendable {
     /// when the hour has none (the little hours of the Triduum).
     public var antiphon: String?
 
+    /// The text a widget shows under the hour's title: the antiphon, or, when the hour
+    /// has none, the day's Latin title, the name line of its title block (decided
+    /// 2026-11-14; *Feria Sexta in Passione et Morte Domini* at the little hours of Good Friday).
+    public var hourText: String { antiphon ?? titleBlock.nameLine }
+
+    /// Whether `hourText` is the antiphon (set as an antiphon) or the day's title (set
+    /// as the title is).
+    public var hourTextIsAntiphon: Bool { antiphon != nil }
+
     public init(
         day: Int, month: Int, year: Int, hour: CanonicalHour, dateLine: String, titleBlock: TitleBlock, color: CalendarColor?, antiphon: String?
     ) {
@@ -48,7 +57,8 @@ public struct WidgetDay: Equatable, Sendable {
     ///   before the canticle can be an intonation alone (Ambrosian Compline's *Salva nos.*);
     /// - at Matins, the first antiphon of the first nocturn (not the invitatory);
     /// - at the other hours, the first antiphon of the psalmody.
-    /// `nil` when that section has no antiphon: nothing stands in for it.
+    /// `nil` when that section has no antiphon; the widget then shows the day's title
+    /// (`hourText`), never another antiphon.
     public static func antiphon(of assembled: Hour, hour: CanonicalHour) -> String? {
         func antiphons(_ kinds: [Section.Kind]) -> [String] {
             guard let section = assembled.sections.first(where: { kinds.contains($0.kind) }) else { return [] }
@@ -74,8 +84,8 @@ public struct WidgetOffice: Sendable {
         ambrosian = pack.ambrosianCompline
     }
 
-    /// One hour of a day under a rite and office. The psalter is the Vulgate unless
-    /// given: the antiphons are the same text under either psalter's corpus layering.
+    /// One hour of a day under a rite, office and psalter. The psalter is the widget's
+    /// own *Psalterium* option (decided 2026-11-14): the psalmody's antiphons follow it.
     public func day(
         _ requested: CanonicalHour, day: Int, month: Int, year: Int, rite: Rite = .romanus, officium: Officium = .diei, psalter: Psalter = .vulgate
     ) -> WidgetDay? {

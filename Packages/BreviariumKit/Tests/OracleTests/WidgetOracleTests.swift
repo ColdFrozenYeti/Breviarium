@@ -120,7 +120,11 @@ private func dateLabel(_ d: Int, _ m: Int, _ y: Int) -> String {
 @Test func widgetTriduumLittleHoursHaveNoAntiphon() throws {
     guard let office = RealPack.office else { return }
     for hour in [CanonicalHour.prima, .tertia, .sexta, .nona] {
-        #expect(try #require(office.day(hour, day: 3, month: 4, year: 2026)).antiphon == nil, "Good Friday \(hour)")
+        let day = try #require(office.day(hour, day: 3, month: 4, year: 2026))
+        #expect(day.antiphon == nil, "Good Friday \(hour)")
+        // The day's Latin title stands in (decided 2026-11-14).
+        #expect(day.hourText == day.titleBlock.nameLine && !day.hourTextIsAntiphon, "Good Friday \(hour)")
+        #expect(day.hourText == "Feria Sexta in Passione et Morte Domini", "\(day.hourText)")
     }
     #expect(try #require(office.day(.vesperae, day: 3, month: 4, year: 2026)).antiphon?.hasPrefix("Cum accepísset acétum") == true)
 }
@@ -148,4 +152,34 @@ private func dateLabel(_ d: Int, _ m: Int, _ y: Int) -> String {
     // intonation (*Salva nos.*) before it; Latin from the 1957 breviary, no Roman text.
     #expect(compline.antiphon?.hasPrefix("Salva nos, Domine, vigilantes") == true, "\(compline.antiphon ?? "nil")")
     #expect(compline.antiphon?.contains("Dómine") == false)
+}
+
+/// The widget's *Psalterium* option (decided 2026-11-14): with the Pius XII psalter,
+/// every fortnight of 2026, every Roman hour's antiphon is on DO's Pius XII page.
+@Test func widgetPiusXIIAntiphonsAreOnDivinumOfficiumsPiusXIIPages() async throws {
+    guard let office = RealPack.office else { return }
+    var (d, m, y) = (1, 1, 2026)
+    var fixtures: [CanonicalHour: [String: String]] = [:]
+    var checked = 0
+    while y == 2026 {
+        for hour in CanonicalHour.allCases {
+            let widget = try #require(office.day(hour, day: d, month: m, year: y, psalter: .pius12), "\(hour) \(dateLabel(d, m, y))")
+            guard let antiphon = widget.antiphon else { continue }
+            let fixture: String?
+            if hour == .vesperae {
+                fixture = try await OracleFixture.shared.range(psalter: .pius12, year: y, date: dateLabel(d, m, y))
+            } else {
+                if fixtures[hour] == nil { fixtures[hour] = try await OracleFixture.shared.hourYear(set: "hours-bea", hour: hour, year: y) ?? [:] }
+                fixture = fixtures[hour]?["\(y)/\(dateLabel(d, m, y))_priestN_latin.txt"]
+            }
+            guard let fixture else { continue }
+            checked += 1
+            #expect(
+                collapsedWhitespace(LatinOrthography.normalize(fixture)).contains(collapsedWhitespace(antiphon)),
+                "Pius XII \(hour) \(dateLabel(d, m, y)): \(antiphon)"
+            )
+        }
+        (d, m, y) = Computus.addDays(14, day: d, month: m, year: y)
+    }
+    #expect(checked > 180, "only \(checked) antiphons checked against DO")
 }

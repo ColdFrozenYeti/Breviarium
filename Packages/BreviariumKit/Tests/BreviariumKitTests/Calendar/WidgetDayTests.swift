@@ -102,3 +102,13 @@ private let sampleHour = Hour(sections: [
     #expect(WidgetDay.antiphon(of: triduum, hour: .tertia) == nil)
     #expect(WidgetDay.antiphon(of: Hour(sections: []), hour: .vesperae) == nil)
 }
+
+@Test func withoutAnAntiphonTheWidgetShowsTheDaysTitle() {
+    let title = TitleBlock(classisLine: "I. classis", nameLine: "Feria Sexta in Passione et Morte Domini", commemorationLine: nil)
+    let none = WidgetDay(day: 3, month: 4, year: 2026, hour: .tertia, dateLine: "Dies 3 aprilis 2026", titleBlock: title, color: .black, antiphon: nil)
+    #expect(none.hourText == "Feria Sexta in Passione et Morte Domini")
+    #expect(!none.hourTextIsAntiphon)
+    let some = WidgetDay(day: 3, month: 4, year: 2026, hour: .vesperae, dateLine: "Dies 3 aprilis 2026", titleBlock: title, color: .black, antiphon: "Cum accepísset")
+    #expect(some.hourText == "Cum accepísset")
+    #expect(some.hourTextIsAntiphon)
+}
