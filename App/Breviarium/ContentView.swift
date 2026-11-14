@@ -84,15 +84,8 @@ struct ContentView: View {
     /// until 05:00, Lauds until 09:00, Terce until 12:00, Sext until 15:00, None until
     /// 17:00, Vespers until 20:00, then Compline. Prime is reached from the picker.
     static func hourForTimeOfDay(_ date: Date, calendar: Calendar = .current) -> CanonicalHour {
-        switch calendar.component(.hour, from: date) {
-        case ..<5: .matutinum
-        case ..<9: .laudes
-        case ..<12: .tertia
-        case ..<15: .sexta
-        case ..<17: .nona
-        case ..<20: .vesperae
-        default: .completorium
-        }
+        // The schedule lives in the Kit (1.5), shared with the widgets.
+        CanonicalHour.forTimeOfDay(clockHour: calendar.component(.hour, from: date))
     }
 
     private var shownHour: OfficeHour { selection.shown(in: settings.officium, rite: settings.rite) }
