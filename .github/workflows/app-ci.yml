@@ -134,11 +134,15 @@ jobs:
           plutil -lint "$EXT/PrivacyInfo.xcprivacy"
           test "$(plutil -extract NSPrivacyTracking raw "$EXT/PrivacyInfo.xcprivacy")" = false
           test -s "$APP/breviarium-widget.pack"
-          # The App Group the widgets follow the app's settings through (1.5), in both
-          # signatures (the simulator build is signed to run locally).
-          for BUNDLE in "$APP" "$EXT"; do
-            codesign -d --entitlements :- "$BUNDLE" 2>/dev/null | grep -q group.com.epavone.breviarium \
-              || { echo "No App Group entitlement in $BUNDLE" >&2; exit 1; }
+          # The App Group the widgets follow the app's settings through (1.5), for both
+          # targets. A simulator build keeps its entitlements as "simulated" ones, outside
+          # the code signature `codesign -d` reads, so the check reads what the build
+          # wrote for each target (testflight.yml checks the real device signatures).
+          INTER=DerivedData/Build/Intermediates.noindex/Breviarium.build/Debug-iphonesimulator
+          for XCENT in "$INTER/Breviarium.build/Breviarium.app-Simulated.xcent" \
+                       "$INTER/BreviariumWidget.build/BreviariumWidget.appex-Simulated.xcent"; do
+            grep -q group.com.epavone.breviarium "$XCENT" \
+              || { echo "No App Group entitlement in $XCENT" >&2; exit 1; }
           done
           test "$(plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$APP/Info.plist")" = breviarium
 
