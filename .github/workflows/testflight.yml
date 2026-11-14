@@ -74,6 +74,9 @@ jobs:
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
           xcodegen generate
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Breviarium/Info.plist
+          # The widget extension's too (1.5): App Store Connect refuses an extension
+          # whose version differs from its app's.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" BreviariumWidget/Info.plist
           echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Breviarium/Info.plist) ($BUILD_NUMBER)"
 
       - name: Archive (unsigned, as build-ipa.yml builds)

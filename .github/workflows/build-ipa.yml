@@ -91,6 +91,13 @@ jobs:
           fi
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
+          # No widgets in the sideloaded build (1.5, CLAUDE.md "No capability a free
+          # Apple ID can't sign"): the widget extension would need its own App ID and
+          # signature from the free Apple ID, so it is removed. The app runs the same
+          # without it (WidgetKit simply finds no widgets). The data pack stays: it's
+          # an ordinary resource, unused by the app itself.
+          rm -rf Payload/Breviarium.app/PlugIns
+          if find Payload -name '*.appex' | grep -q .; then echo "An extension is still in the .ipa" >&2; exit 1; fi
           ditto -c -k --sequesterRsrc --keepParent Payload Breviarium.ipa
 
       - uses: actions/upload-artifact@v7

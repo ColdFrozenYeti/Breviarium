@@ -122,6 +122,19 @@ jobs:
           test "$(plutil -extract 'UISupportedInterfaceOrientations~ipad' json -o - "$APP/Info.plist" | tr -cd ',' | wc -c | tr -d ' ')" = 3
           # Runs on any iOS 26 (decided 2026-10-11), not only 26.5.
           test "$(plutil -extract MinimumOSVersion raw "$APP/Info.plist")" = 26.0
+          # The widget extension (1.5): embedded, its own bundle ID, iPhone and iPad, its
+          # privacy manifest, the app's version, and the data pack it reads in the app.
+          EXT="$APP/PlugIns/BreviariumWidget.appex"
+          test -d "$EXT"
+          test "$(plutil -extract CFBundleIdentifier raw "$EXT/Info.plist")" = com.epavone.breviarium.widget
+          test "$(plutil -extract NSExtension.NSExtensionPointIdentifier raw "$EXT/Info.plist")" = com.apple.widgetkit-extension
+          test "$(plutil -extract UIDeviceFamily json -o - "$EXT/Info.plist")" = "[1,2]"
+          test "$(plutil -extract CFBundleShortVersionString raw "$EXT/Info.plist")" = "$(plutil -extract CFBundleShortVersionString raw "$APP/Info.plist")"
+          test "$(plutil -extract CFBundleVersion raw "$EXT/Info.plist")" = "$(plutil -extract CFBundleVersion raw "$APP/Info.plist")"
+          plutil -lint "$EXT/PrivacyInfo.xcprivacy"
+          test "$(plutil -extract NSPrivacyTracking raw "$EXT/PrivacyInfo.xcprivacy")" = false
+          test -s "$APP/breviarium-widget.pack"
+          test "$(plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$APP/Info.plist")" = breviarium
 
       # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.
       - name: Pack the test build
@@ -161,10 +174,10 @@ jobs:
           - group: day-hours-votive
             classes: DayHoursUITests VotiveOfficesUITests
           - group: launch-theme
-            classes: LaunchAndNavigationUITests ThemeUITests
+            classes: LaunchAndNavigationUITests ThemeUITests WidgetGalleryUITests
           - group: dominican-ambrosian-gallery-ipad
             classes: DominicanUITests AmbrosianUITests GalleryUITests
-            ipad_classes: IPadUITests
+            ipad_classes: IPadUITests WidgetGalleryUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "26.5"

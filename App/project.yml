@@ -36,17 +36,24 @@ targets:
       # failed to end up in Bundle.main at all, confirmed by a real failing snapshot
       # test. CLAUDE.md's "everything ships inside the app bundle."
       - path: Breviarium
+      # The widgets' faces (1.5), shared with the widget extension: the app's debug-only
+      # gallery draws them for the UI tests' snapshots.
+      - path: Shared
     dependencies:
       - package: BreviariumKit
         product: BreviariumKit
+      # The widget extension (1.5), embedded in PlugIns/. Only the TestFlight and App
+      # Store build keeps it: build-ipa.yml strips PlugIns/ from the sideloaded .ipa
+      # (CLAUDE.md, "No capability a free Apple ID can't sign").
+      - target: BreviariumWidget
     info:
       path: Breviarium/Info.plist
       properties:
         CFBundleDisplayName: Breviarium
         # The release (1.0 on 10 October 2026, 1.1 and 1.2 on 10 October, 1.3 on 11 October, 1.4
         # in November) and the build number.
-        CFBundleShortVersionString: "1.4"
-        CFBundleVersion: "5"
+        CFBundleShortVersionString: "1.5"
+        CFBundleVersion: "6"
         UILaunchScreen: {}
         # Portrait is the primary layout; landscape is needed too -- CLAUDE.md's
         # parallel-English spec shows prose stacked in portrait but side by side in
@@ -86,6 +93,12 @@ targets:
         # calls at all), so App Store Connect needn't ask about export compliance on
         # every upload.
         ITSAppUsesNonExemptEncryption: false
+        # A tap on a widget opens breviarium://open?hour=...&date=... (1.5): a URL scheme
+        # of the app's own, not an associated domain, and nothing on the network.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.epavone.breviarium
+            CFBundleURLSchemes:
+              - breviarium
         # Fully offline app: no network entitlements, no background modes.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
@@ -108,6 +121,41 @@ targets:
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconNorthumberland AppIconNorthumberlandInverted AppIconWalters AppIconBenedictus AppIconGutenbergMono AppIconGutenberg AppIconChurchOfAmbrose AppIconWeissenau"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         GENERATE_INFOPLIST_FILE: NO
+
+  # The widgets (1.5, docs/1.5_plan.md): the day, the hour and the Lock Screen. No App
+  # Group or other capability; its settings are its own (App Intents). It reads the data
+  # pack and the fonts from the app's bundle, which contains it.
+  BreviariumWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BreviariumWidget
+      - path: Shared
+      # The themes and fonts (1.2), as the app has them.
+      - path: Breviarium/DesignSystem/Theme.swift
+    dependencies:
+      - package: BreviariumKit
+        product: BreviariumKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: AppIntents.framework
+    info:
+      path: BreviariumWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Breviarium
+        # Must match the app's (App Store Connect refuses an extension whose version
+        # differs); testflight.yml sets both build numbers.
+        CFBundleShortVersionString: "1.5"
+        CFBundleVersion: "6"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.epavone.breviarium.widget
+        PRODUCT_NAME: BreviariumWidget
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
 
   BreviariumUITests:
     type: bundle.ui-testing

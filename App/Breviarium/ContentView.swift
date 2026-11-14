@@ -53,6 +53,13 @@ struct ContentView: View {
             .environment(\.theme, settings.theme.theme)
             .environment(\.gallerySample, dataStore.gallerySample)
             .preferredColorScheme(settings.theme.theme.colorScheme)
+            // A tap on a widget (1.5): its hour and date, as a tap on a Kalendarium day
+            // opens a date, under the app's own rite and office.
+            .onOpenURL { url in
+                guard let link = WidgetData.parse(url) else { return }
+                displayedDate = SimpleDate(day: link.day, month: link.month, year: link.year)
+                selection = .hour(link.hour)
+            }
     }
 
     @ViewBuilder
