@@ -13,9 +13,9 @@ final class NotificationsUITests: BreviariumUITestCase {
     /// Opens Settings, then the *Notifications* page.
     @discardableResult
     private func openPage(mode: String? = "granted", reminders: String = "{}", theme: String = "classicDark") -> XCUIApplication {
-        let app = launchApp(
-            date: "2026-09-16", theme: theme, reminders: reminders, environment: mode.map { ["BREVIARIUM_NOTIFICATIONS": $0] } ?? [:]
-        )
+        var environment = ["BREVIARIUM_SNAPSHOT_REMINDERS": reminders]
+        if let mode { environment["BREVIARIUM_NOTIFICATIONS"] = mode }
+        let app = launchApp(date: "2026-09-16", theme: theme, environment: environment)
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         let row = app.buttons["notificationsRow"]

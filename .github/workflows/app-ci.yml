@@ -186,21 +186,22 @@ jobs:
         # making and booting the iPad), so it runs after the quickest group, not Matins
         # (which took 12 minutes alone there). In run 43654040196 (14 November 2026) the
         # groups took 24, 17 (matins), 25, 36 and 20 minutes, so the reminders' tests
-        # (1.6) join Matins, on the iPhone and the iPad both.
+        # (1.6) join Matins on the iPhone, with GalleryUITests moved there to make room
+        # for them in the iPad pass, which keeps its one iPad boot (a second group's
+        # fresh iPad was not found by xcodebuild in run 43661019769).
         # PromoUITests is left out: it skips itself outside promo.yml.
         include:
           - group: vespers-font
             classes: VespersMatrixUITests FontUITests
           - group: matins
-            classes: MatinsUITests NotificationsUITests
-            ipad_classes: NotificationsUITests
+            classes: MatinsUITests NotificationsUITests GalleryUITests
           - group: day-hours-votive
             classes: DayHoursUITests VotiveOfficesUITests
           - group: launch-theme
             classes: LaunchAndNavigationUITests ThemeUITests WidgetGalleryUITests
           - group: dominican-ambrosian-gallery-ipad
-            classes: DominicanUITests AmbrosianUITests GalleryUITests
-            ipad_classes: IPadUITests WidgetGalleryUITests
+            classes: DominicanUITests AmbrosianUITests
+            ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "26.5"

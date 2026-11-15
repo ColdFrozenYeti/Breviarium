@@ -152,9 +152,12 @@ final class SettingsStore: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
         font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
         menus = defaults.string(forKey: Keys.menus).flatMap(MenuStyle.init(rawValue:)) ?? .standard
-        // Saved as JSON data; a UI test's `-settings.reminders '{…}'` launch argument
-        // arrives as a string.
-        let remindersJSON = defaults.data(forKey: Keys.reminders) ?? defaults.string(forKey: Keys.reminders).map { Data($0.utf8) }
+        // Saved as JSON data. A UI test pins them with `-settings.reminders {}` (all off),
+        // or sets some through `BREVIARIUM_SNAPSHOT_REMINDERS` (JSON, debug builds only).
+        var remindersJSON = defaults.data(forKey: Keys.reminders)
+        #if DEBUG
+        if let preset = ProcessInfo.processInfo.environment["BREVIARIUM_SNAPSHOT_REMINDERS"] { remindersJSON = Data(preset.utf8) }
+        #endif
         reminders = remindersJSON.flatMap { try? JSONDecoder().decode([String: HourReminder].self, from: $0) } ?? [:]
         // The widgets follow these (1.5): a fresh install, or a build from before 1.5,
         // shares them once at launch.
