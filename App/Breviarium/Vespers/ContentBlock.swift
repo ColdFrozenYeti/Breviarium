@@ -19,10 +19,10 @@ enum ContentBlock: Identifiable {
     /// `alternateVerse` is true when this `.verse` unit (or the Introductio's *Allelúia*
     /// after its doxology) should render as a whole in
     /// italics -- direct feedback: alternate verses of a psalm should read "as if said
-    /// by one person and then another" (verse 1 italic, verse 2 not, verse 3 italic...
-    /// confirmed against the real Bea Psalm135, where verse 10 "Qui percússit..." is
-    /// the non-italic one and verse 11 "Et edúxit..." is the italic one -- i.e. odd
-    /// verse numbers are the italic side). Always `false` for non-`.verse` units, which
+    /// by one person and then another". 1.6.1 (the user, 15 November 2026): the first
+    /// verse is upright, then italic, upright... -- even verses are the italic side, as
+    /// in the Theme and Font galleries' sample; until 1.6 the first verse was italic.
+    /// The psalm's *Glória Patri* carries the alternation on. Always `false` for non-`.verse` units, which
     /// ignore it. Computed here (not in `OfficeTypesetter`, which typesets one unit at a
     /// time with no notion of its neighbours) by counting `.verse` units since the last
     /// `.antiphon`, since an antiphon marks the start of a new psalm/canticle and the
@@ -100,7 +100,7 @@ enum ContentBlock: Identifiable {
                 switch unit {
                 case .verse(_, let firstHalf, _, _, _):
                     if case .versicleResponse = previous, Self.isGloriaPatri(firstHalf) {
-                        verseCount = 1
+                        verseCount = 0
                         inOpeningGloria = true
                     }
                 case .prose:
@@ -111,11 +111,12 @@ enum ContentBlock: Identifiable {
                 }
                 var alternateVerse = false
                 if case .verse = unit, !inResponsory {
-                    alternateVerse = verseCount.isMultiple(of: 2)
+                    alternateVerse = !verseCount.isMultiple(of: 2)
                     verseCount += 1
                 }
                 if inOpeningGloria, case .prose = unit, case .verse = previous {
-                    alternateVerse = !verseCount.isMultiple(of: 2)
+                    // The response's italic, like the *Sicut erat* before it.
+                    alternateVerse = true
                     inOpeningGloria = false
                 }
                 var trailingSpace: TrailingSpace = .standard
