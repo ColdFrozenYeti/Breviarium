@@ -561,6 +561,18 @@ final class DayHoursUITests: BreviariumUITestCase {
         captureTwoPages(date: "2026-09-16", hour: "Laudes", name: "hours-0916-Laudes")
         captureTwoPages(date: "2026-04-04", hour: "Completorium", name: "hours-holysaturday-Completorium")
     }
+    /// 1.6.1, from the phone (19 November 2026): at Compline the *Glória Patri* after
+    /// *Deus in adiutórium*, which closes the short lesson's section, is upright and the
+    /// *Sicut erat* and *Allelúia* italic, as in the other hours' Introductio. Captured
+    /// on the page where the psalmody starts, and the page before it.
+    func testComplineOpeningGloria() {
+        let app = launchApp(date: "2026-11-19", section: "psalmodia", hour: "Completorium")
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "compline-1119-gloria")
+        app.swipeRight()
+        Thread.sleep(forTimeInterval: 0.6)
+        capture(app, "compline-1119-gloria-previous")
+    }
     /// 25 September 2026, as reported from the phone: each little hour's chapter page and
     /// last page (None's end was cut off), Compline's Marian antiphon, and None with
     /// English on.
@@ -693,16 +705,25 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         }
     }
     /// The Kalendarium (1.4): November 2026 opens on the day shown, framed as today, with
-    /// each day's colour (All Souls black, the Lateran white, St Martin of Tours white);
-    /// December's Gaudete rose; the year and Today move it; a tap opens the day.
+    /// its colour (St Elizabeth white); December's Gaudete rose; the year and Today move
+    /// it; a tap opens the day.
+    ///
+    /// 1.6.1: its first frame is already on the day shown. It used to open at January and
+    /// then cut to the day (TestFlight, 14 November 2026), which a capture taken after a
+    /// pause never saw: the first capture now comes at once.
     func testKalendarium() {
-        let app = launchApp(date: "2026-11-02")
+        let app = launchApp(date: "2026-11-19")
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
-        let allSouls = app.buttons["kalendariumDay-11-2"]
-        XCTAssertTrue(allSouls.waitForExistence(timeout: 5))
+        capture(app, "m14-kalendarium-first-frame")
+        let elizabeth = app.buttons["kalendariumDay-11-19"]
+        XCTAssertTrue(elizabeth.exists && elizabeth.isHittable, "the first frame should show 19 November")
+        let november = app.descendants(matching: .any)["kalendariumMonth-11"]
+        XCTAssertTrue(november.exists && november.isHittable, "November's band should be on screen")
+        let newYear = app.buttons["kalendariumDay-1-1"]
+        XCTAssertFalse(newYear.exists && newYear.isHittable, "January should not be on screen")
         Thread.sleep(forTimeInterval: 1.5)
-        XCTAssertEqual(allSouls.value as? String, "black")
+        XCTAssertEqual(elizabeth.value as? String, "white")
         capture(app, "m14-kalendarium-2026-11")
         let gaudete = app.buttons["kalendariumDay-12-13"]
         for _ in 0..<12 where !(gaudete.exists && gaudete.isHittable) {
