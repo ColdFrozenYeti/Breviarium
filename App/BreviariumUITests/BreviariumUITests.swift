@@ -24,7 +24,8 @@ class BreviariumUITestCase: XCTestCase {
         date: String, readingMode: String = "horizontal", pageTurn: String = "slide", textSize: String = "standard",
         section: String? = nil, english: Bool = false, psalter: String = "vulgate", hour: String = "Vespera",
         officium: String = "diei", rubrics: Bool = true, rite: String = "romanus", expectedTitle: String? = nil,
-        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif", menus: String = "standard"
+        priest: Bool? = nil, theme: String = "classicDark", font: String = "serif", menus: String = "standard",
+        reminders: String = "{}", environment: [String: String] = [:]
     ) -> XCUIApplication {
         // Every launch starts in portrait: a failed step ends a test at once, so a rotation
         // undone at the end of a test could leak into the next ones (it did, B1-M5: a
@@ -35,11 +36,14 @@ class BreviariumUITestCase: XCTestCase {
         if let section { app.launchEnvironment["BREVIARIUM_SNAPSHOT_SECTION"] = section }
         // Pinned, as the app otherwise opens the hour for the time of day (Beta 2).
         app.launchEnvironment["BREVIARIUM_SNAPSHOT_HOUR"] = hour
+        for (key, value) in environment { app.launchEnvironment[key] = value }
         app.launchArguments += [
             "-settings.readingMode", readingMode, "-settings.pageTurn", pageTurn, "-settings.textSize", textSize,
             "-settings.showEnglish", english ? "YES" : "NO", "-settings.psalter", psalter,
             "-settings.officium", officium, "-settings.showRubrics", rubrics ? "YES" : "NO",
             "-settings.rite", rite, "-settings.theme", theme, "-settings.font", font, "-settings.menus", menus,
+            // The reminders (1.6), all off unless a test says otherwise.
+            "-settings.reminders", reminders,
         ]
         if let priest { app.launchArguments += ["-settings.priestPresent", priest ? "YES" : "NO"] }
         app.launch()
@@ -262,8 +266,8 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         add(attachment)
 
         // Release notes, beside About at the foot of the list.
-        app.swipeUp()
         let releaseNotes = app.buttons["Release notes"]
+        scrollSettings(to: releaseNotes, in: app)
         XCTAssertTrue(releaseNotes.waitForExistence(timeout: 5))
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
