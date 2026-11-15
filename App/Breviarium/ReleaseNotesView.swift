@@ -10,6 +10,12 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.6", notes: [
+            "Reminders to pray the hours, under Notifications in Settings: one for each hour and one for the Martyrology, each with its own time. All are off until you turn one on, and only then does the app ask to send notifications.",
+            "A reminder says only the hour's name, Ad Vesperas or Martyrologium, and a tap opens that hour on that day.",
+            "They work in every build, the sideloaded one included, and need no connection.",
+            "Settings is tidier: Notifications and the app icon sit on their own, without headings, and the description under Menus is gone.",
+        ]),
         Release(name: "1.5", notes: [
             "Widgets on the Home Screen: the day, with its colour, class and name, and the hour for the time of day with its antiphon (the Benedictus at Lauds, the Magnificat at Vespers, the Nunc dimittis at Compline). Where an hour has no antiphon, the day's title stands in its place.",
             "On the Lock Screen: the day's name and class, the hour, or the Breviarium B in a ring.",

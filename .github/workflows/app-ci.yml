@@ -145,6 +145,16 @@ jobs:
               || { echo "No App Group entitlement in $XCENT" >&2; exit 1; }
           done
           test "$(plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$APP/Info.plist")" = breviarium
+          # The reminders (1.6) are local notifications: no push entitlement and no
+          # background mode, so a free Apple ID can still sign the app (CLAUDE.md).
+          if plutil -extract UIBackgroundModes raw "$APP/Info.plist" >/dev/null 2>&1; then
+            echo "UIBackgroundModes must not be declared" >&2; exit 1
+          fi
+          for XCENT in "$INTER/Breviarium.build/Breviarium.app-Simulated.xcent" Breviarium/Breviarium.entitlements; do
+            if grep -q aps-environment "$XCENT"; then
+              echo "No push entitlement may be declared ($XCENT)" >&2; exit 1
+            fi
+          done
 
       # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.
       - name: Pack the test build
@@ -174,20 +184,24 @@ jobs:
         # plan's macOS limit, so the iPad joins a group rather than adding a sixth job.
         # In run 43476364041 the iPad pass took about 14 minutes (3.5 of tests, the rest
         # making and booting the iPad), so it runs after the quickest group, not Matins
-        # (which took 12 minutes alone there).
+        # (which took 12 minutes alone there). In run 43654040196 (14 November 2026) the
+        # groups took 24, 17 (matins), 25, 36 and 20 minutes, so the reminders' tests
+        # (1.6) join Matins on the iPhone, with GalleryUITests moved there to make room
+        # for them in the iPad pass, which keeps its one iPad boot (a second group's
+        # fresh iPad was not found by xcodebuild in run 43661019769).
         # PromoUITests is left out: it skips itself outside promo.yml.
         include:
           - group: vespers-font
             classes: VespersMatrixUITests FontUITests
           - group: matins
-            classes: MatinsUITests
+            classes: MatinsUITests NotificationsUITests GalleryUITests
           - group: day-hours-votive
             classes: DayHoursUITests VotiveOfficesUITests
           - group: launch-theme
             classes: LaunchAndNavigationUITests ThemeUITests WidgetGalleryUITests
           - group: dominican-ambrosian-gallery-ipad
-            classes: DominicanUITests AmbrosianUITests GalleryUITests
-            ipad_classes: IPadUITests WidgetGalleryUITests
+            classes: DominicanUITests AmbrosianUITests
+            ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "26.5"

@@ -317,21 +317,33 @@ enum WidgetData {
     /// `breviarium://open?hour=Vespera&date=2026-11-14`: a tap on a widget opens that hour
     /// and date (decided 2026-11-14).
     static func link(for day: WidgetDay) -> URL? {
+        link(hour: day.hour.doName, day: day.day, month: day.month, year: day.year)
+    }
+
+    /// The Martyrology's name in a link (1.6: a reminder can open it), as
+    /// `BREVIARIUM_SNAPSHOT_HOUR` names it.
+    static let martyrologyName = "martyrologium"
+
+    /// The same link for an hour by name, a `CanonicalHour`'s DO name or
+    /// `martyrologium` (1.6: the reminders open their hours through it too).
+    static func link(hour: String, day: Int, month: Int, year: Int) -> URL? {
         var components = URLComponents()
         components.scheme = "breviarium"
         components.host = "open"
         components.queryItems = [
-            URLQueryItem(name: "hour", value: day.hour.doName),
-            URLQueryItem(name: "date", value: String(format: "%04d-%02d-%02d", day.year, day.month, day.day)),
+            URLQueryItem(name: "hour", value: hour),
+            URLQueryItem(name: "date", value: String(format: "%04d-%02d-%02d", year, month, day)),
         ]
         return components.url
     }
 
-    /// The hour and date a link names, for the app's `onOpenURL`.
-    static func parse(_ url: URL) -> (hour: CanonicalHour, day: Int, month: Int, year: Int)? {
+    /// The hour (a `CanonicalHour`'s DO name, or `martyrologium`) and date a link
+    /// names, for the app's `onOpenURL` and its reminders.
+    static func parse(_ url: URL) -> (hour: String, day: Int, month: Int, year: Int)? {
         guard url.scheme == "breviarium", url.host == "open",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
-              let hour = items.first(where: { $0.name == "hour" })?.value.flatMap(CanonicalHour.init(rawValue:)),
+              let hour = items.first(where: { $0.name == "hour" })?.value,
+              hour == martyrologyName || CanonicalHour(rawValue: hour) != nil,
               let date = items.first(where: { $0.name == "date" })?.value
         else { return nil }
         let parts = date.split(separator: "-").compactMap { Int($0) }

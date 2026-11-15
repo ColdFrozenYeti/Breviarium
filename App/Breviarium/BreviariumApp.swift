@@ -1,8 +1,15 @@
 import BreviariumKit
 import SwiftUI
+import UserNotifications
 
 @main
 struct BreviariumApp: App {
+    init() {
+        // A tap on a reminder (1.6): set before launch finishes, so a tap that launches
+        // the app is caught too.
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             #if DEBUG

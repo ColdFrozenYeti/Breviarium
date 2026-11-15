@@ -16,6 +16,13 @@ entitlements, and your free Apple ID signs the app alone, exactly as before. The
 the same without them. The widgets come with the TestFlight and App Store build
 (`testflight.yml`), signed with the paid membership.
 
+**Reminders work in the sideloaded build (from 1.6).** The reminders to pray the hours
+are local notifications, scheduled on the phone by the app itself: no server, no push,
+no entitlement and no background mode, so nothing a free Apple ID can't sign. They are
+all off until you turn one on in Settings, under *Notifications*; iOS then asks once
+whether Breviarium may send notifications. Once the 7-day signature expires, a tap on
+a reminder can't open the app until you re-sign it, as before.
+
 ## Which tool: AltStore/AltServer, not Sideloadly
 
 Both are free, both currently support iOS 26, and both work from Windows with a free
