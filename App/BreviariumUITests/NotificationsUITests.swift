@@ -27,11 +27,11 @@ final class NotificationsUITests: BreviariumUITestCase {
         return app
     }
 
-    private func capture(_ app: XCUIApplication, _ name: String) {
-        capture(app.screenshot(), name)
+    private func snap(_ app: XCUIApplication, _ name: String) {
+        snap(app.screenshot(), name)
     }
 
-    private func capture(_ screenshot: XCUIScreenshot, _ name: String) {
+    private func snap(_ screenshot: XCUIScreenshot, _ name: String) {
         let shot = XCTAttachment(screenshot: screenshot)
         shot.name = "notifications-\(device)-\(name)"
         shot.lifetime = .keepAlways
@@ -73,7 +73,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         scrollSettings(to: row, in: app)
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertTrue(row.label.contains("Off"), row.label)
-        capture(app, "settings-row")
+        snap(app, "settings-row")
         row.tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.8)
@@ -85,7 +85,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         XCTAssertTrue(app.staticTexts["Martyrologium"].frame.minY > app.staticTexts["Ad Primam"].frame.minY)
         XCTAssertEqual(pending(app), "")
         XCTAssertFalse(app.staticTexts["notificationsRefused"].exists)
-        capture(app, "all-off")
+        snap(app, "all-off")
         app.terminate()
     }
 
@@ -97,7 +97,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         XCTAssertTrue(isOn(reminderSwitch(app, "Vespera")))
         XCTAssertTrue(app.descendants(matching: .any)["reminderTime-Vespera"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["reminderTime-Prima"].exists)
-        capture(app, "some-on")
+        snap(app, "some-on")
         app.navigationBars["Notifications"].buttons.firstMatch.tap()
         let row = app.buttons["notificationsRow"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
@@ -105,7 +105,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         app.terminate()
         // The same on a light theme.
         let light = openPage(mode: "allowed", reminders: Self.someOn, theme: "light")
-        capture(light, "some-on-lux")
+        snap(light, "some-on-lux")
         light.terminate()
     }
 
@@ -138,7 +138,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         XCTAssertTrue(time.waitForExistence(timeout: 5))
         time.tap()
         Thread.sleep(forTimeInterval: 1.0)
-        capture(app, "editing-time")
+        snap(app, "editing-time")
         // Where the picker shows wheels, turn the hour and check the schedule follows.
         let wheels = app.pickerWheels
         if wheels.count >= 2 {
@@ -146,7 +146,7 @@ final class NotificationsUITests: BreviariumUITestCase {
             let current = hourWheel.value as? String ?? ""
             hourWheel.adjust(toPickerWheelValue: current.hasPrefix("7") ? "8" : "7")
             Thread.sleep(forTimeInterval: 0.8)
-            capture(app, "editing-time-changed")
+            snap(app, "editing-time-changed")
             XCTAssertFalse(pending(app).contains("hour.Vespera 18:00"), pending(app))
         }
         app.terminate()
@@ -161,7 +161,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         Thread.sleep(forTimeInterval: 0.5)
         XCTAssertFalse(isOn(reminderSwitch(app, "Vespera")))
         XCTAssertEqual(pending(app), "")
-        capture(app, "refused")
+        snap(app, "refused")
         app.terminate()
     }
 
@@ -171,12 +171,12 @@ final class NotificationsUITests: BreviariumUITestCase {
         let lauds = launchApp(
             date: "2026-09-16", expectedTitle: "Ad Laudes", environment: ["BREVIARIUM_SNAPSHOT_REMINDER": "Laudes@2026-12-25"]
         )
-        capture(lauds, "tap-christmas-lauds")
+        snap(lauds, "tap-christmas-lauds")
         lauds.terminate()
         let martyrology = launchApp(
             date: "2026-09-16", expectedTitle: "Martyrologium", environment: ["BREVIARIUM_SNAPSHOT_REMINDER": "martyrologium@2026-12-24"]
         )
-        capture(martyrology, "tap-martyrology-christmas-eve")
+        snap(martyrology, "tap-martyrology-christmas-eve")
         martyrology.terminate()
     }
 
@@ -189,7 +189,7 @@ final class NotificationsUITests: BreviariumUITestCase {
         let allow = springboard.alerts.firstMatch.buttons["Allow"]
         if allow.waitForExistence(timeout: 5) {
             // The system's alert is SpringBoard's, over the app: the whole screen.
-            capture(XCUIScreen.main.screenshot(), "system-alert")
+            snap(XCUIScreen.main.screenshot(), "system-alert")
             allow.tap()
         }
         XCTAssertEqual(pending(app, waitingFor: "hour.Vespera 18:00"), "hour.Vespera 18:00")
