@@ -14,7 +14,7 @@ Read this file at the start of every session. If a decision here conflicts with 
   - Avoid UIKit unless SwiftUI genuinely cannot do something, and say so first.
 - **Themes, not night mode only** (decided 2026-10-10: night mode only was for the alpha, to focus on the content). The current look is the *Nox* theme (*Classic dark*) and stays the default; 1.2 adds seven others with their own text, rubric and background colours, light backgrounds included, named in Latin (`docs/1.2_plan.md`). Every font and colour ships in the app: no installed or external fonts. The Settings rows already in Latin stay Latin; the new *Theme* and *Font* rows are English.
 - **No features beyond the brief.** That means:
-  - no push notifications, prayer tracking, checkmarks, bookmarks, or sync;
+  - no notifications sent from a server (push), prayer tracking, checkmarks, bookmarks, or sync; the only notifications are the 1.6 reminders, scheduled on the phone itself;
   - no chant, audio, or play button;
   - no Mass propers, Rosary, or Angelus.
 
