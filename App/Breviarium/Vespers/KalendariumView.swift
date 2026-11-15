@@ -28,12 +28,12 @@ struct KalendariumView: View {
     let onClose: () -> Void
 
     @State private var year: Int
-    /// Where the list is. It starts on the day shown, given as the scroll view's initial
-    /// position so its very first frame is already there (1.6.1: it opened at January and
-    /// then cut to the day, scrolled from `onAppear` after the sheet had appeared).
-    @State private var position: ScrollPosition
-    /// The list stays hidden until the day shown is on screen, so that even if a system
-    /// lays the list out from the top first, January is never what is seen.
+    /// A row (or the top) to scroll to, once laid out.
+    @State private var scrollTarget: String?
+    /// 1.6.1: the list stays hidden until it has scrolled to the day shown, so January is
+    /// never seen first (it opened at January, then cut to the day). The iOS 18 initial
+    /// `ScrollPosition` was tried and overshot to December on the iPad: a lazy stack places
+    /// it from estimated row heights.
     @State private var revealed = false
 
     init(
@@ -48,7 +48,7 @@ struct KalendariumView: View {
         self.onSelect = onSelect
         self.onClose = onClose
         _year = State(initialValue: selected.year)
-        _position = State(initialValue: ScrollPosition(id: Self.rowID(selected.day, selected.month), anchor: .center))
+        _scrollTarget = State(initialValue: Self.rowID(selected.day, selected.month))
     }
 
     /// The chrome's months, in Latin like the date line (`LatinDateLine`).
@@ -66,33 +66,35 @@ struct KalendariumView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    Color.clear.frame(height: 0).id(Self.topID)
-                    ForEach(1...12, id: \.self) { month in
-                        Section {
-                            // Identified by the row's own ID, so the lazy stack knows where
-                            // a day is before its row is built.
-                            ForEach(entries(year, month), id: \.rowID) { entry in
-                                row(entry)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        Color.clear.frame(height: 0).id(Self.topID)
+                        ForEach(1...12, id: \.self) { month in
+                            Section {
+                                // Identified by the row's own ID, so the lazy stack knows
+                                // where a day is before its row is built.
+                                ForEach(entries(year, month), id: \.rowID) { entry in
+                                    row(entry)
+                                }
+                            } header: {
+                                monthBand(month)
                             }
-                        } header: {
-                            monthBand(month)
                         }
                     }
+                    // Room for the buttons below.
+                    .padding(.bottom, 80)
                 }
-                .scrollTargetLayout()
-                // Room for the buttons below.
-                .padding(.bottom, 80)
+                .opacity(revealed ? 1 : 0)
+                .onAppear { scroll(proxy) }
+                .onChange(of: scrollTarget) { scroll(proxy) }
+                .task {
+                    // Never a blank sheet, whatever happens to the scroll.
+                    try? await Task.sleep(for: .seconds(1))
+                    revealed = true
+                }
+                .overlay(alignment: .bottom) { footer }
             }
-            .scrollPosition($position, anchor: .center)
-            .opacity(revealed ? 1 : 0)
-            .task {
-                // Shown anyway after a moment, should the day's row not report itself.
-                try? await Task.sleep(for: .milliseconds(300))
-                revealed = true
-            }
-            .overlay(alignment: .bottom) { footer }
             .background(theme.background)
             // An opaque bar, without iOS 26's soft scroll edge: rows scrolled past the
             // pinned month band would otherwise show through above it.
@@ -176,14 +178,25 @@ struct KalendariumView: View {
                 .frame(height: 0.5)
                 .padding(.leading, 16)
         }
-        .onAppear {
-            if !revealed, entry.day == selected.day, entry.month == selected.month, entry.year == selected.year {
-                revealed = true
-            }
-        }
         .accessibilityElement(children: .combine)
         .accessibilityValue(entry.color?.rawValue ?? "")
         .accessibilityIdentifier("kalendariumDay-\(entry.month)-\(entry.day)")
+    }
+
+    /// Scrolls to `scrollTarget` once the lazy stack has laid out, then again on the next
+    /// turn, which corrects the stack's estimate once the rows around the target are
+    /// built, and only then shows the list.
+    private func scroll(_ proxy: ScrollViewProxy) {
+        guard let target = scrollTarget else { return }
+        let anchor: UnitPoint = target == Self.topID ? .top : .center
+        DispatchQueue.main.async {
+            proxy.scrollTo(target, anchor: anchor)
+            DispatchQueue.main.async {
+                proxy.scrollTo(target, anchor: anchor)
+                revealed = true
+                scrollTarget = nil
+            }
+        }
     }
 
     private func name(_ text: String, major: Bool) -> some View {
@@ -224,7 +237,7 @@ struct KalendariumView: View {
             HStack(spacing: 18) {
                 Button {
                     year -= 1
-                    position.scrollTo(id: Self.topID, anchor: .top)
+                    scrollTarget = Self.topID
                 } label: { Image(systemName: "chevron.left") }
                     .accessibilityIdentifier("previousYearButton")
                 Text(String(year))
@@ -232,7 +245,7 @@ struct KalendariumView: View {
                     .accessibilityIdentifier("kalendariumYear")
                 Button {
                     year += 1
-                    position.scrollTo(id: Self.topID, anchor: .top)
+                    scrollTarget = Self.topID
                 } label: { Image(systemName: "chevron.right") }
                     .accessibilityIdentifier("nextYearButton")
             }
@@ -242,7 +255,7 @@ struct KalendariumView: View {
             Spacer()
             Button {
                 year = today.year
-                position.scrollTo(id: Self.rowID(today.day, today.month), anchor: .center)
+                scrollTarget = Self.rowID(today.day, today.month)
             } label: {
                 Text("Today")
                     .padding(.horizontal, 24)
