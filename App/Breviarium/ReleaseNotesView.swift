@@ -10,6 +10,12 @@ struct ReleaseNotesView: View {
     }
 
     private static let releases: [Release] = [
+        Release(name: "1.6.1", notes: [
+            "Tapping a reminder opens its hour again, instead of closing the app.",
+            "The Kalendarium opens on the day shown, without showing January first.",
+            "At Compline, the Glória Patri after Deus in adiutórium is upright, and Sicut erat and the Allelúia in italic, as at the other hours.",
+            "Every psalm and canticle now begins with an upright verse, then italic, then upright, and its Glória Patri carries the alternation on.",
+        ]),
         Release(name: "1.6", notes: [
             "Reminders to pray the hours, under Notifications in Settings: one for each hour and one for the Martyrology, each with its own time. All are off until you turn one on, and only then does the app ask to send notifications.",
             "A reminder says only the hour's name, Ad Vesperas or Martyrologium, and a tap opens that hour on that day.",

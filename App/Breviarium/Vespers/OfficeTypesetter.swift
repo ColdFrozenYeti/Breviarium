@@ -152,7 +152,7 @@ struct OfficeTypesetter {
                     for (index, verse) in verses.enumerated() {
                         appendUnit(
                             .verse(reference: verse.reference, firstHalf: verse.firstHalf, secondHalf: verse.secondHalf),
-                            alternateVerse: index.isMultiple(of: 2), trailingSpace: .standard, to: text
+                            alternateVerse: !index.isMultiple(of: 2), trailingSpace: .standard, to: text
                         )
                     }
                 }

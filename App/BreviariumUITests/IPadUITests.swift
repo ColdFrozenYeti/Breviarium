@@ -92,11 +92,13 @@ final class IPadUITests: BreviariumUITestCase {
         captureWindow(hidden, "ipad-menus-hidden")
         hidden.terminate()
 
-        let app = launchApp(date: "2026-11-02")
+        let app = launchApp(date: "2026-11-19")
         turnLandscape()
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["kalendariumDay-11-2"].waitForExistence(timeout: 5))
+        // 1.6.1: the first frame is already on the day shown.
+        let day = app.buttons["kalendariumDay-11-19"]
+        XCTAssertTrue(day.exists && day.isHittable, "the first frame should show 19 November")
         Thread.sleep(forTimeInterval: 1.5)
         captureWindow(app, "ipad-kalendarium")
         app.buttons["Close"].tap()
