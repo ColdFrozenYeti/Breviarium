@@ -76,9 +76,6 @@ struct SettingsView: View {
                     .accessibilityIdentifier("menusPicker")
                 } header: {
                     Text("Reading")
-                } footer: {
-                    Text(Self.menusFooter(settings.menus))
-                        .foregroundStyle(theme.chrome)
                 }
 
                 // How the page looks: the text size, then the theme and the font, each
@@ -99,14 +96,15 @@ struct SettingsView: View {
                     }
                 }
 
-                // 1.6: a reminder for each hour, on its own page.
-                Section("Notifications") {
+                // 1.6: a reminder for each hour, on its own page. It and the app icon
+                // sit as boxes of their own, without headers (the user, 15 November 2026).
+                Section {
                     StyleRow(title: "Notifications", value: Reminders.summary(settings.reminders), identifier: "notificationsRow") {
                         NotificationsView(settings: settings)
                     }
                 }
 
-                Section("App icon") {
+                Section {
                     AppIconRow()
                 }
 
@@ -127,14 +125,6 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(theme.colorScheme)
-    }
-
-    private static func menusFooter(_ style: MenuStyle) -> String {
-        switch style {
-        case .standard: "The menus in the theme's rubric colour, with a calendar button."
-        case .prayer: "Quiet grey menus. Tap the hour's name for the hours."
-        case .hidden: "Only the prayer and the page number. Tap the page number or the top of the page for the menus."
-        }
     }
 
     private static func label(for size: TextSizeSetting) -> String {
