@@ -27,18 +27,27 @@ final class NotificationRouter: NSObject, ObservableObject {
     }
 }
 
+/// The completion-handler forms, each handler called on the main thread (1.6.1). The
+/// `async` forms crashed on a tap (TestFlight, iOS 27.2): their compiler-made thunk calls
+/// UIKit's completion from whatever thread the task ends on, and UIKit asserts it is the
+/// main one (`_updateSnapshotAndStateRestorationWithAction`).
 extension NotificationRouter: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
-    ) async {
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
         let url = Reminders.link(identifier: response.notification.request.identifier, delivered: response.notification.date)
-        await MainActor.run { self.link = url }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { NotificationRouter.shared.link = url }
+            completionHandler()
+        }
     }
 
     /// With the app open, the reminder still shows as a banner.
     nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter, willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+    ) {
+        DispatchQueue.main.async { completionHandler([.banner, .list, .sound]) }
     }
 }
