@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import BreviariumKit
 
@@ -22,6 +23,7 @@ struct ContentView: View {
 
     private let dataStore = OfficeDataStore()
     @StateObject private var settings = SettingsStore()
+    @Environment(\.scenePhase) private var scenePhase
     /// The date actually being shown -- starts at `dateSource`'s own date, then moves
     /// independently via the previous/next-day and jump-to-date controls (`VespersView`'s
     /// own doc comment covers why `SimpleDate`, not `Date`, is what those pass back).
@@ -55,11 +57,26 @@ struct ContentView: View {
             .preferredColorScheme(settings.theme.theme.colorScheme)
             // A tap on a widget (1.5): its hour and date, as a tap on a Kalendarium day
             // opens a date, under the app's own rite and office.
-            .onOpenURL { url in
-                guard let link = WidgetData.parse(url) else { return }
-                displayedDate = SimpleDate(day: link.day, month: link.month, year: link.year)
-                selection = .hour(link.hour)
+            .onOpenURL { url in open(url) }
+            // A tap on a reminder (1.6) takes the same path, through the same link.
+            .onReceive(NotificationRouter.shared.$link.compactMap { $0 }) { url in
+                open(url)
+                NotificationRouter.shared.link = nil
             }
+            // The reminders: re-synced at launch and on coming to the foreground, which
+            // also notices a permission turned off in iOS Settings.
+            .task { await ReminderCenter.shared.refresh(settings) }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await ReminderCenter.shared.refresh(settings) } }
+            }
+    }
+
+    /// Opens a widget's or a reminder's link: its hour and date, under the app's own
+    /// *Ritus* and *Officium*; saved settings never change.
+    private func open(_ url: URL) {
+        guard let link = WidgetData.parse(url), let hour = OfficeHour(key: link.hour) else { return }
+        displayedDate = SimpleDate(day: link.day, month: link.month, year: link.year)
+        selection = hour
     }
 
     @ViewBuilder

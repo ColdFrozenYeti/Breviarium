@@ -105,6 +105,15 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(menus.rawValue, forKey: Keys.menus) }
     }
 
+    /// The reminders (1.6), by `OfficeHour.key`: all off when nothing is saved. Every
+    /// change re-syncs what the system has scheduled.
+    @Published var reminders: [String: HourReminder] {
+        didSet {
+            if let data = try? JSONEncoder().encode(reminders) { defaults.set(data, forKey: Keys.reminders) }
+            ReminderCenter.shared.sync(reminders)
+        }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -120,6 +129,7 @@ final class SettingsStore: ObservableObject {
         static let theme = "settings.theme"
         static let font = "settings.font"
         static let menus = "settings.menus"
+        static let reminders = "settings.reminders"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -142,6 +152,10 @@ final class SettingsStore: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
         font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
         menus = defaults.string(forKey: Keys.menus).flatMap(MenuStyle.init(rawValue:)) ?? .standard
+        // Saved as JSON data; a UI test's `-settings.reminders '{…}'` launch argument
+        // arrives as a string.
+        let remindersJSON = defaults.data(forKey: Keys.reminders) ?? defaults.string(forKey: Keys.reminders).map { Data($0.utf8) }
+        reminders = remindersJSON.flatMap { try? JSONDecoder().decode([String: HourReminder].self, from: $0) } ?? [:]
         // The widgets follow these (1.5): a fresh install, or a build from before 1.5,
         // shares them once at launch.
         shareWithWidgets()

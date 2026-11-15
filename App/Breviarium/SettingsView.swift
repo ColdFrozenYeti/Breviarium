@@ -99,6 +99,13 @@ struct SettingsView: View {
                     }
                 }
 
+                // 1.6: a reminder for each hour, on its own page.
+                Section("Notifications") {
+                    StyleRow(title: "Notifications", value: Reminders.summary(settings.reminders), identifier: "notificationsRow") {
+                        NotificationsView(settings: settings)
+                    }
+                }
+
                 Section("App icon") {
                     AppIconRow()
                 }
