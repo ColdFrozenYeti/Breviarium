@@ -735,11 +735,15 @@ final class VotiveOfficesUITests: BreviariumUITestCase {
         app.buttons["nextYearButton"].tap()
         XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2027"))
         Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertTrue(app.buttons["kalendariumDay-1-1"].isHittable, "the year arrows should go to 1 January")
         capture(app, "m14-kalendarium-2027-01")
         app.buttons["kalendariumTodayButton"].tap()
         XCTAssertTrue(waitForLabel(app.staticTexts["kalendariumYear"], "2026"))
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertTrue(elizabeth.isHittable, "Today should go back to 19 November")
         let martin = app.buttons["kalendariumDay-11-11"]
         XCTAssertTrue(martin.waitForExistence(timeout: 5))
+        if !martin.isHittable { app.swipeDown(); Thread.sleep(forTimeInterval: 0.6) }
         martin.tap()
         XCTAssertTrue(waitForLabel(app.buttons["jumpToDateButton"], "11-Nov-26"))
     }

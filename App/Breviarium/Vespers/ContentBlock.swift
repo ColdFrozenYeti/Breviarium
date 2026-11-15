@@ -68,6 +68,8 @@ enum ContentBlock: Identifiable {
             // Matins: a responsory (after a lesson) is not a psalm, so its verses don't
             // alternate; and the invitatory's antiphon, said twice, is not two psalms.
             var inResponsory = false
+            // Inside the *Glória Patri* that answers *Deus in adiutórium* (see below).
+            var inOpeningGloria = false
             let separatesPsalms = section.kind != .invitatorium
             let units = section.units
             for (localIndex, unit) in units.enumerated() {
@@ -89,18 +91,32 @@ enum ContentBlock: Identifiable {
                     }
                     verseCount = 0
                 }
-                // 1.4: in the Introductio the *Glória Patri* answers *Deus in adiutórium* as
-                // its next versicle and response (upright, then italic), and the *Allelúia*
-                // (or *Laus tibi*) after it belongs to the response.
+                // 1.4: the *Glória Patri* answers *Deus in adiutórium* as its next versicle
+                // and response (upright, then italic), and the *Allelúia* (or *Laus tibi*)
+                // after it belongs to the response. 1.6.1: in whatever section *Deus in
+                // adiutórium* falls, not only the Introductio: at Compline it closes the
+                // short lesson's section, after the Confiteor.
                 let previous = localIndex > 0 ? units[localIndex - 1] : nil
-                if section.kind == .introductio, case .verse = unit, case .versicleResponse = previous { verseCount = 1 }
+                switch unit {
+                case .verse(_, let firstHalf, _, _, _):
+                    if case .versicleResponse = previous, Self.isGloriaPatri(firstHalf) {
+                        verseCount = 1
+                        inOpeningGloria = true
+                    }
+                case .prose:
+                    // The *Allelúia* straight after the *Sicut erat* keeps the flag.
+                    if case .verse = previous {} else { inOpeningGloria = false }
+                default:
+                    inOpeningGloria = false
+                }
                 var alternateVerse = false
                 if case .verse = unit, !inResponsory {
                     alternateVerse = verseCount.isMultiple(of: 2)
                     verseCount += 1
                 }
-                if section.kind == .introductio, case .prose = unit, case .verse = previous {
+                if inOpeningGloria, case .prose = unit, case .verse = previous {
                     alternateVerse = !verseCount.isMultiple(of: 2)
+                    inOpeningGloria = false
                 }
                 var trailingSpace: TrailingSpace = .standard
                 if case .prose = unit, localIndex + 1 < units.count, case .prose = units[localIndex + 1] {
@@ -116,6 +132,12 @@ enum ContentBlock: Identifiable {
             }
         }
         return blocks
+    }
+
+    /// The first half of the doxology, *Glória Patri, et Fílio,* (the Dominican office
+    /// spells it without the accent).
+    static func isGloriaPatri(_ text: String) -> Bool {
+        text.hasPrefix("Glória Patri") || text.hasPrefix("Gloria Patri")
     }
 
     /// *Orémus.* (or the Dominican *Oremus.*) on a line of its own.
