@@ -9,7 +9,9 @@
 # duoctl (MIT, skarol/duoctl, pinned below; CI tooling only, nothing of it is in the app)
 # opens and turns it through a helper it builds and spawns in the simulator. It uses
 # private interfaces and may break with a later Xcode: then this warns, leaves the Duo
-# folded and exits 0, so nothing else fails. Set BREVIARIUM_DUO_OPEN=0 to skip it; to
+# folded and exits 0, so nothing else fails. Under GitHub Actions it writes `opened=1`
+# to the step's output only once `duoctl state` shows the inner screen in the orientation
+# asked for (`opened=0` otherwise), so a caller can skip what needs the open Duo. Set BREVIARIUM_DUO_OPEN=0 to skip it; to
 # remove it, delete this file and its two callers' lines (approved by the user,
 # 2026-11-17).
 set -uo pipefail
@@ -23,7 +25,8 @@ duoctl_dir="${RUNNER_TEMP:-/tmp}/duoctl"
 duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
 duo() { DUOCTL_UDID="$udid" python3 "$duoctl" "$@"; }
 
-warn() { echo "::warning::duo-open: $1; the iPhone Duo stays as it is (folded unless opened before)." >&2; exit 0; }
+result() { [ -n "${GITHUB_OUTPUT:-}" ] && echo "opened=$1" >> "$GITHUB_OUTPUT"; return 0; }
+warn() { echo "::warning::duo-open: $1; the iPhone Duo stays as it is (folded unless opened before)." >&2; result 0; exit 0; }
 
 if [ ! -x "$duoctl" ]; then
   { git clone --quiet https://github.com/skarol/duoctl.git "$duoctl_dir" \
@@ -44,5 +47,15 @@ xcrun simctl terminate "$udid" com.apple.Preferences > /dev/null 2>&1 || true
 
 duo open >&2 || warn "duoctl open failed"
 duo rotate "$rotation" >&2 || warn "duoctl rotate $rotation failed"
-echo "iPhone Duo opened ($rotation):" >&2
-duo state >&2 || true
+# Checked, not assumed: the inner screen, turned as asked.
+state=$(duo state 2> /dev/null) || warn "duoctl state failed after opening"
+echo "$state" >&2
+echo "$state" | ROTATION="$rotation" python3 -c '
+import json, os, sys
+s = json.load(sys.stdin)
+w, h = s.get("sizePoints", [0, 0])
+want = os.environ["ROTATION"]
+ok = s.get("activeScreen") == "inner" and min(w, h) > 600 and s.get("orientation") == want and ((w > h) == (want == "landscape"))
+sys.exit(0 if ok else 1)' || warn "the Duo isn't open $rotation after duoctl"
+echo "iPhone Duo opened ($rotation)." >&2
+result 1

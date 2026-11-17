@@ -7,10 +7,12 @@ ground. With --ipad (1.4), 2752x2064, the 13" iPad's size in landscape, from the
 stills (the two-page spread), turned upright first. With --duo (1.7), 2007x2853, the
 iPhone Duo's open inner screen, and with --duo-outer, 1398x2034, its folded outer screen
 (Apple's screenshot specification), from the iPhone's stills taken on the Duo; the
-layout is the iPhone's, scaled to the height. Build tooling only (Pillow); nothing here
-ships in the app.
+layout is the iPhone's, scaled to the height. With --duo-side, 2853x2007, the open Duo
+on its side (the two-page spread), laid out like the iPad's. Each Duo mode checks the
+stills' size first, so a folded capture is never composed as an open one. Build tooling
+only (Pillow); nothing here ships in the app.
 
-    python3 -B scripts/promo/compose.py [--ipad | --duo | --duo-outer] <stills-dir> <out-dir>
+    python3 -B scripts/promo/compose.py [--ipad | --duo | --duo-outer | --duo-side] <stills-dir> <out-dir>
 """
 import json
 import re
@@ -27,6 +29,11 @@ IPAD = False
 # height (1.7).
 F = 1.0
 DUO_OPEN = False
+# A landscape window's capture keeps the screen's orientation: the iPad's is turned one
+# way, the Duo's the other.
+ROTATE = 90
+# The size a Duo mode's raw stills must have, within a few pixels (1.7).
+EXPECT = None
 
 INK = (255, 255, 255)
 RUBRIC = (255, 128, 128)  # #FF8080, the Nox theme's rubric red
@@ -59,6 +66,14 @@ SHOTS_IPAD = [
     ("ipad-07-dominican", "The Dominican office too", "Ordo Prædicatorum, 1962"),
     ("ipad-08-ambrosian", "And Ambrosian Compline", "From the 1957 Ambrosian breviary"),
     ("ipad-09-settings", "Fully offline", "No account, no tracking, no data collected"),
+]
+
+# The open iPhone Duo on its side (1.7): one line each, as on the iPad.
+SHOTS_DUO_SIDE = [
+    ("duo-side-01-spread", "The traditional Divine Office", "Breviarium Romanum, 1960 rubrics, as an open book"),
+    ("duo-side-02-facing", "Latin and English, on facing pages", "Douay-Rheims and Divinum Officium"),
+    ("duo-side-03-vellum-matins", "Matins, with every lesson", "All Saints, in the Vellum theme"),
+    ("duo-side-04-dominican", "The Dominican office too", "Ordo Prædicatorum, 1962"),
 ]
 
 
@@ -103,8 +118,8 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
 
     shot = Image.open(still).convert("RGB")
     if IPAD and shot.height > shot.width:
-        # A landscape window's capture keeps the screen's orientation (landscape left).
-        shot = shot.rotate(90, expand=True)
+        # A landscape window's capture keeps the screen's orientation.
+        shot = shot.rotate(ROTATE, expand=True)
     top = 470 if IPAD else round(760 * F)
     scale = (H - top + 120) / shot.height  # runs off the bottom edge a little
     scale = min(scale, 0.84 * W / shot.width)
@@ -130,15 +145,25 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
 
 
 def main() -> None:
-    global W, H, IPAD, F, DUO_OPEN
+    global W, H, IPAD, F, DUO_OPEN, ROTATE, EXPECT
     args = sys.argv[1:]
+    shots = SHOTS
     if args and args[0] == "--ipad":
         IPAD = True
         W, H = 2752, 2064
+        shots = SHOTS_IPAD
+        args = args[1:]
+    elif args and args[0] == "--duo-side":
+        IPAD = True  # the iPad's landscape layout
+        W, H = 2853, 2007
+        ROTATE = -90
+        EXPECT = (2006, 2852)
+        shots = SHOTS_DUO_SIDE
         args = args[1:]
     elif args and args[0] in ("--duo", "--duo-outer"):
         W, H = (2007, 2853) if args[0] == "--duo" else (1398, 2034)
         DUO_OPEN = args[0] == "--duo"
+        EXPECT = (2006, 2852) if DUO_OPEN else (1398, 2034)
         F = H / 2868
         args = args[1:]
     stills, out = Path(args[0]), Path(args[1])
@@ -148,16 +173,26 @@ def main() -> None:
     phone_63 = out / "6.3" if (W, H) == (1320, 2868) else None
     if phone_63:
         phone_63.mkdir(exist_ok=True)
-    for index, (name, caption, subline) in enumerate(SHOTS_IPAD if IPAD else SHOTS, start=1):
+    wrong = 0
+    # App Store Connect takes up to 10 screenshots per size.
+    for index, (name, caption, subline) in enumerate(shots[:10], start=1):
         if name not in found:
             print(f"missing: {name}")
             continue
+        if EXPECT:
+            size = Image.open(found[name]).size
+            if max(abs(a - b) for a, b in zip(size, EXPECT)) > 2:
+                print(f"wrong size: {name} is {size[0]}x{size[1]}, not about {EXPECT[0]}x{EXPECT[1]}")
+                wrong += 1
+                continue
         image = compose(found[name], caption, subline)
-        target = out / f"{index:02d}-{name.split('-', 2)[2]}.png"
+        target = out / f"{index:02d}-{re.sub(r'^.*?[0-9][0-9]-', '', name)}.png"
         image.save(target, optimize=True)
         print(target)
         if phone_63:
             image.resize((1206, 2622), Image.LANCZOS).save(phone_63 / target.name, optimize=True)
+    if wrong:
+        sys.exit(f"{wrong} still(s) of the wrong size: not the screen this mode is for")
 
 
 def named_stills(stills: Path) -> dict:

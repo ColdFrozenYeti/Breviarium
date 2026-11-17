@@ -11,8 +11,11 @@ name: Promo captures
 # in landscape, composed by scripts/promo/compose.py --ipad). From 1.7 on the iPhone Duo
 # too: its stills folded (the outer screen, 1398x2034, compose.py --duo-outer), then
 # opened flat by scripts/duo-open.sh (duoctl) and taken again on the inner screen
-# (2007x2853, compose.py --duo), each pass in a folder of its own. The open Duo takes
-# stills only: XCUITest's swipes don't reach its inner screen, so no tours there.
+# (2007x2853, compose.py --duo), then turned on its side for the two-page spread and
+# facing English (2853x2007, compose.py --duo-side), each pass in a folder of its own. The
+# Duo takes stills only: the tours are the iPhone's, and XCUITest's swipes don't reach
+# the open Duo's inner screen. A pass on the open Duo runs only if duo-open.sh confirmed
+# the screen (its `opened` output), so folded stills never pass for open ones.
 on:
   push:
     branches-ignore: [main]
@@ -92,9 +95,12 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec h264 --force Promo/recording.mov &
           REC=$!
           sleep 3
+          # The folded Duo takes the iPhone's stills only, not its tours.
+          ONLY=BreviariumUITests/PromoUITests
+          if [ "${{ matrix.kind }}" = duo ]; then ONLY=BreviariumUITests/PromoUITests/testPromoStills; fi
           xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
             -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
-            -only-testing:BreviariumUITests/PromoUITests -resultBundlePath Promo.xcresult 2>&1 \
+            -only-testing:"$ONLY" -resultBundlePath Promo.xcresult 2>&1 \
             | perl -MTime::HiRes=time -ne '$|=1; printf "%.3f %s", time, $_' | tee Promo/test-log.txt
           STATUS=${PIPESTATUS[0]}
           sleep 2
@@ -111,8 +117,10 @@ jobs:
 
       # The iPhone Duo opened flat (1.7): after the folded pass, which is also when an app
       # has run on it, so its inner display is active for duoctl. Never fails the job:
-      # duo-open.sh warns and leaves the Duo folded if duoctl can't open it.
-      - name: Open the iPhone Duo
+      # duo-open.sh warns and says opened=0 if duoctl can't open it, and the open passes
+      # are then skipped.
+      - name: Open the iPhone Duo upright
+        id: duo_open
         if: ${{ always() && matrix.kind == 'duo' }}
         run: |
           scripts/duo-open.sh "$UDID" portrait
@@ -120,10 +128,11 @@ jobs:
             --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
 
       - name: Run the stills on the open iPhone Duo
-        if: ${{ always() && matrix.kind == 'duo' }}
+        if: ${{ always() && matrix.kind == 'duo' && steps.duo_open.outputs.opened == '1' }}
         working-directory: App
         env:
           TEST_RUNNER_BREVIARIUM_PROMO: "1"
+          TEST_RUNNER_BREVIARIUM_DUO_EXPECT: open
         run: |
           xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
             -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
@@ -131,11 +140,38 @@ jobs:
 
       # Its own step, so a failed check above still leaves the stills taken before it.
       - name: Extract the open iPhone Duo's stills
-        if: ${{ always() && matrix.kind == 'duo' }}
+        if: ${{ always() && matrix.kind == 'duo' && steps.duo_open.outputs.opened == '1' }}
         working-directory: App
         run: |
           mkdir -p Promo/stills-open
           xcrun xcresulttool export attachments --path Promo-open.xcresult --output-path Promo/stills-open --legacy || true
+
+      # On its side: the two-page spread and Latin and English on facing pages.
+      - name: Turn the open iPhone Duo on its side
+        id: duo_side
+        if: ${{ always() && matrix.kind == 'duo' && steps.duo_open.outputs.opened == '1' }}
+        run: |
+          scripts/duo-open.sh "$UDID" landscape
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active \
+            --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+
+      - name: Run the stills on the iPhone Duo on its side
+        if: ${{ always() && matrix.kind == 'duo' && steps.duo_side.outputs.opened == '1' }}
+        working-directory: App
+        env:
+          TEST_RUNNER_BREVIARIUM_PROMO: "1"
+          TEST_RUNNER_BREVIARIUM_DUO_EXPECT: side
+        run: |
+          xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
+            -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
+            -only-testing:BreviariumUITests/PromoUITests/testPromoStillsDuoSide -resultBundlePath Promo-side.xcresult
+
+      - name: Extract the stills of the iPhone Duo on its side
+        if: ${{ always() && matrix.kind == 'duo' && steps.duo_side.outputs.opened == '1' }}
+        working-directory: App
+        run: |
+          mkdir -p Promo/stills-side
+          xcrun xcresulttool export attachments --path Promo-side.xcresult --output-path Promo/stills-side --legacy || true
 
       - name: Upload
         if: always()

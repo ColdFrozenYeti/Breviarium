@@ -18,6 +18,10 @@ final class PromoUITests: BreviariumUITestCase {
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
+    /// What promo.yml expects of the iPhone Duo in this pass (1.7): `open` (upright) or
+    /// `side`, from `TEST_RUNNER_BREVIARIUM_DUO_EXPECT`; empty elsewhere.
+    private var duoExpectation: String { ProcessInfo.processInfo.environment["BREVIARIUM_DUO_EXPECT"] ?? "" }
+
     /// The iPhone Duo open (1.7): an iPhone whose window is over 600 pt on its short side
     /// (669 x 951 upright). There a screen capture comes out black and swipes don't reach
     /// the inner screen, so its stills capture the window and open later pages at their
@@ -72,18 +76,21 @@ final class PromoUITests: BreviariumUITestCase {
         // Christmas Vespers, page 1 and the psalmody, in Nox.
         var app = launchApp(date: "2026-12-25", pageTurn: "curl")
         let openDuo = isOpenDuo(app)
+        // promo.yml's open pass: stop at once if the Duo isn't open, rather than take the
+        // folded screen's stills for the open one's.
+        if duoExpectation == "open" {
+            XCTAssertTrue(openDuo, "the iPhone Duo isn't open: \(app.windows.firstMatch.frame)")
+        }
         // On the open Duo, one step that goes wrong mustn't lose every still after it.
         if openDuo { continueAfterFailure = true }
         pause(0.8)
         still(app, "promo-01-christmas-vespers")
-        if openDuo {
-            app.terminate()
-            app = launchApp(date: "2026-12-25", pageTurn: "curl", section: "psalmodia")
-        } else {
+        // The psalmody: on the open Duo it already starts on page 1, so no second still.
+        if !openDuo {
             app.swipeLeft()
+            pause(1.2)
+            still(app, "promo-02-christmas-psalmody")
         }
-        pause(1.2)
-        still(app, "promo-02-christmas-psalmody")
         app.terminate()
 
         // Parallel English.
@@ -144,6 +151,45 @@ final class PromoUITests: BreviariumUITestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         pause(1.0)
         still(app, "promo-11-settings")
+        app.terminate()
+    }
+
+    /// The open iPhone Duo on its side (1.7), turned by duoctl before this pass: the
+    /// two-page spread and Latin and English on facing pages, for the inner screen's
+    /// landscape screenshots (2853x2007, `compose.py --duo-side`). Window captures, which
+    /// keep the screen's own orientation; compose.py turns them. Each still is checked to be
+    /// a true spread, never one page in two columns.
+    func testPromoStillsDuoSide() throws {
+        try XCTSkipUnless(duoExpectation == "side", "the Duo on its side runs in promo.yml's own pass")
+        var app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        let frame = app.windows.firstMatch.frame
+        XCTAssertTrue(frame.width > frame.height && frame.height > 600, "the iPhone Duo isn't open on its side: \(frame)")
+        continueAfterFailure = true
+
+        func spread(_ app: XCUIApplication, _ name: String) {
+            pause(1.2)
+            let counter = app.staticTexts["pageCounter"]
+            XCTAssertEqual(counter.value as? String, "spread", "\(name): \(counter.label)")
+            captureWindow(app, name)
+        }
+
+        // Christmas Vespers on a spread.
+        spread(app, "duo-side-01-spread")
+        app.terminate()
+
+        // Latin and English on facing pages.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
+        spread(app, "duo-side-02-facing")
+        app.terminate()
+
+        // Matins of All Saints in Vellum and Gentium, facing pages.
+        app = launchApp(date: "2026-11-01", pageTurn: "curl", english: true, hour: "Matutinum", theme: "vellum", font: "gentium")
+        spread(app, "duo-side-03-vellum-matins")
+        app.terminate()
+
+        // The Dominican office on St Dominic's day, on a spread.
+        app = launchApp(date: "2027-08-04", pageTurn: "curl", hour: "Vespera", rite: "dominicanus")
+        spread(app, "duo-side-04-dominican")
         app.terminate()
     }
 
