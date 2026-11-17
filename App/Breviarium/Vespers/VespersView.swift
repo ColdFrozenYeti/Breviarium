@@ -72,7 +72,8 @@ struct VespersView: View {
 
     /// Two pages side by side (1.4; the iPhone Duo since 1.7): horizontal pages in a window
     /// wider than tall, of regular height, with room for two pages of at least 450 pt --
-    /// an iPad in landscape, or an iPhone Duo held open on its side (about 951 x 669 pt).
+    /// an iPad in landscape, or an iPhone Duo open on its side if its screen is that wide
+    /// (the simulator's is 466 x 678 pt and doesn't turn, so it shows one page).
     /// Regular height keeps out every iPhone on its side, the 956-pt Pro Max included,
     /// as they are compact height in landscape. Every other window shows one page.
     private func isSpread(_ size: CGSize) -> Bool {

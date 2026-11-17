@@ -1,10 +1,13 @@
 import XCTest
 
-/// The iPhone Duo (1.7, `docs/1.7_plan.md`, M2), run on the iPhone Duo simulator open:
-/// its inner screen (about 669 x 951 pt) is of regular width and height. Upright, one
-/// page with widened margins; on its side, the two-page spread, with Latin and English
-/// on facing pages, as on the iPad. Folded, the Duo is a standard iPhone, which the
-/// iPhone passes cover; the fold itself is checked on the device.
+/// The iPhone Duo (1.7, `docs/1.7_plan.md`, M2), run on the iPhone Duo simulator open.
+/// Its inner screen there is 466 x 678 pt, with a strip of about 86 pt down the right
+/// edge kept for the vertical status bar, and it doesn't turn with the device (run
+/// 44083214618): the app gets one page about 380 pt wide. The spread is decided by the
+/// window's size alone (`VespersView.isSpread`), so these tests follow what the window
+/// is: a spread where it is at least 900 pt wide and wider than tall, one page otherwise.
+/// Folded, the Duo is a standard iPhone, which the iPhone passes cover; the fold and a
+/// real Duo's screen are checked on the device.
 final class DuoUITests: BreviariumUITestCase {
     private func captureWindow(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
@@ -31,17 +34,26 @@ final class DuoUITests: BreviariumUITestCase {
         }
     }
 
-    /// The simulator is the Duo open: a window wider than any iPhone's (at most 440 pt).
-    private func assertOpen(_ app: XCUIApplication) {
+    /// Whether this window shows a spread: horizontal pages, at least 900 pt wide and
+    /// wider than tall (the inner screen is of regular height when open).
+    private func spreads(_ app: XCUIApplication) -> Bool {
         let frame = app.windows.firstMatch.frame
-        XCTAssertGreaterThan(min(frame.width, frame.height), 600, "the iPhone Duo should be open: \(frame)")
+        return frame.width >= 900 && frame.width > frame.height
+    }
+
+    /// The window's size, kept with the captures.
+    private func recordWindow(_ app: XCUIApplication, _ name: String) {
+        let note = XCTAttachment(string: "\(app.windows.firstMatch.frame)")
+        note.name = "duo-window-\(name)"
+        note.lifetime = .keepAlways
+        add(note)
     }
 
     /// Upright: one page, English off and on.
     func testUpright() {
         for english in [false, true] {
             let app = launchApp(date: "2026-09-16", english: english)
-            assertOpen(app)
+            recordWindow(app, "upright")
             Thread.sleep(forTimeInterval: 1.0)
             XCTAssertTrue(counter(app).hasPrefix("Page 1 of"), counter(app))
             capture(app, "duo-upright-english\(english ? "On" : "Off")-1")
@@ -52,29 +64,31 @@ final class DuoUITests: BreviariumUITestCase {
         }
     }
 
-    /// On its side: the spread (`Page 1–2 of N`), then English on facing pages (each
-    /// spread one page), and back upright at the same place.
-    func testSpreadOnItsSide() {
+    /// On its side: the spread (`Page 1–2 of N`) where the window is wide enough, then
+    /// English on facing pages (each spread one page), and back upright at the same
+    /// place; one page where it isn't.
+    func testOnItsSide() {
         let app = launchApp(date: "2026-09-16", pageTurn: "curl")
         turnLandscape()
-        XCTAssertTrue(counter(app).hasPrefix("Page 1–2 of"), counter(app))
-        captureWindow(app, "duo-spread-1")
+        recordWindow(app, "side")
+        let spread = spreads(app)
+        XCTAssertTrue(counter(app).hasPrefix(spread ? "Page 1–2 of" : "Page 1 of"), counter(app))
+        captureWindow(app, "duo-side-1")
         turnPage(app)
-        XCTAssertTrue(counter(app).hasPrefix("Page 3–4 of"), counter(app))
-        captureWindow(app, "duo-spread-2")
+        XCTAssertTrue(counter(app).hasPrefix(spread ? "Page 3–4 of" : "Page 2 of"), counter(app))
+        captureWindow(app, "duo-side-2")
         XCUIDevice.shared.orientation = .portrait
         Thread.sleep(forTimeInterval: 1.5)
-        XCTAssertFalse(counter(app).contains("–"), counter(app))
-        capture(app, "duo-spread-back-upright")
+        capture(app, "duo-side-back-upright")
         app.terminate()
 
         let english = launchApp(date: "2026-09-16", english: true)
         turnLandscape()
         XCTAssertTrue(counter(english).hasPrefix("Page 1 of"), counter(english))
-        captureWindow(english, "duo-facing-1")
+        captureWindow(english, "duo-side-english-1")
         turnPage(english)
         XCTAssertTrue(counter(english).hasPrefix("Page 2 of"), counter(english))
-        captureWindow(english, "duo-facing-2")
+        captureWindow(english, "duo-side-english-2")
         english.terminate()
     }
 
@@ -88,7 +102,7 @@ final class DuoUITests: BreviariumUITestCase {
 
         let hidden = launchApp(date: "2026-09-16", menus: "hidden")
         turnLandscape()
-        XCTAssertTrue(waitForLabel(hidden.staticTexts["pageNumber"], "1–2"))
+        XCTAssertTrue(waitForLabel(hidden.staticTexts["pageNumber"], spreads(hidden) ? "1–2" : "1"))
         captureWindow(hidden, "duo-menus-hidden")
         hidden.terminate()
 

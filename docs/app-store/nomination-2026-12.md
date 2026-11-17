@@ -19,13 +19,13 @@ least three weeks' notice. Type and related apps can't be changed after submitti
 ## Description (1,000 characters max)
 
 ```
-Breviarium 1962 is the first App Store release of a free, open-source breviary for the 1962 Divine Office: the traditional Latin office from before the 1970 reform, not the current Liturgy of the Hours. It computes the office itself for any date, fully offline: all eight hours from Matins to Compline, the Martyrology, the Little Office of Our Lady and the Office of the Dead, in the Roman and Dominican rites and Ambrosian Compline, with an optional parallel English translation. The text flows like a printed book, with a page curl. On iPad, and on iPhone Duo held open on its side, it becomes an open book of two facing pages, Latin on the left and English on the right. Home and Lock Screen widgets show the day and the hour, and optional reminders are scheduled on the device. Eight colour themes, six typefaces, ten app icons. No account, no ads, no tracking, no data collected. Launching in Advent, in time for the O Antiphons and Christmas.
+Breviarium 1962 is the first App Store release of a free, open-source breviary for the 1962 Divine Office: the traditional Latin office from before the 1970 reform, not the current Liturgy of the Hours. It computes the office itself for any date, fully offline: all eight hours from Matins to Compline, the Martyrology, the Little Office of Our Lady and the Office of the Dead, in the Roman and Dominican rites and Ambrosian Compline, with an optional parallel English translation. The text flows like a printed book, with a page curl. On iPad it becomes an open book of two facing pages, Latin on the left and English on the right, and on iPhone Duo it fills the open screen. Home and Lock Screen widgets show the day and the hour, and optional reminders are scheduled on the device. Eight colour themes, six typefaces, ten app icons. No account, no ads, no tracking, no data collected. Launching in Advent, in time for the O Antiphons and Christmas.
 ```
 
 ## Helpful details (500 characters max)
 
 ```
-Made by one person as free software (GPL-3.0), with no business behind it. Every Roman and Dominican text is checked against Divinum Officium for every day from 2025 to 2040. Native on iPhone Duo: the open screen becomes a two-page spread. Readable for everyone: a text-size setting that scales the whole page, light and dark themes, and rubrics that can be hidden. Priority: high, as this is the app's first release.
+Made by one person as free software (GPL-3.0), with no business behind it. Every Roman and Dominican text is checked against Divinum Officium for every day from 2025 to 2040. Native on iPhone Duo, open and folded. Readable for everyone: a text-size setting that scales the whole page, light and dark themes, and rubrics that can be hidden. Priority: high, as this is the app's first release.
 ```
 
 ## Supplemental materials (up to 5 URLs)

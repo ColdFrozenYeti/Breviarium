@@ -175,7 +175,7 @@ Measured from the user's screenshot of Universalis's calendar list (12 November 
   - A **Scrolling** setting switches between these horizontal pages (the default) and one continuous vertical scroll.
   - A **Page turn** setting chooses a book-like page curl (the default since 1.2, decided 2026-10-10; a sideways slide before) or a sideways slide for horizontal pages.
   - Both need UIKit/TextKit (SwiftUI cannot flow one text across pages, and the curl exists only in `UIPageViewController`); this is the approved UIKit exception, confined to `App/Breviarium/Vespers/OfficeReaders.swift` and `OfficeTypesetter.swift`.
-  - **On iPad** (1.4), a wide window shows horizontal pages as a **two-page spread**, like an open book, with page 1's header on the left page; a portrait or narrow window shows one page as on the iPhone. **The iPhone Duo** (1.7) does the same when open on its side. The rule: wider than tall, of regular height, and at least 900 pt wide (`VespersView.isSpread`), which no iPhone on its side meets.
+  - **On iPad** (1.4), a wide window shows horizontal pages as a **two-page spread**, like an open book, with page 1's header on the left page; a portrait or narrow window shows one page as on the iPhone. **The iPhone Duo** (1.7) follows the same rule: wider than tall, of regular height, and at least 900 pt wide (`VespersView.isSpread`), which no iPhone on its side meets. On the Duo simulator the open screen is 466 x 678 pt with an 86-pt status-bar strip down the right and doesn't turn, so it shows one page; a real Duo's screen is checked on the device.
 - **Text size** scales every serif size and the vertical spacing proportionally. The chrome text scales too, but more gently.
 
 ### Parallel English
