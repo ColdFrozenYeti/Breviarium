@@ -209,21 +209,21 @@ jobs:
         # minutes before its first test, and a never-booted iPad or Duo about 8 more to
         # boot. (Booting it in the background while the iPhone classes ran was tried in
         # run 44096015065 and crashed the iPhone's test runner: one device at a time.)
-        # The aim is about 36 minutes for every job.
+        # The iPad's own pass took 14 minutes to start in run 44106547009, so it has a job
+        # to itself. The aim is about 40 minutes for every job.
         # Five jobs at once is the free plan's macOS limit (shared with promo.yml: never
         # run both together). PromoUITests is left out: it skips itself outside promo.yml.
         include:
-          - group: vespers-dayhours
-            classes: VespersMatrixUITests DayHoursUITests
-          - group: launch-matins
-            classes: LaunchAndNavigationUITests MatinsUITests
+          - group: vespers-dayhours-dominican-notifications
+            classes: VespersMatrixUITests DayHoursUITests DominicanUITests NotificationsUITests
+          - group: launch-matins-widgets
+            classes: LaunchAndNavigationUITests MatinsUITests WidgetGalleryUITests
           - group: theme-votive-ambrosian
             classes: ThemeUITests VotiveOfficesUITests AmbrosianUITests
-          - group: notifications-ipad
-            classes: NotificationsUITests WidgetGalleryUITests
+          - group: ipad
             ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
-          - group: font-gallery-dominican-duo
-            classes: FontUITests GalleryUITests DominicanUITests
+          - group: font-gallery-duo
+            classes: FontUITests GalleryUITests
             duo_classes: DuoUITests
     name: ui-tests (${{ matrix.group }})
     env:

@@ -183,10 +183,11 @@ final class NotificationsUITests: BreviariumUITestCase {
     /// The real notification centre, once: Vespers on, the system's alert allowed, one
     /// request pending; then off again, so nothing is left scheduled on the simulator.
     ///
-    /// Skipped when the simulator's notification service doesn't answer at all: on the
-    /// iOS 27.2 simulator (1.7, App CI runs 44071359508 to 44096015065) the alert appears
-    /// but no call to the notification centre ever returns, so the app's debug trace shows
-    /// its calls timing out. Decided 2026-11-17: skipped there, with the trace in the
+    /// Skipped when the simulator's notification service doesn't work: on the iOS 27.2
+    /// simulator (1.7, App CI runs 44071359508 to 44106547009) the iPhone's never answers
+    /// (the alert appears, but no call returns, so the app's debug trace shows its calls
+    /// timing out), and the iPad's says the app is allowed, then refuses its request as
+    /// "Source is not authorized". Decided 2026-11-17: skipped there, with the trace in the
     /// skip's message, and a real reminder checked on the phone from TestFlight. The test
     /// runs again by itself once a simulator's service answers.
     func testTheRealNotificationCentre() throws {
@@ -201,9 +202,14 @@ final class NotificationsUITests: BreviariumUITestCase {
         }
         let scheduled = pending(app, waitingFor: "hour.Vespera 18:00")
         let trace = app.descendants(matching: .any)["remindersDiagnostics"].value as? String ?? ""
-        if scheduled.isEmpty, trace.contains("timed out") {
+        // The simulator's service either never answers (the iPhone 17 on iOS 27.2) or
+        // answers that the app is allowed and then refuses to save its request as "not
+        // authorized" (the iPad Air on iOS 27.2, run 44106547009). Neither is the app's.
+        let silent = trace.contains("timed out")
+        let contradicts = trace.contains("auth=2") && trace.contains("Source is not authorized")
+        if scheduled.isEmpty, silent || contradicts {
             app.terminate()
-            throw XCTSkip("The simulator's notification service doesn't answer: \(trace)")
+            throw XCTSkip("The simulator's notification service \(silent ? "doesn't answer" : "refuses an allowed app"): \(trace)")
         }
         XCTAssertEqual(
             scheduled, "hour.Vespera 18:00",
