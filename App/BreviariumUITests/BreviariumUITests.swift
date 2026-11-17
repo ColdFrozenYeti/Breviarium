@@ -447,6 +447,10 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)
         }
+        // The end of the gallery, Thea's tile included: the tiles can all be found
+        // without scrolling (1.7), so the capture scrolls there itself.
+        app.swipeUp()
+        app.swipeUp()
         Thread.sleep(forTimeInterval: 0.4)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
