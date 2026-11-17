@@ -18,6 +18,28 @@ final class PromoUITests: BreviariumUITestCase {
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
+    /// The iPhone Duo open (1.7): an iPhone whose window is over 600 pt on its short side
+    /// (669 x 951 upright). There a screen capture comes out black and swipes don't reach
+    /// the inner screen, so its stills capture the window and open later pages at their
+    /// section, and the tours (video, made of swipes) are skipped. Folded, the Duo is an
+    /// iPhone and takes the iPhone's path unchanged.
+    private func isOpenDuo(_ app: XCUIApplication) -> Bool {
+        let frame = app.windows.firstMatch.frame
+        return !isPad && min(frame.width, frame.height) > 600
+    }
+
+    private func skipIfOpenDuo() throws {
+        let app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        let open = isOpenDuo(app)
+        app.terminate()
+        try XCTSkipIf(open, "the open iPhone Duo has stills only (swipes don't reach its inner screen)")
+    }
+
+    /// A still: the window on the open Duo, the screen elsewhere (as before 1.7).
+    private func still(_ app: XCUIApplication, _ name: String) {
+        if isOpenDuo(app) { captureWindow(app, name) } else { capture(app, name) }
+    }
+
     /// A capture of the window, which in landscape keeps the screen's own orientation:
     /// `compose.py` turns it upright.
     private func captureWindow(_ app: XCUIApplication, _ name: String) {
@@ -55,18 +77,24 @@ final class PromoUITests: BreviariumUITestCase {
         try XCTSkipIf(isPad, "the iPad has its own stills")
         // Christmas Vespers, page 1 and the psalmody, in Nox.
         var app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        let openDuo = isOpenDuo(app)
         pause(0.8)
-        capture(app, "promo-01-christmas-vespers")
-        app.swipeLeft()
+        still(app, "promo-01-christmas-vespers")
+        if openDuo {
+            app.terminate()
+            app = launchApp(date: "2026-12-25", pageTurn: "curl", section: "psalmodia")
+        } else {
+            app.swipeLeft()
+        }
         pause(1.2)
-        capture(app, "promo-02-christmas-psalmody")
+        still(app, "promo-02-christmas-psalmody")
         app.terminate()
 
         // Parallel English.
-        app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
-        app.swipeLeft()
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", section: openDuo ? "psalmodia" : nil, english: true)
+        if !openDuo { app.swipeLeft() }
         pause(1.2)
-        capture(app, "promo-03-english")
+        still(app, "promo-03-english")
         app.terminate()
 
         // The hour picker and the calendar.
@@ -74,44 +102,44 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["hourPickerButton"].tap()
         XCTAssertTrue(app.buttons["hour-Laudes"].waitForExistence(timeout: 5))
         pause(1.0)
-        capture(app, "promo-04-hours")
+        still(app, "promo-04-hours")
         app.terminate()
 
         app = launchApp(date: "2026-12-25", pageTurn: "curl")
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
         pause(2.0)
-        capture(app, "promo-05-calendar")
+        still(app, "promo-05-calendar")
         app.terminate()
 
         // Matins of All Saints in Vellum and Gentium.
         app = launchApp(date: "2026-11-01", pageTurn: "curl", hour: "Matutinum", theme: "vellum", font: "gentium")
         pause(0.8)
-        capture(app, "promo-06-vellum-matins")
+        still(app, "promo-06-vellum-matins")
         app.terminate()
 
         // Lauds in Media nox.
         app = launchApp(date: "2027-03-28", pageTurn: "curl", hour: "Laudes", theme: "midnightBlue")
         pause(0.8)
-        capture(app, "promo-07-easter-lauds")
+        still(app, "promo-07-easter-lauds")
         app.terminate()
 
         // The theme gallery.
         app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", theme: "sepia")
         openSettingsRow(app, "themePicker", title: "Theme")
         pause(1.0)
-        capture(app, "promo-08-themes")
+        still(app, "promo-08-themes")
         app.terminate()
 
         // The Dominican office on St Dominic's day, and Ambrosian Compline.
         app = launchApp(date: "2027-08-04", pageTurn: "curl", hour: "Vespera", rite: "dominicanus")
         pause(0.8)
-        capture(app, "promo-09-dominican")
+        still(app, "promo-09-dominican")
         app.terminate()
 
         app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", rite: "ambrosianus")
         pause(0.8)
-        capture(app, "promo-10-ambrosian")
+        still(app, "promo-10-ambrosian")
         app.terminate()
 
         // Settings.
@@ -119,7 +147,7 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         pause(1.0)
-        capture(app, "promo-11-settings")
+        still(app, "promo-11-settings")
         app.terminate()
     }
 
@@ -128,6 +156,7 @@ final class PromoUITests: BreviariumUITestCase {
     /// Christmas Vespers, turning pages with the curl.
     func testTour1Pages() throws {
         try XCTSkipIf(isPad, "the iPad has its own tour")
+        try skipIfOpenDuo()
         let app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(2.5)
         for _ in 0..<3 {
@@ -139,6 +168,7 @@ final class PromoUITests: BreviariumUITestCase {
     /// The hour picker, to Compline.
     func testTour2Hours() throws {
         try XCTSkipIf(isPad, "the iPad has its own tour")
+        try skipIfOpenDuo()
         let app = launchApp(date: "2026-12-25", pageTurn: "curl")
         pause(1.5)
         app.buttons["hourPickerButton"].tap()
@@ -154,6 +184,7 @@ final class PromoUITests: BreviariumUITestCase {
     /// The calendar, with the colour of each day, to Easter.
     func testTour3Calendar() throws {
         try XCTSkipIf(isPad, "the iPad has its own tour")
+        try skipIfOpenDuo()
         let app = launchApp(date: "2027-03-01", pageTurn: "curl", hour: "Laudes")
         pause(1.5)
         app.buttons["calendarButton"].tap()
@@ -174,6 +205,7 @@ final class PromoUITests: BreviariumUITestCase {
     /// Parallel English.
     func testTour4English() throws {
         try XCTSkipIf(isPad, "the iPad has its own tour")
+        try skipIfOpenDuo()
         let app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
         pause(2.0)
         for _ in 0..<2 {
@@ -185,6 +217,7 @@ final class PromoUITests: BreviariumUITestCase {
     /// Settings -> Theme -> Vellum, and the office takes it.
     func testTour5Themes() throws {
         try XCTSkipIf(isPad, "the iPad has its own tour")
+        try skipIfOpenDuo()
         let app = launchApp(date: "2026-11-01", pageTurn: "curl", hour: "Matutinum")
         pause(1.5)
         openSettingsRow(app, "themePicker", title: "Theme")

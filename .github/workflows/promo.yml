@@ -8,7 +8,11 @@ name: Promo captures
 # the stills, the raw recording and a timestamped test log to cut it by. The editing
 # (captions, frames, the App Store preview) is done off CI, with ffmpeg.
 # From 1.4 it also runs on an iPad Pro 13-inch, for the iPad's screenshots (2752x2064
-# in landscape, composed by scripts/promo/compose.py --ipad).
+# in landscape, composed by scripts/promo/compose.py --ipad). From 1.7 on the iPhone Duo
+# too: its stills folded (the outer screen, 1398x2034, compose.py --duo-outer), then
+# opened flat by scripts/duo-open.sh (duoctl) and taken again on the inner screen
+# (2007x2853, compose.py --duo), each pass in a folder of its own. The open Duo takes
+# stills only: XCUITest's swipes don't reach its inner screen, so no tours there.
 on:
   push:
     branches-ignore: [main]
@@ -30,6 +34,8 @@ jobs:
             device: "iPhone 18 Pro Max"
           - kind: ipad
             device: "iPad Pro 13-inch"
+          - kind: duo
+            device: "iPhone Duo"
     name: capture (${{ matrix.kind }})
     env:
       XCODE_VERSION: "27.2"
@@ -102,6 +108,28 @@ jobs:
         run: |
           mkdir -p Promo/stills
           xcrun xcresulttool export attachments --path Promo.xcresult --output-path Promo/stills --legacy || true
+
+      # The iPhone Duo opened flat (1.7): after the folded pass, which is also when an app
+      # has run on it, so its inner display is active for duoctl. Never fails the job:
+      # duo-open.sh warns and leaves the Duo folded if duoctl can't open it.
+      - name: Open the iPhone Duo
+        if: ${{ always() && matrix.kind == 'duo' }}
+        run: |
+          scripts/duo-open.sh "$UDID" portrait
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active \
+            --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+
+      - name: Run the stills on the open iPhone Duo
+        if: ${{ always() && matrix.kind == 'duo' }}
+        working-directory: App
+        env:
+          TEST_RUNNER_BREVIARIUM_PROMO: "1"
+        run: |
+          xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
+            -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
+            -only-testing:BreviariumUITests/PromoUITests/testPromoStills -resultBundlePath Promo-open.xcresult
+          mkdir -p Promo/stills-open
+          xcrun xcresulttool export attachments --path Promo-open.xcresult --output-path Promo/stills-open --legacy || true
 
       - name: Upload
         if: always()
