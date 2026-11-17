@@ -90,6 +90,10 @@ jobs:
         env:
           TEST_RUNNER_BREVIARIUM_PROMO: "1"
         run: |
+          # Not -e (GitHub's default): a failed test must still reach the end of the step,
+          # which stops the recorder and finishes its file. In run 44190538517 a tour's
+          # failure ended the step at once and left the iPhone's recording unreadable.
+          set +e
           set -uo pipefail
           mkdir -p Promo
           perl -MTime::HiRes=time -e 'printf "%.3f\n", time' > Promo/recording-start.txt
