@@ -192,7 +192,11 @@ final class NotificationsUITests: BreviariumUITestCase {
             snap(XCUIScreen.main.screenshot(), "system-alert")
             allow.tap()
         }
-        XCTAssertEqual(pending(app, waitingFor: "hour.Vespera 18:00"), "hour.Vespera 18:00")
+        let diagnostics = app.descendants(matching: .any)["remindersDiagnostics"]
+        XCTAssertEqual(
+            pending(app, waitingFor: "hour.Vespera 18:00"), "hour.Vespera 18:00",
+            "\(diagnostics.value as? String ?? "?"); refused footer: \(app.staticTexts["notificationsRefused"].exists)"
+        )
         flip(reminderSwitch(app, "Vespera"))
         XCTAssertEqual(pending(app, waitingFor: ""), "")
         app.terminate()

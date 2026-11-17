@@ -13,6 +13,8 @@ final class ReminderCenter: ObservableObject {
 
     /// What is scheduled (`hour.Vespera 18:00`, …), for the UI tests.
     @Published private(set) var pendingSummary = ""
+    /// The system's notification settings and the last error, for the UI tests.
+    @Published private(set) var diagnostics = ""
 
     private let scheduler: any ReminderScheduling
     /// The last re-sync: each waits for the one before, so they never interleave.
@@ -83,6 +85,7 @@ final class ReminderCenter: ObservableObject {
             await scheduler.replace(Reminders.allIdentifiers, with: allowed ? wanted : [])
             #if DEBUG
             pendingSummary = await scheduler.pending().joined(separator: ", ")
+            diagnostics = "allowed=\(allowed) wanted=\(wanted.count) " + (await scheduler.diagnostics())
             #endif
         }
     }
