@@ -35,6 +35,15 @@ versions are added when they arrive.
 
 ## Dark version (optional)
 
+**In use since 1.7:** Northumberland Simple (`AppIcon`) and Northumberland
+(`AppIconNorthumberland`) carry `icon-1024-dark.png`, a copy of Northumberland Inverted,
+so a Dark Home Screen shows Inverted (decided 2026-11-17). It is opaque, a whole other
+design rather than a foreground on iOS's dark ground; iOS shows an opaque dark image as it
+is. The other icons have none and look the same in Dark. App CI checks the dark
+renditions reach `Assets.car`.
+
+The usual dark version, if an icon wants one:
+
 - **The background is transparent**, and iOS puts its own dark background behind it. Draw
   only the foreground shape.
 - Keep the shape's colours bright enough to stand out on near-black.
