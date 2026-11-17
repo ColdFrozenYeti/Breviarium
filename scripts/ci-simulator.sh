@@ -55,4 +55,26 @@ fi
 echo "Simulator ($kind): $udid" >&2
 xcrun simctl boot "$udid" >&2 || true
 xcrun simctl bootstatus "$udid" -b >&2
+
+# 1.7: the iPhone Duo boots folded, showing its outer screen (1398 x 2034 px, as App CI's
+# first Duo runs did). simctl has no fold command, so duoctl (MIT, skarol/duoctl, pinned
+# to one commit; CI tooling only, nothing of it is in the app) opens it flat, through a
+# helper it builds and spawns in the simulator. It uses private interfaces, so it may
+# break with a later Xcode: then this warns and the Duo stays folded, and the Duo tests,
+# which follow the window's size, still run. Set BREVIARIUM_DUO_OPEN=0 to turn it off;
+# to remove it, delete this block (approved by the user, 2026-11-17).
+if [ "$kind" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
+  duoctl_commit=c6ff3e961a9858fb061907448e702d7d1617dc4a  # v0.2.1, Xcode 27.2 support
+  duoctl_dir="${RUNNER_TEMP:-/tmp}/duoctl"
+  duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
+  if { [ -x "$duoctl" ] || { git clone --quiet https://github.com/skarol/duoctl.git "$duoctl_dir" \
+        && git -C "$duoctl_dir" checkout --quiet "$duoctl_commit"; }; } >&2 \
+     && DUOCTL_UDID="$udid" python3 "$duoctl" open >&2 \
+     && DUOCTL_UDID="$udid" python3 "$duoctl" rotate portrait >&2; then
+    echo "iPhone Duo opened:" >&2
+    DUOCTL_UDID="$udid" python3 "$duoctl" state >&2 || true
+  else
+    echo "::warning::duoctl could not open the iPhone Duo; its tests run on the folded outer screen." >&2
+  fi
+fi
 echo "$udid"
