@@ -20,8 +20,8 @@ kind="${1:-iphone}"
 case "$kind" in
   iphone) name="iPhone 17"; prefixes="iPhone"; type="com.apple.CoreSimulator.SimDeviceType.iPhone-17" ;;
   ipad) name="iPad Air 11-inch (M4)"; prefixes="iPad Air|iPad"; type="com.apple.CoreSimulator.SimDeviceType.iPad-Air-11-inch-M4" ;;
-  duo) name="iPhone Duo"; prefixes="iPhone Duo"; type="com.apple.CoreSimulator.SimDeviceType.iPhone-Duo" ;;
-  *) echo "usage: $0 iphone|ipad|duo" >&2; exit 2 ;;
+  duo|duo-side) name="iPhone Duo"; prefixes="iPhone Duo"; type="com.apple.CoreSimulator.SimDeviceType.iPhone-Duo" ;;
+  *) echo "usage: $0 iphone|ipad|duo|duo-side" >&2; exit 2 ;;
 esac
 
 udid=$(xcrun simctl list devices available -j | NAME="$name" PREFIXES="$prefixes" python3 -c '
@@ -63,7 +63,10 @@ xcrun simctl bootstatus "$udid" -b >&2
 # break with a later Xcode: then this warns and the Duo stays folded, and the Duo tests,
 # which follow the window's size, still run. Set BREVIARIUM_DUO_OPEN=0 to turn it off;
 # to remove it, delete this block (approved by the user, 2026-11-17).
-if [ "$kind" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
+# XCUIDevice can't turn the open Duo either (nor can XCUITest's swipes reach its inner
+# screen), so duoctl also turns it: upright for `duo`, on its side for `duo-side`.
+if [ "${kind%-side}" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
+  if [ "$kind" = duo-side ]; then duo_rotation=landscape; else duo_rotation=portrait; fi
   duoctl_commit=c6ff3e961a9858fb061907448e702d7d1617dc4a  # v0.2.1, Xcode 27.2 support
   duoctl_dir="${RUNNER_TEMP:-/tmp}/duoctl"
   duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
@@ -76,7 +79,7 @@ if [ "$kind" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
         && git -C "$duoctl_dir" checkout --quiet "$duoctl_commit"; }; } >&2 \
      && { for _ in 1 2 3 4 5 6; do duoctl_ready && break; sleep 10; done; true; } \
      && DUOCTL_UDID="$udid" python3 "$duoctl" open >&2 \
-     && DUOCTL_UDID="$udid" python3 "$duoctl" rotate portrait >&2; then
+     && DUOCTL_UDID="$udid" python3 "$duoctl" rotate "$duo_rotation" >&2; then
     echo "iPhone Duo opened:" >&2
     DUOCTL_UDID="$udid" python3 "$duoctl" state >&2 || true
   else

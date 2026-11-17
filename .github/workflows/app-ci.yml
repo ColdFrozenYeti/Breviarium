@@ -225,6 +225,7 @@ jobs:
           - group: font-gallery-duo
             classes: FontUITests GalleryUITests
             duo_classes: DuoUITests
+            duo_side_classes: DuoSideUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "27.2"
@@ -252,6 +253,7 @@ jobs:
           CLASSES: ${{ matrix.classes }}
           IPAD_CLASSES: ${{ matrix.ipad_classes }}
           DUO_CLASSES: ${{ matrix.duo_classes }}
+          DUO_SIDE_CLASSES: ${{ matrix.duo_side_classes }}
           ONLY_TESTING: ${{ inputs.only_testing }}
         run: |
           set -euo pipefail
@@ -289,6 +291,8 @@ jobs:
           if [ -n "$CLASSES" ]; then run_pass iphone "$CLASSES" TestResults.xcresult || status=$?; fi
           if [ -n "$IPAD_CLASSES" ]; then run_pass ipad "$IPAD_CLASSES" TestResults-iPad.xcresult || status=$?; fi
           if [ -n "$DUO_CLASSES" ]; then run_pass duo "$DUO_CLASSES" TestResults-Duo.xcresult || status=$?; fi
+          # The open Duo on its side (duoctl turns it; XCUIDevice can't).
+          if [ -n "$DUO_SIDE_CLASSES" ]; then run_pass duo-side "$DUO_SIDE_CLASSES" TestResults-DuoSide.xcresult || status=$?; fi
           exit $status
 
       - name: Upload test results
@@ -328,6 +332,13 @@ jobs:
               --path TestResults-Duo.xcresult \
               --output-path Snapshots/duo \
               --legacy || echo "No iPhone Duo attachments found."
+          fi
+          if [ -d TestResults-DuoSide.xcresult ]; then
+            mkdir -p Snapshots/duo-side
+            xcrun xcresulttool export attachments \
+              --path TestResults-DuoSide.xcresult \
+              --output-path Snapshots/duo-side \
+              --legacy || echo "No iPhone Duo (on its side) attachments found."
           fi
 
       - name: Upload snapshot PNGs
