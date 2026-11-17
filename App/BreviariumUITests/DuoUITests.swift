@@ -6,7 +6,8 @@ import XCTest
 /// the inner screen is 669 x 951 pt. XCUITest's swipes don't reach the inner screen and
 /// `XCUIDevice` can't turn it, so these tests reach a later page by opening the hour at a
 /// section (`BREVIARIUM_SNAPSHOT_SECTION`), and the Duo on its side is a pass of its own,
-/// turned by duoctl (`DuoSideUITests`). Taps work. Folded, the Duo is a standard iPhone,
+/// turned by duoctl (`DuoSideUITests`). Taps work. Every capture is of the window: a
+/// screen capture of the open Duo comes out black. Folded, the Duo is a standard iPhone,
 /// which the iPhone passes cover; the fold itself is checked on the device.
 class DuoTestCase: BreviariumUITestCase {
     func captureWindow(_ app: XCUIApplication, _ name: String) {
@@ -17,6 +18,9 @@ class DuoTestCase: BreviariumUITestCase {
     }
 
     func counter(_ app: XCUIApplication) -> String { app.staticTexts["pageCounter"].label }
+
+    /// `spread` or `single`, the reader's own answer (a debug-only value on the counter).
+    func layout(_ app: XCUIApplication) -> String { app.staticTexts["pageCounter"].value as? String ?? "" }
 
     /// The window's size, kept with the captures.
     func recordWindow(_ app: XCUIApplication, _ name: String) {
@@ -43,7 +47,8 @@ final class DuoUITests: DuoTestCase {
         try XCTSkipUnless(frame.height > frame.width, "the open Duo isn't upright: \(frame)")
     }
 
-    /// Page 1 and the psalmody, English off and on.
+    /// Page 1 and the hymn's page (opened at its section: no swipes on the inner screen),
+    /// English off and on.
     func testUpright() throws {
         for english in [false, true] {
             let app = launchApp(date: "2026-09-16", english: english)
@@ -51,14 +56,16 @@ final class DuoUITests: DuoTestCase {
             try requireOpen(app)
             try requireUpright(app)
             Thread.sleep(forTimeInterval: 1.0)
-            XCTAssertTrue(counter(app).hasPrefix("Page 1 of"), counter(app))
-            capture(app, "duo-upright-english\(english ? "On" : "Off")-1")
+            let first = counter(app)
+            XCTAssertTrue(first.hasPrefix("Page 1 of"), first)
+            XCTAssertEqual(layout(app), "single")
+            captureWindow(app, "duo-upright-english\(english ? "On" : "Off")-1")
             app.terminate()
 
-            let later = launchApp(date: "2026-09-16", section: "psalmodia", english: english)
+            let later = launchApp(date: "2026-09-16", section: "hymnus", english: english)
             Thread.sleep(forTimeInterval: 1.0)
-            XCTAssertFalse(counter(later).hasPrefix("Page 1 of"), counter(later))
-            capture(later, "duo-upright-english\(english ? "On" : "Off")-psalmody")
+            XCTAssertNotEqual(counter(later), first, "the hymn is past page 1")
+            captureWindow(later, "duo-upright-english\(english ? "On" : "Off")-hymn")
             later.terminate()
         }
     }
@@ -68,12 +75,12 @@ final class DuoUITests: DuoTestCase {
         let vertical = launchApp(date: "2026-09-16", readingMode: "vertical")
         try requireOpen(vertical)
         try requireUpright(vertical)
-        capture(vertical, "duo-vertical")
+        captureWindow(vertical, "duo-vertical")
         vertical.terminate()
 
         let hidden = launchApp(date: "2026-09-16", menus: "hidden")
         XCTAssertTrue(waitForLabel(hidden.staticTexts["pageNumber"], "1"))
-        capture(hidden, "duo-menus-hidden")
+        captureWindow(hidden, "duo-menus-hidden")
         hidden.terminate()
 
         let app = launchApp(date: "2026-11-19")
@@ -82,19 +89,19 @@ final class DuoUITests: DuoTestCase {
         let day = app.buttons["kalendariumDay-11-19"]
         XCTAssertTrue(day.exists && day.isHittable, "the first frame should show 19 November")
         Thread.sleep(forTimeInterval: 1.5)
-        capture(app, "duo-kalendarium")
+        captureWindow(app, "duo-kalendarium")
         app.buttons["Close"].tap()
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 1.0)
-        capture(app, "duo-settings")
+        captureWindow(app, "duo-settings")
         let row = app.buttons["notificationsRow"]
         scrollSettings(to: row, in: app)
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.8)
-        capture(app, "duo-notifications")
+        captureWindow(app, "duo-notifications")
         app.terminate()
     }
 }
@@ -102,27 +109,27 @@ final class DuoUITests: DuoTestCase {
 /// The open Duo on its side (951 x 669 pt), turned by duoctl before this pass: the
 /// two-page spread, as on the iPad, and the Latin and English on facing pages.
 final class DuoSideUITests: DuoTestCase {
-    /// Whether this window shows a spread: horizontal pages, at least 900 pt wide and
-    /// wider than tall (`VespersView.isSpread`).
-    private func spreads(_ app: XCUIApplication) -> Bool {
+    /// The Duo is on its side: a window wider than tall.
+    private func requireSide(_ app: XCUIApplication) throws {
         let frame = app.windows.firstMatch.frame
-        return frame.width >= 900 && frame.width > frame.height
+        try XCTSkipUnless(frame.width > frame.height, "duoctl didn't turn the Duo: \(frame)")
     }
 
     func testSpread() throws {
         let app = launchApp(date: "2026-09-16", pageTurn: "curl")
         recordWindow(app, "side")
         try requireOpen(app)
-        try XCTSkipUnless(spreads(app), "duoctl didn't turn the Duo: \(app.windows.firstMatch.frame)")
+        try requireSide(app)
         Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertEqual(layout(app), "spread")
         XCTAssertTrue(counter(app).hasPrefix("Page 1–2 of"), counter(app))
         captureWindow(app, "duo-side-spread-1")
         app.terminate()
 
-        let later = launchApp(date: "2026-09-16", pageTurn: "curl", section: "psalmodia")
+        let later = launchApp(date: "2026-09-16", pageTurn: "curl", section: "hymnus")
         Thread.sleep(forTimeInterval: 1.0)
         XCTAssertTrue(counter(later).contains("–"), counter(later))
-        captureWindow(later, "duo-side-spread-psalmody")
+        captureWindow(later, "duo-side-spread-hymn")
         later.terminate()
 
         let hidden = launchApp(date: "2026-09-16", menus: "hidden")
@@ -135,15 +142,17 @@ final class DuoSideUITests: DuoTestCase {
     func testFacingEnglish() throws {
         let app = launchApp(date: "2026-09-16", english: true)
         try requireOpen(app)
-        try XCTSkipUnless(spreads(app), "duoctl didn't turn the Duo: \(app.windows.firstMatch.frame)")
+        try requireSide(app)
         Thread.sleep(forTimeInterval: 1.0)
+        // Each spread is one page with English on: the reader's layout tells it apart.
+        XCTAssertEqual(layout(app), "spread")
         XCTAssertTrue(counter(app).hasPrefix("Page 1 of"), counter(app))
         captureWindow(app, "duo-side-facing-1")
         app.terminate()
 
-        let later = launchApp(date: "2026-09-16", section: "psalmodia", english: true)
+        let later = launchApp(date: "2026-09-16", section: "hymnus", english: true)
         Thread.sleep(forTimeInterval: 1.0)
-        captureWindow(later, "duo-side-facing-psalmody")
+        captureWindow(later, "duo-side-facing-hymn")
         later.terminate()
 
         let vertical = launchApp(date: "2026-09-16", readingMode: "vertical")

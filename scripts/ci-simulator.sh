@@ -56,35 +56,11 @@ echo "Simulator ($kind): $udid" >&2
 xcrun simctl boot "$udid" >&2 || true
 xcrun simctl bootstatus "$udid" -b >&2
 
-# 1.7: the iPhone Duo boots folded, showing its outer screen (1398 x 2034 px, as App CI's
-# first Duo runs did). simctl has no fold command, so duoctl (MIT, skarol/duoctl, pinned
-# to one commit; CI tooling only, nothing of it is in the app) opens it flat, through a
-# helper it builds and spawns in the simulator. It uses private interfaces, so it may
-# break with a later Xcode: then this warns and the Duo stays folded, and the Duo tests,
-# which follow the window's size, still run. Set BREVIARIUM_DUO_OPEN=0 to turn it off;
-# to remove it, delete this block (approved by the user, 2026-11-17).
-# XCUIDevice can't turn the open Duo either (nor can XCUITest's swipes reach its inner
-# screen), so duoctl also turns it: upright for `duo`, on its side for `duo-side`.
-if [ "${kind%-side}" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
-  if [ "$kind" = duo-side ]; then duo_rotation=landscape; else duo_rotation=portrait; fi
-  duoctl_commit=c6ff3e961a9858fb061907448e702d7d1617dc4a  # v0.2.1, Xcode 27.2 support
-  duoctl_dir="${RUNNER_TEMP:-/tmp}/duoctl"
-  duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
-  # A Duo booted by simctl alone had no active display for devicectl (duoctl: "no display
-  # is active"); Simulator.app showing the device activates one. Up to 3 minutes for it
-  # (a minute was once too short).
-  # Simulator.app is inside Xcode on the runners, not in /Applications.
-  open "$(xcode-select -p)/Applications/Simulator.app" --args -CurrentDeviceUDID "$udid" >&2 || true
-  duoctl_ready() { DUOCTL_UDID="$udid" python3 "$duoctl" state > /dev/null 2>&1; }
-  if { [ -x "$duoctl" ] || { git clone --quiet https://github.com/skarol/duoctl.git "$duoctl_dir" \
-        && git -C "$duoctl_dir" checkout --quiet "$duoctl_commit"; }; } >&2 \
-     && { for _ in $(seq 18); do duoctl_ready && break; sleep 10; done; true; } \
-     && DUOCTL_UDID="$udid" python3 "$duoctl" open >&2 \
-     && DUOCTL_UDID="$udid" python3 "$duoctl" rotate "$duo_rotation" >&2; then
-    echo "iPhone Duo opened:" >&2
-    DUOCTL_UDID="$udid" python3 "$duoctl" state >&2 || true
-  else
-    echo "::warning::duoctl could not open the iPhone Duo; its tests run on the folded outer screen." >&2
-  fi
-fi
+# 1.7: the iPhone Duo boots folded; opened flat and turned with duoctl
+# (scripts/duo-open.sh): upright for `duo`, on its side for `duo-side`. XCUIDevice can't
+# turn the open Duo, nor can XCUITest's swipes reach its inner screen.
+case "$kind" in
+  duo) "$(dirname "$0")/duo-open.sh" "$udid" portrait ;;
+  duo-side) "$(dirname "$0")/duo-open.sh" "$udid" landscape ;;
+esac
 echo "$udid"

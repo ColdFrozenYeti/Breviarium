@@ -70,16 +70,18 @@ struct VespersView: View {
             + "|\(settings.theme.rawValue)|\(settings.font.rawValue)|\(settings.menus == .hidden)"
     }
 
-    /// Two pages side by side (1.4; the iPhone Duo since 1.7): horizontal pages in a window
-    /// wider than tall, at least 900 pt wide (two pages of at least 450 pt) and 600 pt
-    /// tall -- an iPad in landscape, or the iPhone Duo open, whose inner screen is
-    /// 951 x 669 pt on its side, the way it opens (App CI, 17 November 2026). By size
-    /// alone: the open Duo on its side reports a compact height class, which a size-class
-    /// rule had kept to one page. The height keeps out every iPhone on its side, the
-    /// 956 x 440 pt Pro Max included. Every other window shows one page.
+    /// Two pages side by side (1.4; the iPhone Duo since 1.7): horizontal pages in a
+    /// reading area wider than tall, at least 820 pt wide (two pages of at least 410 pt,
+    /// an iPhone page's width) and 480 pt tall -- an iPad in landscape (about 1180 x 720),
+    /// or the iPhone Duo open on its side: its window is 951 x 669 pt, and its reading
+    /// area, inside the menus, the footer and the status bar's strip, about 866 x 566
+    /// (measured on CI, 17 November 2026). By size alone, not size class: the open Duo
+    /// reports a compact height on its side. The height keeps out every iPhone on its
+    /// side, whose reading area is under 340 pt tall (the Pro Max's under 840 x 340).
+    /// Every other window shows one page.
     private func isSpread(_ size: CGSize) -> Bool {
         settings.readingMode == .horizontal && size.width > size.height
-            && size.width >= 900 && size.height >= 600
+            && size.width >= 820 && size.height >= 480
     }
 
     /// English shown: off under the Ambrosian rite (Beta 6: Latin only).
@@ -367,6 +369,11 @@ struct VespersView: View {
                     .font(.system(size: metrics.footerSize))
                     .foregroundStyle(theme.chrome)
                     .accessibilityIdentifier("pageCounter")
+                    #if DEBUG
+                    // For the UI tests (1.7): whether the reader is a spread, which the
+                    // counter alone can't tell with English on (each spread one page).
+                    .accessibilityValue(isSpread(readerSize) ? "spread" : "single")
+                    #endif
             } else {
                 Text(pageLabel)
                     .font(.system(size: metrics.footerSize))
