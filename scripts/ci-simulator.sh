@@ -69,7 +69,8 @@ if [ "$kind" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
   duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
   # A Duo booted by simctl alone had no active display for devicectl (duoctl: "no display
   # is active"); Simulator.app showing the device activates one. Up to a minute for it.
-  open -a Simulator --args -CurrentDeviceUDID "$udid" >&2 || true
+  # Simulator.app is inside Xcode on the runners, not in /Applications.
+  open "$(xcode-select -p)/Applications/Simulator.app" --args -CurrentDeviceUDID "$udid" >&2 || true
   duoctl_ready() { DUOCTL_UDID="$udid" python3 "$duoctl" state > /dev/null 2>&1; }
   if { [ -x "$duoctl" ] || { git clone --quiet https://github.com/skarol/duoctl.git "$duoctl_dir" \
         && git -C "$duoctl_dir" checkout --quiet "$duoctl_commit"; }; } >&2 \
