@@ -29,8 +29,8 @@ modifications, as section 7 allows.
 
 ## App icons
 
-All nine app icons are Eduardo Pavone's designs, each made from an image on Wikisource
-(sources confirmed 11 October 2026):
+All ten app icons are Eduardo Pavone's designs, each made from an image on Wikisource or
+Wikimedia Commons (sources confirmed 11 October 2026; Thea's added 17 November 2026):
 
 | Icon | Source image |
 |---|---|
@@ -40,12 +40,24 @@ All nine app icons are Eduardo Pavone's designs, each made from an image on Wiki
 | Weissenau | public domain |
 | ChurchofAmbrose | public domain |
 | Gutenberg, Gutenberg (mono) | Creative Commons Attribution 2.0 Generic, credit Biblioteca General Antonio Machado |
+| Thea | Creative Commons Attribution-ShareAlike 4.0 International, credit Manuscriptorium / National Library of the Czech Republic |
 
 The two Gutenberg icons are adapted into app icons from
 an image by the **Biblioteca General Antonio Machado**, licensed under
 [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). That attribution, the licence
 and the note of the adaptation are shown on the app's About screen, as the licence
 requires, and must be kept with every copy of those icons.
+
+**Thea** (1.7, `App/Breviarium/Assets.xcassets/AppIconThea.appiconset` and
+`IconPreviewThea.imageset`) is adapted from the initial B of the *Psalter of Hanuš from
+Kolovrat* (National Library of the Czech Republic, Osek 71, f. 2v), in
+[an image on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Psalter_of_Hanu%C5%A1_from_Kolovrat_-_NK_%C4%8CR_Osek_71_f2v.jpg)
+provided by Manuscriptorium and licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The letter was redrawn,
+cropped to a square and recoloured. As the licence's ShareAlike term requires, the Thea
+icon files are licensed under CC BY-SA 4.0, not the GPL (CC BY-SA 4.0 is one-way
+compatible with GPLv3, so the app as a whole stays GPL-3.0-or-later). The attribution and
+licence are shown on the app's About screen and must be kept with every copy of the icon.
 
 ## Third-party material
 

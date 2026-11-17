@@ -76,12 +76,17 @@ struct AboutView: View {
             }
 
             // The app icons (sources confirmed 2026-10-11): the Gutenberg pair's source image
-            // is CC BY 2.0, which asks for its credit wherever the icons are distributed.
+            // is CC BY 2.0, which asks for its credit wherever the icons are distributed;
+            // Thea's (1.7) is CC BY-SA 4.0, which also asks that the icon keep that licence.
             Section("App icons") {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("The app icons are Eduardo Pavone's designs, made from images on Wikisource. All are public domain but the Gutenberg pair.")
+                    Text("The app icons are Eduardo Pavone's designs, made from images on Wikisource and Wikimedia Commons. All are public domain but the Gutenberg pair and Thea.")
                     Text("Gutenberg and Gutenberg (mono): adapted from an image by the Biblioteca General Antonio Machado, licensed under Creative Commons Attribution 2.0 Generic (CC BY 2.0).")
                     Text("creativecommons.org/licenses/by/2.0")
+                        .font(.footnote)
+                        .foregroundStyle(theme.chrome)
+                    Text("Thea: adapted (the initial B, redrawn and recoloured) from the Psalter of Hanuš from Kolovrat, National Library of the Czech Republic, Osek 71, f. 2v, image provided by Manuscriptorium, licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0). The Thea icon is shared under the same licence.")
+                    Text("creativecommons.org/licenses/by-sa/4.0")
                         .font(.footnote)
                         .foregroundStyle(theme.chrome)
                 }

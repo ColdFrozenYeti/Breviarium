@@ -383,7 +383,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
     }
 
     /// The app icon choice in Settings (added 1 October 2026; a gallery of four since
-    /// 6 October, six since 10 October). The switch itself raises a system alert outside the app, so the test
+    /// 6 October, six since 10 October, ten since 1.7). The switch itself raises a system alert outside the app, so the test
     /// checks the row and the gallery of choices only.
     func testAppIconPicker() {
         let app = launchApp(date: "2026-09-16")
@@ -396,9 +396,9 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCTAssertTrue(picker.label.contains("Northumberland Simple"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
+        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau"), ("thea", "Thea")] {
             let tile = app.buttons["appIcon-\(icon)"]
-            // Nine icons are taller than the screen, and the grid is lazy.
+            // Ten icons (1.7) are taller than the screen, and the grid is lazy.
             var swipes = 0
             while !tile.exists, swipes < 4 {
                 app.swipeUp()
