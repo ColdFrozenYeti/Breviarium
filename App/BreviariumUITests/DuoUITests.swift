@@ -35,14 +35,21 @@ class DuoTestCase: BreviariumUITestCase {
     }
 }
 
-/// The open Duo, upright: one page with widened margins.
+/// The open Duo, upright (669 x 951 pt), turned by duoctl: one page with widened margins.
+/// It opens on its side, so if duoctl couldn't turn it these skip.
 final class DuoUITests: DuoTestCase {
+    private func requireUpright(_ app: XCUIApplication) throws {
+        let frame = app.windows.firstMatch.frame
+        try XCTSkipUnless(frame.height > frame.width, "the open Duo isn't upright: \(frame)")
+    }
+
     /// Page 1 and the psalmody, English off and on.
     func testUpright() throws {
         for english in [false, true] {
             let app = launchApp(date: "2026-09-16", english: english)
             recordWindow(app, "upright")
             try requireOpen(app)
+            try requireUpright(app)
             Thread.sleep(forTimeInterval: 1.0)
             XCTAssertTrue(counter(app).hasPrefix("Page 1 of"), counter(app))
             capture(app, "duo-upright-english\(english ? "On" : "Off")-1")
@@ -60,6 +67,7 @@ final class DuoUITests: DuoTestCase {
     func testSettings() throws {
         let vertical = launchApp(date: "2026-09-16", readingMode: "vertical")
         try requireOpen(vertical)
+        try requireUpright(vertical)
         capture(vertical, "duo-vertical")
         vertical.terminate()
 
