@@ -128,6 +128,12 @@ jobs:
           xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
             -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
             -only-testing:BreviariumUITests/PromoUITests/testPromoStills -resultBundlePath Promo-open.xcresult
+
+      # Its own step, so a failed check above still leaves the stills taken before it.
+      - name: Extract the open iPhone Duo's stills
+        if: ${{ always() && matrix.kind == 'duo' }}
+        working-directory: App
+        run: |
           mkdir -p Promo/stills-open
           xcrun xcresulttool export attachments --path Promo-open.xcresult --output-path Promo/stills-open --legacy || true
 

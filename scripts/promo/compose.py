@@ -12,6 +12,8 @@ ships in the app.
 
     python3 -B scripts/promo/compose.py [--ipad | --duo | --duo-outer] <stills-dir> <out-dir>
 """
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -24,6 +26,7 @@ IPAD = False
 # The iPhone layout's sizes are for 2868 px; the Duo's two screens scale them to their own
 # height (1.7).
 F = 1.0
+DUO_OPEN = False
 
 INK = (255, 255, 255)
 RUBRIC = (255, 128, 128)  # #FF8080, the Nox theme's rubric red
@@ -107,7 +110,7 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
     scale = min(scale, 0.84 * W / shot.width)
     shot = shot.resize((round(shot.width * scale), round(shot.height * scale)), Image.LANCZOS)
     radius = round((60 if IPAD else 150) * scale)
-    if shot.width > shot.height * 0.6:
+    if DUO_OPEN and shot.width > shot.height * 0.6:
         # The open Duo's page is nearly square: a smaller corner, as on the iPad.
         radius = round(60 * scale)
     framed = rounded(shot, radius)
@@ -127,7 +130,7 @@ def compose(still: Path, caption: str, subline: str) -> Image.Image:
 
 
 def main() -> None:
-    global W, H, IPAD, F
+    global W, H, IPAD, F, DUO_OPEN
     args = sys.argv[1:]
     if args and args[0] == "--ipad":
         IPAD = True
@@ -135,19 +138,43 @@ def main() -> None:
         args = args[1:]
     elif args and args[0] in ("--duo", "--duo-outer"):
         W, H = (2007, 2853) if args[0] == "--duo" else (1398, 2034)
+        DUO_OPEN = args[0] == "--duo"
         F = H / 2868
         args = args[1:]
     stills, out = Path(args[0]), Path(args[1])
     out.mkdir(parents=True, exist_ok=True)
+    found = named_stills(stills)
+    # The iPhone's required 6.3" slot (1206x2622) takes a copy of each 6.9" image (1.7).
+    phone_63 = out / "6.3" if (W, H) == (1320, 2868) else None
+    if phone_63:
+        phone_63.mkdir(exist_ok=True)
     for index, (name, caption, subline) in enumerate(SHOTS_IPAD if IPAD else SHOTS, start=1):
-        matches = sorted(stills.glob(f"{name}*.png"))
-        if not matches:
+        if name not in found:
             print(f"missing: {name}")
             continue
-        image = compose(matches[0], caption, subline)
+        image = compose(found[name], caption, subline)
         target = out / f"{index:02d}-{name.split('-', 2)[2]}.png"
         image.save(target, optimize=True)
         print(target)
+        if phone_63:
+            image.resize((1206, 2622), Image.LANCZOS).save(phone_63 / target.name, optimize=True)
+
+
+def named_stills(stills: Path) -> dict:
+    """The stills by name: from the export's manifest.json, whose files are named by UUID
+    (`xcresulttool export attachments`), else from files already named `promo-…png`."""
+    found = {}
+    manifest = stills / "manifest.json"
+    if manifest.exists():
+        for test in json.loads(manifest.read_text()):
+            for attachment in test.get("attachments", []):
+                file = attachment.get("exportedFileName", "")
+                name = re.sub(r"_\d+_[0-9A-F-]{36}\.png$", "", attachment.get("suggestedHumanReadableName", ""))
+                if file.endswith(".png") and (stills / file).exists():
+                    found.setdefault(name, stills / file)
+    for path in sorted(stills.glob("*.png")):
+        found.setdefault(path.stem, path)
+    return found
 
 
 if __name__ == "__main__":
