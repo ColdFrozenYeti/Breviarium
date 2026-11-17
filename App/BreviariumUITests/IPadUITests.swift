@@ -1,7 +1,7 @@
 import XCTest
 
-/// The iPad (1.4, `docs/1.4_plan.md`, M3), run on an iPad Air 11" (M3) simulator, the
-/// device App Review used: the two-page spread in landscape, Latin and English on facing
+/// The iPad (1.4, `docs/1.4_plan.md`, M3), run on an iPad Air 11" simulator (the M3,
+/// the device App Review used, until 1.7; the M4 since): the two-page spread in landscape, Latin and English on facing
 /// pages, one page in portrait, and the same settings as the iPhone (vertical scrolling,
 /// the slide and the curl, *Menus: Hidden*, the Kalendarium).
 final class IPadUITests: BreviariumUITestCase {
@@ -50,6 +50,12 @@ final class IPadUITests: BreviariumUITestCase {
         captureWindow(app, "ipad-facing-1")
         app.swipeLeft()
         Thread.sleep(forTimeInterval: 1.0)
+        // On iOS 27 the first swipe after the turn to landscape was once missed (run
+        // 44071359508): swiped again if the page didn't move.
+        if counter(app).hasPrefix("Page 1 of") {
+            app.swipeLeft()
+            Thread.sleep(forTimeInterval: 1.0)
+        }
         XCTAssertTrue(counter(app).hasPrefix("Page 2 of"), counter(app))
         captureWindow(app, "ipad-facing-2")
         app.terminate()

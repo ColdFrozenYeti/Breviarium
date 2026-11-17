@@ -158,6 +158,29 @@ jobs:
             fi
           done
 
+      # 1.7: on a Dark Home Screen, Northumberland Simple (the primary icon) and
+      # Northumberland show Northumberland Inverted: each set carries a dark appearance,
+      # which must reach the compiled catalog for the alternate icon as well.
+      - name: Check the dark app icons
+        working-directory: App
+        run: |
+          set -euo pipefail
+          CAR=DerivedData/Build/Products/Debug-iphonesimulator/Breviarium.app/Assets.car
+          xcrun --sdk iphonesimulator assetutil --info "$CAR" > assets.json
+          python3 - <<'PY'
+          import json, sys
+          entries = [e for e in json.load(open("assets.json")) if isinstance(e, dict)]
+          def dark(name):
+              return [e for e in entries if e.get("Name") == name
+                      and any("dark" in str(v).lower() for k, v in e.items() if "appearance" in k.lower())]
+          missing = [n for n in ("AppIcon", "AppIconNorthumberland") if not dark(n)]
+          for n in ("AppIcon", "AppIconNorthumberland", "AppIconThea"):
+              print(n, sorted({str(e.get("Appearance", "")) for e in entries if e.get("Name") == n}))
+          if missing:
+              print("No dark rendition for:", missing, file=sys.stderr)
+              sys.exit(1)
+          PY
+
       # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.
       - name: Pack the test build
         working-directory: App/DerivedData/Build
@@ -170,41 +193,36 @@ jobs:
           retention-days: 1
 
   ui-tests:
-    # A hung simulator once held a group for 90 minutes (2026-11-12); the longest group
-    # takes about 25.
-    timeout-minutes: 45
+    # A hung simulator once held a group for 90 minutes (2026-11-12). 45 until 1.7, when
+    # Xcode 27's slower simulator start-up took the iPad group past it (run 44071359508).
+    timeout-minutes: 60
     needs: build
     runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
-        # Balanced on the classes' test times in run 43338295712 (13 November 2026), in
-        # seconds: VespersMatrix 603, DayHours 506, Matins 424, LaunchAndNavigation 420,
-        # Dominican 411, Theme 343, Ambrosian 301, VotiveOffices 231, Font 214, Gallery
-        # 212; each job also spends about 7 minutes setting up. `ipad_classes` run after
-        # the others, on an iPad Air 11-inch (M4 since 1.7; App Review used an M3, and the
-        # iOS 27.2 runtime has only the M4) (1.4): five jobs at once is the free
-        # plan's macOS limit, so the iPad joins a group rather than adding a sixth job.
-        # In run 43476364041 the iPad pass took about 14 minutes (3.5 of tests, the rest
-        # making and booting the iPad), so it runs after the quickest group, not Matins
-        # (which took 12 minutes alone there). In run 43654040196 (14 November 2026) the
-        # groups took 24, 17 (matins), 25, 36 and 20 minutes, so the reminders' tests
-        # (1.6) join Matins on the iPhone, with GalleryUITests moved there to make room
-        # for them in the iPad pass, which keeps its one iPad boot (a second group's
-        # fresh iPad was not found by xcodebuild in run 43661019769).
+        # Rebalanced for 1.7 (Xcode 27.2, iOS 27.2 simulators, and the iPhone Duo): each
+        # simulator pass now costs 6 to 8 minutes before its first test (xcodebuild's
+        # first launch on a fresh device; run 44071359508), so the iPad and the Duo have
+        # passes of their own, and the iPhone classes are spread over the other jobs.
+        # Approximate test minutes in that run: VespersMatrix 10, DayHours 8.5,
+        # Ambrosian 8.3, Launch 7.5, Matins 7, Theme 6, Notifications 5, Dominican 4.7,
+        # Votive 4, Font 3.6, Gallery 3.5, WidgetGallery 2; the iPad's classes about 15.
+        # Five jobs at once is the free plan's macOS limit (shared with promo.yml: never
+        # run both together). The aim is about 30 minutes for every job.
         # PromoUITests is left out: it skips itself outside promo.yml.
         include:
-          - group: vespers-font
-            classes: VespersMatrixUITests FontUITests
-          - group: matins
-            classes: MatinsUITests NotificationsUITests GalleryUITests
-          - group: day-hours-votive
-            classes: DayHoursUITests VotiveOfficesUITests
-          - group: launch-theme
-            classes: LaunchAndNavigationUITests ThemeUITests WidgetGalleryUITests
-          - group: dominican-ambrosian-gallery-ipad
-            classes: DominicanUITests AmbrosianUITests
+          - group: vespers-dayhours
+            classes: VespersMatrixUITests DayHoursUITests VotiveOfficesUITests
+          - group: matins-launch-theme
+            classes: MatinsUITests LaunchAndNavigationUITests ThemeUITests
+          - group: dominican-ambrosian-notifications
+            classes: DominicanUITests AmbrosianUITests NotificationsUITests WidgetGalleryUITests GalleryUITests
+          - group: ipad
             ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
+          - group: font-duo
+            classes: FontUITests
+            duo_classes: DuoUITests WidgetGalleryUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "27.2"
@@ -231,12 +249,14 @@ jobs:
         env:
           CLASSES: ${{ matrix.classes }}
           IPAD_CLASSES: ${{ matrix.ipad_classes }}
+          DUO_CLASSES: ${{ matrix.duo_classes }}
           ONLY_TESTING: ${{ inputs.only_testing }}
         run: |
           set -euo pipefail
           XCTESTRUN=$(ls build/Products/*.xctestrun | head -1)
-          # One pass per device: the group's iPhone classes, then its iPad classes, each
-          # on its own simulator (scripts/ci-simulator.sh) and in its own result bundle.
+          # One pass per device: the group's iPhone classes, then its iPad or iPhone Duo
+          # classes, each on its own simulator (scripts/ci-simulator.sh) and in its own
+          # result bundle.
           run_pass() {
             local device=$1 classes=$2 bundle=$3
             local only=()
@@ -266,6 +286,7 @@ jobs:
           status=0
           if [ -n "$CLASSES" ]; then run_pass iphone "$CLASSES" TestResults.xcresult || status=$?; fi
           if [ -n "$IPAD_CLASSES" ]; then run_pass ipad "$IPAD_CLASSES" TestResults-iPad.xcresult || status=$?; fi
+          if [ -n "$DUO_CLASSES" ]; then run_pass duo "$DUO_CLASSES" TestResults-Duo.xcresult || status=$?; fi
           exit $status
 
       - name: Upload test results
@@ -297,6 +318,14 @@ jobs:
               --path TestResults-iPad.xcresult \
               --output-path Snapshots/ipad \
               --legacy || echo "No iPad attachments found."
+          fi
+          # The iPhone Duo's (1.7), likewise.
+          if [ -d TestResults-Duo.xcresult ]; then
+            mkdir -p Snapshots/duo
+            xcrun xcresulttool export attachments \
+              --path TestResults-Duo.xcresult \
+              --output-path Snapshots/duo \
+              --legacy || echo "No iPhone Duo attachments found."
           fi
 
       - name: Upload snapshot PNGs

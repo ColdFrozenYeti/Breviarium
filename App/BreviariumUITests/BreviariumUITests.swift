@@ -278,6 +278,46 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         notes.lifetime = .keepAlways
         add(notes)
     }
+    /// Keep screen awake (1.7): under *Reading*, off by default, and remembered across a
+    /// relaunch. The idle timer itself can't be seen in the simulator; the phone checks
+    /// that the screen stays lit. Turned off again at the end, so no later test inherits it.
+    func testKeepScreenAwake() {
+        func openSettings(_ app: XCUIApplication) -> XCUIElement {
+            app.buttons["settingsButton"].tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+            let toggle = app.switches["keepScreenAwakeToggle"]
+            scrollSettings(to: toggle, in: app)
+            XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+            return toggle
+        }
+        func isOn(_ toggle: XCUIElement) -> Bool { (toggle.value as? String) == "1" }
+        func flip(_ toggle: XCUIElement) {
+            let before = isOn(toggle)
+            toggle.tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            if isOn(toggle) == before { toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        }
+
+        let app = launchApp(date: "2026-09-16")
+        var toggle = openSettings(app)
+        XCTAssertEqual(toggle.label, "Keep screen awake")
+        XCTAssertFalse(isOn(toggle), "Keep screen awake is off by default")
+        flip(toggle)
+        XCTAssertTrue(isOn(toggle))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "settings-keep-screen-awake-on"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.terminate()
+
+        let again = launchApp(date: "2026-09-16")
+        toggle = openSettings(again)
+        XCTAssertTrue(isOn(toggle), "the choice is remembered")
+        flip(toggle)
+        XCTAssertFalse(isOn(toggle))
+        again.terminate()
+    }
+
     /// Beta 3's icon on the simulator's Home Screen: the app is installed and launched
     /// once, then the Home button shows SpringBoard. A freshly installed app lands on the
     /// last Home Screen page, so the capture swipes left until it shows.
