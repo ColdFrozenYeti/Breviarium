@@ -11,7 +11,7 @@ struct ReleaseNotesView: View {
 
     private static let releases: [Release] = [
         Release(name: "1.7", notes: [
-            "The iPhone Duo: Breviarium fills the whole open screen, and follows it as it folds and unfolds. Folded, it is the iPhone app as before.",
+            "The iPhone Duo: Breviarium fills the whole open screen, and follows it as it folds and unfolds. Open on its side, it shows two pages like an open book, with the Latin and the English facing each other. Folded, it is the iPhone app as before.",
             "Keep screen awake, under Reading in Settings: on, the screen never dims or locks while Breviarium is open.",
             "Thea, a tenth app icon: the initial B of the Psalter of Hanuš from Kolovrat, redrawn in pink.",
             "On a Dark Home Screen, the Northumberland Simple and Northumberland icons show Northumberland Inverted.",
