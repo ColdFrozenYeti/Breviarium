@@ -76,7 +76,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     }
 
     /// An icon name iOS remembers but the app no longer has reads as the default.
-    static var current: AppIconChoice {
+    @MainActor static var current: AppIconChoice {
         let name = UIApplication.shared.alternateIconName
         return allCases.first { $0.iconName == name } ?? .standard
     }
