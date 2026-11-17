@@ -15,7 +15,7 @@ struct ReleaseNotesView: View {
             "Keep screen awake, under Reading in Settings: on, the screen never dims or locks while Breviarium is open.",
             "Thea, a tenth app icon: the initial B of the Psalter of Hanuš from Kolovrat, redrawn in pink.",
             "On a Dark Home Screen, the Northumberland Simple and Northumberland icons show Northumberland Inverted.",
-            "A reminder turned on is scheduled every time on iOS 27, where it could be left out.",
+            "Reminders no longer wait for good if iOS doesn't answer: a change is still saved, and scheduled as soon as iOS responds.",
         ]),
         Release(name: "1.6.1", notes: [
             "Tapping a reminder opens its hour again, instead of closing the app.",

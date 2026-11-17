@@ -182,7 +182,14 @@ final class NotificationsUITests: BreviariumUITestCase {
 
     /// The real notification centre, once: Vespers on, the system's alert allowed, one
     /// request pending; then off again, so nothing is left scheduled on the simulator.
-    func testTheRealNotificationCentre() {
+    ///
+    /// Skipped when the simulator's notification service doesn't answer at all: on the
+    /// iOS 27.2 simulator (1.7, App CI runs 44071359508 to 44096015065) the alert appears
+    /// but no call to the notification centre ever returns, so the app's debug trace shows
+    /// its calls timing out. Decided 2026-11-17: skipped there, with the trace in the
+    /// skip's message, and a real reminder checked on the phone from TestFlight. The test
+    /// runs again by itself once a simulator's service answers.
+    func testTheRealNotificationCentre() throws {
         let app = openPage(mode: nil)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         flip(reminderSwitch(app, "Vespera"))
@@ -192,10 +199,15 @@ final class NotificationsUITests: BreviariumUITestCase {
             snap(XCUIScreen.main.screenshot(), "system-alert")
             allow.tap()
         }
-        let diagnostics = app.descendants(matching: .any)["remindersDiagnostics"]
+        let scheduled = pending(app, waitingFor: "hour.Vespera 18:00")
+        let trace = app.descendants(matching: .any)["remindersDiagnostics"].value as? String ?? ""
+        if scheduled.isEmpty, trace.contains("timed out") {
+            app.terminate()
+            throw XCTSkip("The simulator's notification service doesn't answer: \(trace)")
+        }
         XCTAssertEqual(
-            pending(app, waitingFor: "hour.Vespera 18:00"), "hour.Vespera 18:00",
-            "\(diagnostics.value as? String ?? "?"); refused footer: \(app.staticTexts["notificationsRefused"].exists)"
+            scheduled, "hour.Vespera 18:00",
+            "\(trace); refused footer: \(app.staticTexts["notificationsRefused"].exists)"
         )
         flip(reminderSwitch(app, "Vespera"))
         XCTAssertEqual(pending(app, waitingFor: ""), "")

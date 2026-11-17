@@ -42,7 +42,7 @@ final class ReminderCenter: ObservableObject {
             // A look that never answers (the iOS 27.2 simulator, 1.7) counts as never
             // asked: the request then answers with the current choice at once if one was
             // made, or shows the system's alert.
-            let current = await Self.withTimeout(5, default: ReminderPermission.undetermined) { [scheduler] in
+            let current = await Self.withTimeout(5, "on: permission", default: ReminderPermission.undetermined) { [scheduler] in
                 await scheduler.permission()
             }
             trace("on: \(current)")
@@ -69,7 +69,7 @@ final class ReminderCenter: ObservableObject {
     /// At launch, on coming to the foreground and when the page appears: notices a
     /// permission turned off in iOS Settings, and re-syncs.
     func refresh(_ settings: SettingsStore) async {
-        refused = await Self.withTimeout(5, default: ReminderPermission.undetermined) { [scheduler] in
+        refused = await Self.withTimeout(5, "refresh: permission", default: ReminderPermission.undetermined) { [scheduler] in
             await scheduler.permission()
         } == .refused
         if refused { turnAllOff(in: settings) }
@@ -91,7 +91,7 @@ final class ReminderCenter: ObservableObject {
             } else {
                 // A look that never answers is taken as allowed: a request added without
                 // permission is simply never shown.
-                allowed = await Self.withTimeout(5, default: ReminderPermission.allowed) {
+                allowed = await Self.withTimeout(5, "sync: permission", default: ReminderPermission.allowed) {
                     await scheduler.permission()
                 } != .refused
             }
@@ -99,10 +99,10 @@ final class ReminderCenter: ObservableObject {
             await scheduler.replace(Reminders.allIdentifiers, with: allowed ? wanted : [])
             #if DEBUG
             trace("sync: pending")
-            pendingSummary = await Self.withTimeout(5, default: ["(pending timed out)"]) {
+            pendingSummary = await Self.withTimeout(5, "sync: pending", default: [String]()) {
                 await scheduler.pending()
             }.joined(separator: ", ")
-            trace("sync: done " + (await Self.withTimeout(5, default: "(settings timed out)") {
+            trace("sync: done " + (await Self.withTimeout(5, "sync: settings", default: "") {
                 await scheduler.diagnostics()
             }))
             #endif
@@ -112,8 +112,10 @@ final class ReminderCenter: ObservableObject {
     /// The result of `operation`, or `value` if it hasn't answered within `seconds`. The
     /// notification centre's calls are awaited this way since one never answered on the
     /// iOS 27.2 simulator (1.7), and every later re-sync waited behind it.
+    /// A call that times out is noted in the debug trace as `<label> timed out`, which
+    /// the UI tests read.
     nonisolated static func withTimeout<T: Sendable>(
-        _ seconds: Double, default value: T, _ operation: @escaping @Sendable () async -> T
+        _ seconds: Double, _ label: String, default value: T, _ operation: @escaping @Sendable () async -> T
     ) async -> T {
         let once = ResumeOnce<T>()
         return await withCheckedContinuation { continuation in
@@ -121,13 +123,17 @@ final class ReminderCenter: ObservableObject {
             Task { once.resume(await operation()) }
             Task {
                 try? await Task.sleep(for: .seconds(seconds))
-                once.resume(value)
+                if once.resume(value) {
+                    #if DEBUG
+                    await MainActor.run { ReminderCenter.shared.trace("\(label) timed out") }
+                    #endif
+                }
             }
         }
     }
 
     /// What the reminders are doing, step by step, for the UI tests (`remindersDiagnostics`).
-    private func trace(_ step: String) {
+    func trace(_ step: String) {
         #if DEBUG
         diagnostics = String((diagnostics.isEmpty ? step : diagnostics + " > " + step).suffix(600))
         #endif
@@ -158,16 +164,19 @@ private final class ResumeOnce<T: Sendable>: @unchecked Sendable {
         }
     }
 
-    func resume(_ value: T) {
+    /// Whether this value is the one the continuation gets.
+    @discardableResult
+    func resume(_ value: T) -> Bool {
         lock.withLock {
-            guard !done else { return }
+            guard !done, pending == nil else { return false }
             if let continuation {
                 done = true
                 continuation.resume(returning: value)
                 self.continuation = nil
-            } else if pending == nil {
+            } else {
                 pending = value
             }
+            return true
         }
     }
 }

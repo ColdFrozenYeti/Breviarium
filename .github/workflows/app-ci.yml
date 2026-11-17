@@ -207,8 +207,9 @@ jobs:
         # Notifications 5, Dominican 3.6, WidgetGallery 3.1, Gallery 2; the iPad's
         # classes about 14, the Duo's about 8. A device's first pass costs about 6
         # minutes before its first test, and a never-booted iPad or Duo about 8 more to
-        # boot, so the second device of a job boots in the background while the iPhone
-        # classes run. The aim is about 33 minutes for every job.
+        # boot. (Booting it in the background while the iPhone classes ran was tried in
+        # run 44096015065 and crashed the iPhone's test runner: one device at a time.)
+        # The aim is about 36 minutes for every job.
         # Five jobs at once is the free plan's macOS limit (shared with promo.yml: never
         # run both together). PromoUITests is left out: it skips itself outside promo.yml.
         include:
@@ -216,13 +217,13 @@ jobs:
             classes: VespersMatrixUITests DayHoursUITests
           - group: launch-matins
             classes: LaunchAndNavigationUITests MatinsUITests
-          - group: theme-votive-ambrosian-dominican
-            classes: ThemeUITests VotiveOfficesUITests AmbrosianUITests DominicanUITests
+          - group: theme-votive-ambrosian
+            classes: ThemeUITests VotiveOfficesUITests AmbrosianUITests
           - group: notifications-ipad
             classes: NotificationsUITests WidgetGalleryUITests
             ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
-          - group: font-gallery-duo
-            classes: FontUITests GalleryUITests
+          - group: font-gallery-dominican-duo
+            classes: FontUITests GalleryUITests DominicanUITests
             duo_classes: DuoUITests
     name: ui-tests (${{ matrix.group }})
     env:
@@ -285,13 +286,6 @@ jobs:
               "${only[@]}"
           }
           status=0
-          # The second device boots in the background while the iPhone classes run
-          # (1.7: a never-booted iPad or Duo took 8 minutes to boot); its pass then finds
-          # it booted.
-          if [ -n "$CLASSES" ] && [ -z "$ONLY_TESTING" ]; then
-            if [ -n "$IPAD_CLASSES" ]; then (scripts/ci-simulator.sh ipad > /dev/null 2>&1 || true) & fi
-            if [ -n "$DUO_CLASSES" ]; then (scripts/ci-simulator.sh duo > /dev/null 2>&1 || true) & fi
-          fi
           if [ -n "$CLASSES" ]; then run_pass iphone "$CLASSES" TestResults.xcresult || status=$?; fi
           if [ -n "$IPAD_CLASSES" ]; then run_pass ipad "$IPAD_CLASSES" TestResults-iPad.xcresult || status=$?; fi
           if [ -n "$DUO_CLASSES" ]; then run_pass duo "$DUO_CLASSES" TestResults-Duo.xcresult || status=$?; fi

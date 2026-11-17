@@ -62,7 +62,7 @@ struct SystemReminderScheduler: ReminderScheduling {
             // Each add given 5 seconds: one that never answers mustn't hold up the rest
             // (the iOS 27.2 simulator, 1.7). The request is made inside, from the
             // reminder's plain values, so nothing that isn't Sendable crosses over.
-            let failure = await ReminderCenter.withTimeout(5, default: "add timed out" as String?) {
+            let failure = await ReminderCenter.withTimeout(5, "add", default: "add timed out" as String?) {
                 do {
                     try await UNUserNotificationCenter.current().add(Self.request(for: reminder))
                     return nil
