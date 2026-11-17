@@ -15,7 +15,8 @@ name: Promo captures
 # facing English (2853x2007, compose.py --duo-side), each pass in a folder of its own. The
 # Duo takes stills only: the tours are the iPhone's, and XCUITest's swipes don't reach
 # the open Duo's inner screen. A pass on the open Duo runs only if duo-open.sh confirmed
-# the screen (its `opened` output), so folded stills never pass for open ones.
+# the screen (its `opened` output), so folded stills never pass for open ones. App CI's
+# Duo pass confirmed the open screens, upright and on its side, in run 44182919305.
 on:
   push:
     branches-ignore: [main]
