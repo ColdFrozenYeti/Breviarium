@@ -3,7 +3,7 @@ import XCTest
 /// The reminders (1.6, `docs/1.6_plan.md` §5): the *Notifications* page, through the
 /// debug-only stand-in for the notification centre (`BREVIARIUM_NOTIFICATIONS`), which
 /// lists what is scheduled in `remindersPending`; one test uses the real centre. Run on
-/// the iPhone 17 and, in the iPad pass, on the iPad Air 11" (M3).
+/// the iPhone 17 and, in the iPad pass, on the iPad Air 11" (M4 since 1.7).
 final class NotificationsUITests: BreviariumUITestCase {
     private var device: String { UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone" }
 

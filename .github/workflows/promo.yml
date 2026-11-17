@@ -3,7 +3,7 @@ name: Promo captures
 # Promotional stills and screen recordings (2026-10-11), run by hand, or by a push to a
 # branch other than main that changes the promo tests (a dispatch needs the workflow on
 # main, and this lets the captures be tried before it is). Builds the
-# app, boots an iPhone 17 Pro Max simulator (6.9", the App Store's required screenshot
+# app, boots an iPhone 18 Pro Max simulator (17 Pro Max before 1.7's iOS 27 SDK) (6.9", the App Store's required screenshot
 # size) with a clean status bar, records its screen while PromoUITests runs, and uploads
 # the stills, the raw recording and a timestamped test log to cut it by. The editing
 # (captions, frames, the App Store preview) is done off CI, with ffmpeg.
@@ -19,7 +19,7 @@ on:
 
 jobs:
   capture:
-    runs-on: macos-26
+    runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
@@ -27,12 +27,12 @@ jobs:
         # matched as a prefix, as the iPad Pro's chip in the name changes by Xcode.
         include:
           - kind: iphone
-            device: "iPhone 17 Pro Max"
+            device: "iPhone 18 Pro Max"
           - kind: ipad
             device: "iPad Pro 13-inch"
     name: capture (${{ matrix.kind }})
     env:
-      XCODE_VERSION: "26.5"
+      XCODE_VERSION: "27.2"
     steps:
       - uses: actions/checkout@v7
         with:
