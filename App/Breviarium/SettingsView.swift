@@ -74,6 +74,9 @@ struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("menusPicker")
+                    // 1.7: the screen never dims or locks while the app is open.
+                    Toggle("Keep screen awake", isOn: $settings.keepScreenAwake)
+                        .accessibilityIdentifier("keepScreenAwakeToggle")
                 } header: {
                     Text("Reading")
                 }
