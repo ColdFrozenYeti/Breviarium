@@ -201,28 +201,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Rebalanced for 1.7 (Xcode 27.2, iOS 27.2 simulators, and the iPhone Duo): each
-        # simulator pass now costs 6 to 8 minutes before its first test (xcodebuild's
-        # first launch on a fresh device; run 44071359508), so the iPad and the Duo have
-        # passes of their own, and the iPhone classes are spread over the other jobs.
-        # Approximate test minutes in that run: VespersMatrix 10, DayHours 8.5,
-        # Ambrosian 8.3, Launch 7.5, Matins 7, Theme 6, Notifications 5, Dominican 4.7,
-        # Votive 4, Font 3.6, Gallery 3.5, WidgetGallery 2; the iPad's classes about 15.
+        # Rebalanced for 1.7 (Xcode 27.2, iOS 27.2 simulators, and the iPhone Duo) on the
+        # minutes each class took in run 44083214618: VespersMatrix 15, Launch 14.7,
+        # Matins 10.9, DayHours 10.4, Ambrosian 8.3, Theme 7.5, Font 7.4, Votive 6.3,
+        # Notifications 5, Dominican 3.6, WidgetGallery 3.1, Gallery 2; the iPad's
+        # classes about 14, the Duo's about 8. A device's first pass costs about 6
+        # minutes before its first test, and a never-booted iPad or Duo about 8 more to
+        # boot, so the second device of a job boots in the background while the iPhone
+        # classes run. The aim is about 33 minutes for every job.
         # Five jobs at once is the free plan's macOS limit (shared with promo.yml: never
-        # run both together). The aim is about 30 minutes for every job.
-        # PromoUITests is left out: it skips itself outside promo.yml.
+        # run both together). PromoUITests is left out: it skips itself outside promo.yml.
         include:
           - group: vespers-dayhours
-            classes: VespersMatrixUITests DayHoursUITests VotiveOfficesUITests
-          - group: matins-launch-theme
-            classes: MatinsUITests LaunchAndNavigationUITests ThemeUITests
-          - group: dominican-ambrosian-notifications
-            classes: DominicanUITests AmbrosianUITests NotificationsUITests WidgetGalleryUITests GalleryUITests
-          - group: ipad
+            classes: VespersMatrixUITests DayHoursUITests
+          - group: launch-matins
+            classes: LaunchAndNavigationUITests MatinsUITests
+          - group: theme-votive-ambrosian-dominican
+            classes: ThemeUITests VotiveOfficesUITests AmbrosianUITests DominicanUITests
+          - group: notifications-ipad
+            classes: NotificationsUITests WidgetGalleryUITests
             ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
-          - group: font-duo
-            classes: FontUITests
-            duo_classes: DuoUITests WidgetGalleryUITests
+          - group: font-gallery-duo
+            classes: FontUITests GalleryUITests
+            duo_classes: DuoUITests
     name: ui-tests (${{ matrix.group }})
     env:
       XCODE_VERSION: "27.2"
@@ -284,6 +285,13 @@ jobs:
               "${only[@]}"
           }
           status=0
+          # The second device boots in the background while the iPhone classes run
+          # (1.7: a never-booted iPad or Duo took 8 minutes to boot); its pass then finds
+          # it booted.
+          if [ -n "$CLASSES" ] && [ -z "$ONLY_TESTING" ]; then
+            if [ -n "$IPAD_CLASSES" ]; then (scripts/ci-simulator.sh ipad > /dev/null 2>&1 || true) & fi
+            if [ -n "$DUO_CLASSES" ]; then (scripts/ci-simulator.sh duo > /dev/null 2>&1 || true) & fi
+          fi
           if [ -n "$CLASSES" ]; then run_pass iphone "$CLASSES" TestResults.xcresult || status=$?; fi
           if [ -n "$IPAD_CLASSES" ]; then run_pass ipad "$IPAD_CLASSES" TestResults-iPad.xcresult || status=$?; fi
           if [ -n "$DUO_CLASSES" ]; then run_pass duo "$DUO_CLASSES" TestResults-Duo.xcresult || status=$?; fi

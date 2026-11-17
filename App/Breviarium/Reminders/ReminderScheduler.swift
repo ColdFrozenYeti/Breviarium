@@ -59,26 +59,38 @@ struct SystemReminderScheduler: ReminderScheduling {
         let kept = Set(reminders.map(\.identifier))
         center.removePendingNotificationRequests(withIdentifiers: identifiers.filter { !kept.contains($0) })
         for reminder in reminders {
-            // The hour's Latin title alone (decided 2026-11-14): no body, no subtitle, no
-            // badge; iOS shows the app's name above it. Never `.timeSensitive`, which
-            // needs an entitlement.
-            let content = UNMutableNotificationContent()
-            content.title = reminder.title
-            content.sound = .default
-            content.interruptionLevel = .active
-            // Every day at this time in the phone's local time, so it follows a change
-            // of time zone or summer time.
-            let trigger = UNCalendarNotificationTrigger(
-                dateMatching: DateComponents(hour: reminder.hour, minute: reminder.minute), repeats: true
-            )
-            do {
-                try await center.add(UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger))
-            } catch {
-                #if DEBUG
-                lastError.set("\(error)")
-                #endif
+            // Each add given 5 seconds: one that never answers mustn't hold up the rest
+            // (the iOS 27.2 simulator, 1.7). The request is made inside, from the
+            // reminder's plain values, so nothing that isn't Sendable crosses over.
+            let failure = await ReminderCenter.withTimeout(5, default: "add timed out" as String?) {
+                do {
+                    try await UNUserNotificationCenter.current().add(Self.request(for: reminder))
+                    return nil
+                } catch {
+                    return "\(error)"
+                }
             }
+            #if DEBUG
+            if let failure { lastError.set(failure) }
+            #else
+            _ = failure
+            #endif
         }
+    }
+
+    /// The hour's Latin title alone (decided 2026-11-14): no body, no subtitle, no badge;
+    /// iOS shows the app's name above it. Never `.timeSensitive`, which needs an
+    /// entitlement. Every day at this time in the phone's local time, so it follows a
+    /// change of time zone or summer time.
+    static func request(for reminder: ScheduledReminder) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = reminder.title
+        content.sound = .default
+        content.interruptionLevel = .active
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: DateComponents(hour: reminder.hour, minute: reminder.minute), repeats: true
+        )
+        return UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger)
     }
 
     #if DEBUG

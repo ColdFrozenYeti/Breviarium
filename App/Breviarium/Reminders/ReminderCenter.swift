@@ -38,17 +38,23 @@ final class ReminderCenter: ObservableObject {
         reminder.isOn = true
         settings.reminders[hour.key] = reminder
         Task {
-            let allowed = switch await scheduler.permission() {
+            trace("on: permission")
+            // A look that never answers (the iOS 27.2 simulator, 1.7) counts as never
+            // asked: the request then answers with the current choice at once if one was
+            // made, or shows the system's alert.
+            let current = await Self.withTimeout(5, default: ReminderPermission.undetermined) { [scheduler] in
+                await scheduler.permission()
+            }
+            trace("on: \(current)")
+            let allowed = switch current {
             case .allowed: true
             case .undetermined: await scheduler.requestPermission()
             case .refused: false
             }
+            trace("on: allowed=\(allowed)")
             refused = !allowed
             if allowed {
-                // The answer just given, not a fresh look: on iOS 27 the notification
-                // settings can still read "not determined" for a moment after *Allow*
-                // (App CI on the iOS 27.2 simulator, 1.7), and the re-sync scheduled
-                // nothing.
+                // The answer just given, not a fresh look.
                 sync(settings.reminders, allowed: true)
             } else {
                 turnAllOff(in: settings)
@@ -63,7 +69,9 @@ final class ReminderCenter: ObservableObject {
     /// At launch, on coming to the foreground and when the page appears: notices a
     /// permission turned off in iOS Settings, and re-syncs.
     func refresh(_ settings: SettingsStore) async {
-        refused = await scheduler.permission() == .refused
+        refused = await Self.withTimeout(5, default: ReminderPermission.undetermined) { [scheduler] in
+            await scheduler.permission()
+        } == .refused
         if refused { turnAllOff(in: settings) }
         sync(settings.reminders)
     }
@@ -76,23 +84,90 @@ final class ReminderCenter: ObservableObject {
         let previous = lastSync
         lastSync = Task { [scheduler] in
             await previous?.value
+            trace("sync: permission")
             let allowed: Bool
             if let known {
                 allowed = known
             } else {
-                allowed = await scheduler.permission() == .allowed
+                // A look that never answers is taken as allowed: a request added without
+                // permission is simply never shown.
+                allowed = await Self.withTimeout(5, default: ReminderPermission.allowed) {
+                    await scheduler.permission()
+                } != .refused
             }
+            trace("sync: replace allowed=\(allowed) wanted=\(wanted.count)")
             await scheduler.replace(Reminders.allIdentifiers, with: allowed ? wanted : [])
             #if DEBUG
-            pendingSummary = await scheduler.pending().joined(separator: ", ")
-            diagnostics = "allowed=\(allowed) wanted=\(wanted.count) " + (await scheduler.diagnostics())
+            trace("sync: pending")
+            pendingSummary = await Self.withTimeout(5, default: ["(pending timed out)"]) {
+                await scheduler.pending()
+            }.joined(separator: ", ")
+            trace("sync: done " + (await Self.withTimeout(5, default: "(settings timed out)") {
+                await scheduler.diagnostics()
+            }))
             #endif
         }
+    }
+
+    /// The result of `operation`, or `value` if it hasn't answered within `seconds`. The
+    /// notification centre's calls are awaited this way since one never answered on the
+    /// iOS 27.2 simulator (1.7), and every later re-sync waited behind it.
+    nonisolated static func withTimeout<T: Sendable>(
+        _ seconds: Double, default value: T, _ operation: @escaping @Sendable () async -> T
+    ) async -> T {
+        let once = ResumeOnce<T>()
+        return await withCheckedContinuation { continuation in
+            once.set(continuation)
+            Task { once.resume(await operation()) }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                once.resume(value)
+            }
+        }
+    }
+
+    /// What the reminders are doing, step by step, for the UI tests (`remindersDiagnostics`).
+    private func trace(_ step: String) {
+        #if DEBUG
+        diagnostics = String((diagnostics.isEmpty ? step : diagnostics + " > " + step).suffix(600))
+        #endif
     }
 
     private func turnAllOff(in settings: SettingsStore) {
         for (key, reminder) in settings.reminders where reminder.isOn {
             settings.reminders[key]?.isOn = false
+        }
+    }
+}
+
+/// Resumes a continuation once, whichever of two tasks answers first (`withTimeout`).
+private final class ResumeOnce<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Never>?
+    private var pending: T?
+    private var done = false
+
+    func set(_ continuation: CheckedContinuation<T, Never>) {
+        lock.withLock {
+            if let pending, !done {
+                done = true
+                continuation.resume(returning: pending)
+            } else if !done {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func resume(_ value: T) {
+        lock.withLock {
+            guard !done else { return }
+            if let continuation {
+                done = true
+                continuation.resume(returning: value)
+                self.continuation = nil
+            } else if pending == nil {
+                pending = value
+            }
         }
     }
 }
