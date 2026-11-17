@@ -43,7 +43,11 @@ final class ReminderCenter: ObservableObject {
             }
             refused = !allowed
             if allowed {
-                sync(settings.reminders)
+                // The answer just given, not a fresh look: on iOS 27 the notification
+                // settings can still read "not determined" for a moment after *Allow*
+                // (App CI on the iOS 27.2 simulator, 1.7), and the re-sync scheduled
+                // nothing.
+                sync(settings.reminders, allowed: true)
             } else {
                 turnAllOff(in: settings)
             }
@@ -63,13 +67,19 @@ final class ReminderCenter: ObservableObject {
     }
 
     /// Removes every reminder request, then adds the ones that are on (none without
-    /// permission). Called whenever the saved reminders change (`SettingsStore`).
-    func sync(_ reminders: [String: HourReminder]) {
+    /// permission). Called whenever the saved reminders change (`SettingsStore`);
+    /// `allowed` is passed when permission was just granted.
+    func sync(_ reminders: [String: HourReminder], allowed known: Bool? = nil) {
         let wanted = Reminders.scheduled(from: reminders)
         let previous = lastSync
         lastSync = Task { [scheduler] in
             await previous?.value
-            let allowed = await scheduler.permission() == .allowed
+            let allowed: Bool
+            if let known {
+                allowed = known
+            } else {
+                allowed = await scheduler.permission() == .allowed
+            }
             await scheduler.replace(Reminders.allIdentifiers, with: allowed ? wanted : [])
             #if DEBUG
             pendingSummary = await scheduler.pending().joined(separator: ", ")
