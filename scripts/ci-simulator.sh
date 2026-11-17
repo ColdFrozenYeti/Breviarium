@@ -67,8 +67,13 @@ if [ "$kind" = duo ] && [ "${BREVIARIUM_DUO_OPEN:-1}" = 1 ]; then
   duoctl_commit=c6ff3e961a9858fb061907448e702d7d1617dc4a  # v0.2.1, Xcode 27.2 support
   duoctl_dir="${RUNNER_TEMP:-/tmp}/duoctl"
   duoctl="$duoctl_dir/skills/duoctl/scripts/duoctl"
+  # A Duo booted by simctl alone had no active display for devicectl (duoctl: "no display
+  # is active"); Simulator.app showing the device activates one. Up to a minute for it.
+  open -a Simulator --args -CurrentDeviceUDID "$udid" >&2 || true
+  duoctl_ready() { DUOCTL_UDID="$udid" python3 "$duoctl" state > /dev/null 2>&1; }
   if { [ -x "$duoctl" ] || { git clone --quiet https://github.com/skarol/duoctl.git "$duoctl_dir" \
         && git -C "$duoctl_dir" checkout --quiet "$duoctl_commit"; }; } >&2 \
+     && { for _ in 1 2 3 4 5 6; do duoctl_ready && break; sleep 10; done; true; } \
      && DUOCTL_UDID="$udid" python3 "$duoctl" open >&2 \
      && DUOCTL_UDID="$udid" python3 "$duoctl" rotate portrait >&2; then
     echo "iPhone Duo opened:" >&2
