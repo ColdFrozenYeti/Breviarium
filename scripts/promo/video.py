@@ -16,8 +16,12 @@ Build tooling only (Pillow, and ffmpeg from imageio-ffmpeg or the PATH).
 
     python3 -B scripts/promo/video.py [--ipad] <recording.mov> <out-dir>
 
-The cut points are seconds into the recording, read off a frame sheet of the 11
-October 2026 run; a new recording needs them read again.
+The cut points are seconds into the recording, read off frame sheets of a full decode
+(the iPhone's from run 44207863935's HEVC recording, the iPad's from run 44190538517); a
+new recording needs them read again. Since 1.7 the iPhone records in HEVC: in H.264 the
+18 Pro Max's recording kept only the start of each animation. HEVC reorders frames, so a
+fast seek lands seconds off; the iPhone's clips are decoded from the start instead
+(EXACT), which the recording's few frames make quick.
 """
 import shutil
 import subprocess
@@ -33,21 +37,25 @@ from compose import FONTS, GOLD, GROUND_BOTTOM, GROUND_TOP, INK, RUBRIC, ROOT  #
 FPS = 30
 FADE = 0.4
 
-# (start, end, caption, subline), in the order shown.
+# (start, end, caption, subline), in the order shown: Christmas Vespers turning two
+# pages; the hours, to Compline; the Kalendarium scrolling, then Easter Lauds; English;
+# the theme gallery, Vellum chosen; Vellum Matins and a curl.
 SCENES = [
-    (265.6, 275.6, "Turn the page", "Christmas Vespers, set like a printed book"),
-    (287.0, 289.6, "Every hour", "From Matins to Compline"),
-    (292.6, 295.6, "Every hour", "From Matins to Compline"),
-    (309.4, 316.6, "Any day, any year", "Computed on your phone, with its colour"),
-    (329.8, 335.6, "Latin and English", "Side by side, verse by verse"),
-    (361.6, 363.6, "Eight themes", "And six typefaces"),
-    (372.6, 375.4, "Eight themes", "And six typefaces"),
-    (381.2, 386.8, "Eight themes", "And six typefaces"),
+    (318.5, 324.5, "Turn the page", "Christmas Vespers, set like a printed book"),
+    (351.0, 354.5, "Every hour", "From Matins to Compline"),
+    (357.5, 360.0, "Every hour", "From Matins to Compline"),
+    (396.0, 399.5, "Any day, any year", "Computed on your phone, with its colour"),
+    (417.5, 420.5, "Any day, any year", "Computed on your phone, with its colour"),
+    (454.5, 458.0, "Latin and English", "Side by side, verse by verse"),
+    (531.0, 534.5, "Eight themes", "And six typefaces"),
+    (546.5, 550.5, "Eight themes", "And six typefaces"),
 ]
 
-# The App Store preview's cut of the same scenes, kept under 30 seconds.
-PREVIEW = [(265.6, 275.0), (287.0, 289.4), (292.6, 295.0), (310.4, 316.0), (330.8, 334.8),
-           (361.6, 363.2), (372.8, 375.0), (381.2, 384.6)]
+# The App Store preview: the same scenes, 29.5 s in all, 26.7 s once cross-faded.
+PREVIEW = [(start, end) for start, end, _, _ in SCENES]
+
+# The iPhone's recording is HEVC (1.7): its clips are decoded from the start.
+EXACT = True
 
 # The iPad's preview (1.7), cut from run 44190538517's recording, read off its frame
 # sheets: (start, end, hold), the hold repeating the last frame for that many seconds, for
@@ -60,9 +68,13 @@ PREVIEW_IPAD = [(343.0, 356.6, 0.0), (142.0, 146.8, 0.0), (169.8, 172.1, 1.6), (
 LEAD = 20.0
 
 
-def seek(start: float, end: float, hold: float = 0.0) -> tuple[list[str], str]:
+def seek(start: float, end: float, hold: float = 0.0, exact: bool = False) -> tuple[list[str], str]:
     """The input options and the filter prefix that give exactly start..end, filled, and
-    then the last frame held for `hold` seconds."""
+    then the last frame held for `hold` seconds. `exact` decodes from the start of the
+    recording rather than seeking (an HEVC recording, whose fast seek lands off)."""
+    if exact:
+        return ([], f"fps={FPS},trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS,"
+                    f"tpad=stop_mode=clone:stop_duration={hold:.3f}")
     lead = min(LEAD, start)
     return (["-ss", f"{start - lead:.3f}", "-t", f"{end - start + lead:.3f}"],
             f"fps={FPS},tpad=stop_mode=clone:stop_duration={5 + hold:.3f},"
@@ -200,7 +212,7 @@ def main() -> None:
     clips, durations = [], []
     for index, (start, end) in enumerate(PREVIEW):
         clip = work / f"preview-{index}.mp4"
-        options, fill = seek(start, end)
+        options, fill = seek(start, end, exact=EXACT)
         run(*options, "-i", str(recording), "-an", "-vf",
             f"{fill},scale=886:-2:flags=lanczos,crop=886:1920:0:(ih-1920)/2,setsar=1",
             "-c:v", "libx264", "-crf", "12", "-pix_fmt", "yuv420p", str(clip))
@@ -232,9 +244,9 @@ def main() -> None:
         scene_background(caption, subline).save(background)
         clip = work / f"scene-{index}.mp4"
         length = f"{end - start:.3f}"
-        run("-loop", "1", "-t", length, "-i", str(background), *seek(start, end)[0], "-i", str(recording),
+        run("-loop", "1", "-t", length, "-i", str(background), *seek(start, end, exact=EXACT)[0], "-i", str(recording),
             "-loop", "1", "-t", length, "-i", str(mask), "-filter_complex",
-            f"[1:v]{seek(start, end)[1]},scale={SCREEN_W}:{SCREEN_H}:flags=lanczos,format=rgba[s];"
+            f"[1:v]{seek(start, end, exact=EXACT)[1]},scale={SCREEN_W}:{SCREEN_H}:flags=lanczos,format=rgba[s];"
             f"[2:v]format=gray,scale={SCREEN_W}:{SCREEN_H}[m];[s][m]alphamerge[r];"
             f"[0:v][r]overlay={SCREEN_X}:{SCREEN_Y}:shortest=1,fps={FPS},format=yuv420p",
             "-an", "-c:v", "libx264", "-crf", "12", str(clip))

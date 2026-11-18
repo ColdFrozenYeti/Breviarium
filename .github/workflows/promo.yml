@@ -26,8 +26,8 @@ on:
   workflow_dispatch:
     inputs:
       captures:
-        # A run by hand can take only some captures, e.g. "iphone-hevc iphone-17-pro-max".
-        description: "Captures to run, space-separated: iphone ipad duo (the defaults), iphone-hevc, iphone-17-pro-max, iphone-17"
+        # A run by hand can take only some captures, e.g. "iphone" or "iphone-tours".
+        description: "Captures to run, space-separated: iphone ipad duo (the defaults), iphone-tours"
         required: false
         default: "iphone ipad duo"
 
@@ -45,17 +45,15 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json, os
           # The App Store's sizes: 6.9" iPhone, 13" iPad (1.4) and the iPhone Duo (1.7).
-          # The other iPhones (1.7) only try other ways of recording the tours, after the
-          # 18 Pro Max's H.264 recording kept only the start of each animation (run
-          # 44190538517): HEVC on the same phone, the 17 Pro Max and the iPhone 17. They
-          # record the tours alone; their stills would be the same as the iPhone's.
+          # The iPhone records in HEVC (1.7): in H.264 the 18 Pro Max's recording kept only
+          # the start of each animation (run 44190538517), and so did the iPhone 17's; HEVC
+          # on the same phone recorded them whole (run 44207863935). The iPad's H.264 was
+          # clean. iphone-tours records the iPhone's tours alone, for a new app preview.
           all = [
-              {"label": "iphone", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "h264", "tours_only": False},
+              {"label": "iphone", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "hevc", "tours_only": False},
               {"label": "ipad", "kind": "ipad", "device": "iPad Pro 13-inch", "codec": "h264", "tours_only": False},
               {"label": "duo", "kind": "duo", "device": "iPhone Duo", "codec": "h264", "tours_only": False},
-              {"label": "iphone-hevc", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "hevc", "tours_only": True},
-              {"label": "iphone-17-pro-max", "kind": "iphone", "device": "iPhone 17 Pro Max", "codec": "h264", "tours_only": True},
-              {"label": "iphone-17", "kind": "iphone", "device": "iPhone 17", "codec": "h264", "tours_only": True},
+              {"label": "iphone-tours", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "hevc", "tours_only": True},
           ]
           wanted = os.environ["CAPTURES"].split()
           unknown = sorted(set(wanted) - {c["label"] for c in all})
