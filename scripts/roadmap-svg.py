@@ -7,16 +7,13 @@ W = 880
 ROW = 66
 TOP = 96
 rows = [
-    ("done", "Alpha", "Released", "Roman Vespers under the 1960 rubrics, computed for any date"),
-    ("done", "Beta 1", "Released", "The Vulgate psalter by default, and the parallel English"),
-    ("done", "Beta 2", "Released", "The day hours, Lauds to Compline, and the hour picker"),
-    ("done", "Beta 3", "Released", "Matins · the new app icon · the title block’s commemoration line"),
-    ("done", "Beta 4", "Released", "Little Office of Our Lady · Office of the Dead · Martyrology · colours"),
-    ("done", "Beta 5", "Released", "The Dominican rite (Ordo Prædicatorum, 1962)"),
-    ("done", "Beta 6", "Released", "Ambrosian Compline · English side by side · red rubrics"),
-    ("done", "1.0", "Released", "10 October 2026: the first roadmap complete"),
-    ("done", "1.1", "Released", "11 October 2026: Ambrosian Compline as prayed"),
-    ("next", "1.2", "Next", "A choice of fonts and colour themes · the phone and Ambrosian checks"),
+    ("done", "Alpha–1.0", "Released", "Roman and Dominican offices, Matins to Compline · Office of the Dead · Ambrosian Compline"),
+    ("done", "1.1", "Released", "Ambrosian Compline as prayed"),
+    ("done", "1.2–1.3", "Released", "Eight colour themes · six typefaces · nine app icons"),
+    ("done", "1.4", "Released", "Native on iPad: the open-book spread · the Kalendarium · visible menus"),
+    ("done", "1.5", "Released", "Home Screen and Lock Screen widgets"),
+    ("done", "1.6", "Released", "Reminders to pray the hours, scheduled on the device"),
+    ("next", "1.7", "Next", "iPhone Duo · Thea · Keep screen awake · the first App Store release"),
     ("goal", "2.0", "Goal", "Votive offices · Ambrosian Office of the Dead, Little Office, full office"),
     ("later", "Maybe", "Later", "The Monastic office"),
 ]
@@ -29,7 +26,7 @@ out = []
 a = out.append
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Breviarium roadmap</title>')
-a('<desc id="d">Alpha, Betas 1 to 6, 1.0 and 1.1 are released: the Roman office, Matins to Compline, the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline. 1.1 fixed Ambrosian Compline as prayed. Next: 1.2, a choice of fonts and colour themes, with the phone and Ambrosian checks alongside; the App Store release when the user decides; then 2.0: votive offices, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office once a complete source is found. Maybe later: the Monastic office.</desc>')
+a('<desc id="d">Released: the alpha to 1.0, the Roman office from Matins to Compline with the Little Office of Our Lady, the Office of the Dead, the Martyrology, the Dominican rite and Ambrosian Compline; 1.1, Ambrosian Compline as prayed; 1.2 and 1.3, colour themes, typefaces and app icons; 1.4, native iPad support with the open-book spread, the Kalendarium and visible menus; 1.5, widgets; 1.6, reminders. Next: 1.7, the iPhone Duo, the Thea icon and Keep screen awake, and the first App Store release. Then 2.0: votive offices, the Ambrosian Office of the Dead and Little Office, and the full Ambrosian office once a complete source is found. Maybe later: the Monastic office.</desc>')
 a(f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>')
 a(f'<text x="{X-24}" y="52" font-family="{serif}" font-size="30" font-weight="700" fill="{WHITE}" letter-spacing="1.5">ROADMAP</text>')
 a(f'<text x="{W-40}" y="52" text-anchor="end" font-family="{sans}" font-size="15" font-style="italic" fill="{RUBRIC}">Alpha to 2.0</text>')
