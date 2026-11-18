@@ -1,5 +1,10 @@
 # Breviarium — Alpha Implementation Plan
 
+> **A build log, kept as written.** This file grew from the alpha plan (September 2026) into
+> the log of every release since; its opening describes the project as it was then (a
+> private, sideloaded, night-mode-only iPhone app). For where things stand now, see
+> [`README.md`](../README.md) and [`CLAUDE.md`](../CLAUDE.md).
+
 ## Context
 
 Breviarium is a personal, offline iPhone app that computes and displays the traditional
