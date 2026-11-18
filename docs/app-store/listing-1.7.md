@@ -126,7 +126,7 @@ https://breviarium.eduardopavone.eu/
 |---|---|
 | Sign-in required | No |
 | Contact | your name, phone and email (filled in App Store Connect; not kept in the repository) |
-| Attachment | optional: a screen recording of the iPad spread and the Kalendarium, as asked for under 2.1 last time |
+| Attachment | `app-preview-ipad.mp4`, the iPad's app preview (attached 2026-11-18): the spread turning, the Kalendarium, the hours and the themes, the screen recording asked for under 2.1 last time |
 
 ### Notes (4,000)
 
