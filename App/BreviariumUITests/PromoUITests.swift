@@ -9,7 +9,8 @@ import XCTest
 /// The workflow runs them on an iPhone and on an iPad (1.4); the iPhone's stills and tours
 /// skip on the iPad and the iPad's (landscape, the two-page spread) on the iPhone.
 final class PromoUITests: BreviariumUITestCase {
-    override func setUpWithError() throws {
+    // Touches no UI, so it stays nonisolated whatever isolation XCTest gives the overridden method.
+    nonisolated override func setUpWithError() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["BREVIARIUM_PROMO"] == "1", "promo captures run in promo.yml only")
         continueAfterFailure = false
     }

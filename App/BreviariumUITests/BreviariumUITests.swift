@@ -3,6 +3,10 @@ import XCTest
 /// The shared helpers of the UI tests. The tests themselves are in five classes, by
 /// area, so App CI can run them on cloned simulators in parallel (B5-M0: as one class
 /// they ran one after another for about 32 minutes).
+// On the main actor (1.7): the iOS 27 SDK marks XCTest's UI calls as main-actor only, and
+// every UI test class descends from this one, so they all run there (about 1,900 warnings
+// before).
+@MainActor
 class BreviariumUITestCase: XCTestCase {
     /// Scrolls the Settings form until `element` is loaded: its lower rows (text size,
     /// About) exist only once scrolled into view, and the form outgrew the screen when
