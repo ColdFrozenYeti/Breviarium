@@ -42,3 +42,7 @@ design/reference/
 
 # Promo captures fetched from CI and composed locally (1.7-M5): not committed.
 promo-1.7/
+
+# Python tooling (scripts/): bytecode, and the venv scripts/widget-logo.py installs into
+__pycache__/
+venv/
