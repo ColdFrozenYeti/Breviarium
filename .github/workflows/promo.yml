@@ -104,8 +104,9 @@ jobs:
           runtimes = json.load(sys.stdin)["devices"]
           ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
           devices = [d for r in ios for d in sorted(runtimes[r], key=lambda d: d["name"], reverse=True)]
-          # The exact name first (the "iPhone 17" isn't the "iPhone 17 Pro Max"), else a
-          # prefix, as the iPad Pro's chip in the name changes by Xcode.
+          # The exact name first (so "iPhone 17" is not the "iPhone 17 Pro Max"), else a
+          # prefix, as the chip in the iPad Pro name changes by Xcode. No apostrophes here:
+          # this program is inside a single-quoted shell string.
           match = [d for d in devices if d["name"] == name] or [d for d in devices if d["name"].startswith(name)]
           print(match[0]["udid"])')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
