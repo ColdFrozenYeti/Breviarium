@@ -9,7 +9,8 @@ import XCTest
 /// The workflow runs them on an iPhone and on an iPad (1.4); the iPhone's stills and tours
 /// skip on the iPad and the iPad's (landscape, the two-page spread) on the iPhone.
 final class PromoUITests: BreviariumUITestCase {
-    override func setUpWithError() throws {
+    // Touches no UI, so it stays nonisolated whatever isolation XCTest gives the overridden method.
+    nonisolated override func setUpWithError() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["BREVIARIUM_PROMO"] == "1", "promo captures run in promo.yml only")
         continueAfterFailure = false
     }
@@ -17,6 +18,26 @@ final class PromoUITests: BreviariumUITestCase {
     private func pause(_ seconds: TimeInterval) { Thread.sleep(forTimeInterval: seconds) }
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    /// What promo.yml expects of the iPhone Duo in this pass (1.7): `open` (upright) or
+    /// `side`, from `TEST_RUNNER_BREVIARIUM_DUO_EXPECT`; empty elsewhere.
+    private var duoExpectation: String { ProcessInfo.processInfo.environment["BREVIARIUM_DUO_EXPECT"] ?? "" }
+
+    /// The iPhone Duo open (1.7): an iPhone whose window is over 600 pt on its short side
+    /// (669 x 951 upright). There a screen capture comes out black and swipes don't reach
+    /// the inner screen, so its stills capture the window and open later pages at their
+    /// section; promo.yml runs only the stills there (the tours are video made of swipes),
+    /// and a failed check doesn't stop the stills after it. Folded, the Duo is an
+    /// iPhone and takes the iPhone's path unchanged.
+    private func isOpenDuo(_ app: XCUIApplication) -> Bool {
+        let frame = app.windows.firstMatch.frame
+        return !isPad && min(frame.width, frame.height) > 600
+    }
+
+    /// A still: the window on the open Duo, the screen elsewhere (as before 1.7).
+    private func still(_ app: XCUIApplication, _ name: String) {
+        if isOpenDuo(app) { captureWindow(app, name) } else { capture(app, name) }
+    }
 
     /// A capture of the window, which in landscape keeps the screen's own orientation:
     /// `compose.py` turns it upright.
@@ -55,18 +76,29 @@ final class PromoUITests: BreviariumUITestCase {
         try XCTSkipIf(isPad, "the iPad has its own stills")
         // Christmas Vespers, page 1 and the psalmody, in Nox.
         var app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        let openDuo = isOpenDuo(app)
+        // promo.yml's open pass: stop at once if the Duo isn't open, rather than take the
+        // folded screen's stills for the open one's.
+        if duoExpectation == "open" {
+            XCTAssertTrue(openDuo, "the iPhone Duo isn't open: \(app.windows.firstMatch.frame)")
+        }
+        // On the open Duo, one step that goes wrong mustn't lose every still after it.
+        if openDuo { continueAfterFailure = true }
         pause(0.8)
-        capture(app, "promo-01-christmas-vespers")
-        app.swipeLeft()
-        pause(1.2)
-        capture(app, "promo-02-christmas-psalmody")
+        still(app, "promo-01-christmas-vespers")
+        // The psalmody: on the open Duo it already starts on page 1, so no second still.
+        if !openDuo {
+            app.swipeLeft()
+            pause(1.2)
+            still(app, "promo-02-christmas-psalmody")
+        }
         app.terminate()
 
         // Parallel English.
-        app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
-        app.swipeLeft()
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", section: openDuo ? "hymnus" : nil, english: true)
+        if !openDuo { app.swipeLeft() }
         pause(1.2)
-        capture(app, "promo-03-english")
+        still(app, "promo-03-english")
         app.terminate()
 
         // The hour picker and the calendar.
@@ -74,44 +106,44 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["hourPickerButton"].tap()
         XCTAssertTrue(app.buttons["hour-Laudes"].waitForExistence(timeout: 5))
         pause(1.0)
-        capture(app, "promo-04-hours")
+        still(app, "promo-04-hours")
         app.terminate()
 
         app = launchApp(date: "2026-12-25", pageTurn: "curl")
         app.buttons["calendarButton"].tap()
         XCTAssertTrue(app.navigationBars["Kalendarium"].waitForExistence(timeout: 5))
         pause(2.0)
-        capture(app, "promo-05-calendar")
+        still(app, "promo-05-calendar")
         app.terminate()
 
         // Matins of All Saints in Vellum and Gentium.
         app = launchApp(date: "2026-11-01", pageTurn: "curl", hour: "Matutinum", theme: "vellum", font: "gentium")
         pause(0.8)
-        capture(app, "promo-06-vellum-matins")
+        still(app, "promo-06-vellum-matins")
         app.terminate()
 
         // Lauds in Media nox.
         app = launchApp(date: "2027-03-28", pageTurn: "curl", hour: "Laudes", theme: "midnightBlue")
         pause(0.8)
-        capture(app, "promo-07-easter-lauds")
+        still(app, "promo-07-easter-lauds")
         app.terminate()
 
         // The theme gallery.
         app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", theme: "sepia")
         openSettingsRow(app, "themePicker", title: "Theme")
         pause(1.0)
-        capture(app, "promo-08-themes")
+        still(app, "promo-08-themes")
         app.terminate()
 
         // The Dominican office on St Dominic's day, and Ambrosian Compline.
         app = launchApp(date: "2027-08-04", pageTurn: "curl", hour: "Vespera", rite: "dominicanus")
         pause(0.8)
-        capture(app, "promo-09-dominican")
+        still(app, "promo-09-dominican")
         app.terminate()
 
         app = launchApp(date: "2026-12-25", pageTurn: "curl", hour: "Completorium", rite: "ambrosianus")
         pause(0.8)
-        capture(app, "promo-10-ambrosian")
+        still(app, "promo-10-ambrosian")
         app.terminate()
 
         // Settings.
@@ -119,7 +151,46 @@ final class PromoUITests: BreviariumUITestCase {
         app.buttons["settingsButton"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         pause(1.0)
-        capture(app, "promo-11-settings")
+        still(app, "promo-11-settings")
+        app.terminate()
+    }
+
+    /// The open iPhone Duo on its side (1.7), turned by duoctl before this pass: the
+    /// two-page spread and Latin and English on facing pages, for the inner screen's
+    /// landscape screenshots (2853x2007, `compose.py --duo-side`). Window captures, which
+    /// keep the screen's own orientation; compose.py turns them. Each still is checked to be
+    /// a true spread, never one page in two columns.
+    func testPromoStillsDuoSide() throws {
+        try XCTSkipUnless(duoExpectation == "side", "the Duo on its side runs in promo.yml's own pass")
+        var app = launchApp(date: "2026-12-25", pageTurn: "curl")
+        let frame = app.windows.firstMatch.frame
+        XCTAssertTrue(frame.width > frame.height && frame.height > 600, "the iPhone Duo isn't open on its side: \(frame)")
+        continueAfterFailure = true
+
+        func spread(_ app: XCUIApplication, _ name: String) {
+            pause(1.2)
+            let counter = app.staticTexts["pageCounter"]
+            XCTAssertEqual(counter.value as? String, "spread", "\(name): \(counter.label)")
+            captureWindow(app, name)
+        }
+
+        // Christmas Vespers on a spread.
+        spread(app, "duo-side-01-spread")
+        app.terminate()
+
+        // Latin and English on facing pages.
+        app = launchApp(date: "2026-12-25", pageTurn: "curl", english: true)
+        spread(app, "duo-side-02-facing")
+        app.terminate()
+
+        // Matins of All Saints in Vellum and Gentium, facing pages.
+        app = launchApp(date: "2026-11-01", pageTurn: "curl", english: true, hour: "Matutinum", theme: "vellum", font: "gentium")
+        spread(app, "duo-side-03-vellum-matins")
+        app.terminate()
+
+        // The Dominican office on St Dominic's day, on a spread.
+        app = launchApp(date: "2027-08-04", pageTurn: "curl", hour: "Vespera", rite: "dominicanus")
+        spread(app, "duo-side-04-dominican")
         app.terminate()
     }
 

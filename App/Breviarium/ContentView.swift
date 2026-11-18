@@ -68,7 +68,11 @@ struct ContentView: View {
             .task { await ReminderCenter.shared.refresh(settings) }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await ReminderCenter.shared.refresh(settings) } }
+                // Keep screen awake (1.7): set again each time the app comes to the front,
+                // as iOS may have reset it while the app was away.
+                if phase == .active { ScreenAwake.apply(settings.keepScreenAwake) }
             }
+            .onAppear { ScreenAwake.apply(settings.keepScreenAwake) }
     }
 
     /// Opens a widget's or a reminder's link: its hour and date, under the app's own

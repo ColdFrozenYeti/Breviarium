@@ -28,6 +28,10 @@ protocol ReminderScheduling: Sendable {
     func replace(_ identifiers: [String], with reminders: [ScheduledReminder]) async
     /// What is scheduled, `hour.Vespera 18:00`, for the UI tests.
     func pending() async -> [String]
+    #if DEBUG
+    /// The system's notification settings and the last error, for the UI tests.
+    func diagnostics() async -> String
+    #endif
 }
 
 /// The real one: local notifications only (1.6, `docs/1.6_plan.md`). No push, no
@@ -48,23 +52,56 @@ struct SystemReminderScheduler: ReminderScheduling {
 
     func replace(_ identifiers: [String], with reminders: [ScheduledReminder]) async {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        // Only the ones no longer wanted: a request added under an identifier already
+        // pending replaces it. Removing them all first raced the adds on iOS 27 (1.7, App
+        // CI on the iOS 27.2 simulator): the removal, which isn't awaited, could land
+        // after the new request and take it away.
+        let kept = Set(reminders.map(\.identifier))
+        center.removePendingNotificationRequests(withIdentifiers: identifiers.filter { !kept.contains($0) })
         for reminder in reminders {
-            // The hour's Latin title alone (decided 2026-11-14): no body, no subtitle, no
-            // badge; iOS shows the app's name above it. Never `.timeSensitive`, which
-            // needs an entitlement.
-            let content = UNMutableNotificationContent()
-            content.title = reminder.title
-            content.sound = .default
-            content.interruptionLevel = .active
-            // Every day at this time in the phone's local time, so it follows a change
-            // of time zone or summer time.
-            let trigger = UNCalendarNotificationTrigger(
-                dateMatching: DateComponents(hour: reminder.hour, minute: reminder.minute), repeats: true
-            )
-            try? await center.add(UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger))
+            // Each add given 5 seconds: one that never answers mustn't hold up the rest
+            // (the iOS 27.2 simulator, 1.7). The request is made inside, from the
+            // reminder's plain values, so nothing that isn't Sendable crosses over.
+            let failure = await ReminderCenter.withTimeout(5, "add", default: "add timed out" as String?) {
+                do {
+                    try await UNUserNotificationCenter.current().add(Self.request(for: reminder))
+                    return nil
+                } catch {
+                    return "\(error)"
+                }
+            }
+            #if DEBUG
+            if let failure { lastError.set(failure) }
+            #else
+            _ = failure
+            #endif
         }
     }
+
+    /// The hour's Latin title alone (decided 2026-11-14): no body, no subtitle, no badge;
+    /// iOS shows the app's name above it. Never `.timeSensitive`, which needs an
+    /// entitlement. Every day at this time in the phone's local time, so it follows a
+    /// change of time zone or summer time.
+    static func request(for reminder: ScheduledReminder) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = reminder.title
+        content.sound = .default
+        content.interruptionLevel = .active
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: DateComponents(hour: reminder.hour, minute: reminder.minute), repeats: true
+        )
+        return UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger)
+    }
+
+    #if DEBUG
+    /// The last error from `add`, for the UI tests' status line.
+    let lastError = LastError()
+
+    func diagnostics() async -> String {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        return "auth=\(settings.authorizationStatus.rawValue) alert=\(settings.alertSetting.rawValue) error=\(lastError.get() ?? "none")"
+    }
+    #endif
 
     func pending() async -> [String] {
         await UNUserNotificationCenter.current().pendingNotificationRequests().compactMap { request in
@@ -103,8 +140,20 @@ actor StandInReminderScheduler: ReminderScheduling {
         scheduled += reminders
     }
 
+    func diagnostics() -> String { "stand-in" }
+
     func pending() -> [String] {
         scheduled.map { "\($0.identifier) \(String(format: "%02d:%02d", $0.hour, $0.minute))" }.sorted()
     }
+}
+#endif
+
+#if DEBUG
+/// The last scheduling error, kept for the UI tests' status line (`diagnostics()`).
+final class LastError: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String?
+    func set(_ text: String) { lock.withLock { value = text } }
+    func get() -> String? { lock.withLock { value } }
 }
 #endif

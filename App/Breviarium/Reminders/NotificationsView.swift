@@ -35,6 +35,13 @@ struct NotificationsView: View {
                 .accessibilityIdentifier("remindersPending")
                 .accessibilityValue(center.pendingSummary)
         }
+        .overlay(alignment: .bottomLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("remindersDiagnostics")
+                .accessibilityValue(center.diagnostics)
+        }
         #endif
     }
 

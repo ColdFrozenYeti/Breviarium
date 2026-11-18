@@ -3,7 +3,7 @@ import XCTest
 /// The widgets (1.5, `docs/1.5_plan.md` §4), photographed from the app's debug-only
 /// gallery (`WidgetGalleryView`), which draws each widget's own face at the device's
 /// widget sizes from the widget's data file. Run on the iPhone 17 and, in the iPad pass,
-/// on the iPad Air 11" (M3); the captures' names say which.
+/// on the iPad Air 11" (M4 since 1.7); the captures' names say which.
 final class WidgetGalleryUITests: BreviariumUITestCase {
     private var device: String { UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone" }
 

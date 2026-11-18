@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The Home Screen icon (added 1 October 2026; four icons since 6 October, six since
-/// 10 October, nine since 1.2, with *Northumberland Simple* the primary one and the first
+/// 10 October, nine since 1.2, ten since 1.7, with *Northumberland Simple* the primary one and the first
 /// default renamed *Walters*): the user's
 /// designs, each an icon set in `Assets.xcassets` with a small `IconPreview…` image beside
 /// it, since SwiftUI can't draw an app icon set. iOS remembers the choice itself, so
@@ -22,6 +22,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     case gutenberg
     case churchOfAmbrose
     case weissenau
+    /// 1.7: the user's tenth design, from the *Psalter of Hanuš from Kolovrat* (CC BY-SA 4.0).
+    case thea
 
     var id: Self { self }
 
@@ -38,6 +40,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .gutenberg: "AppIconGutenberg"
         case .churchOfAmbrose: "AppIconChurchOfAmbrose"
         case .weissenau: "AppIconWeissenau"
+        case .thea: "AppIconThea"
         }
     }
 
@@ -53,6 +56,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .gutenberg: "IconPreviewGutenberg"
         case .churchOfAmbrose: "IconPreviewChurchOfAmbrose"
         case .weissenau: "IconPreviewWeissenau"
+        case .thea: "IconPreviewThea"
         }
     }
 
@@ -67,11 +71,12 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .gutenberg: "Gutenberg"
         case .churchOfAmbrose: "ChurchofAmbrose"
         case .weissenau: "Weissenau"
+        case .thea: "Thea"
         }
     }
 
     /// An icon name iOS remembers but the app no longer has reads as the default.
-    static var current: AppIconChoice {
+    @MainActor static var current: AppIconChoice {
         let name = UIApplication.shared.alternateIconName
         return allCases.first { $0.iconName == name } ?? .standard
     }

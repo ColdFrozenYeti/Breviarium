@@ -36,11 +36,11 @@ permissions:
 
 jobs:
   build-ipa:
-    runs-on: macos-26
+    runs-on: xcode-27
     env:
-      # Pinned explicitly, matching app-ci.yml -- see docs/PLAN.md, Risks
-      # ("Xcode/SDK version drift").
-      XCODE_VERSION: "26.5"
+      # Pinned explicitly, matching app-ci.yml (the iOS 27 SDK since 1.7) -- see
+      # docs/PLAN.md, Risks ("Xcode/SDK version drift").
+      XCODE_VERSION: "27.2"
 
     steps:
       - uses: actions/checkout@v7

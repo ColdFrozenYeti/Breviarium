@@ -105,6 +105,15 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(menus.rawValue, forKey: Keys.menus) }
     }
 
+    /// Keep screen awake (1.7, decided 2026-11-17): off by default; on, the screen never
+    /// dims or locks while the app is open (`ScreenAwake`).
+    @Published var keepScreenAwake: Bool {
+        didSet {
+            defaults.set(keepScreenAwake, forKey: Keys.keepScreenAwake)
+            ScreenAwake.apply(keepScreenAwake)
+        }
+    }
+
     /// The reminders (1.6), by `OfficeHour.key`: all off when nothing is saved. Every
     /// change re-syncs what the system has scheduled.
     @Published var reminders: [String: HourReminder] {
@@ -130,6 +139,7 @@ final class SettingsStore: ObservableObject {
         static let font = "settings.font"
         static let menus = "settings.menus"
         static let reminders = "settings.reminders"
+        static let keepScreenAwake = "settings.keepScreenAwake"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -152,6 +162,7 @@ final class SettingsStore: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(ThemeChoice.init(rawValue:)) ?? .classicDark
         font = defaults.string(forKey: Keys.font).flatMap(FontChoice.init(rawValue:)) ?? .serif
         menus = defaults.string(forKey: Keys.menus).flatMap(MenuStyle.init(rawValue:)) ?? .standard
+        keepScreenAwake = bool(Keys.keepScreenAwake, default: false)
         // Saved as JSON data. A UI test pins them with `-settings.reminders {}` (all off),
         // or sets some through `BREVIARIUM_SNAPSHOT_REMINDERS` (JSON, debug builds only).
         var remindersJSON = defaults.data(forKey: Keys.reminders)

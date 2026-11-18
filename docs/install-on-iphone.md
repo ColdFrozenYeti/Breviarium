@@ -1,10 +1,11 @@
 # Installing Breviarium on your iPhone (free Apple ID, from Windows)
 
-No Apple Developer Program membership, no App Store Connect, no TestFlight (until the
-planned App Store release, which needs the paid membership). CI produces
-an **unsigned** `.ipa`; a sideloading tool on Windows signs it with your free Apple ID and
-puts it on your iPhone. This is the M0 exit criterion and the routine for every install
-after that.
+**Sideloading is now the fallback.** Since the Apple Developer Program was joined (11
+October 2026), versions go to TestFlight (`testflight.yml`), and from 1.7 the App Store
+(*Breviarium 1962: Divine Office*) is meant to be the normal way to install. This guide is
+for installing without either: CI produces an **unsigned** `.ipa`; a sideloading tool on
+Windows signs it with a free Apple ID and puts it on an iPhone or iPad. It was the M0 exit
+criterion and the routine for every install until TestFlight.
 
 This was researched fresh rather than from memory (see Sources at the end) since
 sideloading tools change quickly.

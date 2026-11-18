@@ -3,6 +3,10 @@ import XCTest
 /// The shared helpers of the UI tests. The tests themselves are in five classes, by
 /// area, so App CI can run them on cloned simulators in parallel (B5-M0: as one class
 /// they ran one after another for about 32 minutes).
+// On the main actor (1.7): the iOS 27 SDK marks XCTest's UI calls as main-actor only, and
+// every UI test class descends from this one, so they all run there (about 1,900 warnings
+// before).
+@MainActor
 class BreviariumUITestCase: XCTestCase {
     /// Scrolls the Settings form until `element` is loaded: its lower rows (text size,
     /// About) exist only once scrolled into view, and the form outgrew the screen when
@@ -272,12 +276,52 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         releaseNotes.tap()
         XCTAssertTrue(app.navigationBars["Release notes"].waitForExistence(timeout: 5))
         // The newest release heads the list.
-        XCTAssertTrue(app.staticTexts["1.6"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1.7"].waitForExistence(timeout: 5))
         let notes = XCTAttachment(screenshot: app.screenshot())
         notes.name = "settings-release-notes"
         notes.lifetime = .keepAlways
         add(notes)
     }
+    /// Keep screen awake (1.7): under *Reading*, off by default, and remembered across a
+    /// relaunch. The idle timer itself can't be seen in the simulator; the phone checks
+    /// that the screen stays lit. Turned off again at the end, so no later test inherits it.
+    func testKeepScreenAwake() {
+        func openSettings(_ app: XCUIApplication) -> XCUIElement {
+            app.buttons["settingsButton"].tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+            let toggle = app.switches["keepScreenAwakeToggle"]
+            scrollSettings(to: toggle, in: app)
+            XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+            return toggle
+        }
+        func isOn(_ toggle: XCUIElement) -> Bool { (toggle.value as? String) == "1" }
+        func flip(_ toggle: XCUIElement) {
+            let before = isOn(toggle)
+            toggle.tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            if isOn(toggle) == before { toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        }
+
+        let app = launchApp(date: "2026-09-16")
+        var toggle = openSettings(app)
+        XCTAssertEqual(toggle.label, "Keep screen awake")
+        XCTAssertFalse(isOn(toggle), "Keep screen awake is off by default")
+        flip(toggle)
+        XCTAssertTrue(isOn(toggle))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "settings-keep-screen-awake-on"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.terminate()
+
+        let again = launchApp(date: "2026-09-16")
+        toggle = openSettings(again)
+        XCTAssertTrue(isOn(toggle), "the choice is remembered")
+        flip(toggle)
+        XCTAssertFalse(isOn(toggle))
+        again.terminate()
+    }
+
     /// Beta 3's icon on the simulator's Home Screen: the app is installed and launched
     /// once, then the Home button shows SpringBoard. A freshly installed app lands on the
     /// last Home Screen page, so the capture swipes left until it shows.
@@ -383,7 +427,7 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
     }
 
     /// The app icon choice in Settings (added 1 October 2026; a gallery of four since
-    /// 6 October, six since 10 October). The switch itself raises a system alert outside the app, so the test
+    /// 6 October, six since 10 October, ten since 1.7). The switch itself raises a system alert outside the app, so the test
     /// checks the row and the gallery of choices only.
     func testAppIconPicker() {
         let app = launchApp(date: "2026-09-16")
@@ -396,9 +440,9 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
         XCTAssertTrue(picker.label.contains("Northumberland Simple"), "the row names the current icon: \(picker.label)")
         picker.tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 5))
-        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau")] {
+        for (icon, label) in [("standard", "Northumberland Simple"), ("northumberland", "Northumberland"), ("northumberlandInverted", "Northumberland Inverted"), ("walters", "Walters"), ("benedictus", "Benedictus"), ("gutenbergMono", "Gutenberg (mono)"), ("gutenberg", "Gutenberg"), ("churchOfAmbrose", "ChurchofAmbrose"), ("weissenau", "Weissenau"), ("thea", "Thea")] {
             let tile = app.buttons["appIcon-\(icon)"]
-            // Nine icons are taller than the screen, and the grid is lazy.
+            // Ten icons (1.7) are taller than the screen, and the grid is lazy.
             var swipes = 0
             while !tile.exists, swipes < 4 {
                 app.swipeUp()
@@ -407,6 +451,10 @@ final class LaunchAndNavigationUITests: BreviariumUITestCase {
             XCTAssertTrue(tile.exists, "missing icon \(icon)")
             XCTAssertEqual(tile.label, label)
         }
+        // The end of the gallery, Thea's tile included: the tiles can all be found
+        // without scrolling (1.7), so the capture scrolls there itself.
+        app.swipeUp()
+        app.swipeUp()
         Thread.sleep(forTimeInterval: 0.4)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())

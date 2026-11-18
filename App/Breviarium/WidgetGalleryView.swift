@@ -95,11 +95,17 @@ struct WidgetSizes {
     var rectangular: CGSize
     var inline: CGSize
 
+    /// By the window scene's screen, not `UIScreen.main` or the device idiom, which Apple
+    /// says not to rely on for the iPhone Duo (1.7): an iPhone whose open screen is about
+    /// 669 pt wide. Its widget sizes aren't in the table we have, so it takes the iPad's,
+    /// the nearest; the Duo's real ones are checked on the device.
     @MainActor static var current: WidgetSizes {
-        let screen = UIScreen.main.bounds.size
+        let screen = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.screen.bounds.size }
+            .first ?? CGSize(width: 402, height: 874)
         let width = min(screen.width, screen.height)
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            // iPad Air 11" (M3) and the 820-point iPads.
+        if width >= 600 {
+            // iPad Air 11" (M4) and the 820-point iPads; the iPhone Duo held open.
             return WidgetSizes(
                 small: 155, medium: CGSize(width: 342, height: 155), large: CGSize(width: 342, height: 342),
                 circular: CGSize(width: 72, height: 72), rectangular: CGSize(width: 160, height: 72), inline: CGSize(width: 234, height: 26)

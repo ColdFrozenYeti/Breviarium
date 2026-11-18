@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Cuts the promo videos from promo.yml's screen recording (PromoUITests' tours).
 
-Two outputs, both H.264 with a silent AAC track:
+Two outputs, both H.264 (High Profile, Level 4.0) with a silent stereo AAC track:
   - app-preview.mp4: the App Store app preview, 886x1920 at 30 fps, under 30 s, the
     recording alone;
   - promo.mp4: a 1080x1920 promo for social media, the recording in a gold-edged frame
     under a caption per scene, between a title card and a closing card, in the style of
     compose.py's screenshots.
 
+With --ipad (1.7), one output from the iPad's recording: app-preview-ipad.mp4, the
+13" iPad's App Store preview, 1600x1200 in landscape at 30 fps, under 30 s (the spread
+turning with the curl, the Kalendarium, the hours and the themes).
+
 Build tooling only (Pillow, and ffmpeg from imageio-ffmpeg or the PATH).
 
-    python3 -B scripts/promo/video.py <recording.mov> <out-dir>
+    python3 -B scripts/promo/video.py [--ipad] <recording.mov> <out-dir>
 
 The cut points are seconds into the recording, read off a frame sheet of the 11
 October 2026 run; a new recording needs them read again.
@@ -45,17 +49,24 @@ SCENES = [
 PREVIEW = [(265.6, 275.0), (287.0, 289.4), (292.6, 295.0), (310.4, 316.0), (330.8, 334.8),
            (361.6, 363.2), (372.8, 375.0), (381.2, 384.6)]
 
+# The iPad's preview (1.7), cut from run 44190538517's recording, read off its frame
+# sheets: (start, end, hold), the hold repeating the last frame for that many seconds, for
+# a menu that the test closes too soon after opening it.
+PREVIEW_IPAD = [(343.0, 356.6, 0.0), (142.0, 146.8, 0.0), (169.8, 172.1, 1.6), (229.6, 232.25, 1.8)]
+
 # The simulator's recording has a frame only when the screen changes, so a scene that
 # opens on a still page would have no frame at its start: each scene is read from
 # LEAD seconds earlier, and the fps filter repeats the last frame through the gap.
 LEAD = 20.0
 
 
-def seek(start: float, end: float) -> tuple[list[str], str]:
-    """The input options and the filter prefix that give exactly start..end, filled."""
+def seek(start: float, end: float, hold: float = 0.0) -> tuple[list[str], str]:
+    """The input options and the filter prefix that give exactly start..end, filled, and
+    then the last frame held for `hold` seconds."""
     lead = min(LEAD, start)
     return (["-ss", f"{start - lead:.3f}", "-t", f"{end - start + lead:.3f}"],
-            f"fps={FPS},tpad=stop_mode=clone:stop_duration=5,trim=start={lead:.3f}:duration={end - start:.3f},setpts=PTS-STARTPTS")
+            f"fps={FPS},tpad=stop_mode=clone:stop_duration={5 + hold:.3f},"
+            f"trim=start={lead:.3f}:duration={end - start + hold:.3f},setpts=PTS-STARTPTS")
 
 
 def ffmpeg() -> str:
@@ -151,16 +162,39 @@ def xfade_chain(clips: list[Path], durations: list[float], out: Path, extra: lis
     run(
         *inputs, "-f", "lavfi", "-t", f"{total:.3f}", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
         "-filter_complex", ";".join(filters) if filters else "[0:v]null[v0]", "-map", f"[{last if filters else 'v0'}]",
-        "-map", f"{len(clips)}:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-r", str(FPS),
+        "-map", f"{len(clips)}:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level:v", "4.0", "-r", str(FPS),
         "-b:v", "10M", "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", *extra, str(out),
     )
     print(out, f"{total:.1f} s")
 
 
+def ipad_preview(recording: Path, out: Path, work: Path) -> None:
+    """The iPad's App Store preview: 1600x1200. The recording keeps the screen's portrait
+    orientation (2064x2752), so each clip is turned to landscape first."""
+    clips, durations = [], []
+    for index, (start, end, hold) in enumerate(PREVIEW_IPAD):
+        clip = work / f"ipad-{index}.mp4"
+        options, fill = seek(start, end, hold)
+        run(*options, "-i", str(recording), "-an", "-vf",
+            f"{fill},transpose=2,scale=1600:1200:flags=lanczos,setsar=1",
+            "-c:v", "libx264", "-crf", "12", "-pix_fmt", "yuv420p", str(clip))
+        clips.append(clip)
+        durations.append(end - start + hold)
+    xfade_chain(clips, durations, out / "app-preview-ipad.mp4", [])
+
+
 def main() -> None:
-    recording, out = Path(sys.argv[1]), Path(sys.argv[2])
+    args = sys.argv[1:]
+    ipad = bool(args) and args[0] == "--ipad"
+    if ipad:
+        args = args[1:]
+    recording, out = Path(args[0]), Path(args[1])
     out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(dir=out))
+    if ipad:
+        ipad_preview(recording, out, work)
+        shutil.rmtree(work)
+        return
 
     # The App Store preview: the scenes alone, 886x1920.
     clips, durations = [], []

@@ -3,7 +3,7 @@ import XCTest
 /// The reminders (1.6, `docs/1.6_plan.md` §5): the *Notifications* page, through the
 /// debug-only stand-in for the notification centre (`BREVIARIUM_NOTIFICATIONS`), which
 /// lists what is scheduled in `remindersPending`; one test uses the real centre. Run on
-/// the iPhone 17 and, in the iPad pass, on the iPad Air 11" (M3).
+/// the iPhone 17 and, in the iPad pass, on the iPad Air 11" (M4 since 1.7).
 final class NotificationsUITests: BreviariumUITestCase {
     private var device: String { UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone" }
 
@@ -182,7 +182,15 @@ final class NotificationsUITests: BreviariumUITestCase {
 
     /// The real notification centre, once: Vespers on, the system's alert allowed, one
     /// request pending; then off again, so nothing is left scheduled on the simulator.
-    func testTheRealNotificationCentre() {
+    ///
+    /// Skipped when the simulator's notification service doesn't work: on the iOS 27.2
+    /// simulator (1.7, App CI runs 44071359508 to 44106547009) the iPhone's never answers
+    /// (the alert appears, but no call returns, so the app's debug trace shows its calls
+    /// timing out), and the iPad's says the app is allowed, then refuses its request as
+    /// "Source is not authorized". Decided 2026-11-17: skipped there, with the trace in the
+    /// skip's message, and a real reminder checked on the phone from TestFlight. The test
+    /// runs again by itself once a simulator's service answers.
+    func testTheRealNotificationCentre() throws {
         let app = openPage(mode: nil)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         flip(reminderSwitch(app, "Vespera"))
@@ -192,7 +200,21 @@ final class NotificationsUITests: BreviariumUITestCase {
             snap(XCUIScreen.main.screenshot(), "system-alert")
             allow.tap()
         }
-        XCTAssertEqual(pending(app, waitingFor: "hour.Vespera 18:00"), "hour.Vespera 18:00")
+        let scheduled = pending(app, waitingFor: "hour.Vespera 18:00")
+        let trace = app.descendants(matching: .any)["remindersDiagnostics"].value as? String ?? ""
+        // The simulator's service either never answers (the iPhone 17 on iOS 27.2) or
+        // answers that the app is allowed and then refuses to save its request as "not
+        // authorized" (the iPad Air on iOS 27.2, run 44106547009). Neither is the app's.
+        let silent = trace.contains("timed out")
+        let contradicts = trace.contains("auth=2") && trace.contains("Source is not authorized")
+        if scheduled.isEmpty, silent || contradicts {
+            app.terminate()
+            throw XCTSkip("The simulator's notification service \(silent ? "doesn't answer" : "refuses an allowed app"): \(trace)")
+        }
+        XCTAssertEqual(
+            scheduled, "hour.Vespera 18:00",
+            "\(trace); refused footer: \(app.staticTexts["notificationsRefused"].exists)"
+        )
         flip(reminderSwitch(app, "Vespera"))
         XCTAssertEqual(pending(app, waitingFor: ""), "")
         app.terminate()

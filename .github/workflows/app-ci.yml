@@ -66,12 +66,14 @@ jobs:
   build:
     needs: changes
     if: needs.changes.outputs.run == 'true'
-    runs-on: macos-26
+    runs-on: xcode-27
     env:
       # Pinned explicitly rather than trusting the runner image's rolling default --
-      # see docs/PLAN.md, Risks ("Xcode/SDK version drift"). Confirmed present on the
-      # macos-26 GA image as of M0; revisit if GitHub deprecates that image.
-      XCODE_VERSION: "26.5"
+      # see docs/PLAN.md, Risks ("Xcode/SDK version drift"). Since 1.7 the iOS 27 SDK
+      # (27.1 or later is what makes the app native on the iPhone Duo), on GitHub's
+      # xcode-27 image (Xcode 27.0, 27.1 and 27.2; the iPhone Duo simulator is on
+      # iOS 27.1 and 27.2). The deployment target stays iOS 26.0.
+      XCODE_VERSION: "27.2"
 
     steps:
       - uses: actions/checkout@v7
@@ -156,6 +158,29 @@ jobs:
             fi
           done
 
+      # 1.7: on a Dark Home Screen, Northumberland Simple (the primary icon) and
+      # Northumberland show Northumberland Inverted: each set carries a dark appearance,
+      # which must reach the compiled catalog for the alternate icon as well.
+      - name: Check the dark app icons
+        working-directory: App
+        run: |
+          set -euo pipefail
+          CAR=DerivedData/Build/Products/Debug-iphonesimulator/Breviarium.app/Assets.car
+          xcrun --sdk iphonesimulator assetutil --info "$CAR" > assets.json
+          python3 - <<'PY'
+          import json, sys
+          entries = [e for e in json.load(open("assets.json")) if isinstance(e, dict)]
+          def dark(name):
+              return [e for e in entries if e.get("Name") == name
+                      and any("dark" in str(v).lower() for k, v in e.items() if "appearance" in k.lower())]
+          missing = [n for n in ("AppIcon", "AppIconNorthumberland") if not dark(n)]
+          for n in ("AppIcon", "AppIconNorthumberland", "AppIconThea"):
+              print(n, sorted({str(e.get("Appearance", "")) for e in entries if e.get("Name") == n}))
+          if missing:
+              print("No dark rendition for:", missing, file=sys.stderr)
+              sys.exit(1)
+          PY
+
       # A tarball keeps the bundles' symlinks and permissions, which an artifact alone drops.
       - name: Pack the test build
         working-directory: App/DerivedData/Build
@@ -168,43 +193,42 @@ jobs:
           retention-days: 1
 
   ui-tests:
-    # A hung simulator once held a group for 90 minutes (2026-11-12); the longest group
-    # takes about 25.
-    timeout-minutes: 45
+    # A hung simulator once held a group for 90 minutes (2026-11-12). 45 until 1.7, when
+    # Xcode 27's slower simulator start-up took the iPad group past it (run 44071359508).
+    timeout-minutes: 60
     needs: build
-    runs-on: macos-26
+    runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
-        # Balanced on the classes' test times in run 43338295712 (13 November 2026), in
-        # seconds: VespersMatrix 603, DayHours 506, Matins 424, LaunchAndNavigation 420,
-        # Dominican 411, Theme 343, Ambrosian 301, VotiveOffices 231, Font 214, Gallery
-        # 212; each job also spends about 7 minutes setting up. `ipad_classes` run after
-        # the others, on an iPad Air 11-inch (M3) (1.4): five jobs at once is the free
-        # plan's macOS limit, so the iPad joins a group rather than adding a sixth job.
-        # In run 43476364041 the iPad pass took about 14 minutes (3.5 of tests, the rest
-        # making and booting the iPad), so it runs after the quickest group, not Matins
-        # (which took 12 minutes alone there). In run 43654040196 (14 November 2026) the
-        # groups took 24, 17 (matins), 25, 36 and 20 minutes, so the reminders' tests
-        # (1.6) join Matins on the iPhone, with GalleryUITests moved there to make room
-        # for them in the iPad pass, which keeps its one iPad boot (a second group's
-        # fresh iPad was not found by xcodebuild in run 43661019769).
-        # PromoUITests is left out: it skips itself outside promo.yml.
+        # Rebalanced for 1.7 (Xcode 27.2, iOS 27.2 simulators, and the iPhone Duo) on the
+        # minutes each class took in run 44083214618: VespersMatrix 15, Launch 14.7,
+        # Matins 10.9, DayHours 10.4, Ambrosian 8.3, Theme 7.5, Font 7.4, Votive 6.3,
+        # Notifications 5, Dominican 3.6, WidgetGallery 3.1, Gallery 2; the iPad's
+        # classes about 14, the Duo's about 8. A device's first pass costs about 6
+        # minutes before its first test, and a never-booted iPad or Duo about 8 more to
+        # boot. (Booting it in the background while the iPhone classes ran was tried in
+        # run 44096015065 and crashed the iPhone's test runner: one device at a time.)
+        # The iPad's own pass took 14 minutes to start in run 44106547009, so it has a job
+        # to itself. The aim is about 40 minutes for every job.
+        # Five jobs at once is the free plan's macOS limit (shared with promo.yml: never
+        # run both together). PromoUITests is left out: it skips itself outside promo.yml.
         include:
-          - group: vespers-font
-            classes: VespersMatrixUITests FontUITests
-          - group: matins
-            classes: MatinsUITests NotificationsUITests GalleryUITests
-          - group: day-hours-votive
-            classes: DayHoursUITests VotiveOfficesUITests
-          - group: launch-theme
-            classes: LaunchAndNavigationUITests ThemeUITests WidgetGalleryUITests
-          - group: dominican-ambrosian-gallery-ipad
-            classes: DominicanUITests AmbrosianUITests
+          - group: vespers-dayhours-dominican-notifications
+            classes: VespersMatrixUITests DayHoursUITests DominicanUITests NotificationsUITests
+          - group: launch-matins-widgets
+            classes: LaunchAndNavigationUITests MatinsUITests WidgetGalleryUITests
+          - group: theme-votive-ambrosian
+            classes: ThemeUITests VotiveOfficesUITests AmbrosianUITests
+          - group: ipad
             ipad_classes: IPadUITests WidgetGalleryUITests NotificationsUITests
+          - group: font-gallery-duo
+            classes: FontUITests GalleryUITests
+            duo_classes: DuoUITests
+            duo_side_classes: DuoSideUITests
     name: ui-tests (${{ matrix.group }})
     env:
-      XCODE_VERSION: "26.5"
+      XCODE_VERSION: "27.2"
     steps:
       - name: Select Xcode ${{ env.XCODE_VERSION }}
         run: sudo xcode-select -switch /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -228,12 +252,15 @@ jobs:
         env:
           CLASSES: ${{ matrix.classes }}
           IPAD_CLASSES: ${{ matrix.ipad_classes }}
+          DUO_CLASSES: ${{ matrix.duo_classes }}
+          DUO_SIDE_CLASSES: ${{ matrix.duo_side_classes }}
           ONLY_TESTING: ${{ inputs.only_testing }}
         run: |
           set -euo pipefail
           XCTESTRUN=$(ls build/Products/*.xctestrun | head -1)
-          # One pass per device: the group's iPhone classes, then its iPad classes, each
-          # on its own simulator (scripts/ci-simulator.sh) and in its own result bundle.
+          # One pass per device: the group's iPhone classes, then its iPad or iPhone Duo
+          # classes, each on its own simulator (scripts/ci-simulator.sh) and in its own
+          # result bundle.
           run_pass() {
             local device=$1 classes=$2 bundle=$3
             local only=()
@@ -263,6 +290,9 @@ jobs:
           status=0
           if [ -n "$CLASSES" ]; then run_pass iphone "$CLASSES" TestResults.xcresult || status=$?; fi
           if [ -n "$IPAD_CLASSES" ]; then run_pass ipad "$IPAD_CLASSES" TestResults-iPad.xcresult || status=$?; fi
+          if [ -n "$DUO_CLASSES" ]; then run_pass duo "$DUO_CLASSES" TestResults-Duo.xcresult || status=$?; fi
+          # The open Duo on its side (duoctl turns it; XCUIDevice can't).
+          if [ -n "$DUO_SIDE_CLASSES" ]; then run_pass duo-side "$DUO_SIDE_CLASSES" TestResults-DuoSide.xcresult || status=$?; fi
           exit $status
 
       - name: Upload test results
@@ -294,6 +324,21 @@ jobs:
               --path TestResults-iPad.xcresult \
               --output-path Snapshots/ipad \
               --legacy || echo "No iPad attachments found."
+          fi
+          # The iPhone Duo's (1.7), likewise.
+          if [ -d TestResults-Duo.xcresult ]; then
+            mkdir -p Snapshots/duo
+            xcrun xcresulttool export attachments \
+              --path TestResults-Duo.xcresult \
+              --output-path Snapshots/duo \
+              --legacy || echo "No iPhone Duo attachments found."
+          fi
+          if [ -d TestResults-DuoSide.xcresult ]; then
+            mkdir -p Snapshots/duo-side
+            xcrun xcresulttool export attachments \
+              --path TestResults-DuoSide.xcresult \
+              --output-path Snapshots/duo-side \
+              --legacy || echo "No iPhone Duo (on its side) attachments found."
           fi
 
       - name: Upload snapshot PNGs
