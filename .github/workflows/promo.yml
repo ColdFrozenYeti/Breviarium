@@ -24,23 +24,54 @@ on:
       - ".github/workflows/promo.yml"
       - "App/BreviariumUITests/PromoUITests.swift"
   workflow_dispatch:
+    inputs:
+      captures:
+        # A run by hand can take only some captures, e.g. "iphone-hevc iphone-17-pro-max".
+        description: "Captures to run, space-separated: iphone ipad duo (the defaults), iphone-hevc, iphone-17-pro-max, iphone-17"
+        required: false
+        default: "iphone ipad duo"
 
 jobs:
+  # The captures this run takes: every default on a push, those asked for by hand.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        env:
+          CAPTURES: ${{ inputs.captures || 'iphone ipad duo' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          # The App Store's sizes: 6.9" iPhone, 13" iPad (1.4) and the iPhone Duo (1.7).
+          # The other iPhones (1.7) only try other ways of recording the tours, after the
+          # 18 Pro Max's H.264 recording kept only the start of each animation (run
+          # 44190538517): HEVC on the same phone, the 17 Pro Max and the iPhone 17. They
+          # record the tours alone; their stills would be the same as the iPhone's.
+          all = [
+              {"label": "iphone", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "h264", "tours_only": False},
+              {"label": "ipad", "kind": "ipad", "device": "iPad Pro 13-inch", "codec": "h264", "tours_only": False},
+              {"label": "duo", "kind": "duo", "device": "iPhone Duo", "codec": "h264", "tours_only": False},
+              {"label": "iphone-hevc", "kind": "iphone", "device": "iPhone 18 Pro Max", "codec": "hevc", "tours_only": True},
+              {"label": "iphone-17-pro-max", "kind": "iphone", "device": "iPhone 17 Pro Max", "codec": "h264", "tours_only": True},
+              {"label": "iphone-17", "kind": "iphone", "device": "iPhone 17", "codec": "h264", "tours_only": True},
+          ]
+          wanted = os.environ["CAPTURES"].split()
+          unknown = sorted(set(wanted) - {c["label"] for c in all})
+          if unknown:
+              raise SystemExit(f"unknown captures: {unknown}")
+          print("matrix=" + json.dumps([c for c in all if c["label"] in wanted]))
+          PY
+
   capture:
+    needs: plan
     runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
-        # The App Store's required sizes: 6.9" iPhone, and 13" iPad (1.4). The name is
-        # matched as a prefix, as the iPad Pro's chip in the name changes by Xcode.
-        include:
-          - kind: iphone
-            device: "iPhone 18 Pro Max"
-          - kind: ipad
-            device: "iPad Pro 13-inch"
-          - kind: duo
-            device: "iPhone Duo"
-    name: capture (${{ matrix.kind }})
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: capture (${{ matrix.label }})
     env:
       XCODE_VERSION: "27.2"
     steps:
@@ -72,7 +103,11 @@ jobs:
           name = os.environ["DEVICE"]
           runtimes = json.load(sys.stdin)["devices"]
           ios = sorted((r for r in runtimes if "iOS" in r), reverse=True)
-          print(next(d["udid"] for r in ios for d in sorted(runtimes[r], key=lambda d: d["name"], reverse=True) if d["name"].startswith(name)))')
+          devices = [d for r in ios for d in sorted(runtimes[r], key=lambda d: d["name"], reverse=True)]
+          # The exact name first (the "iPhone 17" isn't the "iPhone 17 Pro Max"), else a
+          # prefix, as the iPad Pro's chip in the name changes by Xcode.
+          match = [d for d in devices if d["name"] == name] or [d for d in devices if d["name"].startswith(name)]
+          print(match[0]["udid"])')
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID"
@@ -100,16 +135,21 @@ jobs:
           # No recording on the Duo, which takes stills only.
           REC=""
           if [ "${{ matrix.kind }}" != duo ]; then
-            xcrun simctl io "$UDID" recordVideo --codec h264 --force Promo/recording.mov &
+            xcrun simctl io "$UDID" recordVideo --codec ${{ matrix.codec }} --force Promo/recording.mov &
             REC=$!
             sleep 3
           fi
           # The folded Duo takes the iPhone's stills only, not its tours.
           ONLY=BreviariumUITests/PromoUITests
           if [ "${{ matrix.kind }}" = duo ]; then ONLY=BreviariumUITests/PromoUITests/testPromoStills; fi
+          # A recording trial takes the tours only.
+          SKIP=""
+          if [ "${{ matrix.tours_only }}" = true ]; then
+            SKIP="-skip-testing:BreviariumUITests/PromoUITests/testPromoStills"
+          fi
           xcodebuild test-without-building -project Breviarium.xcodeproj -scheme Breviarium \
             -destination "id=$UDID" -derivedDataPath build -parallel-testing-enabled NO \
-            -only-testing:"$ONLY" -resultBundlePath Promo.xcresult 2>&1 \
+            -only-testing:"$ONLY" $SKIP -resultBundlePath Promo.xcresult 2>&1 \
             | perl -MTime::HiRes=time -ne '$|=1; printf "%.3f %s", time, $_' | tee Promo/test-log.txt
           STATUS=${PIPESTATUS[0]}
           # A recorder that stopped by itself mustn't fail the step (run 44190538517).
@@ -189,6 +229,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: promo-${{ matrix.kind }}
+          name: promo-${{ matrix.label }}
           path: App/Promo
           if-no-files-found: ignore
