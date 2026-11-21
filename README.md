@@ -14,7 +14,7 @@ The app computes the office itself for any date, set like a printed book, with e
 colour themes and six typefaces. It is fully offline (no account, no tracking, no data
 collected) and free software under the GPL.
 
-On the App Store it will be **Breviarium 1962: Divine Office**: 1.7 is the version
+On the App Store it will be **Breviarium 1960: Divine Office**: 1.7 is the version
 prepared for its first release (see *Installing*).
 
 ## Status: 1.7
@@ -72,7 +72,7 @@ Monastic office is a *maybe, later*.
 
 ## Installing
 
-- **The App Store** (once 1.7 is released there): *Breviarium 1962: Divine Office*, for
+- **The App Store** (once 1.7 is released there): *Breviarium 1960: Divine Office*, for
   iPhone, iPad and iPhone Duo with iOS 26 or later. This will be the normal way to
   install it.
 - **TestFlight**, for trying a version before its release, by invitation.

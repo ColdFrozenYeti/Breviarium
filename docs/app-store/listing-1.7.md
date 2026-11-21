@@ -6,7 +6,7 @@ against Apple's limit in the table at the end. The app is not on the App Store y
 was rejected under 4.2 on 2026-10-28), so 1.7 is its first release.
 
 Rules this follows (`CLAUDE.md`, *Before the App Store release*):
-- the name is *Breviarium 1962: Divine Office*; the name on the phone stays *Breviarium*;
+- the name is *Breviarium 1960: Divine Office*; the name on the phone stays *Breviarium*;
 - the description says plainly, at the start, that this is the 1962 office and not the
   current Liturgy of the Hours (Universalis's request, 2026-10-16). It doesn't name
   Universalis: App Review's guideline 2.3.7 keeps other apps' names out of the metadata.
@@ -17,7 +17,7 @@ Rules this follows (`CLAUDE.md`, *Before the App Store release*):
 
 | Field | Value |
 |---|---|
-| Name (30) | Breviarium 1962: Divine Office |
+| Name (30) | Breviarium 1960: Divine Office |
 | Subtitle (30) | see below |
 | Primary category | Reference (unchanged, if already set) |
 | Secondary category | Books (optional) |
@@ -82,7 +82,7 @@ Made by one person, for the Church's prayer. Corrections are welcome through the
 
 ### Keywords (100, commas, no spaces)
 
-The name's words (Breviarium, 1962, Divine, Office) are indexed already, so they aren't repeated.
+The name's words (Breviarium, 1960, Divine, Office) are indexed already, so they aren't repeated.
 
 ```
 breviary,latin,catholic,traditional,hours,prayer,vespers,compline,matins,psalter,dominican,ambrosian

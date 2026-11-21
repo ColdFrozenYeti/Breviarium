@@ -2,7 +2,7 @@
 
 **Sideloading is now the fallback.** Since the Apple Developer Program was joined (11
 October 2026), versions go to TestFlight (`testflight.yml`), and from 1.7 the App Store
-(*Breviarium 1962: Divine Office*) is meant to be the normal way to install. This guide is
+(*Breviarium 1960: Divine Office*) is meant to be the normal way to install. This guide is
 for installing without either: CI produces an **unsigned** `.ipa`; a sideloading tool on
 Windows signs it with a free Apple ID and puts it on an iPhone or iPad. It was the M0 exit
 criterion and the routine for every install until TestFlight.
